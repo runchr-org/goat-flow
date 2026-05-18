@@ -201,6 +201,22 @@ function checkCodexPermissionProfileCoversSecrets(parsed: unknown): boolean {
 }
 
 /** Collect workspace-root relative Codex permission patterns with mode "none". */
+function collectCodexDeniedWorkspaceRootPattern(
+  key: string,
+  value: unknown,
+  inlineTableKey: string,
+  prefix: string,
+): string[] {
+  if (key === inlineTableKey && typeof value === "string") {
+    return parseTomlInlineStringTable(value)
+      .filter(([, mode]) => mode === "none")
+      .map(([pattern]) => pattern);
+  }
+  if (value !== "none" || !key.startsWith(prefix)) return [];
+  const pattern = key.slice(prefix.length);
+  return pattern ? [pattern] : [];
+}
+
 function collectCodexDeniedWorkspaceRootPatterns(
   parsed: unknown,
   profileName: string,
@@ -213,15 +229,13 @@ function collectCodexDeniedWorkspaceRootPatterns(
   for (const [key, value] of Object.entries(
     parsed as Record<string, unknown>,
   )) {
-    if (key === inlineTableKey && typeof value === "string") {
-      for (const [pattern, mode] of parseTomlInlineStringTable(value)) {
-        if (mode === "none") denied.add(pattern);
-      }
-      continue;
-    }
-    if (value === "none" && key.startsWith(prefix)) {
-      const pattern = key.slice(prefix.length);
-      if (pattern) denied.add(pattern);
+    for (const pattern of collectCodexDeniedWorkspaceRootPattern(
+      key,
+      value,
+      inlineTableKey,
+      prefix,
+    )) {
+      denied.add(pattern);
     }
   }
   return denied;

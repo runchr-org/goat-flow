@@ -4,7 +4,11 @@
  * instruction sections, boundary guidance). Content-quality judgments (e.g. footgun evidence
  * currency) live in the `quality` assessment prompt, not here.
  */
-import type { AuditContext, HarnessCheck } from "../types.js";
+import type {
+  AuditContext,
+  HarnessCheck,
+  HarnessCheckDetails,
+} from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { getRequiredInstructionSections } from "../../manifest/manifest.js";
 import { pass, fail, extractBacktickPaths } from "./helpers.js";
@@ -99,9 +103,7 @@ const instructionLineCount: HarnessCheck = {
     const findings: string[] = [];
     const recs: string[] = [];
     const fixes: string[] = [];
-    const lineCounts: NonNullable<
-      import("../types.js").HarnessCheckDetails["lineCounts"]
-    > = [];
+    const lineCounts: NonNullable<HarnessCheckDetails["lineCounts"]> = [];
     let anyFail = false;
     const limit = ctx.config.config.lineLimits.limit;
     const target = ctx.config.config.lineLimits.target;
@@ -173,9 +175,7 @@ const executionLoopPresent: HarnessCheck = {
     const stepWords = ["read", "scope", "act", "verify"];
     const findings: string[] = [];
     const recs: string[] = [];
-    const executionLoop: NonNullable<
-      import("../types.js").HarnessCheckDetails["executionLoop"]
-    > = [];
+    const executionLoop: NonNullable<HarnessCheckDetails["executionLoop"]> = [];
     let anyFail = false;
 
     for (const af of ctx.agents) {
@@ -367,7 +367,9 @@ const docPathsResolve: HarnessCheck = {
       if (findings.length > 0) {
         return fail(
           findings,
-          ["Fix missing docs and add backtick-quoted file paths for drift detection"],
+          [
+            "Fix missing docs and add backtick-quoted file paths for drift detection",
+          ],
           undefined,
           details,
         );
@@ -410,9 +412,7 @@ const instructionSectionsPresent: HarnessCheck = {
     const findings: string[] = [];
     const recs: string[] = [];
     const fixes: string[] = [];
-    const sections: NonNullable<
-      import("../types.js").HarnessCheckDetails["sections"]
-    > = [];
+    const sections: NonNullable<HarnessCheckDetails["sections"]> = [];
     let anyFail = false;
 
     const requiredSections = getRequiredInstructionSections();
@@ -484,9 +484,7 @@ const boundaryGuidancePresentCheck: HarnessCheck = {
   run: (ctx) => {
     const findings: string[] = [];
     const missing: string[] = [];
-    const boundary: NonNullable<
-      import("../types.js").HarnessCheckDetails["boundary"]
-    > = [];
+    const boundary: NonNullable<HarnessCheckDetails["boundary"]> = [];
 
     for (const af of ctx.agents) {
       if (!af.instruction.exists || !af.instruction.content) {

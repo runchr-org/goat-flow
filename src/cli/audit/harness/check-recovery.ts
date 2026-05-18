@@ -2,7 +2,7 @@
  * Recovery concern: Can the agent resume after crash or compaction?
  * 2 checks: milestone-tracking, session-logs.
  */
-import type { HarnessCheck } from "../types.js";
+import type { HarnessCheck, HarnessCheckDetails } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 import { collectMarkdownFiles } from "./helpers.js";
@@ -46,9 +46,7 @@ const milestoneTracking: HarnessCheck = {
   /** Run the Milestone tracking configured check. */
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
-    const buildDetails = (
-      fileCount: number,
-    ): import("../types.js").HarnessCheckDetails => ({
+    const buildDetails = (fileCount: number): HarnessCheckDetails => ({
       recovery: ctx.agents.map((af) => ({
         agent: af.agent.id,
         dir: tasksDir,
@@ -100,9 +98,7 @@ const sessionLogs: HarnessCheck = {
   /** Run the Session logs directory check. */
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
-    const buildDetails = (
-      fileCount: number,
-    ): import("../types.js").HarnessCheckDetails => ({
+    const buildDetails = (fileCount: number): HarnessCheckDetails => ({
       recovery: ctx.agents.map((af) => ({
         agent: af.agent.id,
         dir: logsDir,

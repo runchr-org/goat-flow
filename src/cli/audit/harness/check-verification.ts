@@ -3,7 +3,11 @@
  * 4 checks: hooks-registered, commit-guidance, evidence-before-claims,
  * post-turn-hook-integrity.
  */
-import type { AuditContext, HarnessCheck } from "../types.js";
+import type {
+  AuditContext,
+  HarnessCheck,
+  HarnessCheckDetails,
+} from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 
@@ -18,6 +22,22 @@ const RED_FLAG_CLAUSES = [
 ] as const;
 const RATIONALISATIONS_PATH = ".goat-flow/skill-reference/skill-preamble.md";
 const RATIONALISATIONS_HEADING = "Rationalisations to reject";
+
+function verificationDetails(
+  ctx: AuditContext,
+  reasonForAgent: (agent: AuditContext["agents"][number]) => {
+    reason: string;
+    expected?: string;
+    actual?: string;
+  },
+): HarnessCheckDetails {
+  return {
+    verification: ctx.agents.map((agent) => ({
+      agent: agent.agent.id,
+      ...reasonForAgent(agent),
+    })),
+  };
+}
 
 /** Return the verification provenance. */
 function verificationProvenance(
@@ -60,6 +80,27 @@ const hooksRegistered: HarnessCheck = {
     const recs: string[] = [];
     const fixes: string[] = [];
     let anyFail = false;
+    const details = verificationDetails(ctx, (af) => {
+      if (af.hooks.postTurnRegistered && !af.hooks.postTurnExists) {
+        return {
+          reason: "post-turn hook registered but file missing",
+          expected: "registered hook file exists",
+          actual: "registered without file",
+        };
+      }
+      if (af.hooks.postTurnExists && !af.hooks.postTurnRegistered) {
+        return {
+          reason: "post-turn hook file exists but is not registered",
+          expected: "existing hook is registered",
+          actual: "file present, registration missing",
+        };
+      }
+      return {
+        reason: "hook registrations and files are in sync",
+        expected: "registration and file state match",
+        actual: "in sync",
+      };
+    });
     for (const af of ctx.agents) {
       if (af.hooks.postTurnRegistered && !af.hooks.postTurnExists) {
         findings.push(
@@ -80,8 +121,8 @@ const hooksRegistered: HarnessCheck = {
         anyFail = true;
       }
     }
-    if (anyFail) return fail(findings, recs, fixes);
-    return pass(["Hook registrations and files are in sync"]);
+    if (anyFail) return fail(findings, recs, fixes, details);
+    return pass(["Hook registrations and files are in sync"], details);
   },
 };
 
@@ -97,8 +138,21 @@ const commitGuidance: HarnessCheck = {
   /** Run the Commit guidance present check. */
   run: (ctx) => {
     const guidance = ctx.facts.shared.gitCommitInstructions;
+    const details = verificationDetails(ctx, () => ({
+      reason: guidance.exists
+        ? "commit guidance present"
+        : guidance.misplacedPaths.length > 0
+          ? "commit guidance misplaced"
+          : "commit guidance missing",
+      expected: guidance.requiredPath,
+      actual:
+        guidance.path ??
+        (guidance.misplacedPaths.length > 0
+          ? guidance.misplacedPaths.join(", ")
+          : "missing"),
+    }));
     if (guidance.exists) {
-      return pass([`Commit guidance found at ${guidance.path}`]);
+      return pass([`Commit guidance found at ${guidance.path}`], details);
     }
     if (guidance.misplacedPaths.length > 0) {
       return fail(
@@ -109,12 +163,14 @@ const commitGuidance: HarnessCheck = {
         [
           `Create ${guidance.requiredPath} and move or copy the content from ${guidance.misplacedPaths.join(", ")}.`,
         ],
+        details,
       );
     }
     return fail(
       ["No commit guidance detected"],
       [`Add commit conventions to ${guidance.requiredPath}`],
       [`Create ${guidance.requiredPath} with this project's commit rules.`],
+      details,
     );
   },
 };
@@ -156,6 +212,49 @@ function hasRationalisationsPointer(section: string): boolean {
     );
 }
 
+function evidenceBeforeClaimsDetails(
+  ctx: AuditContext,
+  preambleProblem: string | null,
+): HarnessCheckDetails {
+  return verificationDetails(ctx, (af) => {
+    const content = ctx.fs.readFile(af.agent.instructionFile);
+    if (content === null) {
+      return {
+        reason: "instruction file missing",
+        expected: RED_FLAGS_SECTION,
+        actual: "missing",
+      };
+    }
+    const section = redFlagsSection(content);
+    if (section === null) {
+      return {
+        reason: preambleProblem
+          ? `missing ${RED_FLAGS_SECTION}; ${preambleProblem}`
+          : `missing ${RED_FLAGS_SECTION}`,
+        expected: RED_FLAGS_SECTION,
+        actual: "section missing",
+      };
+    }
+    const missingClauses = RED_FLAG_CLAUSES.filter(
+      (clause) => !hasClause(section, clause),
+    );
+    const missingPointer = !hasRationalisationsPointer(section);
+    const gaps = [
+      ...missingClauses.map((clause) => `missing ${clause}`),
+      ...(missingPointer ? [`missing ${RATIONALISATIONS_PATH} pointer`] : []),
+      ...(preambleProblem ? [preambleProblem] : []),
+    ];
+    return {
+      reason:
+        gaps.length > 0
+          ? gaps.join("; ")
+          : "evidence-before-claims coverage present",
+      expected: `${RED_FLAGS_SECTION} plus ${RATIONALISATIONS_HEADING} pointer`,
+      actual: gaps.length > 0 ? "incomplete" : "present",
+    };
+  });
+}
+
 /** Metric: present instruction files carry the evidence-before-claims guard. */
 const evidenceBeforeClaims: HarnessCheck = {
   id: "evidence-before-claims",
@@ -178,13 +277,17 @@ const evidenceBeforeClaims: HarnessCheck = {
   run: (ctx) => {
     const findings: string[] = [];
     const preamble = ctx.fs.readFile(RATIONALISATIONS_PATH);
+    let preambleProblem: string | null = null;
     if (preamble === null) {
+      preambleProblem = `${RATIONALISATIONS_PATH} missing`;
       findings.push(`${RATIONALISATIONS_PATH}: file missing`);
     } else if (!preamble.includes(RATIONALISATIONS_HEADING)) {
+      preambleProblem = `${RATIONALISATIONS_PATH} missing ${RATIONALISATIONS_HEADING}`;
       findings.push(
         `${RATIONALISATIONS_PATH}: missing ${RATIONALISATIONS_HEADING}`,
       );
     }
+    const details = evidenceBeforeClaimsDetails(ctx, preambleProblem);
 
     let presentInstructionFiles = 0;
     for (const path of instructionFilePaths(ctx)) {
@@ -220,16 +323,21 @@ const evidenceBeforeClaims: HarnessCheck = {
         [
           `Copy the canonical ${RED_FLAGS_SECTION} clauses and the ${RATIONALISATIONS_HEADING} pointer into each present instruction file; restore ${RATIONALISATIONS_PATH} if it is missing or renamed.`,
         ],
+        details,
       );
     }
     if (presentInstructionFiles === 0) {
-      return pass([
-        "No agent instruction files present for red-flags coverage",
-      ]);
+      return pass(
+        ["No agent instruction files present for red-flags coverage"],
+        details,
+      );
     }
-    return pass([
-      `${presentInstructionFiles} present instruction file(s) include evidence-before-claims coverage`,
-    ]);
+    return pass(
+      [
+        `${presentInstructionFiles} present instruction file(s) include evidence-before-claims coverage`,
+      ],
+      details,
+    );
   },
 };
 
@@ -247,6 +355,34 @@ const postTurnHookIntegrity: HarnessCheck = {
   run: (ctx) => {
     const findings: string[] = [];
     let anyHook = false;
+    const details = verificationDetails(ctx, (af) => {
+      if (!af.hooks.postTurnExists) {
+        return {
+          reason: "post-turn hook missing",
+          expected: "hook absent or meaningful validation",
+          actual: "missing",
+        };
+      }
+      if (!af.hooks.postTurnHasValidation) {
+        return {
+          reason: "post-turn hook has no validation logic",
+          expected: "meaningful validation",
+          actual: "no validation logic",
+        };
+      }
+      if (af.hooks.postTurnSwallowsFailures) {
+        return {
+          reason: "post-turn hook always exits 0",
+          expected: "validation failures are reported",
+          actual: "always exits 0",
+        };
+      }
+      return {
+        reason: "post-turn hook reports failures honestly",
+        expected: "validation failures are reported",
+        actual: "honest failure reporting",
+      };
+    });
 
     for (const af of ctx.agents) {
       if (!af.hooks.postTurnExists) continue;
@@ -275,6 +411,8 @@ const postTurnHookIntegrity: HarnessCheck = {
         [
           "Install a project-specific post-turn validation hook only if this project needs automatic post-action checks",
         ],
+        undefined,
+        details,
       );
     }
     if (
@@ -284,11 +422,16 @@ const postTurnHookIntegrity: HarnessCheck = {
           finding.includes("always exits 0"),
       )
     ) {
-      return fail(findings, [
-        "Make post-turn validation hooks run meaningful checks and report failures honestly, or leave them uninstalled",
-      ]);
+      return fail(
+        findings,
+        [
+          "Make post-turn validation hooks run meaningful checks and report failures honestly, or leave them uninstalled",
+        ],
+        undefined,
+        details,
+      );
     }
-    return pass(findings);
+    return pass(findings, details);
   },
 };
 

@@ -112,10 +112,7 @@ describe("safe-exec/execSafely", () => {
   it("truncates stdout above the configured cap", async () => {
     const result = await execSafely({
       command: "node",
-      args: [
-        "-e",
-        "process.stdout.write('x'.repeat(50000))",
-      ],
+      args: ["-e", "process.stdout.write('x'.repeat(50000))"],
       cwd: tmpdir(),
       allowList: ["node"],
       timeoutMs: 5_000,
@@ -178,9 +175,6 @@ describe("safe-exec/execSafely", () => {
 
 describe("safe-exec/sideEffectfulRouteKey", () => {
   it("builds the canonical route key", () => {
-    assert.equal(
-      sideEffectfulRouteKey("post", "/api/foo"),
-      "POST /api/foo",
-    );
+    assert.equal(sideEffectfulRouteKey("post", "/api/foo"), "POST /api/foo");
   });
 });

@@ -183,7 +183,7 @@ export function execSafely(opts: ExecOptions): Promise<ExecResult> {
   try {
     rejectIfUnsafeArgs(opts.args);
   } catch (err) {
-    return Promise.reject(err);
+    return Promise.reject(err instanceof Error ? err : new Error(String(err)));
   }
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const stdoutCap = opts.stdoutCapBytes ?? DEFAULT_STDOUT_CAP_BYTES;
@@ -223,11 +223,11 @@ export function execSafely(opts: ExecOptions): Promise<ExecResult> {
     }, timeoutMs);
     timer.unref();
 
-    child.stdout?.on("data", (chunk: Buffer) => {
+    child.stdout.on("data", (chunk: Buffer) => {
       stdoutBytes += chunk.length;
       if (stdoutBytes <= stdoutCap * 2) stdoutChunks.push(chunk);
     });
-    child.stderr?.on("data", (chunk: Buffer) => {
+    child.stderr.on("data", (chunk: Buffer) => {
       stderrBytes += chunk.length;
       if (stderrBytes <= stderrCap * 2) stderrChunks.push(chunk);
     });

@@ -128,7 +128,6 @@ export const DASHBOARD_ROUTE_INVENTORY = [
   { method: "GET", path: "/ws/terminal/:id", class: "privileged-websocket" },
 ] as const;
 
-
 /**
  * Side-effectful API route registry (M31).
  *

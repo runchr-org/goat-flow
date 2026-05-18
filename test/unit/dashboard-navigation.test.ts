@@ -156,10 +156,7 @@ describe("dashboard side navigation", () => {
     ]) {
       assert.doesNotMatch(
         appSource,
-        new RegExp(
-          `["']?${view}["']?\\s*:\\s*\\{\\s*title:\\s*["']`,
-          "u",
-        ),
+        new RegExp(`["']?${view}["']?\\s*:\\s*\\{\\s*title:\\s*["']`, "u"),
         `${view} is deferred; it should not appear in 1.7.0 comingSoonMeta`,
       );
     }

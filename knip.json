@@ -1,9 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": [
-    ".goat-flow/scratchpad/**",
     "src/dashboard/app.ts",
     "src/dashboard/dashboard-custom-prompts.ts",
+    "src/dashboard/markdown.ts",
     "src/dashboard/dashboard-projects.ts",
     "src/dashboard/dashboard-prompts.ts",
     "src/dashboard/dashboard-readers.ts",

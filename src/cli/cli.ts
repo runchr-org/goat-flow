@@ -568,25 +568,45 @@ function parseSkillPositionals(positionals: string[]): SkillPositionals {
 }
 
 /** Validate flags shared across commands. */
+function rejectFlagOutsideCommand(
+  command: Command,
+  expectedCommand: Command,
+  flag: string,
+  isSet: boolean,
+): void {
+  if (command === expectedCommand || !isSet) return;
+  throw new CLIError(
+    `${flag} is only valid for the ${expectedCommand} command.`,
+    2,
+  );
+}
+
 function validateCommonFlags(command: Command, values: ParsedArgValues): void {
-  if (command !== "audit" && values.format === "sarif") {
-    throw new CLIError(
-      "--format sarif is only valid for the audit command.",
-      2,
-    );
-  }
-  if (command !== "quality" && values.all === true) {
-    throw new CLIError("--all is only valid for the quality command.", 2);
-  }
-  if (command !== "quality" && values.mode !== undefined) {
-    throw new CLIError("--mode is only valid for the quality command.", 2);
-  }
-  if (command !== "events" && values.limit !== undefined) {
-    throw new CLIError("--limit is only valid for the events command.", 2);
-  }
-  if (command !== "audit" && values["no-audit-details"] === true) {
-    throw new CLIError("--no-audit-details is only valid for the audit command.", 2);
-  }
+  rejectFlagOutsideCommand(
+    command,
+    "audit",
+    "--format sarif",
+    values.format === "sarif",
+  );
+  rejectFlagOutsideCommand(command, "quality", "--all", values.all === true);
+  rejectFlagOutsideCommand(
+    command,
+    "quality",
+    "--mode",
+    values.mode !== undefined,
+  );
+  rejectFlagOutsideCommand(
+    command,
+    "events",
+    "--limit",
+    values.limit !== undefined,
+  );
+  rejectFlagOutsideCommand(
+    command,
+    "audit",
+    "--no-audit-details",
+    values["no-audit-details"] === true,
+  );
 }
 
 /** Returns true when the command resolves to a deterministic install/apply path. */
@@ -1215,7 +1235,9 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
     checkContent: options.checkContent,
   });
 
-  const reportForRender = options.auditDetails ? report : stripAuditDetails(report);
+  const reportForRender = options.auditDetails
+    ? report
+    : stripAuditDetails(report);
 
   let rendered: string;
   if (options.format === "json") {

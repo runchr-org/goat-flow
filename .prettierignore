@@ -7,3 +7,6 @@ node_modules/
 # Markdown has intentional formatting (tables, code blocks, frontmatter)
 # that Prettier rewrites aggressively. See ADR-032.
 *.md
+
+# Frozen release snapshots are immutable inputs for snapshot-claim drift checks.
+workflow/manifest-snapshots/**

@@ -18,6 +18,8 @@ import {
   renderAuditMarkdown,
   renderAuditText,
 } from "../../src/cli/audit/render.js";
+import { renderAuditSarif } from "../../src/cli/audit/sarif.js";
+import { parseCLIArgs } from "../../src/cli/cli.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -178,7 +180,7 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
     instruction: {
       exists: true,
       content: "# Test",
-      lineCount: 50,
+      lineCount: 100,
       sections: new Map(),
     },
     settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: true },
@@ -537,6 +539,18 @@ function makeAuditReport(
     content: null,
     overall: { status },
   };
+}
+
+function makeReportWithDetails(
+  scope: NonNullable<AuditReport["scopes"]["harness"]>,
+): AuditReport {
+  return makeAuditReport(
+    "/tmp/test-project",
+    scope.status,
+    [],
+    [],
+    scope.checks,
+  );
 }
 
 function createSpanRecorder(): {
@@ -2374,6 +2388,11 @@ describe("M01 scoring model", () => {
   it("harness check results carry structured details for dashboard consumers", () => {
     const ctx = makeCtx();
     const { scope } = computeHarness(ctx);
+    const checksWithoutDetails = scope.checks
+      .filter((check) => check.details === undefined)
+      .map((check) => check.id);
+
+    assert.deepEqual(checksWithoutDetails, []);
 
     const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
     assert.deepEqual(docs.details?.docPaths, {
@@ -2394,6 +2413,39 @@ describe("M01 scoring model", () => {
       },
     ]);
 
+    const denySecrets = scope.checks.find(
+      (c) => c.id === "deny-covers-secrets",
+    )!;
+    assert.deepEqual(denySecrets.details?.denyMatrix?.[0], {
+      agent: "claude",
+      missingPatterns: [],
+      extraPatterns: [],
+      hookRegistered: true,
+    });
+
+    const hooks = scope.checks.find((c) => c.id === "hooks-registered")!;
+    assert.deepEqual(hooks.details?.verification?.[0], {
+      agent: "claude",
+      reason: "hook registrations and files are in sync",
+      expected: "registration and file state match",
+      actual: "in sync",
+    });
+
+    const recovery = scope.checks.find((c) => c.id === "session-logs")!;
+    assert.deepEqual(recovery.details?.recovery?.[0], {
+      agent: "claude",
+      dir: ".goat-flow/logs/sessions",
+      fileCount: 0,
+    });
+
+    const feedback = scope.checks.find((c) => c.id === "feedback-loop-active")!;
+    assert.deepEqual(feedback.details?.freshness?.[0], {
+      agent: "claude",
+      fresh: 0,
+      aging: 0,
+      stale: 0,
+    });
+
     const parsed = JSON.parse(renderAuditJson(makeReportWithDetails(scope)));
     assert.equal(
       parsed.scopes.harness.checks.some(
@@ -2403,7 +2455,7 @@ describe("M01 scoring model", () => {
     );
   });
 
-  it("markdown audit rendering ignores structured details", () => {
+  it("non-json audit renderers ignore structured details", () => {
     const { scope } = computeHarness(makeCtx());
     const reportWithDetails = makeReportWithDetails(scope);
     const reportWithoutDetails = makeReportWithDetails({
@@ -2418,6 +2470,43 @@ describe("M01 scoring model", () => {
     assert.equal(
       renderAuditMarkdown(reportWithDetails),
       renderAuditMarkdown(reportWithoutDetails),
+    );
+    assert.equal(
+      renderAuditText(reportWithDetails),
+      renderAuditText(reportWithoutDetails),
+    );
+    assert.equal(
+      renderAuditSarif(reportWithDetails),
+      renderAuditSarif(reportWithoutDetails),
+    );
+  });
+
+  it("audit details flag defaults on and can strip structured payloads", () => {
+    const parsed = parseCLIArgs(["audit", ".", "--no-audit-details"]);
+    assert.equal(parsed.auditDetails, false);
+    assert.throws(
+      () => parseCLIArgs(["quality", ".", "--no-audit-details"]),
+      /--no-audit-details is only valid for the audit command/,
+    );
+  });
+
+  it("old audit fixtures without details still render as json", () => {
+    const { scope } = computeHarness(makeCtx());
+    const reportWithoutDetails = makeReportWithDetails({
+      ...scope,
+      checks: scope.checks.map((check) => {
+        const next = { ...check };
+        delete next.details;
+        return next;
+      }),
+    });
+    const parsed = JSON.parse(renderAuditJson(reportWithoutDetails));
+
+    assert.equal(
+      parsed.scopes.harness.checks.some(
+        (check: { details?: unknown }) => check.details !== undefined,
+      ),
+      false,
     );
   });
 

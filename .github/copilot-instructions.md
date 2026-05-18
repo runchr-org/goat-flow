@@ -11,7 +11,7 @@ User instruction > `.github/copilot-instructions.md` > `.goat-flow/architecture.
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
+**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when context compaction occurs without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 
@@ -81,11 +81,11 @@ The red-flags above name WHAT not to claim. The Excuse/Reality table in `.goat-f
 - Recovery: missing context → read first. Out-of-scope → name boundary, redirect. Conflicting sources → flag, ask.
 
 **Learning loop** (update before DoD if VERIFY caught a failure or you corrected course):
-- Lesson → `.goat-flow/lessons/<category>.md`; footgun → `.goat-flow/footguns/<category>.md`; decision → `.goat-flow/decisions/`; optional `/compact` continuity note → `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`.
+- Lesson → `.goat-flow/lessons/<category>.md`; footgun → `.goat-flow/footguns/<category>.md`; decision → `.goat-flow/decisions/`; optional context-compaction continuity note → `.goat-flow/logs/sessions/YYYY-MM-DD-slug.md`.
 
 ## Definition of Done
 
-MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-references (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames. If working from a milestone file, tick `- [x]` on each completed task immediately - not at the end. `/compact` after 15+ turns → split → `/clear` between unrelated tasks.
+MUST confirm ALL: (1) lint/typecheck passes on changed files (shellcheck on .sh, npm run typecheck on .ts) (2) no broken cross-references (3) no unapproved boundary changes (4) logs updated if tripped (5) working notes current (6) grep old pattern after renames. If working from a milestone file, tick `- [x]` on each completed task immediately - not at the end. After context compaction or 15+ turns, split work and start a fresh thread between unrelated tasks.
 
 ## Artifact Routing
 
