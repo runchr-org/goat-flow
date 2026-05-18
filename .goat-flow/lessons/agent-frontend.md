@@ -1,6 +1,6 @@
 ---
 category: agent-frontend
-last_reviewed: 2026-05-12
+last_reviewed: 2026-05-18
 ---
 
 ## Lesson: Dashboard audit cache survives code changes because signature doesn't cover compiled JS
@@ -58,7 +58,7 @@ last_reviewed: 2026-05-12
 
 ---
 
-## Lesson: Mockup parity includes visible copy and live bindings
+## Lesson: Mockup parity includes exact structure and visual spacing
 
 **Created:** 2026-04-26
 

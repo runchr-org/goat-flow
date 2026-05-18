@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-17
+last_reviewed: 2026-05-18
 ---
 
 ## Lesson: Agent cited gitignored content as evidence in committed docs
@@ -104,12 +104,13 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 ## Lesson: Installed skill files are not templates
 **Created:** 2026-04-04
+**Status:** historical | **Reason:** The scanner was removed per ADR-013; the installed-files-are-real-files lesson remains active.
 
-**What happened:** Scanner flagged AP18 (ADAPT comments in installed skills) causing a -2pt deduction on all 3 agents. Instead of fixing the installed files, the agent dismissed the failure as "expected for a template repo" and proposed suppressing AP18 when scanning the goat-flow repo. The user corrected this: `.claude/skills/`, `.agents/skills/`, `.github/skills/` are real project files that must pass the scanner at 100% - they are not templates. The templates live in `workflow/skills/` where ADAPT markers belong.
+**What happened:** The historical scanner system (removed per ADR-013) flagged AP18 (ADAPT comments in installed skills) causing a -2pt deduction on all 3 agents. Instead of fixing the installed files, the agent dismissed the failure as "expected for a template repo" and proposed suppressing AP18 when scanning the goat-flow repo. The user corrected this: `.claude/skills/`, `.agents/skills/`, `.github/skills/` are real project files that must pass the relevant installed-artifact checks - they are not templates. The templates live in `workflow/skills/` where ADAPT markers belong.
 
-**Why it matters:** The entire point of the scanner is to validate installed files. Dismissing scanner failures on installed files undermines the tool's purpose. The distinction between template source (`workflow/skills/`) and installed copies (`.claude/skills/`, `.agents/skills/`, `.github/skills/`) is fundamental to goat-flow's architecture.
+**Why it matters:** The historical scanner was removed per ADR-013, but the distinction between template source (`workflow/skills/`) and installed copies (`.claude/skills/`, `.agents/skills/`, `.github/skills/`) is still fundamental to goat-flow's architecture. Dismissing installed-artifact failures as template noise undermines the current audit/drift checks the same way it undermined the old scanner.
 
-**Prevention:** Never dismiss scanner failures on installed skill files as "expected." If the scanner flags something in `.claude/skills/`, `.agents/skills/`, or `.github/skills/`, fix it. Only `workflow/skills/` (the distribution templates) should have ADAPT markers. When the scanner reports a deduction, the default response is "fix the file" not "suppress the check."
+**Prevention:** Never dismiss historical scanner failures or current audit/drift findings on installed skill files as "expected." If a check flags something in `.claude/skills/`, `.agents/skills/`, or `.github/skills/`, fix the installed artifact. Only `workflow/skills/` (the distribution templates) should have ADAPT markers. The default response is "fix the file" not "suppress the check."
 
 ---
 
@@ -126,13 +127,13 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 ---
 
-## Lesson: Scanner 100% does not mean the project is correct
+## Lesson: Structural audit pass does not mean the project is correct
 
 **Created:** 2026-03-31
 
-**What happened:** goat-flow scored 100% on its own scanner while preflight-checks.sh failed with 8 errors. Scanner checked structural presence (files exist, have right headings). Preflight checked functional correctness (commands work, paths resolve, versions match).
+**What happened:** goat-flow historically scored 100% on its own scanner system (removed per ADR-013) while `preflight-checks.sh` failed with 8 errors. The scanner checked structural presence (files exist, have right headings). Preflight checked functional correctness (commands work, paths resolve, versions match).
 
-**Prevention:** Don't treat scanner score as a quality gate for the whole project. Use it for what it checks (structure) and preflight for what it checks (function). When they disagree, investigate.
+**Prevention:** Don't treat a structural audit/check pass as a quality gate for the whole project. Use structural checks for what they cover and preflight/targeted verification for functional correctness. When they disagree, investigate.
 
 ---
 

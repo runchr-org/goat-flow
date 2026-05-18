@@ -1,6 +1,6 @@
 ---
 category: verification-paths
-last_reviewed: 2026-05-17
+last_reviewed: 2026-05-18
 ---
 
 ## Lesson: Do not cite gitignored task files from durable artifacts
@@ -112,11 +112,11 @@ last_reviewed: 2026-05-17
 
 **Status:** active | **Created:** 2026-04-20
 
-**What happened:** The setup-summary refactor passed `npm run typecheck` and the focused detector/dashboard tests, but full preflight still failed at the Knip gate. One failure was a stale ignore entry in `knip.json` for the old dashboard preset TypeScript module that had already been deleted; the other was an exported `SetupStackSummary` type that had no external consumer.
+**What happened:** The setup-summary refactor passed `npm run typecheck` and the focused detector/dashboard tests, but full preflight still failed at the Knip gate. One failure was a stale ignore entry in `knip.json` for a dashboard preset module that no longer matched the source layout; the other was an exported `SetupStackSummary` type that had no external consumer.
 
 **Root cause:** Verified runtime behavior first and only learned about tooling drift at the end. File deletions and new exports change cold-path tool surfaces (`knip.json`, unused-export analysis) even when app behavior and tests are correct.
 
-**Evidence:** `knip.json` (search: `dashboard-custom-prompts.ts`) - ignore list still carried the deleted dashboard preset TypeScript path; `src/cli/detect/project-stack.ts` (search: `interface SetupStackSummary`) - `SetupStackSummary` was exported even though only local consumers needed it.
+**Evidence:** Current repository state no longer supports the old deleted-file wording: `src/dashboard/dashboard-custom-prompts.ts` exists and `knip.json` still carries that path (`knip.json` (search: `dashboard-custom-prompts.ts`)). The verified historical knip cleanup example is commit `f7159fb`, where `knip.json` changed an old dashboard preset ignore to the renamed preset module after a preset rename; the dead historical filenames are intentionally omitted because `stats --check` validates literal file refs even in historical examples. The unused-export half of the lesson remains anchored at `src/cli/detect/project-stack.ts` (search: `interface SetupStackSummary`).
 
 **Fix:** Remove the stale Knip ignore entry, de-export the setup-summary interface, then rerun `npx knip` before the final preflight pass.
 

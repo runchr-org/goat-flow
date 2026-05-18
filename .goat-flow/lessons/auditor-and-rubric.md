@@ -1,15 +1,16 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-05-11
+last_reviewed: 2026-05-18
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
 
 **Created:** 2026-04-03
+**Status:** historical | **Reason:** Scanner/rubric system removed per ADR-013; current audit-check fixture changes still need the same expectation-sync discipline.
 
-Scanner and rubric changes can invalidate "known failing" fixture expectations even when the implementation is correct. If a check is renamed, tightened, or moves responsibility to a different detector, fixture assertions must be re-read against live scanner output before treating the failure as a code bug.
+Historical scanner/rubric changes (removed per ADR-013) could invalidate "known failing" fixture expectations even when the implementation was correct. Current audit-check changes can do the same. If a check is renamed, tightened, or moves responsibility to a different detector, fixture assertions must be re-read against live audit/check output before treating the failure as a code bug.
 
-**Pattern:** For fixture-driven scanner tests, verify the current failing check IDs from the real scan result first, then update both the test assertions and fixture metadata together. Do not trust older expected IDs after rubric work.
+**Pattern:** For historical scanner tests or current fixture-driven audit tests, verify the current failing check IDs from the real result first, then update both the test assertions and fixture metadata together. Do not trust older expected IDs after check/rubric work.
 
 **Trigger:** Human review reports a failing fixture after rubric or detector changes. Reproduce the failing scan, capture the actual check IDs, then sync the fixture corpus and test expectations in the same change.
 
@@ -51,15 +52,15 @@ Scanner and rubric changes can invalidate "known failing" fixture expectations e
 
 ---
 
-## Lesson: Doc counts drifted silently across multiple milestones
+## Lesson: Doc counts drift silently across multiple milestones
 
 **Created:** 2026-04-13
 
-**What happened:** architecture.md claimed "~165 rubric checks + 32 anti-patterns" but actual code had 79 rubric checks and 12 active anti-patterns. code-map.md said "AP1-AP23" implying 23 when only 12 are active. The counts changed as checks were removed/consolidated across milestones but docs were never updated. Seven-agent critique independently flagged this as a trust problem - the "canonical source of truth" file had wrong numbers.
+**What happened:** Historical scanner-era docs claimed stale rubric-check and anti-pattern totals after the implementation had already consolidated or removed many checks (the scanner was later removed per ADR-013). The counts changed across milestones but architecture/code-map docs were not updated. Seven-agent critique independently flagged this as a trust problem - the "canonical source of truth" file had wrong numbers.
 
-**Root cause:** No automated validation links count claims in docs to actual code. Each milestone that removed anti-patterns (AP2, AP3, AP4, AP7, AP10, AP11, AP17, AP18, AP21, AP22) updated the code but not the architecture doc.
+**Root cause:** No automated validation linked count claims in docs to actual code. Each milestone that removed or consolidated checks updated the implementation but not the architecture doc.
 
-**Prevention:** Either derive counts from code at build time, or add a CI check that greps architecture.md/code-map.md for count claims and compares against actual exports. After removing/adding any check or anti-pattern, grep docs for the old count.
+**Prevention:** Either derive counts from code at build time, or add a CI check that greps architecture.md/code-map.md for count claims and compares against actual exports. After removing/adding any audit, quality, or other counted check surface, grep docs for the old count.
 
 ---
 
