@@ -73,19 +73,20 @@ last_reviewed: 2026-05-19
 
 **Symptoms:** Codex starts but prints repeated warnings that configured filesystem path `:project_roots` and its nested entries are not recognized, then ignores the whole workspace permission subtree. The TOML still looks like it denies `.env`, `.ssh/**`, `.aws/**`, and credential roots, so static review can miss that the running Codex process discarded those rules.
 
-**Why it happens:** Codex CLI 0.131.0 recognizes the special workspace token as `:workspace_roots`, not `:project_roots`. It also requires the token as a value key under `[permissions.<profile>.filesystem]`, e.g. `":workspace_roots" = { ... }`. The more readable nested TOML table `[permissions.<profile>.filesystem.":project_roots"]` flattens cleanly for goat-flow's parser, but Codex treats it as an unrecognized filesystem path and ignores it.
+**Why it happens:** Codex CLI 0.131.0 recognizes the special workspace token as `:workspace_roots`, not `:project_roots`. Both inline `":workspace_roots" = { ... }` and nested `[permissions.<profile>.filesystem.":workspace_roots"]` TOML shapes load in 0.131.0, but the `:project_roots` token is treated as an unrecognized filesystem path and ignored.
 
 **Evidence:**
-- `.codex/config.toml` (search: `":workspace_roots" = {`) - installed config now uses Codex 0.131.0's accepted token and inline-table shape.
-- `workflow/hooks/agent-config/codex.toml` (search: `":workspace_roots" = {`) - install template mirrors the accepted shape.
-- `src/cli/facts/agent/settings.ts` (search: `rootTokens`) - audit fact extraction parses the accepted workspace-root shape while preserving legacy project-root parsing for older or newer installs.
-- Runtime capture from the 2026-05-19 Codex startup failure showed repeated `Configured filesystem path ':project_roots' is not recognized by this version of Codex and will be ignored` warnings for the nested-table shape.
+- `.codex/config.toml` (search: `":workspace_roots" = {`) - installed config now uses Codex 0.131.0's accepted token.
+- `workflow/hooks/agent-config/codex.toml` (search: `":workspace_roots" = {`) - install template mirrors the accepted token.
+- `src/cli/facts/agent/settings.ts` (search: `collectCodexDeniedWorkspaceRootPatterns`) - audit fact extraction requires the accepted workspace-root token before granting secret coverage.
+- Runtime capture from the 2026-05-19 Codex startup failure showed repeated `Configured filesystem path ':project_roots' is not recognized by this version of Codex and will be ignored` warnings for the unsupported token.
 - Local binary probe on 2026-05-19 found `:workspace_roots` in Codex 0.131.0's embedded schema strings and no `:project_roots` support.
 
 **Prevention:**
-1. Do not convert Codex workspace permissions back to `:project_roots` or a nested TOML table for readability; both shapes are runtime-invalid on Codex 0.131.0.
+1. Do not convert Codex workspace permissions back to `:project_roots`; that token is runtime-invalid on Codex 0.131.0.
 2. Verify Codex config changes with a TTY startup smoke (`codex` under a short timeout) as well as `codex doctor`; non-interactive commands can miss TUI startup warnings.
 3. Keep `.codex/config.toml`, `workflow/hooks/agent-config/codex.toml`, and `src/cli/facts/agent/settings.ts` in the same patch whenever Codex permission grammar changes.
+4. Treat Codex permission-profile secret coverage as an exact enumerated set, not a wildcard family. If a new `.env.<name>` or credential filename matters, add it to the template, parser expectation, and focused tests together.
 
 ---
 

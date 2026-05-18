@@ -47,7 +47,7 @@ const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
 const originalExecFileSync = childProcess.execFileSync;
-const CODEX_PROJECT_ROOT_ENTRIES = [
+const CODEX_WORKSPACE_ROOT_ENTRIES = [
   '"." = "write"',
   '".env.example" = "read"',
   '".env" = "none"',
@@ -74,7 +74,7 @@ const CODEX_CONFIG = [
   "hooks = true",
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
-  `":workspace_roots" = { ${CODEX_PROJECT_ROOT_ENTRIES.join(", ")} }`,
+  `":workspace_roots" = { ${CODEX_WORKSPACE_ROOT_ENTRIES.join(", ")} }`,
   "",
 ].join("\n");
 

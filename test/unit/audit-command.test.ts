@@ -36,7 +36,7 @@ import {
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
-const CODEX_PROJECT_ROOT_ENTRIES = [
+const CODEX_WORKSPACE_ROOT_ENTRIES = [
   '"." = "write"',
   '".env.example" = "read"',
   '".env" = "none"',
@@ -58,7 +58,7 @@ const CODEX_PROJECT_ROOT_ENTRIES = [
 ];
 
 function codexWorkspaceRootsTable(
-  entries = CODEX_PROJECT_ROOT_ENTRIES,
+  entries = CODEX_WORKSPACE_ROOT_ENTRIES,
 ): string {
   return `":workspace_roots" = { ${entries.join(", ")} }`;
 }
@@ -1319,16 +1319,20 @@ describe("codex settings feature flags", () => {
     assert.equal(facts.readDenyCoversSecrets, false);
   });
 
-  it("does not count an inactive Codex permission profile as secret coverage", () => {
+  it("does not count Codex env coverage without the staging variant", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) => path === ".codex/config.toml",
         readFile: (path) =>
           path === ".codex/config.toml"
             ? [
-                'default_permissions = "default"',
+                'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
-                codexWorkspaceRootsTable(CODEX_PROJECT_ROOT_ENTRIES.slice(2)),
+                codexWorkspaceRootsTable(
+                  CODEX_WORKSPACE_ROOT_ENTRIES.filter(
+                    (entry) => !entry.startsWith('".env.staging"'),
+                  ),
+                ),
               ].join("\n")
             : null,
       }),
@@ -1338,7 +1342,46 @@ describe("codex settings feature flags", () => {
     assert.equal(facts.readDenyCoversSecrets, false);
   });
 
-  it("continues parsing legacy nested Codex project-root permission tables", () => {
+  it("does not count an inactive Codex permission profile as secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "default"',
+                "[permissions.goat-flow.filesystem]",
+                codexWorkspaceRootsTable(CODEX_WORKSPACE_ROOT_ENTRIES.slice(2)),
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("continues parsing nested Codex workspace-root permission tables", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":workspace_roots"]',
+                ...CODEX_WORKSPACE_ROOT_ENTRIES,
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
+  });
+
+  it("does not count legacy Codex project-root permission tables as current secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) => path === ".codex/config.toml",
@@ -1348,14 +1391,14 @@ describe("codex settings feature flags", () => {
                 'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
                 '[permissions.goat-flow.filesystem.":project_roots"]',
-                ...CODEX_PROJECT_ROOT_ENTRIES,
+                ...CODEX_WORKSPACE_ROOT_ENTRIES,
               ].join("\n")
             : null,
       }),
       PROFILES.codex,
     );
 
-    assert.equal(facts.readDenyCoversSecrets, true);
+    assert.equal(facts.readDenyCoversSecrets, false);
   });
 
   it("fails agent-settings when Codex config still uses codex_hooks", () => {

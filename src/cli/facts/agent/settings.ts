@@ -185,7 +185,7 @@ function checkCodexPermissionProfileCoversSecrets(parsed: unknown): boolean {
     return false;
   }
 
-  const denied = collectCodexDeniedProjectRootPatterns(
+  const denied = collectCodexDeniedWorkspaceRootPatterns(
     parsed,
     defaultPermissions,
   );
@@ -200,30 +200,28 @@ function checkCodexPermissionProfileCoversSecrets(parsed: unknown): boolean {
   );
 }
 
-/** Collect project-root relative Codex permission patterns with mode "none". */
-function collectCodexDeniedProjectRootPatterns(
+/** Collect workspace-root relative Codex permission patterns with mode "none". */
+function collectCodexDeniedWorkspaceRootPatterns(
   parsed: unknown,
   profileName: string,
 ): Set<string> {
   const denied = new Set<string>();
   if (!parsed || typeof parsed !== "object") return denied;
-  const rootTokens = [":workspace_roots", ":project_roots"];
+  const rootToken = ":workspace_roots";
+  const inlineTableKey = `permissions.${profileName}.filesystem.${rootToken}`;
+  const prefix = `${inlineTableKey}.`;
   for (const [key, value] of Object.entries(
     parsed as Record<string, unknown>,
   )) {
-    for (const rootToken of rootTokens) {
-      const inlineTableKey = `permissions.${profileName}.filesystem.${rootToken}`;
-      if (key === inlineTableKey && typeof value === "string") {
-        for (const [pattern, mode] of parseTomlInlineStringTable(value)) {
-          if (mode === "none") denied.add(pattern);
-        }
-        continue;
+    if (key === inlineTableKey && typeof value === "string") {
+      for (const [pattern, mode] of parseTomlInlineStringTable(value)) {
+        if (mode === "none") denied.add(pattern);
       }
-      const prefix = `${inlineTableKey}.`;
-      if (value === "none" && key.startsWith(prefix)) {
-        const pattern = key.slice(prefix.length);
-        if (pattern) denied.add(pattern);
-      }
+      continue;
+    }
+    if (value === "none" && key.startsWith(prefix)) {
+      const pattern = key.slice(prefix.length);
+      if (pattern) denied.add(pattern);
     }
   }
   return denied;
@@ -252,9 +250,13 @@ function hasCodexEnvDeny(denied: Set<string>): boolean {
   return (
     denied.has(".env") &&
     denied.has(".envrc") &&
-    [".env.local", ".env.development", ".env.production", ".env.test"].every(
-      (pattern) => denied.has(pattern),
-    )
+    [
+      ".env.local",
+      ".env.development",
+      ".env.production",
+      ".env.staging",
+      ".env.test",
+    ].every((pattern) => denied.has(pattern))
   );
 }
 
