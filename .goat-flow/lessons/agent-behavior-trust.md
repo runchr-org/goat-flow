@@ -1,6 +1,6 @@
 ---
 category: agent-behavior-trust
-last_reviewed: 2026-05-18
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
@@ -110,7 +110,11 @@ last_reviewed: 2026-05-18
 
 **Prevention:** When a profile field says an agent "can't" do something, verify against the current docs before building workarounds. Capabilities evolve - a limitation at setup time may not still hold.
 
-**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true`, keep `.env.example` as an exact read rule, and reserve recursive globs for `none` denies. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`, `Codex read rules must be exact paths`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
+**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true` and keep `.env.example` as an exact read rule. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
+
+**Updated 2026-05-19:** Codex CLI 0.131.0 tightened the permission-profile shape further: filename and match-anywhere globs such as `*.key`, `**/*.key`, `.env.*`, and `**/.ssh/**` now fail config loading even with `none` access. Runtime evidence: `codex "diagnostic no-op"` in this repo returned `Error loading configuration: filesystem glob path **/*.key only supports none access; use an exact path or trailing /** for none subtree access`. Current templates use exact root paths and trailing root subtrees only, and rely on `.codex/hooks/deny-dangerous.sh` for direct literal filename-extension shell access. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `Codex 0.131 accepts exact paths`), `.codex/config.toml` (search: `Filename globs such as`), `src/cli/facts/agent/settings.ts` (search: `hasCodexCredentialRootDeny`).
+
+**Updated again 2026-05-19:** The same fix still left Codex TUI startup warnings because goat-flow emitted `:project_roots` as a nested TOML table, then as the inline key shown in newer docs. Codex 0.131.0's local binary recognizes `:workspace_roots`, not `:project_roots`; it warned that `:project_roots` plus every nested deny entry was unrecognized. Current templates now keep `":workspace_roots" = { ... }` as one inline value under `[permissions.goat-flow.filesystem]`, and the parser accepts both current workspace-root and legacy project-root shapes. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `":workspace_roots" = {`), `.codex/config.toml` (search: `":workspace_roots" = {`), `src/cli/facts/agent/settings.ts` (search: `rootTokens`), `.goat-flow/footguns/hooks.md` (search: `Codex workspace-root permission profiles must use the local 0.131 token`).
 
 ---
 ## Lesson: Agent skips AI testing gate and offers to continue

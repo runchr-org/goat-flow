@@ -118,6 +118,10 @@ type HelperContext = {
     text: string,
     runner?: string,
   ): boolean;
+  dashboardOutputLooksRunnerStartupFailure(
+    text: string,
+    runner?: string,
+  ): boolean;
   dashboardNextAwaitingInputState(
     previousAwaiting: boolean,
     previousTail: string,
@@ -204,6 +208,7 @@ globalThis.__helpers = {
   dashboardEndSession,
   dashboardOutputLooksAwaitingInput,
   dashboardOutputLooksReadyForLaunchPrompt,
+  dashboardOutputLooksRunnerStartupFailure,
   dashboardNextAwaitingInputState,
   dashboardScheduleLaunchPrompt,
   dashboardHandleLaunchPromptOutput,
@@ -1724,6 +1729,25 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
+  it("does not treat a Codex config failure followed by a shell prompt as runner readiness", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const output = [
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+
+    assert.equal(
+      helpers.dashboardOutputLooksRunnerStartupFailure(output, "codex"),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(output, "codex"),
+      false,
+    );
+  });
+
   it("detects Gemini readiness only after the Gemini composer appears", () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1853,6 +1877,33 @@ describe("dashboard terminal launch flow", () => {
       data: "\r",
     });
     assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
+  });
+
+  it("clears queued launch prompts when Codex fails before prompt delivery", () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const ctx = makeLaunchPromptContext();
+    const session = ctx.sessions[0] as Record<string, unknown>;
+    session.runner = "codex";
+
+    helpers.dashboardScheduleLaunchPrompt(ctx, "launch-session", "run prompt");
+    session.outputTail = [
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+    helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
+    timers.tick(7000);
+
+    assert.deepStrictEqual(ctx.sent, []);
+    assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
+    assert.equal(session.loadingPhase, "error");
+    assert.equal(
+      session.loadingError,
+      "Runner failed before prompt delivery. Check the terminal output above.",
+    );
   });
 
   it("detects the compact Claude composer footer as runner readiness", () => {

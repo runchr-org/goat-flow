@@ -130,8 +130,10 @@ last_reviewed: 2026-05-19
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksCommittedPaste`) recognises Gemini's `[Pasted Text: N lines]` marker, and `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`) delays Gemini's Enter submit briefly after that marker so the TUI has committed the collapsed paste.
 - User-provided installed dashboard at `http://127.0.0.1:34769/` on 2026-05-12: clicking Setup -> Run Setup in Terminal for Claude Code v2.1.139 pasted `[Pasted text #1 +36 lines]` and stayed there after a 4s wait; one manual Enter advanced the same prompt into Claude's command execution.
 - `src/dashboard/dashboard-terminal.ts` (search: `TERMINAL_PASTE_COMMIT_DELAY_MS`) now delays Claude and Gemini Enter submits after pasted-text markers so the TUI has a quiet window to commit the collapsed paste before Enter is sent.
+- User-observed Codex dashboard session on 2026-05-19: Codex CLI 0.131.0 failed during config load, returned to the fallback shell, and the queued quality prompt was pasted into bash where its Markdown lines executed as shell commands.
+- `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksRunnerStartupFailure`) suppresses queued launch prompts when runner startup output proves the prompt would land in a fallback shell instead of the agent composer.
 
-**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write, or sending Enter before Claude has committed the pasted-text block, can also leave Claude in its pasted-text composer state without submitting.
+**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write, or sending Enter before Claude has committed the pasted-text block, can also leave Claude in its pasted-text composer state without submitting. If the runner exits during startup, goat-flow's terminal wrapper intentionally leaves an interactive shell open, so launch-prompt fallback timers must distinguish agent composers from shell prompts after runner failure.
 
 **Prevention:**
 1. For dashboard launch buttons, create promptless backend terminal sessions and send the prompt after the browser terminal is attached and runner output looks ready or has gone quiet.
@@ -140,6 +142,7 @@ last_reviewed: 2026-05-19
 4. Verify built-dashboard behavior after restarting the dashboard process; a running `dist/cli/cli.js dashboard` server keeps old terminal code in memory until restart.
 5. For runner TUIs with auth or splash redraws, gate launch prompts on that runner's real composer marker and test its pasted-text marker separately; Gemini needs both `Type your message or @path/to/file` readiness and delayed submit after `[Pasted Text: ...]`.
 6. Do not make pasted-text marker handling instant for Claude Code; Claude Code v2.1.139 can drop an Enter sent in the same redraw burst as `[Pasted text #N +M lines]`, so marker-triggered submit needs a short quiet delay just like Gemini.
+7. Treat runner config/startup errors as prompt-delivery blockers; do not let quiet-window or absolute fallback timers force-send prompts after output such as `Error loading configuration:`.
 
 ---
 

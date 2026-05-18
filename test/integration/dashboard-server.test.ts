@@ -47,6 +47,26 @@ const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
 const originalExecFileSync = childProcess.execFileSync;
+const CODEX_PROJECT_ROOT_ENTRIES = [
+  '"." = "write"',
+  '".env.example" = "read"',
+  '".env" = "none"',
+  '".env.local" = "none"',
+  '".env.development" = "none"',
+  '".env.production" = "none"',
+  '".env.test" = "none"',
+  '".env.staging" = "none"',
+  '".envrc" = "none"',
+  '"secrets/**" = "none"',
+  '"credentials" = "none"',
+  '".ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '".docker/config.json" = "none"',
+  '".gnupg/**" = "none"',
+  '".npmrc" = "none"',
+  '".pypirc" = "none"',
+  '".kube/config" = "none"',
+];
 const CODEX_CONFIG = [
   'model = "gpt-5"',
   'default_permissions = "goat-flow"',
@@ -54,19 +74,7 @@ const CODEX_CONFIG = [
   "hooks = true",
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
-  '[permissions.goat-flow.filesystem.":project_roots"]',
-  '"." = "write"',
-  '".env.example" = "read"',
-  '".env" = "none"',
-  '"**/.env" = "none"',
-  '".env.*" = "none"',
-  '"**/.env.*" = "none"',
-  '".ssh/**" = "none"',
-  '"**/.ssh/**" = "none"',
-  '".aws/**" = "none"',
-  '"**/.aws/**" = "none"',
-  '"*.pem" = "none"',
-  '"**/*.pem" = "none"',
+  `":workspace_roots" = { ${CODEX_PROJECT_ROOT_ENTRIES.join(", ")} }`,
   "",
 ].join("\n");
 

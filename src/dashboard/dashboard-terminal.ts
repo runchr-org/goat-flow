@@ -21,6 +21,8 @@ const TERMINAL_LOADING_RETRY_MS = 10000;
 // Coalesce bursty launch/route refreshes without delaying user-visible state.
 const SESSION_REFRESH_DEBOUNCE_MS = 50;
 const BRACKETED_PASTE_MARKER_PATTERN = /\x1b\[(?:200|201)~/g;
+const RUNNER_STARTUP_FAILURE_MESSAGE =
+  "Runner failed before prompt delivery. Check the terminal output above.";
 let xtermLoadPromise: Promise<void> | null = null;
 let sessionRefreshPromise: Promise<void> | null = null;
 let sessionRefreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -225,6 +227,7 @@ function dashboardOutputLooksReadyForLaunchPrompt(
   runner?: RunnerId | null,
 ): boolean {
   const tail = dashboardPlainTerminalText(text).slice(-5000);
+  if (dashboardOutputLooksRunnerStartupFailure(tail, runner)) return false;
   const geminiReady = /\bType your message or @path\/to\/file\b/i.test(tail);
   if (runner === "gemini") return geminiReady;
   const claudeReady =
@@ -235,6 +238,21 @@ function dashboardOutputLooksReadyForLaunchPrompt(
     /\/effort\b/i.test(tail);
   const shellReady = /(^|\n)\s*(?:[$#]|>)\s*$/u.test(tail);
   return claudeReady || claudeComposerReady || shellReady;
+}
+
+/** Heuristic for runner startup failures where launch prompt delivery is unsafe. */
+function dashboardOutputLooksRunnerStartupFailure(
+  text: string,
+  runner?: RunnerId | null,
+): boolean {
+  const tail = dashboardPlainTerminalText(text).slice(-5000);
+  if (
+    (runner === "codex" || /\bcodex\b/i.test(tail)) &&
+    /\bError loading configuration:/i.test(tail)
+  ) {
+    return true;
+  }
+  return /\bfailed to load Codex config\b/i.test(tail);
 }
 
 /** Heuristic for Claude Code committing a long bracketed paste into the composer. */
@@ -795,8 +813,20 @@ function dashboardMaybeSendLaunchPrompt(
     return false;
   }
   if (!refs.ws || refs.ws.readyState !== WebSocket.OPEN) return false;
+  const outputTail = target.outputTail ?? "";
+  if (dashboardOutputLooksRunnerStartupFailure(outputTail, target.runner)) {
+    dashboardSetTerminalLoadingPhase(
+      ctx,
+      sessionId,
+      target,
+      "error",
+      RUNNER_STARTUP_FAILURE_MESSAGE,
+    );
+    dashboardClearLaunchPrompt(ctx, sessionId);
+    return false;
+  }
   const ready = dashboardOutputLooksReadyForLaunchPrompt(
-    target.outputTail ?? "",
+    outputTail,
     target.runner,
   );
   if (!ready && (!force || target.runner === "gemini")) {
@@ -1652,16 +1682,30 @@ function dashboardConnectTerminal(
           previousTail,
           msg.data,
         );
+        const runnerStartupFailed = dashboardOutputLooksRunnerStartupFailure(
+          tail,
+          session.runner,
+        );
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.outputTail = tail;
         });
-        dashboardMarkTerminalLoadingReady(
-          ctx,
-          sessionId,
-          session,
-          previousTail,
-          msg.data,
-        );
+        if (runnerStartupFailed) {
+          dashboardSetTerminalLoadingPhase(
+            ctx,
+            sessionId,
+            session,
+            "error",
+            RUNNER_STARTUP_FAILURE_MESSAGE,
+          );
+        } else {
+          dashboardMarkTerminalLoadingReady(
+            ctx,
+            sessionId,
+            session,
+            previousTail,
+            msg.data,
+          );
+        }
         dashboardHandlePasteSubmitOutput(ctx, sessionId, msg.data);
         if (refs?.launchPrompt)
           dashboardHandleLaunchPromptOutput(ctx, sessionId);

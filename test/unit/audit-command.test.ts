@@ -36,6 +36,32 @@ import {
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
+const CODEX_PROJECT_ROOT_ENTRIES = [
+  '"." = "write"',
+  '".env.example" = "read"',
+  '".env" = "none"',
+  '".env.local" = "none"',
+  '".env.development" = "none"',
+  '".env.production" = "none"',
+  '".env.test" = "none"',
+  '".env.staging" = "none"',
+  '".envrc" = "none"',
+  '"secrets/**" = "none"',
+  '"credentials" = "none"',
+  '".ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '".docker/config.json" = "none"',
+  '".gnupg/**" = "none"',
+  '".npmrc" = "none"',
+  '".pypirc" = "none"',
+  '".kube/config" = "none"',
+];
+
+function codexWorkspaceRootsTable(
+  entries = CODEX_PROJECT_ROOT_ENTRIES,
+): string {
+  return `":workspace_roots" = { ${entries.join(", ")} }`;
+}
 import { createFS } from "../../src/cli/facts/fs.js";
 import type {
   AuditContext,
@@ -1255,25 +1281,7 @@ describe("codex settings feature flags", () => {
                 'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
                 "glob_scan_max_depth = 3",
-                '[permissions.goat-flow.filesystem.":project_roots"]',
-                '"." = "write"',
-                '".env.example" = "read"',
-                '".env" = "none"',
-                '"**/.env" = "none"',
-                '".env.*" = "none"',
-                '"**/.env.*" = "none"',
-                '".ssh/**" = "none"',
-                '"**/.ssh/**" = "none"',
-                '".aws/**" = "none"',
-                '"**/.aws/**" = "none"',
-                '"*.pem" = "none"',
-                '"**/*.pem" = "none"',
-                '"*.key" = "none"',
-                '"**/*.key" = "none"',
-                '"*.pfx" = "none"',
-                '"**/*.pfx" = "none"',
-                '"credentials*" = "none"',
-                '"**/credentials*" = "none"',
+                codexWorkspaceRootsTable(),
               ].join("\n")
             : null,
       }),
@@ -1283,25 +1291,25 @@ describe("codex settings feature flags", () => {
     assert.equal(facts.readDenyCoversSecrets, true);
   });
 
-  it("does not count incomplete Codex key material denies as secret coverage", () => {
+  it("does not count incomplete Codex exact/subtree denies as secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) => path === ".codex/config.toml",
         readFile: (path) =>
           path === ".codex/config.toml"
             ? [
+                'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
-                '[permissions.goat-flow.filesystem.":project_roots"]',
-                '".env" = "none"',
-                '"**/.env" = "none"',
-                '".env.*" = "none"',
-                '"**/.env.*" = "none"',
-                '".ssh/**" = "none"',
-                '"**/.ssh/**" = "none"',
-                '".aws/**" = "none"',
-                '"**/.aws/**" = "none"',
-                '"*.pem" = "none"',
-                '"**/*.pem" = "none"',
+                codexWorkspaceRootsTable([
+                  '".env" = "none"',
+                  '".env.local" = "none"',
+                  '".env.development" = "none"',
+                  '".env.production" = "none"',
+                  '".env.test" = "none"',
+                  '".envrc" = "none"',
+                  '"secrets/**" = "none"',
+                  '".ssh/**" = "none"',
+                ]),
               ].join("\n")
             : null,
       }),
@@ -1320,23 +1328,7 @@ describe("codex settings feature flags", () => {
             ? [
                 'default_permissions = "default"',
                 "[permissions.goat-flow.filesystem]",
-                '[permissions.goat-flow.filesystem.":project_roots"]',
-                '".env" = "none"',
-                '"**/.env" = "none"',
-                '".env.*" = "none"',
-                '"**/.env.*" = "none"',
-                '".ssh/**" = "none"',
-                '"**/.ssh/**" = "none"',
-                '".aws/**" = "none"',
-                '"**/.aws/**" = "none"',
-                '"*.pem" = "none"',
-                '"**/*.pem" = "none"',
-                '"*.key" = "none"',
-                '"**/*.key" = "none"',
-                '"*.pfx" = "none"',
-                '"**/*.pfx" = "none"',
-                '"credentials*" = "none"',
-                '"**/credentials*" = "none"',
+                codexWorkspaceRootsTable(CODEX_PROJECT_ROOT_ENTRIES.slice(2)),
               ].join("\n")
             : null,
       }),
@@ -1344,6 +1336,26 @@ describe("codex settings feature flags", () => {
     );
 
     assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("continues parsing legacy nested Codex project-root permission tables", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                ...CODEX_PROJECT_ROOT_ENTRIES,
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
   });
 
   it("fails agent-settings when Codex config still uses codex_hooks", () => {
