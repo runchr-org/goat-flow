@@ -15,6 +15,7 @@
  */
 import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
+import { StringDecoder } from "node:string_decoder";
 import {
   recordEvidenceEvent,
   type EvidenceEnvelopeWriteOptions,
@@ -24,6 +25,16 @@ import {
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_STDOUT_CAP_BYTES = 1_048_576; // 1 MB
 const KILL_GRACE_MS = 2_000;
+const DEFAULT_ENV_KEYS = [
+  "PATH",
+  "Path",
+  "PATHEXT",
+  "SystemRoot",
+  "WINDIR",
+  "TEMP",
+  "TMP",
+  "TMPDIR",
+];
 
 /**
  * Shell metacharacters rejected in args. Because we always spawn with
@@ -47,7 +58,8 @@ export interface ExecOptions {
   /** Explicit per-call-site whitelist. The command must be a member, regardless
    *  of whether `command -v` would resolve it. */
   allowList: readonly string[];
-  /** Optional environment. Callers must scrub secrets; the helper does not. */
+  /** Optional environment. Defaults to a minimal PATH/temp env; callers that
+   *  pass env must scrub secrets first. */
   env?: Record<string, string>;
   /** Optional cap on captured stdout bytes. Defaults to 1 MB. */
   stdoutCapBytes?: number;
@@ -107,6 +119,15 @@ function basename(path: string): string {
   return slash === -1 ? path : path.slice(slash + 1);
 }
 
+function defaultSafeEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of DEFAULT_ENV_KEYS) {
+    const value = process.env[key];
+    if (typeof value === "string" && value !== "") env[key] = value;
+  }
+  return env;
+}
+
 function rejectIfUnsafeArgs(args: string[]): void {
   if (!Array.isArray(args)) {
     throw new SafeExecRejection("args-not-array", "args must be an array");
@@ -133,9 +154,10 @@ function capBuffer(
   capBytes: number,
 ): { text: string; truncated: boolean } {
   const truncated = totalBytes > capBytes;
-  const joined = Buffer.concat(buffers).toString("utf-8");
-  if (!truncated) return { text: joined, truncated: false };
-  const head = joined.slice(0, capBytes);
+  const joined = Buffer.concat(buffers);
+  if (!truncated) return { text: joined.toString("utf-8"), truncated: false };
+  const decoder = new StringDecoder("utf8");
+  const head = decoder.write(joined.subarray(0, Math.max(0, capBytes)));
   return {
     text: `${head}\n…[output truncated at ${capBytes} bytes]`,
     truncated: true,
@@ -189,6 +211,7 @@ export function execSafely(opts: ExecOptions): Promise<ExecResult> {
   const stdoutCap = opts.stdoutCapBytes ?? DEFAULT_STDOUT_CAP_BYTES;
   const stderrCap = opts.stderrCapBytes ?? DEFAULT_STDOUT_CAP_BYTES;
   const commandBasename = basename(opts.command);
+  const env = opts.env ?? defaultSafeEnv();
 
   return new Promise<ExecResult>((resolveExec) => {
     const start = performance.now();
@@ -201,7 +224,7 @@ export function execSafely(opts: ExecOptions): Promise<ExecResult> {
 
     const child = spawn(opts.command, opts.args, {
       cwd: opts.cwd,
-      env: opts.env,
+      env,
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
     });

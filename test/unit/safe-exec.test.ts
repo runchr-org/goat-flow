@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { tmpdir } from "node:os";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -122,6 +122,45 @@ describe("safe-exec/execSafely", () => {
     assert.ok(result.stdout.includes("output truncated at 1024 bytes"));
   });
 
+  it("applies stdout caps as bytes without returning partial UTF-8 characters", async () => {
+    const result = await execSafely({
+      command: "node",
+      args: ["-e", "process.stdout.write('€'.repeat(3))"],
+      cwd: tmpdir(),
+      allowList: ["node"],
+      timeoutMs: 5_000,
+      stdoutCapBytes: 5,
+    });
+    const head = result.stdout.split("\n")[0] ?? "";
+    assert.equal(result.truncated, true);
+    assert.equal(head, "€");
+    assert.ok(Buffer.byteLength(head, "utf8") <= 5);
+  });
+
+  it("does not inherit parent environment variables by default", async () => {
+    const previous = process.env.GOAT_SAFE_EXEC_SECRET;
+    process.env.GOAT_SAFE_EXEC_SECRET = "parent-secret";
+    try {
+      const result = await execSafely({
+        command: "node",
+        args: [
+          "-e",
+          'process.stdout.write(process.env.GOAT_SAFE_EXEC_SECRET ? process.env.GOAT_SAFE_EXEC_SECRET : "missing")',
+        ],
+        cwd: tmpdir(),
+        allowList: ["node"],
+        timeoutMs: 5_000,
+      });
+      assert.equal(result.stdout, "missing");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GOAT_SAFE_EXEC_SECRET;
+      } else {
+        process.env.GOAT_SAFE_EXEC_SECRET = previous;
+      }
+    }
+  });
+
   it("populates commandBasename from the command path", async () => {
     const result = await execSafely({
       command: "node",
@@ -146,13 +185,12 @@ describe("safe-exec/execSafely", () => {
       });
 
       assert.equal(result.ok, true);
-      const logPath = join(
-        projectPath,
-        ".goat-flow",
-        "logs",
-        "events",
-        `${new Date().toISOString().slice(0, 10)}.jsonl`,
-      );
+      const eventsDir = join(projectPath, ".goat-flow", "logs", "events");
+      const eventFiles = (await readdir(eventsDir))
+        .filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/u.test(name))
+        .sort();
+      assert.equal(eventFiles.length, 1);
+      const logPath = join(eventsDir, eventFiles[0]!);
       const line = (await readFile(logPath, "utf-8")).trim();
       const event = JSON.parse(line) as {
         event_kind: string;

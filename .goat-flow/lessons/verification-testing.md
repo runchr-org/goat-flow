@@ -1,6 +1,18 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-19
+last_reviewed: 2026-05-20
+---
+
+## Lesson: Cache-behaviour tests need observable contracts
+
+**Status:** active | **Created:** 2026-05-20
+
+**What happened:** While replacing a flaky Quality cache timing assertion, my first counter-based test tried to observe deny-hook self-test executions by monkeypatching `child_process.execFileSync`. The route path imports `execFileSync` as a named binding before the test patch, so the counter stayed at zero and the focused dashboard integration test failed even though the product behavior was the target.
+
+**Root cause:** I swapped a timing smell for an implementation-observation smell. Imported Node builtins and transitive helpers are not a reliable public signal for cache behavior.
+
+**Prevention:** For server cache behavior, expose a narrow response/debug contract or inject an explicit dependency, then assert that contract at the route boundary. Avoid timing ratios and late monkeypatches of already-imported helpers. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `getOrRunQualityAudit`), `test/integration/dashboard-server.test.ts` (search: `reuses cached quality audits unless fresh=true is requested`), `src/cli/audit/check-agent-setup.ts` (search: `import { execFileSync }`).
+
 ---
 
 ## Lesson: Reference-pack wording fixes must check word budget immediately

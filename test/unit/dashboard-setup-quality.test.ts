@@ -157,6 +157,7 @@ describe("dashboardGenerateQuality", () => {
           command: "quality",
           agent: "claude",
           auditStatus: "pass",
+          auditCacheStatus: "miss",
           auditSummary: "fresh audit",
           prompt: "quality prompt",
         }),
@@ -176,6 +177,7 @@ describe("dashboardGenerateQuality", () => {
       command: "quality",
       agent: "claude",
       auditStatus: "pass",
+      auditCacheStatus: "miss",
       auditSummary: "fresh audit",
       prompt: "quality prompt",
     });
@@ -191,6 +193,7 @@ describe("dashboardGenerateQuality", () => {
           command: "quality",
           agent: "claude",
           auditStatus: "fail",
+          auditCacheStatus: "bypass",
           auditSummary: "fresh audit",
           prompt: "fresh quality prompt",
         }),
@@ -210,6 +213,7 @@ describe("dashboardGenerateQuality", () => {
       command: "quality",
       agent: "claude",
       auditStatus: "fail",
+      auditCacheStatus: "bypass",
       auditSummary: "fresh audit",
       prompt: "fresh quality prompt",
     });

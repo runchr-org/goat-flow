@@ -48,12 +48,12 @@ interface JsYamlGlobal {
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
-function parseFrontmatter(block: string): Record<string, unknown> {
+function parseFrontmatter(block: string): Record<string, unknown> | null {
   const yaml = (window as unknown as { jsyaml?: JsYamlGlobal }).jsyaml;
-  if (!yaml) return {};
+  if (!yaml) return null;
   const parsed = yaml.load(block);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return {};
+    return null;
   }
   return parsed as Record<string, unknown>;
 }
@@ -87,10 +87,11 @@ function buildRenderer(): (
     let frontmatter: Record<string, unknown> | null = null;
     const match = body.match(FRONTMATTER_RE);
     if (match) {
-      frontmatter = parseFrontmatter(match[1] ?? "");
-      if (opts.frontmatter !== "passthrough") {
+      const parsedFrontmatter = parseFrontmatter(match[1] ?? "");
+      if (parsedFrontmatter && opts.frontmatter !== "passthrough") {
         body = body.slice(match[0].length);
       }
+      frontmatter = parsedFrontmatter;
     }
     const instance = opts.breaks === false ? noBreaksInstance : defaultInstance;
     return { html: instance.render(body), frontmatter };

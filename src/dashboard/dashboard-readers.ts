@@ -912,10 +912,12 @@ function readQualityResult(value: unknown): QualityResult {
   const payload = readRecord(value, "Quality response");
   const agent = readRunnerId(payload.agent);
   const auditStatus = readAuditStatus(payload.auditStatus);
+  const auditCacheStatus = readString(payload.auditCacheStatus);
   const command = readString(payload.command);
   if (
     !agent ||
     (!auditStatus && payload.auditStatus !== "unavailable") ||
+    !["hit", "miss", "bypass"].includes(auditCacheStatus) ||
     command !== "quality"
   ) {
     throw new Error("Quality response returned an invalid payload");
@@ -925,6 +927,7 @@ function readQualityResult(value: unknown): QualityResult {
     command: "quality",
     agent,
     auditStatus: auditStatus ?? "unavailable",
+    auditCacheStatus: auditCacheStatus as QualityResult["auditCacheStatus"],
     auditSummary: readString(payload.auditSummary),
     prompt: readString(payload.prompt),
   };

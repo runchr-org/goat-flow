@@ -244,6 +244,7 @@ interface QualityResult {
   command: "quality";
   agent: RunnerId;
   auditStatus: AuditStatus | "unavailable";
+  auditCacheStatus: "hit" | "miss" | "bypass";
   auditSummary: string;
   prompt: string;
 }

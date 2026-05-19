@@ -88,6 +88,8 @@ const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
 const VALID_QUALITY_MODES = new Set<string>(QUALITY_MODES);
 const QUALITY_EVALUATE_MAX_BODY_BYTES = MAX_EVALUATE_CONTENT_BYTES + 64 * 1024;
 
+type QualityAuditCacheStatus = "hit" | "miss" | "bypass";
+
 interface DashboardPresetData {
   id: string;
   name: string;
@@ -1943,10 +1945,13 @@ export function createDashboardRouteHandlers(
       cacheOnly = false,
       fresh = false,
     }: { cacheOnly?: boolean; fresh?: boolean } = {},
-  ): AuditReport | null {
+  ): { report: AuditReport | null; cacheStatus: QualityAuditCacheStatus } {
     const cached = readQualityAuditCache(projectPath, agent, fresh);
-    if (cached !== null) return cached;
-    if (cacheOnly) return null;
+    if (cached !== null) {
+      return { report: cached, cacheStatus: "hit" };
+    }
+    const cacheStatus = fresh ? "bypass" : "miss";
+    if (cacheOnly) return { report: null, cacheStatus };
     try {
       const fs = createFS(projectPath);
       const report = runAudit(fs, projectPath, {
@@ -1954,9 +1959,9 @@ export function createDashboardRouteHandlers(
         harness: true,
       });
       writeQualityAuditCache(projectPath, agent, report);
-      return report;
+      return { report, cacheStatus };
     } catch {
-      return null;
+      return { report: null, cacheStatus };
     }
   }
 
@@ -1978,10 +1983,11 @@ export function createDashboardRouteHandlers(
       );
       const fs = createFS(projectPath);
       const sharedFacts = extractSharedFacts(fs, loadConfig(projectPath, fs));
-      const auditReport = getOrRunQualityAudit(projectPath, params.agent, {
+      const audit = getOrRunQualityAudit(projectPath, params.agent, {
         cacheOnly: params.fast,
         fresh: params.fresh,
       });
+      const auditReport = audit.report;
       const { entry: priorReport } = findLatestQualityReport(
         projectPath,
         params.agent,
@@ -2002,7 +2008,10 @@ export function createDashboardRouteHandlers(
         audit_status: auditReport?.status ?? "unavailable",
         prompt: redactEvidenceText("quality prompt", result.prompt),
       });
-      jsonResponse(res, 200, result);
+      jsonResponse(res, 200, {
+        ...result,
+        auditCacheStatus: audit.cacheStatus,
+      });
     } catch (err) {
       jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),

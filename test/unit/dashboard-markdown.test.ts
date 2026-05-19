@@ -59,6 +59,19 @@ published: true
     assert.doesNotMatch(result.html, /title: Renderer/);
   });
 
+  it("preserves leading delimiter blocks that are not YAML metadata", async () => {
+    const renderMarkdown = await loadRenderer();
+    const result = renderMarkdown(`---
+Visible markdown
+---
+# Body
+`);
+
+    assert.equal(result.frontmatter, null);
+    assert.match(result.html, /Visible markdown/);
+    assert.match(result.html, /<h1>Body<\/h1>/);
+  });
+
   it("escapes raw HTML and does not render javascript links", async () => {
     const renderMarkdown = await loadRenderer();
     const result = renderMarkdown(
