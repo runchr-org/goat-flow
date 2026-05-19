@@ -14,20 +14,20 @@ On full-depth, also read `.goat-flow/skill-reference/skill-conventions.md`.
 
 Use when reviewing a diff, PR, or set of changes. Also for quality audits of a codebase area.
 
-**Boundary:** goat-review owns code quality, style, correctness. goat-security owns threat models, compliance, CVEs, auth boundaries. If you find a security issue, flag it and suggest `/goat-security`.
+**Boundary:** goat-review owns quality, style, correctness. goat-security owns threat models, compliance, CVEs, auth boundaries. Security issues: flag and suggest `/goat-security`.
 
 **NOT this skill:** OWASP assessment → /goat-security. Understanding code → /goat-debug. Generating tests → /goat-qa. Planning milestones → /goat-plan. Feature briefs → dispatcher Route Map.
 
 ## Step 0 - Scope, Size, Spec
 
-> "Reviewing [X] -- diff review (quick), PR review against a base branch, or area audit with DoD cross-checks (full)?"
+> "Reviewing [X] -- diff review (quick), PR review against a base branch, or area audit + DoD cross-checks (full)?"
 
 - If user already says "quick", "PR", or "full", confirm and continue.
 - If arriving from the dispatcher with depth already chosen, skip the depth question.
-- If vague, ask one follow-up covering: which files, what concerns you, diff / PR / audit.
+- If vague, ask one follow-up covering files, concerns, and diff / PR / audit.
 - Auto-detect scope: (1) explicit input, (2) staged changes, (3) unstaged changes, (4) PR-style when HEAD is on a non-default branch with commits ahead of the detected review base, (5) git diff.
 
-**PR mode (prefer PR link):** ask for PR URL/number first — it collapses base, head, description, and linked issues into one input. Prompt: "PR URL or number? -- or say 'local' if not pushed." Resolve with `gh pr view <ref> --json baseRefName,headRefName,headRefOid,url,title,body`; diff via `gh pr diff <ref>`. Record PR URL and base SHA.
+**PR mode (prefer PR link):** ask for PR URL/number first; it collapses base, head, description, and linked issues. Prompt: "PR URL or number? -- or say 'local' if not pushed." Resolve with `gh pr view <ref> --json baseRefName,headRefName,headRefOid,url,title,body`; diff via `gh pr diff <ref>`. Record PR URL and base SHA.
 
 **PR mode (base fallback):** when no PR link or `gh` unavailable, resolve base in order: (1) explicit user base, (2) `.goat-flow/config.yaml`'s `skills.goat-review.local_pr_base` (record `configured-base=<base>`, or `configured-base-unresolved=<base>` if unresolvable), (3) `git symbolic-ref --short refs/remotes/origin/HEAD` or `git remote show origin`, (4) ask user, (5) last-resort fallback `main` with `base-detection-failed`. Run `git fetch origin <base> --quiet`; diff via `git diff origin/<base>...HEAD`. On fetch failure, fall back to local `<base>` with `base-fetch-failed`. Record resolved base, source, and short SHA in Review Integrity.
 
@@ -71,7 +71,7 @@ The review runs two sequential passes. This is a deliberate reading discipline, 
 
 ### Pass 1 - Blind Suspicion (diff only)
 
-Read the diff **without opening full files**. The point is to see what the diff itself reveals before the author's surrounding code anchors you.
+Read the diff **without opening full files**. The point is to see what the diff reveals before surrounding code anchors you.
 
 Scan for:
 - **Severity cues:** auth/permission checks, secret handling, SQL/shell/API calls, data mutation, state transitions

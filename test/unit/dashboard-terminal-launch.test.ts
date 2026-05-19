@@ -118,6 +118,10 @@ type HelperContext = {
     text: string,
     runner?: string,
   ): boolean;
+  dashboardOutputLooksRunnerStartupFailure(
+    text: string,
+    runner?: string,
+  ): boolean;
   dashboardNextAwaitingInputState(
     previousAwaiting: boolean,
     previousTail: string,
@@ -204,6 +208,7 @@ globalThis.__helpers = {
   dashboardEndSession,
   dashboardOutputLooksAwaitingInput,
   dashboardOutputLooksReadyForLaunchPrompt,
+  dashboardOutputLooksRunnerStartupFailure,
   dashboardNextAwaitingInputState,
   dashboardScheduleLaunchPrompt,
   dashboardHandleLaunchPromptOutput,
@@ -379,6 +384,43 @@ function createFakeTimers(): TimerControls & {
 }
 
 describe("dashboard terminal launch flow", () => {
+  it("keeps controlling cwd and selected target separate in terminal create payloads", async () => {
+    const createBodies: unknown[] = [];
+    const helpers = loadHelpers(async (input, init) => {
+      if (String(input) === "/api/terminal/create") {
+        createBodies.push(JSON.parse(String(init?.body ?? "{}")));
+        return {
+          json: async () => ({
+            id: "session-boundary",
+            wsUrl: "/ws/terminal/session-boundary",
+          }),
+        } as Response;
+      }
+      return { json: async () => ({ ok: true }) } as Response;
+    });
+    const ctx = makeContext({
+      projectPath: "/tmp/selected-target",
+    });
+
+    await helpers.dashboardLaunchInTerminal(ctx, "inspect target", "claude", {
+      cwdPath: "/tmp/controlling-goat-flow",
+      targetPath: "/tmp/selected-target",
+      promptLabel: "Boundary check",
+    });
+
+    assert.deepStrictEqual(createBodies, [
+      {
+        prompt: "",
+        projectPath: "/tmp/controlling-goat-flow",
+        targetPath: "/tmp/selected-target",
+        runner: "claude",
+      },
+    ]);
+    assert.equal(ctx.sessions[0]?.cwd, "/tmp/controlling-goat-flow");
+    assert.equal(ctx.sessions[0]?.targetPath, "/tmp/selected-target");
+    assert.equal(ctx.sessions[0]?.projectPath, "/tmp/selected-target");
+  });
+
   it("sends terminal text to the requested session instead of the current active tab", async () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1640,7 +1682,19 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.equal(
       helpers.dashboardOutputLooksAwaitingInput(
+        "Do\x1b[1Cyou\x1b[1Cwant\x1b[1Cto\x1b[1Cproceed?\n1. Yes\n2. Yes, and remember\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
         "Bash command\ncommand -v browser-use\nEsc to cancel · Tab to amend · ctrl+e to explain",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Bash command\ncommand -v browser-use\nEsc\x1b[1Cto\x1b[1Ccancel\x1b[1C·\x1b[1CTab\x1b[1Cto\x1b[1Camend\x1b[1C·\x1b[1Cctrl+e\x1b[1Cto\x1b[1Cexplain",
       ),
       true,
     );
@@ -1673,8 +1727,24 @@ describe("dashboard terminal launch flow", () => {
       true,
     );
     assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "",
+        "Do\x1b[1Cyou\x1b[1Cwant\x1b[1Cto\x1b[1Cproceed?\n1. Yes\n2. Explain\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
       helpers.dashboardNextAwaitingInputState(true, prompt, "\nContinuing..."),
       false,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(true, prompt, "\r✻ Thinking…"),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(true, prompt, "\r✢ Thinking…"),
+      true,
     );
     assert.equal(
       helpers.dashboardNextAwaitingInputState(false, prompt, "\nRunning..."),
@@ -1712,6 +1782,25 @@ describe("dashboard terminal launch flow", () => {
       helpers.dashboardOutputLooksReadyForLaunchPrompt(
         "/remote-control is active · Code in CLI\nloading project...",
       ),
+      false,
+    );
+  });
+
+  it("does not treat a Codex config failure followed by a shell prompt as runner readiness", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const output = [
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+
+    assert.equal(
+      helpers.dashboardOutputLooksRunnerStartupFailure(output, "codex"),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(output, "codex"),
       false,
     );
   });
@@ -1847,6 +1936,33 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
   });
 
+  it("clears queued launch prompts when Codex fails before prompt delivery", () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const ctx = makeLaunchPromptContext();
+    const session = ctx.sessions[0] as Record<string, unknown>;
+    session.runner = "codex";
+
+    helpers.dashboardScheduleLaunchPrompt(ctx, "launch-session", "run prompt");
+    session.outputTail = [
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+    helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
+    timers.tick(7000);
+
+    assert.deepStrictEqual(ctx.sent, []);
+    assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
+    assert.equal(session.loadingPhase, "error");
+    assert.equal(
+      session.loadingError,
+      "Runner failed before prompt delivery. Check the terminal output above.",
+    );
+  });
+
   it("detects the compact Claude composer footer as runner readiness", () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1957,10 +2073,25 @@ describe("dashboard terminal launch flow", () => {
   it("maps awaiting-input sessions into the workspace waiting state", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
     assert.match(source, /awaitingInput: s\.awaitingInput === true/);
+    assert.match(source, /waitingForRunner: s\.connected === true/);
     assert.match(source, /return s\.awaitingInput === true \|\|/);
+    assert.match(source, /s\.waitingForRunner === true/);
     assert.match(
       source,
       /this\.allSessions\(\)\.filter\(s => this\.sessionIsWaiting\(s\)\)/,
+    );
+  });
+
+  it("excludes waiting sessions from the Workspace running meter", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /runningSessions\(\) \{/);
+    assert.match(
+      source,
+      /s\.status === 'active' && !this\.sessionIsWaiting\(s\)/,
+    );
+    assert.match(
+      source,
+      /meterRunning\(\) \{ return this\.runningSessions\(\)\.length; \}/,
     );
   });
 
@@ -2082,6 +2213,10 @@ describe("dashboard terminal launch flow", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
     assert.match(source, /x-show="terminalWaitingForRunner"/);
     assert.match(source, /Waiting for runner\.\.\./);
+    assert.match(
+      source,
+      /\(terminalWaitingForRunner \|\| terminalAwaitingInput\) \? 'gf-status-waiting'/,
+    );
   });
 
   it("renders a terminal loading overlay inside each session shell", () => {

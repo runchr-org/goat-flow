@@ -1,6 +1,6 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-05-18
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
@@ -49,6 +49,18 @@ Historical scanner/rubric changes (removed per ADR-013) could invalidate "known 
 **Evidence:** `CHANGELOG.md` (search: `Version bump from v0.10.0`) after the overwrite step.
 
 **Prevention:** When updating release notes, apply edits as additive patches and re-run `git diff CHANGELOG.md` to verify no existing top-level bullets were removed. For large release-note blocks, use a merge strategy: preserve current bullets, then append new bullets separately.
+
+---
+
+## Lesson: Quality report suggestions need ADR reconciliation before gate changes
+
+**Status:** active | **Created:** 2026-05-19
+
+**What happened:** Four same-agent harness quality reports on 2026-05-19 correctly observed that Verification, Recovery, Context, Constraints, and Feedback Loop signals were partly structural. Several suggested making missing post-turn hooks, task-state semantics, or learning-loop capture hard audit failures. Reading `.goat-flow/lessons/setup-and-migration.md` (search: `Optional workflow state must not become audit or quality gates`), `.goat-flow/decisions/ADR-015-remove-stop-lint-from-core.md` (search: `No post-turn hooks found to evaluate`), and `.goat-flow/decisions/ADR-026-remove-workspace-boundary-check.md` (search: `runtime context`) showed those gates had already been intentionally rejected or narrowed.
+
+**Root cause:** Quality reports are good at finding over-marketed signals, but they do not automatically know which weak signals are deliberate product contracts. Treating every "weak" observation as a gating bug would have reversed prior decisions and reintroduced optional workflow-state penalties.
+
+**Prevention:** Before implementing quality-report recommendations that change audit status, scoring, or setup gates, reconcile the suggestion against current ADRs and lessons. If the report is right about presentation but wrong about gating, preserve the existing pass/fail contract and add an explicit limit, warning, or prompt note instead. Evidence anchors: `src/cli/audit/audit.ts` (search: `addNonGatingEvidenceLimits`), `src/cli/audit/types.ts` (search: `limits: string[]`), `src/cli/prompt/compose-quality.ts` (search: `metrics=${concern.metrics}`).
 
 ---
 

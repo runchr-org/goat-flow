@@ -313,6 +313,7 @@ function readAuditCheck(value: unknown): AuditCheck | null {
   }
   const failure = readAuditFailure(value.failure);
   if (failure) check.failure = failure;
+  if (isRecord(value.details)) check.details = value.details;
   return check;
 }
 
@@ -373,6 +374,7 @@ function readAuditConcern(value: unknown): AuditConcern | null {
     status,
     score: value.score,
     findings: readStringArray(value.findings),
+    limits: readStringArray(value.limits),
     recommendations: readStringArray(value.recommendations),
     howToFix: readStringArray(value.howToFix),
     integrityPass: readCount(value.integrityPass),
@@ -910,10 +912,12 @@ function readQualityResult(value: unknown): QualityResult {
   const payload = readRecord(value, "Quality response");
   const agent = readRunnerId(payload.agent);
   const auditStatus = readAuditStatus(payload.auditStatus);
+  const auditCacheStatus = readString(payload.auditCacheStatus);
   const command = readString(payload.command);
   if (
     !agent ||
     (!auditStatus && payload.auditStatus !== "unavailable") ||
+    !["hit", "miss", "bypass"].includes(auditCacheStatus) ||
     command !== "quality"
   ) {
     throw new Error("Quality response returned an invalid payload");
@@ -923,6 +927,7 @@ function readQualityResult(value: unknown): QualityResult {
     command: "quality",
     agent,
     auditStatus: auditStatus ?? "unavailable",
+    auditCacheStatus: auditCacheStatus as QualityResult["auditCacheStatus"],
     auditSummary: readString(payload.auditSummary),
     prompt: readString(payload.prompt),
   };

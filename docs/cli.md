@@ -51,6 +51,10 @@ npx goat-flow quality . --agent codex          # Quality prompt for Codex
 
 The agent derives the date/time from its shell and generates a 5-character lowercase-alphanumeric random suffix so parallel runs do not collide. If prior same-agent, same-mode quality history exists, the generated prompt embeds the latest saved report so the new review can mark current findings as `new` or `persisted`.
 
+The CLI command composes the prompt with fresh audit context. The dashboard
+Quality page may use cached audit enrichment for passive page loads, but its
+Regenerate action follows the same fresh-audit path.
+
 ### `goat-flow quality candidacy <description> [--draft <file>] [--format json]`
 
 Decide what kind of artifact a draft or description should become before authoring it. Returns one of `skill | reference | instruction-file | learning-loop | cli-command | do-not-create` with a deterministic rationale.

@@ -1,4 +1,4 @@
-# GEMINI.md - v1.7.0 (2026-05-12)
+# GEMINI.md - v1.7.0 (2026-05-20)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 
 goat-flow is a harness — guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -43,9 +43,10 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh
 bash -n scripts/*.sh scripts/maintenance/*.sh
 npm run typecheck
 npm test
+bash scripts/preflight-checks.sh
 ```
 
-Situational: `preflight-checks.sh` (full gate), `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.gemini/hooks/deny-dangerous.sh --self-test` (hook check).
+Situational: `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.gemini/hooks/deny-dangerous.sh --self-test` (hook check).
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
@@ -112,7 +113,7 @@ When asked to add, create, or update a goat-flow artifact, route it to the artif
 | Skill playbooks (tools) | `.goat-flow/skill-playbooks/` (README.md index; read BEFORE declaring a tool unavailable) |
 | Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
 | Architecture | `.goat-flow/architecture.md` |
-| Skills | `.agents/skills/` |
+| Gemini skills/config | `.agents/skills/`, `.gemini/settings.json`, `.gemini/hooks/`, `.geminiignore` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation, agent config templates) |
 | CLI + dashboard | `src/cli/`, `src/dashboard/` |
 | Scripts | `scripts/` |

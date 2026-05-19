@@ -1,4 +1,4 @@
-# CLAUDE.md - v1.7.0 (2026-05-12)
+# CLAUDE.md - v1.7.0 (2026-05-20)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 
 goat-flow is a harness — guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -44,9 +44,10 @@ shellcheck scripts/*.sh scripts/maintenance/*.sh
 bash -n scripts/*.sh scripts/maintenance/*.sh
 npm run typecheck
 npm test
+bash scripts/preflight-checks.sh
 ```
 
-Situational: `preflight-checks.sh` (full gate), `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.claude/hooks/deny-dangerous.sh --self-test` (hook check).
+Situational: `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.claude/hooks/deny-dangerous.sh --self-test` (hook check).
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 

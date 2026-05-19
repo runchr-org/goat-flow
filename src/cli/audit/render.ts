@@ -121,6 +121,9 @@ function renderHarnessConcerns(report: AuditReport, lines: string[]): void {
     for (const finding of concern.findings) {
       lines.push(`    ${DIM}${finding}${RESET}`);
     }
+    for (const limit of concern.limits) {
+      lines.push(`    ${YELLOW}Limit: ${limit}${RESET}`);
+    }
     for (let i = 0; i < concern.recommendations.length; i++) {
       lines.push(`    ${YELLOW}-> ${concern.recommendations[i]}${RESET}`);
       if (concern.howToFix[i]) {
@@ -287,6 +290,9 @@ function renderMdHarnessConcerns(report: AuditReport, lines: string[]): void {
     lines.push(`### ${CONCERN_LABELS[key]}: ${mdScopeStatus(concern.status)}`);
     for (const finding of concern.findings) {
       lines.push(`- ${finding}`);
+    }
+    for (const limit of concern.limits) {
+      lines.push(`- *Limit:* ${limit}`);
     }
     for (let i = 0; i < concern.recommendations.length; i++) {
       lines.push(`- *Recommendation:* ${concern.recommendations[i]}`);

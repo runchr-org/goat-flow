@@ -34,6 +34,7 @@ type HelperContext = {
             framework_evidence_paths?: string[];
             target_evidence_paths?: string[];
           };
+          details?: Record<string, unknown>;
         }[];
       };
     };
@@ -51,6 +52,7 @@ type HelperContext = {
             framework_evidence_paths?: string[];
             target_evidence_paths?: string[];
           };
+          details?: Record<string, unknown>;
         }[];
       } | null;
       enforcement: {
@@ -292,6 +294,14 @@ describe("dashboard payload readers", () => {
               displayStatus: "warn",
               impact: "score-only",
               evidenceKind: "structural",
+              details: {
+                verification: [
+                  {
+                    agent: "claude",
+                    reason: "post-turn hook missing",
+                  },
+                ],
+              },
             }),
           ]),
           concerns: null,
@@ -322,6 +332,14 @@ describe("dashboard payload readers", () => {
     ]);
     assert.equal(checks[2]?.acknowledged, true);
     assert.equal(checks[3]?.evidenceKind, "structural");
+    assert.deepEqual(checks[3]?.details, {
+      verification: [
+        {
+          agent: "claude",
+          reason: "post-turn hook missing",
+        },
+      ],
+    });
 
     const score = Math.round(
       (checks.filter((entry) => entry.status === "pass").length /

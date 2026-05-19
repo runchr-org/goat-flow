@@ -1,6 +1,6 @@
 ---
 category: verification-preflight
-last_reviewed: 2026-05-17
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -28,6 +28,10 @@ last_reviewed: 2026-05-17
 **Recurrence update (2026-04-21):** A v1.2.2 version-bump run had `npm test` fail only because the installer round-trip fixture runs full preflight and found committed formatter drift in `src/dashboard/index.html`, a file outside the version-bump edit set. `npm run format:check` reproduced the same single-file failure.
 
 **Recurrence update (2026-05-10):** PR #35 review-feedback fixes passed focused dashboard/terminal tests and `npm run typecheck`, but targeted `npx prettier --check ...` still failed on touched file `test/smoke/dashboard-endpoints.test.ts` after adding a terminal timing regression. Running `npx prettier --write test/smoke/dashboard-endpoints.test.ts` fixed the local formatter blocker before rerunning the checks.
+
+**Recurrence update (2026-05-19):** While fixing Workspace terminal waiting status, focused `test/unit/dashboard-terminal-launch.test.ts` passed but targeted `npx prettier --check src/dashboard/views/workspace.html src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` failed on the touched test file after adding longer source-regex assertions. Running the same touched-file set through `npx prettier --write ...` fixed the local formatter blocker before rerunning the focused terminal test.
+
+**Recurrence update (2026-05-19):** While adding audit concern limit fields and terminal boundary tests, `npx prettier --check src/cli/audit/types.ts src/cli/server/types.ts src/cli/audit/audit.ts src/cli/audit/render.ts src/cli/prompt/compose-quality.ts src/dashboard/dashboard-setup-quality.ts src/dashboard/globals.d.ts src/dashboard/dashboard-readers.ts test/unit/audit-command.test.ts test/unit/quality-command.test.ts test/unit/preset-prompts.test.ts test/unit/dashboard-terminal-launch.test.ts test/unit/dashboard-home.test.ts` failed on the touched test files. Running the same touched-file set through `npx prettier --write ...` fixed the local formatter blocker before rerunning `npm run typecheck` and the targeted unit tests.
 
 **Prevention:**
 1. When preflight fails, immediately identify whether the failing files are in `git status` for the current task.
@@ -94,6 +98,22 @@ last_reviewed: 2026-05-17
 **Root cause:** I treated focused unit tests, typecheck, and fast-suite results as enough after changing a prompt helper and test fixture. The slow installer round-trip runs repo preflight inside a copied checkout, so it catches lint and format debt that focused tests do not.
 
 **Prevention:** Before rerunning `npm run test:slow` after prompt/test changes, run `npx eslint src/cli src/dashboard` and `npm run format:check` locally. If the slow round-trip preflight fails, reproduce the reported gate directly in the source checkout before changing installer or drift logic.
+
+---
+
+## Lesson: Final verification gates need supported scopes and captured logs
+
+**Status:** active | **Created:** 2026-05-19
+
+**What happened:** During the M30-M34 closeout, I ran an ad hoc ESLint command that included ignored test files and a `.mjs` helper outside the TypeScript ESLint project, producing a tooling failure unrelated to the code change. The same final-gate bundle ran `npm test` in parallel with other expensive checks; it reported one failing test but the returned output did not include the failing block. A clean rerun with output captured to a temp log passed (`# tests 881`, `# pass 881`, `# fail 0`).
+
+**Root cause:** I mixed repo-supported verification scopes with improvised paths and treated parallel final gates as interchangeable with a clean final evidence run. That made the first failure ambiguous and forced a rerun to recover the actual evidence.
+
+**Recurrence update (2026-05-19):** The same closeout also added a dashboard markdown performance sanity test whose 500KB fixture was newline-heavy. Focused runs passed, but preflight's concurrent fast-suite runner exceeded the 100ms budget. The fixture still needed to be 500KB, but it needed to measure plain markdown throughput rather than line-break parsing stress.
+
+**Recurrence update (2026-05-19):** M01 commit-guidance work added a new helper and tests. Focused `npx tsc --noEmit` and the new test file passed, but the first full preflight failed in the TypeScript gate: `Knip: 2 unused exports/types`. The exported names were internal helper types, not public API. Removing the unnecessary `export` keywords fixed `npx knip`. Evidence anchors: `src/cli/prompt/commit-guidance.ts` (search: `type CommitGuidanceStatus`), `test/unit/commit-guidance.test.ts` (search: `detects dominant conventional-commit history`).
+
+**Prevention:** Use the repo's supported scopes for final gates (`npx eslint src/cli src/dashboard`, `npm run format:check`, `npx knip --no-progress`). Run full `npm test` alone or capture it to a log before starting parallel expensive checks. When Knip reports configuration hints after a dependency starts being used for real, remove the temporary ignore entry instead of carrying it forward. For performance sanity tests that run in the default fast suite, keep fixtures representative of the named budget and stable under test concurrency. Evidence anchors: `package.json` (search: `test:fast`), `test/unit/dashboard-markdown.test.ts` (search: `MarkdownIt`), `knip.json` (search: `ignoreDependencies`).
 
 ---
 

@@ -120,6 +120,7 @@ export function extractSettingsFacts(
   const readDenyCoversSecrets = checkReadDenyCoversSecrets(
     parsed,
     hasDenyPatterns,
+    fs,
   );
 
   return { exists, valid, parsed, hasDenyPatterns, readDenyCoversSecrets };
@@ -151,8 +152,9 @@ function parseTomlScalar(rawValue: string): unknown {
 function checkReadDenyCoversSecrets(
   parsed: unknown,
   hasDenyPatterns: boolean,
+  fs: ReadonlyFS,
 ): boolean {
-  if (checkCodexPermissionProfileCoversSecrets(parsed)) return true;
+  if (checkCodexPermissionProfileCoversSecrets(parsed, fs)) return true;
   if (!hasDenyPatterns || !parsed) return false;
   /** Permissions object from the parsed settings */
   const perms = (parsed as Record<string, unknown>).permissions as
@@ -177,7 +179,10 @@ function checkReadDenyCoversSecrets(
 }
 
 /** Detect Codex TOML permission profiles that deny the main secret path families. */
-function checkCodexPermissionProfileCoversSecrets(parsed: unknown): boolean {
+function checkCodexPermissionProfileCoversSecrets(
+  parsed: unknown,
+  fs: ReadonlyFS,
+): boolean {
   if (!parsed || typeof parsed !== "object") return false;
   const defaultPermissions = (parsed as Record<string, unknown>)
     .default_permissions;
@@ -185,38 +190,82 @@ function checkCodexPermissionProfileCoversSecrets(parsed: unknown): boolean {
     return false;
   }
 
-  const denied = collectCodexDeniedProjectRootPatterns(
+  const denied = collectCodexDeniedWorkspaceRootPatterns(
     parsed,
     defaultPermissions,
   );
   if (denied.size === 0) return false;
 
   return (
-    hasCodexEnvDeny(denied) &&
-    hasAnyCodexPattern(denied, [".ssh/**", "**/.ssh/**"]) &&
-    hasAnyCodexPattern(denied, [".aws/**", "**/.aws/**"]) &&
-    hasCodexKeyMaterialDeny(denied) &&
-    hasAnyCodexPattern(denied, ["credentials*", "**/credentials*"])
+    hasCodexEnvDeny(denied, fs) &&
+    hasAnyCodexPattern(denied, ["secrets/**"]) &&
+    hasAnyCodexPattern(denied, [".ssh/**"]) &&
+    hasAnyCodexPattern(denied, [".aws/**"]) &&
+    hasCodexCredentialRootDeny(denied, fs)
   );
 }
 
-/** Collect project-root relative Codex permission patterns with mode "none". */
-function collectCodexDeniedProjectRootPatterns(
+export interface CodexWorkspaceRootEntry {
+  pattern: string;
+  mode: string;
+}
+
+function collectCodexWorkspaceRootEntry(
+  key: string,
+  value: unknown,
+  inlineTableKey: string,
+  prefix: string,
+): CodexWorkspaceRootEntry[] {
+  if (key === inlineTableKey && typeof value === "string") {
+    return parseTomlInlineStringTable(value).map(([pattern, mode]) => ({
+      pattern,
+      mode,
+    }));
+  }
+  if (typeof value !== "string" || !key.startsWith(prefix)) return [];
+  const pattern = key.slice(prefix.length);
+  return pattern ? [{ pattern, mode: value }] : [];
+}
+
+export function collectCodexWorkspaceRootEntries(
+  parsed: unknown,
+  profileName: string,
+): CodexWorkspaceRootEntry[] {
+  if (!parsed || typeof parsed !== "object") return [];
+  const rootToken = ":workspace_roots";
+  const inlineTableKey = `permissions.${profileName}.filesystem.${rootToken}`;
+  const prefix = `${inlineTableKey}.`;
+  return Object.entries(parsed as Record<string, unknown>).flatMap(
+    ([key, value]) =>
+      collectCodexWorkspaceRootEntry(key, value, inlineTableKey, prefix),
+  );
+}
+
+function collectCodexDeniedWorkspaceRootPatterns(
   parsed: unknown,
   profileName: string,
 ): Set<string> {
   const denied = new Set<string>();
-  if (!parsed || typeof parsed !== "object") return denied;
-  const prefix = `permissions.${profileName}.filesystem.:project_roots.`;
-  for (const [key, value] of Object.entries(
-    parsed as Record<string, unknown>,
+  for (const { pattern, mode } of collectCodexWorkspaceRootEntries(
+    parsed,
+    profileName,
   )) {
-    if (value === "none" && key.startsWith(prefix)) {
-      const pattern = key.slice(prefix.length);
-      if (pattern) denied.add(pattern);
-    }
+    if (mode === "none") denied.add(pattern);
   }
   return denied;
+}
+
+/** Parse the single-line TOML inline string table shape Codex accepts. */
+function parseTomlInlineStringTable(rawValue: string): Array<[string, string]> {
+  const value = rawValue.trim();
+  if (!value.startsWith("{") || !value.endsWith("}")) return [];
+  const entries: Array<[string, string]> = [];
+  const entryPattern = /"((?:\\.|[^"\\])*)"\s*=\s*"((?:\\.|[^"\\])*)"/gu;
+  for (const match of value.matchAll(entryPattern)) {
+    const [, key, mode] = match;
+    if (key && mode) entries.push([key, mode]);
+  }
+  return entries;
 }
 
 /** Return whether any required Codex filesystem pattern is denied. */
@@ -224,17 +273,42 @@ function hasAnyCodexPattern(denied: Set<string>, patterns: string[]): boolean {
   return patterns.some((pattern) => denied.has(pattern));
 }
 
-/** Detect both root .env files and .env.* variants while allowing .env.example. */
-function hasCodexEnvDeny(denied: Set<string>): boolean {
-  return (
-    hasAnyCodexPattern(denied, [".env", "**/.env", "**/*.env", "**/.env*"]) &&
-    hasAnyCodexPattern(denied, [".env.*", "**/.env.*", "**/.env*"])
-  );
+/** Detect root .env files and common exact variants while allowing .env.example. */
+function existingExactPathsAreDenied(
+  denied: Set<string>,
+  fs: ReadonlyFS,
+  patterns: string[],
+): boolean {
+  return patterns
+    .filter((pattern) => fs.exists(pattern))
+    .every((pattern) => denied.has(pattern));
 }
 
-/** Detect private key/certificate material path coverage. */
-function hasCodexKeyMaterialDeny(denied: Set<string>): boolean {
-  return ["pem", "key", "pfx"].every((extension) =>
-    hasAnyCodexPattern(denied, [`*.${extension}`, `**/*.${extension}`]),
+function hasCodexEnvDeny(denied: Set<string>, fs: ReadonlyFS): boolean {
+  return existingExactPathsAreDenied(denied, fs, [
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.production",
+    ".env.staging",
+    ".env.test",
+    ".envrc",
+  ]);
+}
+
+/** Detect exact root/subtree credential surfaces Codex can express on 0.131+. */
+function hasCodexCredentialRootDeny(
+  denied: Set<string>,
+  fs: ReadonlyFS,
+): boolean {
+  return (
+    [".docker/**", ".gnupg/**", ".kube/**"].every((pattern) =>
+      denied.has(pattern),
+    ) &&
+    existingExactPathsAreDenied(denied, fs, [
+      "credentials",
+      ".npmrc",
+      ".pypirc",
+    ])
   );
 }

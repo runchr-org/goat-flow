@@ -45,10 +45,11 @@ available while you move between views.
 
 Live audit results for every supported agent. Per-agent cards show pass/fail across two scopes (GOAT Flow Setup, Agent Setup) with actionable fix hints. An AI Harness section scores each agent across five concerns - Context, Constraints, Verification, Recovery, and Feedback Loop - so you can see exactly where your setup is strong and where it's weak. "What to do next" action cards surface the highest-priority gaps. Re-audit after changes without leaving the page.
 
-### Tasks
+### Plans
 
-Milestone view for the selected project. Shows task directories, milestone
-status, checkbox progress, and lets you set the active task plan.
+Plan milestone view for the selected project. Surfaces `.goat-flow/tasks/` plan
+directories, milestone status, and checkbox progress, and lets you set the
+active plan.
 
 ### Setup
 
@@ -62,7 +63,7 @@ Prompts include structured workflows like pre-walk-through notes with targeted t
 
 ### Workspace
 
-Split layout for terminal work. A sessions rail lists all running terminal sessions (up to 10) with runner, age, and idle indicators. Single-click switching between sessions. The right pane is a full xterm.js terminal with WebSocket-based PTY - run Claude, Codex, Gemini, or Copilot directly in the browser.
+Split layout for terminal work. A sessions rail lists all running terminal sessions (up to 10) with runner, age, and idle indicators, plus collapsed-rail tooltips and an active-session status pip. Single-click switching between sessions. The right pane is a full xterm.js terminal with WebSocket-based PTY - run Claude, Codex, Gemini, or Copilot directly in the browser. Drag and drop images onto the terminal pane to attach them to the next prompt.
 
 ### Projects
 
@@ -70,7 +71,10 @@ Multi-project browser. Register multiple projects, view their audit status at a 
 
 ### Quality
 
-Generate agent quality-assessment prompts. Select a target agent, generate the prompt, and preview the full output with embedded audit results.
+Generate agent quality-assessment prompts. Select a target agent, generate the
+prompt, and preview the full output with embedded audit results. Passive page
+loads use cached audit enrichment when available so the view opens quickly;
+Regenerate requests a fresh audit before composing the prompt.
 
 ## What's under the hood
 
@@ -167,7 +171,7 @@ npx goat-flow audit . --format sarif       # SARIF output for code scanning uplo
 npx goat-flow install . --agent claude     # Copy/update system files
 npx goat-flow setup . --agent claude       # Generate setup prompt
 npx goat-flow quality . --agent claude     # Generate quality-assessment prompt
-npx goat-flow status .                     # Project state (bare/partial/v0.9/v1.0/v1.1)
+npx goat-flow status .                     # Project state (bare/partial/v0.9/outdated/current/error)
 npx goat-flow manifest                     # Agent support matrix
 ```
 

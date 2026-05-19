@@ -60,6 +60,9 @@ interface AuditCheckProvenance {
   reason?: string;
 }
 
+/** Structured harness detail payloads are forwarded verbatim for dashboard pages. */
+type AuditCheckDetails = Record<string, unknown>;
+
 /** Individual check result inside an audit scope. */
 interface AuditCheck {
   id: string;
@@ -73,6 +76,7 @@ interface AuditCheck {
   evidenceKind?: AuditCheckEvidenceKind;
   assurance?: AuditCheckAssurance;
   failure?: AuditFailure;
+  details?: AuditCheckDetails;
 }
 
 /** Audit scope as returned by the /api/audit endpoint. */
@@ -88,6 +92,7 @@ interface AuditConcern {
   status: AuditStatus;
   score: number;
   findings: string[];
+  limits: string[];
   recommendations: string[];
   howToFix: string[];
   integrityPass: number;
@@ -239,6 +244,7 @@ interface QualityResult {
   command: "quality";
   agent: RunnerId;
   auditStatus: AuditStatus | "unavailable";
+  auditCacheStatus: "hit" | "miss" | "bypass";
   auditSummary: string;
   prompt: string;
 }
@@ -643,4 +649,9 @@ interface Window {
   __GOAT_FLOW_PRESETS__?: Preset[];
   Terminal?: new (options: Record<string, unknown>) => XTermInstance;
   FitAddon?: { FitAddon: new () => FitAddonInstance };
+  jsyaml?: { load(text: string): unknown };
+  renderMarkdown?: (
+    text: string,
+    opts?: { frontmatter?: "strip" | "passthrough"; breaks?: boolean },
+  ) => { html: string; frontmatter: Record<string, unknown> | null };
 }

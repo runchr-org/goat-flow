@@ -720,6 +720,31 @@ is_git_destructive() {
   return 1
 }
 
+is_git_ls_files() {
+  __goat_git_strip_globals "$1" || return 1
+  [[ "$__goat_git_rest" =~ ^ls-files([[:space:]]|$) ]]
+}
+
+is_find_read_only() {
+  local c="$1"
+  ! [[ "$c" =~ (^|[[:space:]])-(delete|exec|execdir|ok|okdir)([[:space:]]|$) ]]
+}
+
+is_env_example_pipe_consumer_read_only() {
+  local c
+  c=$(normalize_command_candidate "$1")
+  local verb="${c%%[[:space:]]*}"
+  verb="${verb##*/}"
+  case "$verb" in
+    grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read|ls|stat|test)
+      return 0 ;;
+    sed)
+      ! [[ "$c" =~ sed[[:space:]]+-[a-zA-Z]*i || "$c" =~ sed[[:space:]]+--in-place ]]
+      return $? ;;
+    *) return 1 ;;
+  esac
+}
+
 strip_one_assignment_prefix() {
   local c="$1"
   [[ "$c" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]] || return 1
@@ -1341,18 +1366,35 @@ check_segment() {
   if [[ "$touches_env_example" -eq 1 ]]; then
     local env_example_read_only=0
     case "$cmd_verb" in
-      grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read)
+      grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read|ls|stat|test)
         env_example_read_only=1 ;;
+      find)
+        if is_find_read_only "$cmd"; then
+          env_example_read_only=1
+        fi ;;
+      git)
+        if is_git_ls_files "$cmd"; then
+          env_example_read_only=1
+        fi ;;
       sed)
         if ! [[ "$cmd" =~ sed[[:space:]]+-[a-zA-Z]*i || "$cmd" =~ sed[[:space:]]+--in-place ]]; then
           env_example_read_only=1
         fi ;;
     esac
-    if [[ "$cmd" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"[:space:]]*\.env\.example([\'\"[:space:]]|$) ]]; then
+    if [[ "$has_redirect" -eq 1 ]]; then
       env_example_read_only=0
     fi
-    if [[ "$has_pipe" -eq 1 && "$cmd_unquoted" =~ \|[[:space:]]*(tee|dd|cp|mv|sponge)[[:space:]] ]]; then
-      env_example_read_only=0
+    if [[ "$has_pipe" -eq 1 ]]; then
+      local env_pipe_scan="${cmd_unquoted//||/__GOAT_OR__}"
+      local -a env_pipeline_parts
+      local env_pipe_index
+      IFS='|' read -ra env_pipeline_parts <<< "$env_pipe_scan"
+      for ((env_pipe_index = 1; env_pipe_index < ${#env_pipeline_parts[@]}; env_pipe_index++)); do
+        if ! is_env_example_pipe_consumer_read_only "${env_pipeline_parts[$env_pipe_index]}"; then
+          env_example_read_only=0
+          break
+        fi
+      done
     fi
     if [[ "$env_example_read_only" -eq 0 ]]; then
       block ".env.example is allowed for read-only inspection only. Use an explicit file-edit approval path for changes." || return $?
@@ -1360,7 +1402,7 @@ check_segment() {
   fi
   if [[ "$has_redirect" -eq 0 && "$has_pipe" -eq 0 && "$touches_secret" -eq 0 ]]; then
     case "$cmd_verb" in
-      grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read)
+      grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read|ls|stat|test)
         return 0 ;;
       sed)
         # sed without -i/--in-place is read-only; sed -i or --in-place is a write operation

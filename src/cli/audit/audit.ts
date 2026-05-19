@@ -17,7 +17,10 @@ import { checkDrift } from "./check-drift.js";
 import { runContentQualityChecks } from "./check-content-quality.js";
 import { runFactualClaimChecks } from "./check-factual-claims.js";
 import { runSnapshotClaimChecks } from "./check-snapshot-claims.js";
-import { buildEnforcementMatrix } from "./enforcement.js";
+import {
+  buildEnforcementMatrix,
+  type AgentEnforcementCapability,
+} from "./enforcement.js";
 import { validateProvenance } from "./provenance-types.js";
 import type { CheckEvidence } from "./provenance-types.js";
 import type {
@@ -366,6 +369,7 @@ function toCheckResult(
     acknowledged: acknowledged || undefined,
     evidenceKind: check.evidenceKind,
     assurance: result.assurance,
+    details: result.details,
   };
 }
 
@@ -405,6 +409,7 @@ function emptyConcern(): AuditConcern {
     status: "pass",
     score: 0,
     findings: [],
+    limits: [],
     recommendations: [],
     howToFix: [],
     integrityPass: 0,
@@ -416,6 +421,44 @@ function emptyConcern(): AuditConcern {
   };
 }
 
+function addRemediation(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+): void {
+  concern.recommendations.push(...result.recommendations);
+  if (result.howToFix) concern.howToFix.push(...result.howToFix);
+}
+
+function applyMetricCheck(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+): void {
+  concern.metrics++;
+  if (result.status !== "fail") return;
+  concern.limits.push(
+    `Score-only metric failed: ${result.findings.join("; ")}`,
+  );
+  addRemediation(concern, result);
+}
+
+function applyIntegrityCheck(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+): void {
+  if (result.status === "pass") concern.integrityPass++;
+  else concern.integrityFail++;
+}
+
+function applyAdvisoryCheck(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+  acknowledged: boolean,
+): void {
+  if (result.status === "pass") concern.advisoryPass++;
+  else if (acknowledged) concern.advisoryAcknowledged++;
+  else concern.advisoryFail++;
+}
+
 /** Apply a single check result to its concern per the typed scoring model. */
 function applyCheckToConcern(
   concern: AuditConcern,
@@ -425,22 +468,17 @@ function applyCheckToConcern(
 ): void {
   concern.findings.push(...result.findings);
   if (check.type === "metric") {
-    concern.metrics++;
+    applyMetricCheck(concern, result);
     return;
   }
-  const pass = result.status === "pass";
   if (check.type === "integrity") {
-    if (pass) concern.integrityPass++;
-    else concern.integrityFail++;
+    applyIntegrityCheck(concern, result);
   } else {
-    if (pass) concern.advisoryPass++;
-    else if (acknowledged) concern.advisoryAcknowledged++;
-    else concern.advisoryFail++;
+    applyAdvisoryCheck(concern, result, acknowledged);
   }
-  if (!pass && !acknowledged) {
+  if (result.status === "fail" && !acknowledged) {
     concern.status = "fail";
-    concern.recommendations.push(...result.recommendations);
-    if (result.howToFix) concern.howToFix.push(...result.howToFix);
+    addRemediation(concern, result);
   }
 }
 
@@ -485,6 +523,50 @@ export function computeHarness(ctx: AuditContext): {
   }
 
   return { scope: buildScope(checks, {}), concerns };
+}
+
+function describeAggregateAgentSkips(agentScope: AuditScope): string | null {
+  const skippedAgentChecks = agentScope.checks
+    .filter((check) => check.status === "skipped")
+    .map((check) => check.id);
+  if (skippedAgentChecks.length === 0) return null;
+  return `${skippedAgentChecks.length} agent-specific check(s) skipped in aggregate mode (${skippedAgentChecks.join(", ")}); rerun with --agent <id> for selected-agent runtime evidence.`;
+}
+
+function enforcementLimitSummary(
+  matrix: AgentEnforcementCapability[],
+): string | null {
+  let limited = 0;
+  let unknown = 0;
+  for (const agent of matrix) {
+    for (const capability of agent.capabilities) {
+      if (capability.status === "limited") limited++;
+      if (capability.status === "unknown") unknown++;
+    }
+  }
+  if (limited === 0 && unknown === 0) return null;
+  const parts = [
+    unknown > 0 ? `${unknown} unknown` : "",
+    limited > 0 ? `${limited} limited` : "",
+  ].filter(Boolean);
+  const totalLimitedEvidence = unknown + limited;
+  const capabilityLabel =
+    totalLimitedEvidence === 1 ? "capability" : "capabilities";
+  return `Constraint score covers verified deny patterns only; enforcement matrix still reports ${parts.join(" and ")} ${capabilityLabel}.`;
+}
+
+function addNonGatingEvidenceLimits(
+  agentScope: AuditScope,
+  concerns: Record<AuditConcernKey, AuditConcern> | null,
+  enforcement: AgentEnforcementCapability[],
+): void {
+  const agentSkipSummary = describeAggregateAgentSkips(agentScope);
+  if (agentSkipSummary) {
+    agentScope.summary.agentSpecificEvidence = agentSkipSummary;
+  }
+  if (!concerns) return;
+  const constraintsLimit = enforcementLimitSummary(enforcement);
+  if (constraintsLimit) concerns.constraints.limits.push(constraintsLimit);
 }
 
 /** Run build checks and return per-scope results. */
@@ -660,6 +742,11 @@ function runAuditFromContext(
     agentScope: agentScope,
     denyMechanismEvidenceLevel: options.denyMechanismEvidenceLevel,
   });
+  addNonGatingEvidenceLimits(
+    agentScope,
+    harness?.concerns ?? null,
+    enforcement,
+  );
 
   return {
     command: "audit",

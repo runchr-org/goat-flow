@@ -1,6 +1,6 @@
 ---
 category: agent-behavior-trust
-last_reviewed: 2026-05-18
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
@@ -110,7 +110,11 @@ last_reviewed: 2026-05-18
 
 **Prevention:** When a profile field says an agent "can't" do something, verify against the current docs before building workarounds. Capabilities evolve - a limitation at setup time may not still hold.
 
-**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true`, keep `.env.example` as an exact read rule, and reserve recursive globs for `none` denies. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`, `Codex read rules must be exact paths`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
+**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true` and rely on the Bash hook, not an absent exact TOML rule, for read-only `.env.example` inspection. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
+
+**Updated 2026-05-19:** Codex CLI 0.131.0 tightened the permission-profile shape further: filename and match-anywhere globs such as `*.key`, `**/*.key`, `.env.*`, and `**/.ssh/**` now fail config loading even with `none` access. Runtime evidence: `codex "diagnostic no-op"` in this repo returned `Error loading configuration: filesystem glob path **/*.key only supports none access; use an exact path or trailing /** for none subtree access`. Current templates use trailing root subtrees in the base profile, add exact root paths only when those files exist, and rely on `.codex/hooks/deny-dangerous.sh` for direct literal filename-extension shell access. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `Exact entries must point at files`), `.codex/config.toml` (search: `absent exact`), `src/cli/facts/agent/settings.ts` (search: `existingExactPathsAreDenied`).
+
+**Updated again 2026-05-19:** The same fix still left Codex TUI startup warnings because goat-flow emitted `:project_roots`. Codex 0.131.0's local binary recognizes `:workspace_roots`, not `:project_roots`; it warned that `:project_roots` plus every nested deny entry was unrecognized. Current templates now keep `":workspace_roots" = { ... }` under `[permissions.goat-flow.filesystem]`, and audit rejects legacy project-root entries as current secret coverage because Codex 0.131.0 ignores them. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `":workspace_roots" = {`), `.codex/config.toml` (search: `":workspace_roots" = {`), `src/cli/facts/agent/settings.ts` (search: `collectCodexWorkspaceRootEntries`), `.goat-flow/footguns/hooks.md` (search: `Codex workspace-root permission profiles must use the local 0.131 token`).
 
 ---
 ## Lesson: Agent skips AI testing gate and offers to continue
@@ -155,7 +159,7 @@ last_reviewed: 2026-05-18
 
 **Created:** 2026-04-20
 
-**What happened:** Multiple same-day quality reports (`.goat-flow/logs/quality/2026-04-20-1139-claude-91ao4.json`, `.goat-flow/logs/quality/2026-04-20-1200-claude-i7rlb.json`) flagged that `.claude/skills/goat/SKILL.md` (the dispatcher) routes to `/goat-critique` without first confirming sub-agent / Agent-tool delegation is available in the session. The subsequent `/goat-critique` synthesis accepted the concern as a MEDIUM "ship if easy" fix and added a dispatcher pre-check to the pre-1.2.0 task list. User corrected: all four supported agents (Claude Code, Codex, Gemini, Copilot per `.goat-flow/config.yaml` and `workflow/manifest.json`) ship sub-agent / delegated-agent capability. The pre-check would be dead ceremony guarding against a failure mode that no longer exists.
+**What happened:** Multiple same-day quality reports on 2026-04-20 flagged that `.claude/skills/goat/SKILL.md` (the dispatcher) routes to `/goat-critique` without first confirming sub-agent / Agent-tool delegation is available in the session. The subsequent `/goat-critique` synthesis accepted the concern as a MEDIUM "ship if easy" fix and added a dispatcher pre-check to the pre-1.2.0 task list. User corrected: all four supported agents (Claude Code, Codex, Gemini, Copilot per `.goat-flow/config.yaml` and `workflow/manifest.json`) ship sub-agent / delegated-agent capability. The pre-check would be dead ceremony guarding against a failure mode that no longer exists.
 
 **Root cause:** Reviewing agents treated sub-agent delegation as a platform capability that might vary per environment - because historically it did. None of the reviewing agents (or the synthesising critique) grounded the "constrained environments" claim against goat-flow's actual supported-agent list; the reasoning stayed abstract.
 

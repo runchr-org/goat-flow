@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-15
 **Status:** Implemented
-**Updated:** 2026-05-18 - repaired absorbed-history reference to the now-removed `ADR-026-userRole-local-only.md`; the current ADR-026 covers workspace-boundary audit wording.
+**Updated:** 2026-05-19 - clarified that `agents:` later became a legacy ignored field; previous 2026-05-18 update repaired absorbed-history reference to the now-removed `ADR-026-userRole-local-only.md`.
 
 ## Context
 
@@ -22,7 +22,7 @@ For 1.1.0:
 
 ## Consequences
 
-- `.goat-flow/config.yaml` stays minimal: version, agents, skills, telemetry, line-limits
+- `.goat-flow/config.yaml` stays minimal: version, skills, telemetry, line-limits; legacy `agents:` is ignored by the reader and removed by the installer
 - `workflow/install-goat-flow.sh` and setup docs stop asking agents to invent project commands and boundary lists
 - `audit --harness` must not penalize the absence of these fields
 - Contract tests must distinguish between "the reader supports this field" and "the committed project config contains this field"

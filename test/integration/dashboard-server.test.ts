@@ -47,6 +47,15 @@ const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
 const originalExecFileSync = childProcess.execFileSync;
+const CODEX_WORKSPACE_ROOT_ENTRIES = [
+  '"." = "write"',
+  '"secrets/**" = "none"',
+  '".ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '".docker/**" = "none"',
+  '".gnupg/**" = "none"',
+  '".kube/**" = "none"',
+];
 const CODEX_CONFIG = [
   'model = "gpt-5"',
   'default_permissions = "goat-flow"',
@@ -54,19 +63,7 @@ const CODEX_CONFIG = [
   "hooks = true",
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
-  '[permissions.goat-flow.filesystem.":project_roots"]',
-  '"." = "write"',
-  '".env.example" = "read"',
-  '".env" = "none"',
-  '"**/.env" = "none"',
-  '".env.*" = "none"',
-  '"**/.env.*" = "none"',
-  '".ssh/**" = "none"',
-  '"**/.ssh/**" = "none"',
-  '".aws/**" = "none"',
-  '"**/.aws/**" = "none"',
-  '"*.pem" = "none"',
-  '"**/*.pem" = "none"',
+  `":workspace_roots" = { ${CODEX_WORKSPACE_ROOT_ENTRIES.join(", ")} }`,
   "",
 ].join("\n");
 
@@ -1642,7 +1639,10 @@ describe("dashboard /api/quality", () => {
     const data = expectRecord(body, "Quality mode response");
     assert.equal(data.command, "quality");
     assert.equal(data.agent, "claude");
-    assert.match(String(data.prompt), /Skill Suite Quality Assessment/);
+    assert.match(
+      String(data.prompt),
+      /# GOAT Flow Skills Assessment - Claude Code/,
+    );
     assert.match(String(data.prompt), /"quality_mode": "skills"/);
   });
 
@@ -1697,38 +1697,31 @@ describe("dashboard /api/quality", () => {
   });
 
   it("reuses cached quality audits unless fresh=true is requested", async () => {
-    const runTimedQualityRequest = async (
+    const runQualityRequest = async (
       suffix: string,
-    ): Promise<{ ms: number; body: Record<string, unknown> }> => {
-      const t0 = performance.now();
+    ): Promise<Record<string, unknown>> => {
       const { res, body } = await fetchJson(
         `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude${suffix}`,
       );
-      const ms = performance.now() - t0;
       assert.equal(res.status, 200);
-      return { ms, body: expectRecord(body, "Quality cache response") };
+      return expectRecord(body, "Quality cache response");
     };
 
-    const first = await runTimedQualityRequest("&fresh=true");
-    const second = await runTimedQualityRequest("");
-    const third = await runTimedQualityRequest("&fresh=true");
+    const first = await runQualityRequest("&fresh=true");
+    const second = await runQualityRequest("");
+    const third = await runQualityRequest("&fresh=true");
 
-    assert.equal(first.body.command, "quality");
-    assert.equal(second.body.command, "quality");
-    assert.equal(third.body.command, "quality");
-    assert.equal(first.body.agent, "claude");
-    assert.equal(second.body.agent, "claude");
-    assert.equal(third.body.agent, "claude");
-    assert.equal(first.body.prompt, second.body.prompt);
-    assert.equal(first.body.prompt, third.body.prompt);
-    assert.ok(
-      second.ms <= Math.max(20, first.ms / 3),
-      `cached quality request should be materially faster than a fresh audit (fresh=${Math.round(first.ms)}ms cached=${Math.round(second.ms)}ms)`,
-    );
-    assert.ok(
-      second.ms <= Math.max(20, third.ms / 3),
-      `fresh=true should bypass the cache and stay materially slower than the cached request (fresh=${Math.round(third.ms)}ms cached=${Math.round(second.ms)}ms)`,
-    );
+    assert.equal(first.command, "quality");
+    assert.equal(second.command, "quality");
+    assert.equal(third.command, "quality");
+    assert.equal(first.agent, "claude");
+    assert.equal(second.agent, "claude");
+    assert.equal(third.agent, "claude");
+    assert.equal(first.prompt, second.prompt);
+    assert.equal(first.prompt, third.prompt);
+    assert.equal(first.auditCacheStatus, "bypass");
+    assert.equal(second.auditCacheStatus, "hit");
+    assert.equal(third.auditCacheStatus, "bypass");
   });
 
   for (const agent of getKnownAgentIds()) {

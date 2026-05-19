@@ -12,7 +12,6 @@
  * files legitimately discuss historical counts in prose - excluded.
  */
 import type { AuditContext, ContentFinding } from "./types.js";
-import type { CheckEvidence } from "./provenance-types.js";
 import { AUDIT_VERSION, SKILL_NAMES } from "../constants.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
@@ -23,19 +22,6 @@ import { VERIFICATION_CHECKS } from "./harness/check-verification.js";
 import { RECOVERY_CHECKS } from "./harness/check-recovery.js";
 import { FEEDBACK_LOOP_CHECKS } from "./harness/check-feedback-loop.js";
 import { loadManifest } from "../manifest/manifest.js";
-
-export const FACTUAL_CLAIMS_EVIDENCE: CheckEvidence = {
-  source_type: "incident",
-  source_urls: [],
-  verified_on: "2026-04-17",
-  normative_level: "MUST",
-  evidence_paths: [
-    ".goat-flow/lessons/verification.md",
-    ".goat-flow/lessons/agent-behavior.md",
-    ".goat-flow/lessons/agent-routing.md",
-    ".goat-flow/lessons/agent-frontend.md",
-  ],
-};
 
 const PROSE_TARGETS = [
   "README.md",
@@ -417,6 +403,7 @@ export function scanPathReferences(
       const candidate = match[1] ?? "";
       if (!looksLikeRepoPath(candidate)) continue;
       const cleaned = candidate.replace(/[)\].,;:]+$/, ""); // trim trailing punctuation
+      if (INTENTIONAL_LOCAL_STATE_PATHS.has(cleaned)) continue;
       if (ctx.fs.exists(cleaned)) continue;
       findings.push({
         severity: "info",
@@ -429,6 +416,8 @@ export function scanPathReferences(
   }
   return findings;
 }
+
+const INTENTIONAL_LOCAL_STATE_PATHS = new Set([".goat-flow/project-id"]);
 
 const REPO_PATH_PREFIXES = [
   "src/",

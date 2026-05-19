@@ -388,7 +388,7 @@ describe("preset prompt catalog", () => {
   it("keeps process quality preset as a direct assessment prompt", () => {
     const preset = byId("quality-check-goatflow");
     assert.doesNotMatch(preset.prompt, /^\/goat-/);
-    assert.match(preset.prompt, /GOAT Flow Process Quality Assessment/);
+    assert.match(preset.prompt, /^REPORTING-ONLY ASSESSMENT MODE/);
     assert.match(preset.prompt, /Do not use \/goat-review/);
     assert.match(preset.prompt, /do not count as writes/);
     assert.doesNotMatch(preset.prompt, /strict no-write/);
@@ -531,6 +531,10 @@ describe("preset prompt catalog", () => {
     assert.match(source, /quality-check-goatflow/);
     assert.match(source, /skill-quality-test/);
     assert.match(source, /AI Harness Engineering Quality Assessment/);
+    assert.match(
+      source,
+      /controlling goat-flow workspace from the selected target/,
+    );
     assert.doesNotMatch(source, /\/goat-review audit AI harness/);
     assert.match(source, /dashboardQualityReportLogPrompt/);
     assert.match(source, /\.goat-flow\/logs\/quality/);

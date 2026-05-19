@@ -21,6 +21,8 @@ const TERMINAL_LOADING_RETRY_MS = 10000;
 // Coalesce bursty launch/route refreshes without delaying user-visible state.
 const SESSION_REFRESH_DEBOUNCE_MS = 50;
 const BRACKETED_PASTE_MARKER_PATTERN = /\x1b\[(?:200|201)~/g;
+const RUNNER_STARTUP_FAILURE_MESSAGE =
+  "Runner failed before prompt delivery. Check the terminal output above.";
 let xtermLoadPromise: Promise<void> | null = null;
 let sessionRefreshPromise: Promise<void> | null = null;
 let sessionRefreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -180,7 +182,13 @@ function dashboardSessionTitle(
 
 /** Strip common terminal control codes before scanning output text. */
 function dashboardPlainTerminalText(text: string): string {
-  return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r/g, "\n");
+  return text
+    .replace(/\x1b\[(\d+)C/g, (_sequence, count: string) =>
+      " ".repeat(Math.min(Number.parseInt(count, 10), 240)),
+    )
+    .replace(/\x1b\[C/g, " ")
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\r/g, "\n");
 }
 
 /** Prepare user prompt text for one bracketed-paste payload. */
@@ -202,10 +210,22 @@ function dashboardOutputLooksAwaitingInput(text: string): boolean {
     /\b(?:enter|type)\s+(?:the\s+)?(?:number|choice|option)\b/i.test(plain) ||
     /\bwhich option\b/i.test(plain);
   return (
-    /\bdo you want to (?:proceed|continue|allow|approve)\??/i.test(plain) ||
+    /\bdo\s+you\s+want\s+to\s+(?:proceed|continue|allow|approve)\??/i.test(
+      plain,
+    ) ||
     /\bawaiting (?:input|confirmation|approval)\b/i.test(plain) ||
-    /\bEsc to cancel\b[\s\S]{0,240}\bTab to amend\b/i.test(plain) ||
+    /\bEsc\s+to\s+cancel\b[\s\S]{0,240}\bTab\s+to\s+amend\b/i.test(plain) ||
     (choicePrompt && numberedChoices)
+  );
+}
+
+/** Return true for single-frame runner status redraws that should not clear waiting state. */
+function dashboardOutputLooksTransientStatusRedraw(text: string): boolean {
+  const plain = dashboardPlainTerminalText(text).trim();
+  if (!plain) return true;
+  if (/^\r[^\n\r]*$/u.test(text)) return true;
+  return /^[✻✢✳✶*•·]?\s*(?:Thinking|Processing|Checking|Reading|Searching)\b/iu.test(
+    plain,
   );
 }
 
@@ -215,6 +235,7 @@ function dashboardOutputLooksReadyForLaunchPrompt(
   runner?: RunnerId | null,
 ): boolean {
   const tail = dashboardPlainTerminalText(text).slice(-5000);
+  if (dashboardOutputLooksRunnerStartupFailure(tail, runner)) return false;
   const geminiReady = /\bType your message or @path\/to\/file\b/i.test(tail);
   if (runner === "gemini") return geminiReady;
   const claudeReady =
@@ -225,6 +246,21 @@ function dashboardOutputLooksReadyForLaunchPrompt(
     /\/effort\b/i.test(tail);
   const shellReady = /(^|\n)\s*(?:[$#]|>)\s*$/u.test(tail);
   return claudeReady || claudeComposerReady || shellReady;
+}
+
+/** Heuristic for runner startup failures where launch prompt delivery is unsafe. */
+function dashboardOutputLooksRunnerStartupFailure(
+  text: string,
+  runner?: RunnerId | null,
+): boolean {
+  const tail = dashboardPlainTerminalText(text).slice(-5000);
+  if (
+    (runner === "codex" || /\bcodex\b/i.test(tail)) &&
+    /\bError loading configuration:/i.test(tail)
+  ) {
+    return true;
+  }
+  return /\bfailed to load Codex config\b/i.test(tail);
 }
 
 /** Heuristic for Claude Code committing a long bracketed paste into the composer. */
@@ -259,8 +295,16 @@ function dashboardNextAwaitingInputState(
   const chunkHasText =
     dashboardPlainTerminalText(outputChunk).trim().length > 0;
   if (dashboardOutputLooksAwaitingInput(outputChunk)) return true;
-  if (chunkHasText) return false;
-  return previousAwaiting && dashboardOutputLooksAwaitingInput(nextTail);
+  const tailStillAwaiting = dashboardOutputLooksAwaitingInput(nextTail);
+  if (!chunkHasText) return previousAwaiting && tailStillAwaiting;
+  if (
+    previousAwaiting &&
+    tailStillAwaiting &&
+    dashboardOutputLooksTransientStatusRedraw(outputChunk)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** Mutate the Alpine-backed local session and the launch-time reference together. */
@@ -777,8 +821,20 @@ function dashboardMaybeSendLaunchPrompt(
     return false;
   }
   if (!refs.ws || refs.ws.readyState !== WebSocket.OPEN) return false;
+  const outputTail = target.outputTail ?? "";
+  if (dashboardOutputLooksRunnerStartupFailure(outputTail, target.runner)) {
+    dashboardSetTerminalLoadingPhase(
+      ctx,
+      sessionId,
+      target,
+      "error",
+      RUNNER_STARTUP_FAILURE_MESSAGE,
+    );
+    dashboardClearLaunchPrompt(ctx, sessionId);
+    return false;
+  }
   const ready = dashboardOutputLooksReadyForLaunchPrompt(
-    target.outputTail ?? "",
+    outputTail,
     target.runner,
   );
   if (!ready && (!force || target.runner === "gemini")) {
@@ -1634,16 +1690,30 @@ function dashboardConnectTerminal(
           previousTail,
           msg.data,
         );
+        const runnerStartupFailed = dashboardOutputLooksRunnerStartupFailure(
+          tail,
+          session.runner,
+        );
         dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
           target.outputTail = tail;
         });
-        dashboardMarkTerminalLoadingReady(
-          ctx,
-          sessionId,
-          session,
-          previousTail,
-          msg.data,
-        );
+        if (runnerStartupFailed) {
+          dashboardSetTerminalLoadingPhase(
+            ctx,
+            sessionId,
+            session,
+            "error",
+            RUNNER_STARTUP_FAILURE_MESSAGE,
+          );
+        } else {
+          dashboardMarkTerminalLoadingReady(
+            ctx,
+            sessionId,
+            session,
+            previousTail,
+            msg.data,
+          );
+        }
         dashboardHandlePasteSubmitOutput(ctx, sessionId, msg.data);
         if (refs?.launchPrompt)
           dashboardHandleLaunchPromptOutput(ctx, sessionId);

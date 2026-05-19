@@ -335,6 +335,14 @@ run_self_test() {
   run_case "cat command substitution .env" 'cat "$(printf .env)"' 2
   run_case "cat .envrc" "cat .envrc" 2
   run_case "cat .env.example" "cat .env.example" 0 smoke
+  run_case "ls .env.example" "ls .env.example" 0 smoke
+  run_case "stat .env.example" "stat .env.example" 0
+  run_case "test .env.example" "test -f .env.example" 0
+  run_case "git ls-files .env.example" "git ls-files -- .env.example" 0
+  run_case "find .env.example" "find . -name .env.example" 0
+  run_case "find pipe wc .env.example" "find . -name .env.example | wc -l" 0
+  run_case "find pipe xargs rm .env.example" "find . -name .env.example | xargs rm" 2 smoke
+  run_case "find delete .env.example" "find . -name .env.example -delete" 2
   run_case "cat ./.env.example" "cat ./.env.example" 0
   run_case "cat ../.env.example" "cat ../.env.example" 0
   run_case "cat .env.example.local" "cat .env.example.local" 2
@@ -342,6 +350,7 @@ run_self_test() {
   run_case "cat xenv.local" "cat xenv.local" 0
   run_case "cat aenv.example" "cat aenv.example" 0
   run_case "head nested .env.example" "head config/.env.example" 0
+  run_case "cat pipe grep .env.example" "cat .env.example | grep FOO" 0
   run_case "source .env" "source .env" 2 smoke
   run_case "dot-source .env" ". .env" 2
   run_case "less .env.local" "less .env.local" 2
@@ -350,6 +359,8 @@ run_self_test() {
   run_case "echo redirect .env.example" 'echo "data" > .env.example' 2
   run_case "echo redirect no-space .env.example" 'echo "data">.env.example' 2
   run_case "tee pipe .env.example" 'echo foo | tee .env.example' 2
+  run_case "nested redirect .env.example" "ls config/.env.example > config/.env.example" 2 smoke
+  run_case "nested tee pipe .env.example" "echo foo | tee config/.env.example" 2
   run_case "clobber .env.example" 'echo foo >| .env.example' 2
   run_case "clobber no-space .env.example" 'echo foo>|.env.example' 2
   run_case "cat single-quoted .env" "cat '.env'" 2

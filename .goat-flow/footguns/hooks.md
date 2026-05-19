@@ -1,9 +1,9 @@
 ---
 category: hooks
-last_reviewed: 2026-05-09
+last_reviewed: 2026-05-19
 ---
 
-**Last independent review:** 2026-05-04 - All five active entries were reviewed against current anchors and hook self-tests. Targeted `rg` checks resolved every cited semantic anchor; workflow, Claude, GitHub, Codex, and Gemini deny-hook self-tests each returned `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe was blocked by the active PreToolUse guard before script execution, so this review relies on self-test coverage plus live harness blocking for that command shape.
+**Last independent review:** 2026-05-04 - The five active entries present at review time were checked against current anchors and hook self-tests. Targeted `rg` checks resolved every cited semantic anchor; workflow, Claude, GitHub, Codex, and Gemini deny-hook self-tests each returned `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe was blocked by the active PreToolUse guard before script execution, so this review relies on self-test coverage plus live harness blocking for that command shape. Later entries are covered by their own evidence blocks until the next independent review.
 
 ## Footgun: File-read deny does not bind Bash shell reads of secret files
 
@@ -64,6 +64,30 @@ last_reviewed: 2026-05-09
 1. After changing any deny pattern in a settings template (`workflow/hooks/agent-config/*.json`), run `bash scripts/preflight-checks.sh` and confirm `Agent Config Parity` still passes.
 2. When reviewing hook or settings changes, compare the installed file against its workflow template, not just against the other agent mirrors.
 3. If a new agent config surface is added, extend the Agent Config Parity map and `covers()` validation in the same change.
+
+---
+
+## Footgun: Codex workspace-root permission profiles must use the local 0.131 token
+
+**Status:** active | **Created:** 2026-05-19 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Codex starts but prints warnings or fails before shell startup when the permission profile names a workspace-root token or exact path the runtime cannot load. `:project_roots` is ignored by Codex 0.131.0, and exact entries such as `.env.example`, `.docker/config.json`, or `.kube/config` can break startup when those paths are absent. The TOML can still look like it denies `.env`, `.ssh/**`, `.aws/**`, and credential roots, so static review can miss that the running Codex process discarded or could not mount those rules.
+
+**Why it happens:** Codex CLI 0.131.0 recognizes the special workspace token as `:workspace_roots`, not `:project_roots`. Both inline `":workspace_roots" = { ... }` and nested `[permissions.<profile>.filesystem.":workspace_roots"]` TOML shapes load in 0.131.0, but the `:project_roots` token is treated as an unrecognized filesystem path and ignored. Exact workspace-root entries also have to name files that exist in the checkout; absent exact entries are not a safe way to pre-deny future files.
+
+**Evidence:**
+- `.codex/config.toml` (search: `absent exact`) - installed config now uses Codex 0.131.0's accepted token and omits absent exact entries from the base profile.
+- `workflow/hooks/agent-config/codex.toml` (search: `Exact entries must point at files`) - install template mirrors the accepted token and loadable base profile.
+- `src/cli/facts/agent/settings.ts` (search: `existingExactPathsAreDenied`) - audit fact extraction requires exact denies only for sensitive root files that exist in the checkout.
+- `src/cli/audit/check-agent-setup.ts` (search: `checkCodexWorkspaceRootExactPaths`) - agent settings audit fails when Codex config lists absent exact workspace-root paths.
+- Runtime capture from the 2026-05-19 Codex startup failure showed repeated `Configured filesystem path ':project_roots' is not recognized by this version of Codex and will be ignored` warnings for the unsupported token.
+- Local binary probe on 2026-05-19 found `:workspace_roots` in Codex 0.131.0's embedded schema strings and no `:project_roots` support.
+
+**Prevention:**
+1. Do not convert Codex workspace permissions back to `:project_roots`; that token is runtime-invalid on Codex 0.131.0.
+2. Verify Codex config changes with a TTY startup smoke (`codex` under a short timeout) as well as `codex doctor`; non-interactive commands can miss TUI startup warnings.
+3. Keep `.codex/config.toml`, `workflow/hooks/agent-config/codex.toml`, and `src/cli/facts/agent/settings.ts` in the same patch whenever Codex permission grammar changes.
+4. Treat Codex permission-profile secret coverage as a loadable set, not a future-file deny list. Use trailing `/**` subtree denies in the base template, and add exact root-file denies only when the file exists in the checkout.
 
 ---
 
