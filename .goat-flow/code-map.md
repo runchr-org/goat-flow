@@ -181,7 +181,7 @@ code-map.md                # This file
 glossary.md                # Domain terms
 patterns/                  # Proven approaches worth reusing (categorised bucket files)
 
-config.yaml                # Project config (version, agents, skills, line limits)
+config.yaml                # Project config (version, skills, optional calibration)
 
 skill-reference/           # Shared skill doctrine (committed, install-copied from workflow/skills/reference/)
   skill-preamble.md        # Loaded by every goat-* skill invocation

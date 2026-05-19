@@ -3,7 +3,7 @@ category: hooks
 last_reviewed: 2026-05-19
 ---
 
-**Last independent review:** 2026-05-04 - All five active entries were reviewed against current anchors and hook self-tests. Targeted `rg` checks resolved every cited semantic anchor; workflow, Claude, GitHub, Codex, and Gemini deny-hook self-tests each returned `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe was blocked by the active PreToolUse guard before script execution, so this review relies on self-test coverage plus live harness blocking for that command shape.
+**Last independent review:** 2026-05-04 - The five active entries present at review time were checked against current anchors and hook self-tests. Targeted `rg` checks resolved every cited semantic anchor; workflow, Claude, GitHub, Codex, and Gemini deny-hook self-tests each returned `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe was blocked by the active PreToolUse guard before script execution, so this review relies on self-test coverage plus live harness blocking for that command shape. Later entries are covered by their own evidence blocks until the next independent review.
 
 ## Footgun: File-read deny does not bind Bash shell reads of secret files
 

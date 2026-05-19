@@ -421,6 +421,44 @@ function emptyConcern(): AuditConcern {
   };
 }
 
+function addRemediation(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+): void {
+  concern.recommendations.push(...result.recommendations);
+  if (result.howToFix) concern.howToFix.push(...result.howToFix);
+}
+
+function applyMetricCheck(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+): void {
+  concern.metrics++;
+  if (result.status !== "fail") return;
+  concern.limits.push(
+    `Score-only metric failed: ${result.findings.join("; ")}`,
+  );
+  addRemediation(concern, result);
+}
+
+function applyIntegrityCheck(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+): void {
+  if (result.status === "pass") concern.integrityPass++;
+  else concern.integrityFail++;
+}
+
+function applyAdvisoryCheck(
+  concern: AuditConcern,
+  result: HarnessCheckResult,
+  acknowledged: boolean,
+): void {
+  if (result.status === "pass") concern.advisoryPass++;
+  else if (acknowledged) concern.advisoryAcknowledged++;
+  else concern.advisoryFail++;
+}
+
 /** Apply a single check result to its concern per the typed scoring model. */
 function applyCheckToConcern(
   concern: AuditConcern,
@@ -430,29 +468,17 @@ function applyCheckToConcern(
 ): void {
   concern.findings.push(...result.findings);
   if (check.type === "metric") {
-    concern.metrics++;
-    if (result.status === "fail") {
-      concern.limits.push(
-        `Score-only metric failed: ${result.findings.join("; ")}`,
-      );
-      concern.recommendations.push(...result.recommendations);
-      if (result.howToFix) concern.howToFix.push(...result.howToFix);
-    }
+    applyMetricCheck(concern, result);
     return;
   }
-  const pass = result.status === "pass";
   if (check.type === "integrity") {
-    if (pass) concern.integrityPass++;
-    else concern.integrityFail++;
+    applyIntegrityCheck(concern, result);
   } else {
-    if (pass) concern.advisoryPass++;
-    else if (acknowledged) concern.advisoryAcknowledged++;
-    else concern.advisoryFail++;
+    applyAdvisoryCheck(concern, result, acknowledged);
   }
-  if (!pass && !acknowledged) {
+  if (result.status === "fail" && !acknowledged) {
     concern.status = "fail";
-    concern.recommendations.push(...result.recommendations);
-    if (result.howToFix) concern.howToFix.push(...result.howToFix);
+    addRemediation(concern, result);
   }
 }
 

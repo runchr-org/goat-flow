@@ -14,7 +14,6 @@ last_reviewed: 2026-05-19
 **Evidence:**
 - `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) documents the decision and four rejected alternatives including "Default to Full, keep Quick as opt-in."
 - `.goat-flow/lessons/agent-routing.md` (search: `Never override explicit skill invocation`) documents the 2026-04-27 incident where bypassing the full protocol produced a worse result than running it.
-- `.goat-flow/logs/quality/2026-04-27-*` contains three independent quality reports; at least one recommended adding a quick critique mode.
 - `src/cli/prompt/compose-quality.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`) now explicitly tells assessment agents to respect ADR-decided skill mode choices.
 
 **Prevention:**

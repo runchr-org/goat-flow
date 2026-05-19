@@ -74,6 +74,7 @@ import type {
   ProjectStructure,
 } from "../../src/cli/audit/types.js";
 import type {
+  AgentId,
   ReadonlyFS,
   ProjectFacts,
   AgentFacts,
@@ -83,6 +84,26 @@ import type {
   LoadedConfig,
   GoatFlowConfig,
 } from "../../src/cli/config/types.js";
+
+// ---------------------------------------------------------------------------
+// Cached repo audits — shared across describes that audit this repo with
+// identical inputs. Each fresh audit is ~7–12s; lazy-caching cuts ~30s off
+// this file's suite time. Tests must treat the returned report as read-only.
+// ---------------------------------------------------------------------------
+
+const cachedRepoAudits = new Map<string, AuditReport>();
+function getRepoAudit(opts: {
+  agentFilter: AgentId | null;
+  harness: boolean;
+}): AuditReport {
+  const key = `${opts.agentFilter}|${opts.harness}`;
+  let report = cachedRepoAudits.get(key);
+  if (report === undefined) {
+    report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, opts);
+    cachedRepoAudits.set(key, report);
+  }
+  return report;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal mock context for targeted build-check tests
@@ -581,12 +602,7 @@ function countSpan(names: string[], name: string): number {
 // ---------------------------------------------------------------------------
 describe("audit on well-configured project", () => {
   it("passes on this repo", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: false,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: false });
     assert.equal(report.command, "audit");
     assert.equal(
       report.status,
@@ -910,11 +926,7 @@ describe("copilot install requires GitHub commit instructions", () => {
       ["claude", "CLAUDE.md"],
       ["gemini", "GEMINI.md"],
     ] as const) {
-      const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
-        agentFilter: agent,
-        harness: false,
-        checkDrift: false,
-      });
+      const report = getRepoAudit({ agentFilter: agent, harness: false });
       const result = report.scopes.agent.checks.find(
         (check) => check.id === "agent-instruction",
       )!;
@@ -941,11 +953,7 @@ describe("copilot install requires GitHub commit instructions", () => {
   });
 
   it("agent-instruction provenance keeps Copilot bridge evidence for Copilot", () => {
-    const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
-      agentFilter: "copilot",
-      harness: false,
-      checkDrift: false,
-    });
+    const report = getRepoAudit({ agentFilter: "copilot", harness: false });
     const result = report.scopes.agent.checks.find(
       (check) => check.id === "agent-instruction",
     )!;
@@ -1561,12 +1569,7 @@ describe("audit fails on stale skill directory", () => {
 // ---------------------------------------------------------------------------
 describe("audit --harness", () => {
   it("produces concerns with pass/fail status", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     // Build scopes should still pass
     assert.equal(
@@ -1620,12 +1623,7 @@ describe("audit --harness", () => {
   });
 
   it("exposes advisory enforcement capabilities without changing audit status", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assert.equal(report.status, report.overall.status);
     assert.equal(report.enforcement.length, 1);
@@ -1664,12 +1662,7 @@ describe("audit --harness", () => {
 // ---------------------------------------------------------------------------
 describe("audit JSON contract", () => {
   it("has correct shape for build-only mode", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: false,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: false });
 
     // Top-level keys
     assert.equal(report.command, "audit");
@@ -1708,12 +1701,7 @@ describe("audit JSON contract", () => {
   });
 
   it("has correct shape for harness mode", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assert.equal(report.harness, true);
     assert.notEqual(report.scopes.harness, null);

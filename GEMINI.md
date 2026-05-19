@@ -113,7 +113,7 @@ When asked to add, create, or update a goat-flow artifact, route it to the artif
 | Skill playbooks (tools) | `.goat-flow/skill-playbooks/` (README.md index; read BEFORE declaring a tool unavailable) |
 | Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
 | Architecture | `.goat-flow/architecture.md` |
-| Skills | `.agents/skills/` |
+| Gemini skills/config | `.agents/skills/`, `.gemini/settings.json`, `.gemini/hooks/`, `.geminiignore` |
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation, agent config templates) |
 | CLI + dashboard | `src/cli/`, `src/dashboard/` |
 | Scripts | `scripts/` |
