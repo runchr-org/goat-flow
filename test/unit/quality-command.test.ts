@@ -312,10 +312,7 @@ describe("quality prompt content", () => {
       "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
       "",
     ]);
-    assert.doesNotMatch(
-      result.prompt,
-      /GOAT Flow Process Quality Assessment/,
-    );
+    assert.doesNotMatch(result.prompt, /GOAT Flow Process Quality Assessment/);
   });
 
   it("adds bounded learning-loop context only to setup and harness quality prompts", () => {
@@ -554,6 +551,11 @@ describe("quality with audit data", () => {
     assert.ok(
       result.prompt.includes("Agent Setup"),
       "Should mention agent setup scope",
+    );
+    assert.match(result.prompt, /verification: PASS \(75%; metrics=2; limits:/);
+    assert.match(
+      result.prompt,
+      /constraints: PASS \(100%; metrics=0; limits: Constraint score covers verified deny patterns only/,
     );
   });
 

@@ -59,6 +59,7 @@ function concern(
     status,
     score,
     findings: [],
+    limits: [],
     recommendations: [],
     howToFix: [],
     ...extra,

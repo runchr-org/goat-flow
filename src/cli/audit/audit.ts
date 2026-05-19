@@ -17,7 +17,10 @@ import { checkDrift } from "./check-drift.js";
 import { runContentQualityChecks } from "./check-content-quality.js";
 import { runFactualClaimChecks } from "./check-factual-claims.js";
 import { runSnapshotClaimChecks } from "./check-snapshot-claims.js";
-import { buildEnforcementMatrix } from "./enforcement.js";
+import {
+  buildEnforcementMatrix,
+  type AgentEnforcementCapability,
+} from "./enforcement.js";
 import { validateProvenance } from "./provenance-types.js";
 import type { CheckEvidence } from "./provenance-types.js";
 import type {
@@ -406,6 +409,7 @@ function emptyConcern(): AuditConcern {
     status: "pass",
     score: 0,
     findings: [],
+    limits: [],
     recommendations: [],
     howToFix: [],
     integrityPass: 0,
@@ -427,6 +431,13 @@ function applyCheckToConcern(
   concern.findings.push(...result.findings);
   if (check.type === "metric") {
     concern.metrics++;
+    if (result.status === "fail") {
+      concern.limits.push(
+        `Score-only metric failed: ${result.findings.join("; ")}`,
+      );
+      concern.recommendations.push(...result.recommendations);
+      if (result.howToFix) concern.howToFix.push(...result.howToFix);
+    }
     return;
   }
   const pass = result.status === "pass";
@@ -486,6 +497,50 @@ export function computeHarness(ctx: AuditContext): {
   }
 
   return { scope: buildScope(checks, {}), concerns };
+}
+
+function describeAggregateAgentSkips(agentScope: AuditScope): string | null {
+  const skippedAgentChecks = agentScope.checks
+    .filter((check) => check.status === "skipped")
+    .map((check) => check.id);
+  if (skippedAgentChecks.length === 0) return null;
+  return `${skippedAgentChecks.length} agent-specific check(s) skipped in aggregate mode (${skippedAgentChecks.join(", ")}); rerun with --agent <id> for selected-agent runtime evidence.`;
+}
+
+function enforcementLimitSummary(
+  matrix: AgentEnforcementCapability[],
+): string | null {
+  let limited = 0;
+  let unknown = 0;
+  for (const agent of matrix) {
+    for (const capability of agent.capabilities) {
+      if (capability.status === "limited") limited++;
+      if (capability.status === "unknown") unknown++;
+    }
+  }
+  if (limited === 0 && unknown === 0) return null;
+  const parts = [
+    unknown > 0 ? `${unknown} unknown` : "",
+    limited > 0 ? `${limited} limited` : "",
+  ].filter(Boolean);
+  const totalLimitedEvidence = unknown + limited;
+  const capabilityLabel =
+    totalLimitedEvidence === 1 ? "capability" : "capabilities";
+  return `Constraint score covers verified deny patterns only; enforcement matrix still reports ${parts.join(" and ")} ${capabilityLabel}.`;
+}
+
+function addNonGatingEvidenceLimits(
+  agentScope: AuditScope,
+  concerns: Record<AuditConcernKey, AuditConcern> | null,
+  enforcement: AgentEnforcementCapability[],
+): void {
+  const agentSkipSummary = describeAggregateAgentSkips(agentScope);
+  if (agentSkipSummary) {
+    agentScope.summary.agentSpecificEvidence = agentSkipSummary;
+  }
+  if (!concerns) return;
+  const constraintsLimit = enforcementLimitSummary(enforcement);
+  if (constraintsLimit) concerns.constraints.limits.push(constraintsLimit);
 }
 
 /** Run build checks and return per-scope results. */
@@ -661,6 +716,11 @@ function runAuditFromContext(
     agentScope: agentScope,
     denyMechanismEvidenceLevel: options.denyMechanismEvidenceLevel,
   });
+  addNonGatingEvidenceLimits(
+    agentScope,
+    harness?.concerns ?? null,
+    enforcement,
+  );
 
   return {
     command: "audit",

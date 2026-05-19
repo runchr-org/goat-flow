@@ -374,6 +374,7 @@ function readAuditConcern(value: unknown): AuditConcern | null {
     status,
     score: value.score,
     findings: readStringArray(value.findings),
+    limits: readStringArray(value.limits),
     recommendations: readStringArray(value.recommendations),
     howToFix: readStringArray(value.howToFix),
     integrityPass: readCount(value.integrityPass),

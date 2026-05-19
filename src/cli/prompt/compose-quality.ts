@@ -118,8 +118,13 @@ function renderAuditSummary(report: AuditReport): string {
       "Harness completeness (structural integrity, not quality assessment):",
     );
     for (const key of keys) {
+      const concern = report.concerns[key];
+      const limits =
+        concern.limits.length > 0
+          ? `; limits: ${concern.limits.join(" | ")}`
+          : "";
       lines.push(
-        `- ${key}: ${report.concerns[key].status === "pass" ? "PASS" : "FAIL"}`,
+        `- ${key}: ${concern.status === "pass" ? "PASS" : "FAIL"} (${concern.score}%; metrics=${concern.metrics}${limits})`,
       );
     }
   }

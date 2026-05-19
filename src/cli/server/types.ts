@@ -122,6 +122,7 @@ export interface DashboardReport {
         status: "pass" | "fail";
         score: number;
         findings: string[];
+        limits: string[];
         recommendations: string[];
         howToFix?: string[];
         integrityPass: number;

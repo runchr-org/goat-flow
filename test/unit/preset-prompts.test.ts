@@ -531,6 +531,10 @@ describe("preset prompt catalog", () => {
     assert.match(source, /quality-check-goatflow/);
     assert.match(source, /skill-quality-test/);
     assert.match(source, /AI Harness Engineering Quality Assessment/);
+    assert.match(
+      source,
+      /controlling goat-flow workspace from the selected target/,
+    );
     assert.doesNotMatch(source, /\/goat-review audit AI harness/);
     assert.match(source, /dashboardQualityReportLogPrompt/);
     assert.match(source, /\.goat-flow\/logs\/quality/);

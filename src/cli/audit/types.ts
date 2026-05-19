@@ -60,6 +60,8 @@ export interface AuditConcern {
   /** Percentage of passing checks for this concern (0-100). */
   score: number;
   findings: string[];
+  /** Non-gating evidence limits that keep a PASS from being read as complete assurance. */
+  limits: string[];
   recommendations: string[];
   howToFix: string[];
   /** Count of passing integrity checks. */

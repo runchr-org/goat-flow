@@ -384,6 +384,43 @@ function createFakeTimers(): TimerControls & {
 }
 
 describe("dashboard terminal launch flow", () => {
+  it("keeps controlling cwd and selected target separate in terminal create payloads", async () => {
+    const createBodies: unknown[] = [];
+    const helpers = loadHelpers(async (input, init) => {
+      if (String(input) === "/api/terminal/create") {
+        createBodies.push(JSON.parse(String(init?.body ?? "{}")));
+        return {
+          json: async () => ({
+            id: "session-boundary",
+            wsUrl: "/ws/terminal/session-boundary",
+          }),
+        } as Response;
+      }
+      return { json: async () => ({ ok: true }) } as Response;
+    });
+    const ctx = makeContext({
+      projectPath: "/tmp/selected-target",
+    });
+
+    await helpers.dashboardLaunchInTerminal(ctx, "inspect target", "claude", {
+      cwdPath: "/tmp/controlling-goat-flow",
+      targetPath: "/tmp/selected-target",
+      promptLabel: "Boundary check",
+    });
+
+    assert.deepStrictEqual(createBodies, [
+      {
+        prompt: "",
+        projectPath: "/tmp/controlling-goat-flow",
+        targetPath: "/tmp/selected-target",
+        runner: "claude",
+      },
+    ]);
+    assert.equal(ctx.sessions[0]?.cwd, "/tmp/controlling-goat-flow");
+    assert.equal(ctx.sessions[0]?.targetPath, "/tmp/selected-target");
+    assert.equal(ctx.sessions[0]?.projectPath, "/tmp/selected-target");
+  });
+
   it("sends terminal text to the requested session instead of the current active tab", async () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,

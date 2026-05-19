@@ -1646,6 +1646,16 @@ describe("audit --harness", () => {
     assert.match(output, /Agent Enforcement Matrix/);
     assert.match(output, /General file-read restrictions/);
     assert.match(output, /does not affect audit status/);
+    assert.match(
+      output,
+      /Limit: Constraint score covers verified deny patterns only/,
+    );
+    assert.ok(
+      report.concerns?.constraints.limits.some((limit) =>
+        limit.includes("Constraint score covers verified deny patterns only"),
+      ),
+      JSON.stringify(report.concerns?.constraints.limits),
+    );
   });
 });
 
@@ -1725,6 +1735,7 @@ describe("audit JSON contract", () => {
         Array.isArray(c.findings),
         `${key}.findings should be an array`,
       );
+      assert.ok(Array.isArray(c.limits), `${key}.limits should be an array`);
       assert.ok(
         Array.isArray(c.recommendations),
         `${key}.recommendations should be an array`,
@@ -2417,6 +2428,18 @@ describe("M01 scoring model", () => {
     assert.equal(concerns.verification.advisoryFail, 0);
     assert.equal(concerns.verification.status, "pass");
     assert.equal(concerns.verification.score, 75);
+    assert.ok(
+      concerns.verification.limits.some((limit) =>
+        limit.includes("No post-turn hooks installed"),
+      ),
+      JSON.stringify(concerns.verification.limits),
+    );
+    assert.ok(
+      concerns.verification.recommendations.some((recommendation) =>
+        recommendation.includes("project-specific post-turn validation hook"),
+      ),
+      JSON.stringify(concerns.verification.recommendations),
+    );
   });
 
   it("CheckResult carries type, acknowledged, and provenance fields", () => {
@@ -3350,6 +3373,10 @@ describe("setup check dependency status", () => {
       assert.match(
         instruction?.failure?.message ?? "",
         /Supported agent instruction files missing/,
+      );
+      assert.match(
+        report.scopes.agent.summary.agentSpecificEvidence ?? "",
+        /agent-specific check\(s\) skipped in aggregate mode/,
       );
       assert.equal(
         report.scopes.setup.summary.skills,
