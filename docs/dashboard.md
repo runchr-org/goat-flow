@@ -44,7 +44,10 @@ view rather than a disabled menu item.
 
 ### Quality
 
-Generate and view agent quality-assessment prompts. Select a target agent, generate the prompt, and preview the full output with embedded audit results.
+Generate and view agent quality-assessment prompts. Select a target agent,
+generate the prompt, and preview the full output with embedded audit results.
+Passive view loads use cache-only audit enrichment when available; the
+Regenerate action requests a fresh audit before composing the prompt.
 
 ### Setup
 
@@ -102,7 +105,7 @@ All `/api/*` requests require the dashboard token described in [Local Access Bou
 | `/api/audit` | GET | Run audit, return JSON results including per-agent advisory enforcement matrices |
 | `/api/setup` | GET | Generate setup prompt |
 | `/api/setup/detect` | GET | Detect project stack and agents |
-| `/api/quality` | GET | Generate quality-assessment prompt |
+| `/api/quality` | GET | Generate quality-assessment prompt, including `auditCacheStatus` (`hit`, `miss`, or `bypass`) for dashboard cache visibility |
 | `/api/quality/history` | GET | Persisted quality-history rows and latest trend summary |
 | `/api/quality/evaluate` | POST | Score uploaded markdown (skill or shared-reference) and return a deterministic report plus improvement tips. Read-only; canonical from v1.6.0. |
 | `/api/quality/analyse` | POST | Deprecated alias for `/api/quality/evaluate`. Returns the same body with `Deprecation: true` and `Link: </api/quality/evaluate>; rel="successor-version"` headers. |

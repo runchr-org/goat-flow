@@ -71,7 +71,10 @@ Multi-project browser. Register multiple projects, view their audit status at a 
 
 ### Quality
 
-Generate agent quality-assessment prompts. Select a target agent, generate the prompt, and preview the full output with embedded audit results.
+Generate agent quality-assessment prompts. Select a target agent, generate the
+prompt, and preview the full output with embedded audit results. Passive page
+loads use cached audit enrichment when available so the view opens quickly;
+Regenerate requests a fresh audit before composing the prompt.
 
 ## What's under the hood
 

@@ -1,8 +1,8 @@
 # Changelog
 
-## v1.7.0 - 2026-05-19
+## v1.7.0 - 2026-05-20
 
-Harness audit enrichment, dashboard Plans workspace, and learning-loop bounding release.
+Harness audit enrichment, dashboard Plans workspace, learning-loop bounding, and release-hardening fixes.
 
 ### Harness audit
 
@@ -32,11 +32,14 @@ Harness audit enrichment, dashboard Plans workspace, and learning-loop bounding 
 - **Stable dashboard project identity** - Saved project titles, favorites, and project rows now migrate to identity-keyed records using git remote hash, local `.goat-flow/project-id` marker, then path fallback so dashboard state survives common repo moves and duplicate checkout paths.
 - **Hardened local-path validation** - Dashboard endpoints route project, prompt, and upload paths through a shared `LocalPathValidationError` contract with consistent rejection wording, stricter symlink handling, and explicit unit + integration coverage for missing, file-typed, and traversal paths.
 - **Dashboard scope trim for harness pages** - Placeholder side-menu destinations for Context, Constraints, Verification, Recovery, Feedback Loop, Hooks, Memory, Playbooks, and Telemetry were removed from 1.7.0. The dashboard now keeps only backed destinations in the rail: Home, Prompts, Workspace, Skill Evaluator, Plans, Projects, Quality, and Setup. Dedicated harness and manager pages are deferred to 1.8.0.
+- **Quality page passive-load performance** - Passive Quality view loads and the Home quality handoff now request cache-only audit enrichment so opening the page does not rerun the expensive harness audit. The explicit Regenerate action still requests a fresh audit, and `/api/quality` now returns `auditCacheStatus` (`hit`, `miss`, or `bypass`) so cache behavior is asserted structurally instead of through wall-clock timing.
 
 ### Dashboard foundations
 
 - **Dashboard safe-exec foundation** - Added a shared allow-listed, no-shell, timeout-bounded command executor for future dashboard routes and exported the route inventory/side-effect registry with tests that catch missing CSRF classifications.
+- **Safe-exec release hardening** - The executor now caps decoded stdout/stderr at UTF-8 byte boundaries and defaults child processes to a minimal sanitized environment unless callers supply an explicit environment, preventing parent-process environment leakage into future dashboard-safe commands.
 - **Dashboard markdown renderer foundation** - Added the `markdown-it` dashboard dependency, build asset copy, and `window.renderMarkdown` wrapper with raw HTML disabled and simple frontmatter parsing for future Markdown-backed views.
+- **Markdown frontmatter correctness** - The dashboard renderer now strips leading `---` blocks only when YAML parsing returns a metadata object, so ordinary delimiter content remains visible.
 
 ### Learning loop
 
@@ -46,6 +49,7 @@ Harness audit enrichment, dashboard Plans workspace, and learning-loop bounding 
 
 ### Engineering quality
 
+- **Deny-hook `.env.example` hardening** - `.env.example` read-only classification now rejects output redirection and mutating downstream pipeline consumers while preserving benign read-only pipelines. Canonical and mirrored deny-hook self-tests cover the reproduced bypasses.
 - **Preflight coverage reporting** - Preflight reports overall line/branch/function coverage from the fast test suite alongside pass/fail.
 - **Mutation testing helper** - Added an opt-in `scripts/mutation-test.sh` StrykerJS helper with an interactive target menu, local `@stryker-mutator/core` dev dependency, sandbox ignores for goat-flow local state, and a mutation-safe fast-suite dry run.
 

@@ -133,7 +133,11 @@ The generated prompt asks the agent to:
 
 **Time and cost expectation:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows - `goat-critique` alone spawns 3 sub-agents if invoked). Expect 15-60 minutes depending on depth, with moderate token usage. If context is limited, the generated prompt requires at minimum testing `/goat` (routing), `/goat-review` (most common use), and `/goat-critique` (highest-cost skill).
 
-The prompt includes the current `audit` summary so the agent knows what's already passing or failing. If audit is failing, the prompt explicitly asks the agent to assess the incomplete setup.
+The prompt includes the current `audit` summary so the agent knows what's
+already passing or failing. If audit is failing, the prompt explicitly asks the
+agent to assess the incomplete setup. In the dashboard, passive Quality page
+loads may reuse cached audit enrichment for speed; explicit Regenerate and the
+CLI `quality` command request fresh audit context before composing the prompt.
 
 ### Quality report lifecycle
 
