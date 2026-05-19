@@ -10,9 +10,6 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { validateProvenance } from "../../src/cli/audit/provenance-types.js";
 import type { CheckEvidence } from "../../src/cli/audit/provenance-types.js";
-import { CONTENT_QUALITY_EVIDENCE } from "../../src/cli/audit/check-content-quality.js";
-import { FACTUAL_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-factual-claims.js";
-import { SNAPSHOT_CLAIMS_EVIDENCE } from "../../src/cli/audit/check-snapshot-claims.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -122,18 +119,6 @@ describe("validateProvenance", () => {
 });
 
 describe("M05 check evidence constants validate", () => {
-  it("CONTENT_QUALITY_EVIDENCE satisfies the schema", () => {
-    assert.deepEqual(validateProvenance(CONTENT_QUALITY_EVIDENCE), []);
-  });
-
-  it("FACTUAL_CLAIMS_EVIDENCE satisfies the schema", () => {
-    assert.deepEqual(validateProvenance(FACTUAL_CLAIMS_EVIDENCE), []);
-  });
-
-  it("SNAPSHOT_CLAIMS_EVIDENCE satisfies the schema", () => {
-    assert.deepEqual(validateProvenance(SNAPSHOT_CLAIMS_EVIDENCE), []);
-  });
-
   it("all 36 registered build and harness checks satisfy the schema", () => {
     const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
     assert.equal(checks.length, 36);

@@ -38,7 +38,6 @@ import {
   findArtifact,
   scoreArtifact,
   scoreAllArtifacts,
-  type SkillQualityReport,
 } from "../../src/cli/quality/skill-quality.js";
 import {
   cloneQualityConfig,
@@ -274,50 +273,27 @@ describe("artifact discovery", () => {
 });
 
 describe("skill scoring", () => {
-  let goatPlanReport: SkillQualityReport;
-
-  it("scores goat-plan with a keep-skill recommendation", () => {
-    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
-    goatPlanReport = scoreArtifact(PROJECT_ROOT, artifact);
-
-    assert.equal(goatPlanReport.artifact.id, "skill:goat-plan");
-    assert.equal(goatPlanReport.recommendation, "keep-skill");
-    assert.ok(goatPlanReport.totalScore > 0, "expected a positive total score");
-    assert.ok(
-      goatPlanReport.maxTotalScore > 0,
-      "expected a positive max total score",
-    );
-  });
-
-  it("goat-plan has high trigger clarity", () => {
+  it("scores goat-plan with a keep-skill recommendation and per-dimension thresholds", () => {
     const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
     const report = scoreArtifact(PROJECT_ROOT, artifact);
+
+    assert.equal(report.artifact.id, "skill:goat-plan");
+    assert.equal(report.recommendation, "keep-skill");
+    assert.ok(report.totalScore > 0, "expected a positive total score");
+    assert.ok(report.maxTotalScore > 0, "expected a positive max total score");
     const trigger = report.metrics.find((m) => m.metric === "trigger-clarity")!;
-    assert.ok(trigger);
+    const workflow = report.metrics.find(
+      (m) => m.metric === "workflow-completeness",
+    )!;
+    const fit = report.metrics.find((m) => m.metric === "skill-reference-fit")!;
     assert.ok(
       trigger.score >= 10,
       `expected trigger score >= 10, got ${trigger.score}`,
     );
-  });
-
-  it("goat-plan has complete workflow", () => {
-    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
-    const report = scoreArtifact(PROJECT_ROOT, artifact);
-    const workflow = report.metrics.find(
-      (m) => m.metric === "workflow-completeness",
-    )!;
-    assert.ok(workflow);
     assert.ok(
       workflow.score >= 10,
       `expected workflow score >= 10, got ${workflow.score}`,
     );
-  });
-
-  it("goat-plan has strong skill-reference fit", () => {
-    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
-    const report = scoreArtifact(PROJECT_ROOT, artifact);
-    const fit = report.metrics.find((m) => m.metric === "skill-reference-fit")!;
-    assert.ok(fit);
     assert.ok(fit.score >= 7, `expected fit score >= 7, got ${fit.score}`);
   });
 

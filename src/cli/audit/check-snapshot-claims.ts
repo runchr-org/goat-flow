@@ -20,18 +20,6 @@ import { join } from "node:path";
 
 import { getTemplatePath } from "../paths.js";
 import type { AuditContext, ContentFinding } from "./types.js";
-import type { CheckEvidence } from "./provenance-types.js";
-
-export const SNAPSHOT_CLAIMS_EVIDENCE: CheckEvidence = {
-  source_type: "incident",
-  source_urls: [],
-  verified_on: "2026-04-17",
-  normative_level: "MUST",
-  evidence_paths: [
-    ".goat-flow/lessons/verification.md",
-    ".goat-flow/tasks/1.2.0/M06-single-source-of-truth-manifest.md",
-  ],
-};
 
 /** Snapshot shape: the `snapshot_facts` block inside a vX.Y.Z.json. */
 interface SnapshotFacts {
