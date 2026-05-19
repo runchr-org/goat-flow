@@ -777,10 +777,7 @@ describe("quality payload contract", () => {
       auditReport: null,
     });
 
-    assert.match(
-      result.prompt,
-      /minimal valid config: version, agents, skills/i,
-    );
+    assert.match(result.prompt, /minimal valid config: version and skills/i);
     assert.doesNotMatch(
       result.prompt,
       /should have version, agents, skills, line-limits/i,

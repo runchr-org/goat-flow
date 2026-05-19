@@ -122,9 +122,8 @@ function getRepoArtifacts(): ReturnType<typeof discoverArtifacts> {
   return cachedRepoArtifacts;
 }
 
-let cachedRepoScoredArtifacts:
-  | ReturnType<typeof scoreAllArtifacts>
-  | null = null;
+let cachedRepoScoredArtifacts: ReturnType<typeof scoreAllArtifacts> | null =
+  null;
 function getRepoScoredArtifacts(): ReturnType<typeof scoreAllArtifacts> {
   if (cachedRepoScoredArtifacts === null) {
     cachedRepoScoredArtifacts = scoreAllArtifacts(PROJECT_ROOT);
@@ -1454,10 +1453,7 @@ describe("scoreAllArtifacts", () => {
       }
     >;
     const reportsById = new Map(
-      getRepoScoredArtifacts().map((report) => [
-        report.artifact.id,
-        report,
-      ]),
+      getRepoScoredArtifacts().map((report) => [report.artifact.id, report]),
     );
     for (const [id, expected] of Object.entries(fixture)) {
       const report = reportsById.get(id);
