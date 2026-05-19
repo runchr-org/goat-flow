@@ -182,7 +182,13 @@ function dashboardSessionTitle(
 
 /** Strip common terminal control codes before scanning output text. */
 function dashboardPlainTerminalText(text: string): string {
-  return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r/g, "\n");
+  return text
+    .replace(/\x1b\[(\d+)C/g, (_sequence, count: string) =>
+      " ".repeat(Math.min(Number.parseInt(count, 10), 240)),
+    )
+    .replace(/\x1b\[C/g, " ")
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\r/g, "\n");
 }
 
 /** Prepare user prompt text for one bracketed-paste payload. */
@@ -204,9 +210,11 @@ function dashboardOutputLooksAwaitingInput(text: string): boolean {
     /\b(?:enter|type)\s+(?:the\s+)?(?:number|choice|option)\b/i.test(plain) ||
     /\bwhich option\b/i.test(plain);
   return (
-    /\bdo you want to (?:proceed|continue|allow|approve)\??/i.test(plain) ||
+    /\bdo\s+you\s+want\s+to\s+(?:proceed|continue|allow|approve)\??/i.test(
+      plain,
+    ) ||
     /\bawaiting (?:input|confirmation|approval)\b/i.test(plain) ||
-    /\bEsc to cancel\b[\s\S]{0,240}\bTab to amend\b/i.test(plain) ||
+    /\bEsc\s+to\s+cancel\b[\s\S]{0,240}\bTab\s+to\s+amend\b/i.test(plain) ||
     (choicePrompt && numberedChoices)
   );
 }

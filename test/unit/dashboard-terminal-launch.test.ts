@@ -1645,7 +1645,19 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.equal(
       helpers.dashboardOutputLooksAwaitingInput(
+        "Do\x1b[1Cyou\x1b[1Cwant\x1b[1Cto\x1b[1Cproceed?\n1. Yes\n2. Yes, and remember\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
         "Bash command\ncommand -v browser-use\nEsc to cancel · Tab to amend · ctrl+e to explain",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Bash command\ncommand -v browser-use\nEsc\x1b[1Cto\x1b[1Ccancel\x1b[1C·\x1b[1CTab\x1b[1Cto\x1b[1Camend\x1b[1C·\x1b[1Cctrl+e\x1b[1Cto\x1b[1Cexplain",
       ),
       true,
     );
@@ -1675,6 +1687,14 @@ describe("dashboard terminal launch flow", () => {
     const prompt = "Do you want to proceed?\n1. Yes\n2. Explain\n3. No";
     assert.equal(
       helpers.dashboardNextAwaitingInputState(false, "", prompt),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "",
+        "Do\x1b[1Cyou\x1b[1Cwant\x1b[1Cto\x1b[1Cproceed?\n1. Yes\n2. Explain\n3. No",
+      ),
       true,
     );
     assert.equal(
