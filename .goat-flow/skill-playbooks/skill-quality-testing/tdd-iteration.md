@@ -23,7 +23,7 @@ No exceptions:
 - Not for "documentation updates"
 - Not for "it's obvious what the agent will do wrong"
 
-If you have a skill draft and no failing-scenario log behind it: delete the draft, run the scenario, capture the rationalisations, then rewrite.
+If you have a skill draft and no failing-scenario log: delete it, run the scenario, capture rationalisations, then rewrite.
 
 ## When to use
 
