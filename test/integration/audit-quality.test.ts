@@ -7,7 +7,11 @@ import { resolve } from "node:path";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
-import type { AuditConcernKey } from "../../src/cli/audit/types.js";
+import type {
+  AuditConcernKey,
+  AuditReport,
+} from "../../src/cli/audit/types.js";
+import type { AgentId } from "../../src/cli/types.js";
 import {
   makeCtx,
   makeSharedFacts,
@@ -16,16 +20,31 @@ import {
 } from "../fixtures/projects/index.js";
 
 // ---------------------------------------------------------------------------
+// Cached repo audits — this file runs 4 audits against the goat-flow repo
+// itself (1× build-only, 3× harness). Each audit is ~6–12s; lazy-caching by
+// (agent, harness) key prevents repeats. Tests must treat reports as read-only.
+// ---------------------------------------------------------------------------
+const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
+const cachedRepoAudits = new Map<string, AuditReport>();
+function getRepoAudit(opts: {
+  agentFilter: AgentId | null;
+  harness: boolean;
+}): AuditReport {
+  const key = `${opts.agentFilter}|${opts.harness}`;
+  let report = cachedRepoAudits.get(key);
+  if (report === undefined) {
+    report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, opts);
+    cachedRepoAudits.set(key, report);
+  }
+  return report;
+}
+
+// ---------------------------------------------------------------------------
 // Harness concerns produce pass/fail status
 // ---------------------------------------------------------------------------
 describe("harness concern statuses", () => {
   it("all concern statuses are pass or fail", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assert.notEqual(report.concerns, null);
     for (const key of Object.keys(report.concerns!) as AuditConcernKey[]) {
@@ -43,16 +62,8 @@ describe("harness concern statuses", () => {
 // ---------------------------------------------------------------------------
 describe("harness does not affect build-only result", () => {
   it("same build scope status with and without harness", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const buildOnly = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: false,
-    });
-    const withHarness = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const buildOnly = getRepoAudit({ agentFilter: "claude", harness: false });
+    const withHarness = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assert.equal(
       buildOnly.scopes.setup.status,
@@ -236,12 +247,7 @@ describe("deny-hook-registered harness check", () => {
 // ---------------------------------------------------------------------------
 describe("zero-entry fresh install", () => {
   it("a project with zero footguns and lessons passes harness", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assert.notEqual(report.concerns, null);
     // feedback_loop concern should pass even with zero entries

@@ -8,6 +8,7 @@ _temp
 # AI working folders (track skills/hooks/settings, ignore session data)
 .claude/projects/
 .claude/worktrees/
+.claude/scheduled_tasks.lock
 .claude/settings.local.json
 .codex/settings.local.toml
 .cursor/

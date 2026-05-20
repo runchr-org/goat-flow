@@ -13,6 +13,13 @@ import {
   runAuditBatch,
   createAuditFactsView,
 } from "../../src/cli/audit/audit.js";
+import {
+  renderAuditJson,
+  renderAuditMarkdown,
+  renderAuditText,
+} from "../../src/cli/audit/render.js";
+import { renderAuditSarif } from "../../src/cli/audit/sarif.js";
+import { parseCLIArgs } from "../../src/cli/cli.js";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
@@ -23,9 +30,38 @@ import { composeSetup } from "../../src/cli/prompt/compose-setup.js";
 import { extractProjectFacts } from "../../src/cli/facts/orchestrator.js";
 import { extractHookFacts } from "../../src/cli/facts/agent/hooks.js";
 import { extractSettingsFacts } from "../../src/cli/facts/agent/settings.js";
+import {
+  completeInstruction,
+  INSTRUCTION_FILES,
+  RATIONALISATIONS_PREAMBLE,
+} from "../fixtures/evidence-before-claims.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
+const CODEX_WORKSPACE_ROOT_ENTRIES = [
+  '"." = "write"',
+  '"secrets/**" = "none"',
+  '".ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '".docker/**" = "none"',
+  '".gnupg/**" = "none"',
+  '".kube/**" = "none"',
+];
+const CODEX_EXACT_ENV_DENY_ENTRIES = [
+  '".env" = "none"',
+  '".env.local" = "none"',
+  '".env.development" = "none"',
+  '".env.production" = "none"',
+  '".env.test" = "none"',
+  '".env.staging" = "none"',
+  '".envrc" = "none"',
+];
+
+function codexWorkspaceRootsTable(
+  entries = CODEX_WORKSPACE_ROOT_ENTRIES,
+): string {
+  return `":workspace_roots" = { ${entries.join(", ")} }`;
+}
 import { createFS } from "../../src/cli/facts/fs.js";
 import type {
   AuditContext,
@@ -33,6 +69,7 @@ import type {
   ProjectStructure,
 } from "../../src/cli/audit/types.js";
 import type {
+  AgentId,
   ReadonlyFS,
   ProjectFacts,
   AgentFacts,
@@ -42,6 +79,26 @@ import type {
   LoadedConfig,
   GoatFlowConfig,
 } from "../../src/cli/config/types.js";
+
+// ---------------------------------------------------------------------------
+// Cached repo audits — shared across describes that audit this repo with
+// identical inputs. Each fresh audit is ~7–12s; lazy-caching cuts ~30s off
+// this file's suite time. Tests must treat the returned report as read-only.
+// ---------------------------------------------------------------------------
+
+const cachedRepoAudits = new Map<string, AuditReport>();
+function getRepoAudit(opts: {
+  agentFilter: AgentId | null;
+  harness: boolean;
+}): AuditReport {
+  const key = `${opts.agentFilter}|${opts.harness}`;
+  let report = cachedRepoAudits.get(key);
+  if (report === undefined) {
+    report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, opts);
+    cachedRepoAudits.set(key, report);
+  }
+  return report;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal mock context for targeted build-check tests
@@ -101,6 +158,7 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       },
       userRole: "developer",
       telemetry: false,
+      learningLoop: { autoCapture: { enabled: false, targets: [] } },
       knownGaps: [],
       skillOverrides: {},
       harness: { acknowledge: [] },
@@ -141,7 +199,7 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
     instruction: {
       exists: true,
       content: "# Test",
-      lineCount: 50,
+      lineCount: 100,
       sections: new Map(),
     },
     settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: true },
@@ -495,10 +553,23 @@ function makeAuditReport(
           : null,
     },
     concerns: null,
+    enforcement: [],
     drift: null,
     content: null,
     overall: { status },
   };
+}
+
+function makeReportWithDetails(
+  scope: NonNullable<AuditReport["scopes"]["harness"]>,
+): AuditReport {
+  return makeAuditReport(
+    "/tmp/test-project",
+    scope.status,
+    [],
+    [],
+    scope.checks,
+  );
 }
 
 function createSpanRecorder(): {
@@ -526,12 +597,7 @@ function countSpan(names: string[], name: string): number {
 // ---------------------------------------------------------------------------
 describe("audit on well-configured project", () => {
   it("passes on this repo", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: false,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: false });
     assert.equal(report.command, "audit");
     assert.equal(
       report.status,
@@ -635,7 +701,7 @@ describe("audit skill-reference pointer rule", () => {
       );
 
       assert.equal(
-        report.status,
+        report.scopes.setup.status,
         "pass",
         `Expected pass but got: ${JSON.stringify(report.scopes)}`,
       );
@@ -645,7 +711,7 @@ describe("audit skill-reference pointer rule", () => {
     }
   });
 
-  it("skips when the project has no skill-reference directory", async () => {
+  it("fails when the project has no skill-reference or skill-playbooks pack", async () => {
     const project = await makeTempProject((root) =>
       writeAuditSetupFixture(root, {
         skillReferenceDir: false,
@@ -661,12 +727,16 @@ describe("audit skill-reference pointer rule", () => {
         (entry) => entry.id === "instruction-file-skill-reference-pointer",
       );
 
-      assert.equal(
-        report.status,
-        "pass",
-        `Expected pass but got: ${JSON.stringify(report.scopes)}`,
+      assert.equal(report.status, "fail");
+      assert.equal(check?.status, "fail");
+      assert.match(
+        check?.failure?.message ?? "",
+        /Shared reference\/playbook pack/,
       );
-      assert.equal(check?.status, "skipped");
+      assert.match(
+        check?.failure?.message ?? "",
+        /\.goat-flow\/skill-reference\/README\.md/,
+      );
     } finally {
       await project.cleanup();
     }
@@ -787,7 +857,7 @@ describe("M03 batch fact reuse", () => {
     }
   });
 
-  it("deduplicates configured agents before extracting facts", () => {
+  it("ignores legacy config agents when extracting aggregate facts", () => {
     const facts = extractProjectFacts(createFS(PROJECT_ROOT), {
       agentFilter: null,
       projectPath: PROJECT_ROOT,
@@ -798,7 +868,7 @@ describe("M03 batch fact reuse", () => {
 
     assert.deepEqual(
       facts.agents.map((agentFacts) => agentFacts.agent.id),
-      ["claude", "codex"],
+      ["claude", "codex", "gemini", "copilot"],
     );
   });
 
@@ -855,11 +925,7 @@ describe("copilot install requires GitHub commit instructions", () => {
       ["claude", "CLAUDE.md"],
       ["gemini", "GEMINI.md"],
     ] as const) {
-      const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
-        agentFilter: agent,
-        harness: false,
-        checkDrift: false,
-      });
+      const report = getRepoAudit({ agentFilter: agent, harness: false });
       const result = report.scopes.agent.checks.find(
         (check) => check.id === "agent-instruction",
       )!;
@@ -886,11 +952,7 @@ describe("copilot install requires GitHub commit instructions", () => {
   });
 
   it("agent-instruction provenance keeps Copilot bridge evidence for Copilot", () => {
-    const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
-      agentFilter: "copilot",
-      harness: false,
-      checkDrift: false,
-    });
+    const report = getRepoAudit({ agentFilter: "copilot", harness: false });
     const result = report.scopes.agent.checks.find(
       (check) => check.id === "agent-instruction",
     )!;
@@ -1105,10 +1167,10 @@ describe("orphaned artifact detection refinement", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: config.agents filters which agents are checked
+// Test 3: --agent filters which agent checks run
 // ---------------------------------------------------------------------------
-describe("config.agents filtering", () => {
-  it("agent-skills check validates skills for filtered agent", () => {
+describe("--agent filtering", () => {
+  it("agent-skills check validates skills for the selected agent", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-skills")!;
     const codexProfile: AgentProfile = {
       id: "codex",
@@ -1150,7 +1212,7 @@ describe("config.agents filtering", () => {
       "Failure should mention codex",
     );
 
-    // With only claude in ctx.agents (config filter applied upstream), check passes
+    // With only claude in ctx.agents (--agent filter applied upstream), check passes
     const ctxClaudeOnly = makeCtx({
       agentFilter: "claude",
       agents: [stubAgentFacts()],
@@ -1160,7 +1222,7 @@ describe("config.agents filtering", () => {
     assert.equal(
       resultClaudeOnly,
       null,
-      "Should pass when only configured agent (claude) is checked",
+      "Should pass when only selected agent (claude) is checked",
     );
   });
 });
@@ -1175,9 +1237,8 @@ describe("config validation failures", () => {
         errors: [
           {
             level: "error",
-            path: "agents[0]",
-            message:
-              'unknown agent "cursor" - known agents: claude, codex, gemini',
+            path: "toolchain.test[0]",
+            message: "must be a string",
           },
         ],
       },
@@ -1188,7 +1249,7 @@ describe("config validation failures", () => {
       null,
       "config-parses should fail on invalid config",
     );
-    assert.match(result!.message, /Validation error: agents\[0\]/);
+    assert.match(result!.message, /Validation error: toolchain\.test\[0\]/);
     assert.equal(result!.evidence, ".goat-flow/config.yaml");
   });
 });
@@ -1244,25 +1305,7 @@ describe("codex settings feature flags", () => {
                 'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
                 "glob_scan_max_depth = 3",
-                '[permissions.goat-flow.filesystem.":project_roots"]',
-                '"." = "write"',
-                '".env.example" = "read"',
-                '".env" = "none"',
-                '"**/.env" = "none"',
-                '".env.*" = "none"',
-                '"**/.env.*" = "none"',
-                '".ssh/**" = "none"',
-                '"**/.ssh/**" = "none"',
-                '".aws/**" = "none"',
-                '"**/.aws/**" = "none"',
-                '"*.pem" = "none"',
-                '"**/*.pem" = "none"',
-                '"*.key" = "none"',
-                '"**/*.key" = "none"',
-                '"*.pfx" = "none"',
-                '"**/*.pfx" = "none"',
-                '"credentials*" = "none"',
-                '"**/credentials*" = "none"',
+                codexWorkspaceRootsTable(),
               ].join("\n")
             : null,
       }),
@@ -1272,25 +1315,88 @@ describe("codex settings feature flags", () => {
     assert.equal(facts.readDenyCoversSecrets, true);
   });
 
-  it("does not count incomplete Codex key material denies as secret coverage", () => {
+  it("does not count incomplete Codex exact/subtree denies as secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) => path === ".codex/config.toml",
         readFile: (path) =>
           path === ".codex/config.toml"
             ? [
+                'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
-                '[permissions.goat-flow.filesystem.":project_roots"]',
-                '".env" = "none"',
-                '"**/.env" = "none"',
-                '".env.*" = "none"',
-                '"**/.env.*" = "none"',
-                '".ssh/**" = "none"',
-                '"**/.ssh/**" = "none"',
-                '".aws/**" = "none"',
-                '"**/.aws/**" = "none"',
-                '"*.pem" = "none"',
-                '"**/*.pem" = "none"',
+                codexWorkspaceRootsTable([
+                  '".env" = "none"',
+                  '".env.local" = "none"',
+                  '".env.development" = "none"',
+                  '".env.production" = "none"',
+                  '".env.test" = "none"',
+                  '".envrc" = "none"',
+                  '"secrets/**" = "none"',
+                  '".ssh/**" = "none"',
+                ]),
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("does not count Codex env coverage without an existing staging variant", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) =>
+          path === ".codex/config.toml" || path === ".env.staging",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                codexWorkspaceRootsTable(
+                  [
+                    ...CODEX_WORKSPACE_ROOT_ENTRIES,
+                    ...CODEX_EXACT_ENV_DENY_ENTRIES,
+                  ].filter((entry) => !entry.startsWith('".env.staging"')),
+                ),
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("does not require absent Codex exact-file denies for secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                codexWorkspaceRootsTable(CODEX_WORKSPACE_ROOT_ENTRIES),
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
+  });
+
+  it("requires Codex exact-file denies for existing root secret files", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml" || path === ".env",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                codexWorkspaceRootsTable(CODEX_WORKSPACE_ROOT_ENTRIES),
               ].join("\n")
             : null,
       }),
@@ -1309,23 +1415,7 @@ describe("codex settings feature flags", () => {
             ? [
                 'default_permissions = "default"',
                 "[permissions.goat-flow.filesystem]",
-                '[permissions.goat-flow.filesystem.":project_roots"]',
-                '".env" = "none"',
-                '"**/.env" = "none"',
-                '".env.*" = "none"',
-                '"**/.env.*" = "none"',
-                '".ssh/**" = "none"',
-                '"**/.ssh/**" = "none"',
-                '".aws/**" = "none"',
-                '"**/.aws/**" = "none"',
-                '"*.pem" = "none"',
-                '"**/*.pem" = "none"',
-                '"*.key" = "none"',
-                '"**/*.key" = "none"',
-                '"*.pfx" = "none"',
-                '"**/*.pfx" = "none"',
-                '"credentials*" = "none"',
-                '"**/credentials*" = "none"',
+                codexWorkspaceRootsTable(CODEX_WORKSPACE_ROOT_ENTRIES.slice(2)),
               ].join("\n")
             : null,
       }),
@@ -1333,6 +1423,72 @@ describe("codex settings feature flags", () => {
     );
 
     assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("continues parsing nested Codex workspace-root permission tables", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":workspace_roots"]',
+                ...CODEX_WORKSPACE_ROOT_ENTRIES,
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
+  });
+
+  it("does not count legacy Codex project-root permission tables as current secret coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) => path === ".codex/config.toml",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":project_roots"]',
+                ...CODEX_WORKSPACE_ROOT_ENTRIES,
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
+  it("fails agent-settings when Codex permission profile names absent exact paths", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-settings")!;
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      agents: [
+        codexAgentFacts({
+          default_permissions: "goat-flow",
+          "features.hooks": true,
+          "permissions.goat-flow.filesystem.:workspace_roots":
+            codexWorkspaceRootsTable([
+              ...CODEX_WORKSPACE_ROOT_ENTRIES,
+              '".env.example" = "read"',
+            ]).replace(/^":workspace_roots" = /u, ""),
+        }),
+      ],
+      fs: stubFS({
+        exists: (path) => path === ".codex/config.toml",
+      }),
+    });
+    const result = check.run(ctx);
+
+    assert.notEqual(result, null);
+    assert.match(result!.message, /exact workspace-root paths/);
+    assert.match(result!.message, /\.env\.example/);
   });
 
   it("fails agent-settings when Codex config still uses codex_hooks", () => {
@@ -1412,12 +1568,7 @@ describe("audit fails on stale skill directory", () => {
 // ---------------------------------------------------------------------------
 describe("audit --harness", () => {
   it("produces concerns with pass/fail status", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     // Build scopes should still pass
     assert.equal(
@@ -1469,6 +1620,40 @@ describe("audit --harness", () => {
       "overall should not have qualityScore",
     );
   });
+
+  it("exposes advisory enforcement capabilities without changing audit status", () => {
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
+
+    assert.equal(report.status, report.overall.status);
+    assert.equal(report.enforcement.length, 1);
+    const [claude] = report.enforcement;
+    assert.equal(claude?.agent, "claude");
+    assert.equal(claude?.advisory, true);
+    assert.equal(
+      claude?.capabilities.find((item) => item.id === "file-read-restrictions")
+        ?.status,
+      "unknown",
+    );
+    assert.equal(
+      claude?.capabilities.find((item) => item.id === "hook-self-test")?.status,
+      "hard",
+    );
+
+    const output = renderAuditText(report);
+    assert.match(output, /Agent Enforcement Matrix/);
+    assert.match(output, /General file-read restrictions/);
+    assert.match(output, /does not affect audit status/);
+    assert.match(
+      output,
+      /Limit: Constraint score covers verified deny patterns only/,
+    );
+    assert.ok(
+      report.concerns?.constraints.limits.some((limit) =>
+        limit.includes("Constraint score covers verified deny patterns only"),
+      ),
+      JSON.stringify(report.concerns?.constraints.limits),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1476,12 +1661,7 @@ describe("audit --harness", () => {
 // ---------------------------------------------------------------------------
 describe("audit JSON contract", () => {
   it("has correct shape for build-only mode", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: false,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: false });
 
     // Top-level keys
     assert.equal(report.command, "audit");
@@ -1520,12 +1700,7 @@ describe("audit JSON contract", () => {
   });
 
   it("has correct shape for harness mode", () => {
-    const projectPath = resolve(import.meta.dirname, "..", "..");
-    const fs = createFS(projectPath);
-    const report = runAudit(fs, projectPath, {
-      agentFilter: "claude",
-      harness: true,
-    });
+    const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assert.equal(report.harness, true);
     assert.notEqual(report.scopes.harness, null);
@@ -1547,6 +1722,7 @@ describe("audit JSON contract", () => {
         Array.isArray(c.findings),
         `${key}.findings should be an array`,
       );
+      assert.ok(Array.isArray(c.limits), `${key}.limits should be an array`);
       assert.ok(
         Array.isArray(c.recommendations),
         `${key}.recommendations should be an array`,
@@ -1843,13 +2019,13 @@ describe("M01 harness check type tagging", () => {
     }
   });
 
-  it("matches the locked distribution (9 integrity, 6 advisory, 1 metric)", () => {
+  it("matches the locked distribution (9 integrity, 6 advisory, 2 metric)", () => {
     const byType = { integrity: 0, advisory: 0, metric: 0 } as Record<
       string,
       number
     >;
     for (const check of HARNESS_CHECKS) byType[check.type]!++;
-    assert.deepStrictEqual(byType, { integrity: 9, advisory: 6, metric: 1 });
+    assert.deepStrictEqual(byType, { integrity: 9, advisory: 6, metric: 2 });
   });
 
   it("known-integrity ids are tagged integrity", () => {
@@ -1876,7 +2052,10 @@ describe("M01 harness check type tagging", () => {
   });
 
   it("known-metric ids are tagged metric", () => {
-    const metricIds = new Set(["post-turn-hook-integrity"]);
+    const metricIds = new Set([
+      "evidence-before-claims",
+      "post-turn-hook-integrity",
+    ]);
     for (const check of HARNESS_CHECKS) {
       if (metricIds.has(check.id)) {
         assert.equal(check.type, "metric", `${check.id} should be metric`);
@@ -2203,6 +2382,10 @@ describe("M01 scoring model", () => {
 
   it("no post-turn hook metric lowers verification score without failing the concern", () => {
     const baseFacts = makeCtx().facts;
+    const evidenceFiles: Record<string, string> = {
+      ".goat-flow/skill-reference/skill-preamble.md": RATIONALISATIONS_PREAMBLE,
+      [INSTRUCTION_FILES.claude]: completeInstruction("CLAUDE.md"),
+    };
     const ctx = makeCtx({
       facts: {
         ...baseFacts,
@@ -2216,6 +2399,9 @@ describe("M01 scoring model", () => {
           },
         },
       },
+      fs: stubFS({
+        readFile: (path) => evidenceFiles[path] ?? null,
+      }),
     });
     const { scope, concerns } = computeHarness(ctx);
     const metric = scope.checks.find(
@@ -2225,10 +2411,22 @@ describe("M01 scoring model", () => {
     assert.equal(metric.displayStatus, "warn");
     assert.equal(metric.impact, "score-only");
     assert.match(metric.failure?.evidence ?? "", /Metric/);
-    assert.equal(concerns.verification.metrics, 1);
+    assert.equal(concerns.verification.metrics, 2);
     assert.equal(concerns.verification.advisoryFail, 0);
     assert.equal(concerns.verification.status, "pass");
-    assert.equal(concerns.verification.score, 67);
+    assert.equal(concerns.verification.score, 75);
+    assert.ok(
+      concerns.verification.limits.some((limit) =>
+        limit.includes("No post-turn hooks installed"),
+      ),
+      JSON.stringify(concerns.verification.limits),
+    );
+    assert.ok(
+      concerns.verification.recommendations.some((recommendation) =>
+        recommendation.includes("project-specific post-turn validation hook"),
+      ),
+      JSON.stringify(concerns.verification.recommendations),
+    );
   });
 
   it("CheckResult carries type, acknowledged, and provenance fields", () => {
@@ -2263,6 +2461,131 @@ describe("M01 scoring model", () => {
         "docs/harness-audit.md",
       ),
       "framework evidence paths should be labelled separately from target paths",
+    );
+  });
+
+  it("harness check results carry structured details for dashboard consumers", () => {
+    const ctx = makeCtx();
+    const { scope } = computeHarness(ctx);
+    const checksWithoutDetails = scope.checks
+      .filter((check) => check.details === undefined)
+      .map((check) => check.id);
+
+    assert.deepEqual(checksWithoutDetails, []);
+
+    const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
+    assert.deepEqual(docs.details?.docPaths, {
+      totalPaths: 0,
+      resolvedCount: 0,
+      unresolved: [],
+    });
+
+    const lineCounts = scope.checks.find(
+      (c) => c.id === "instruction-line-count",
+    )!;
+    assert.deepEqual(lineCounts.details?.lineCounts, [
+      {
+        agent: "claude",
+        actual: 100,
+        target: 125,
+        hardLimit: 150,
+      },
+    ]);
+
+    const denySecrets = scope.checks.find(
+      (c) => c.id === "deny-covers-secrets",
+    )!;
+    assert.deepEqual(denySecrets.details?.denyMatrix?.[0], {
+      agent: "claude",
+      missingPatterns: [],
+      extraPatterns: [],
+      hookRegistered: true,
+    });
+
+    const hooks = scope.checks.find((c) => c.id === "hooks-registered")!;
+    assert.deepEqual(hooks.details?.verification?.[0], {
+      agent: "claude",
+      reason: "hook registrations and files are in sync",
+      expected: "registration and file state match",
+      actual: "in sync",
+    });
+
+    const recovery = scope.checks.find((c) => c.id === "session-logs")!;
+    assert.deepEqual(recovery.details?.recovery?.[0], {
+      agent: "claude",
+      dir: ".goat-flow/logs/sessions",
+      fileCount: 0,
+    });
+
+    const feedback = scope.checks.find((c) => c.id === "feedback-loop-active")!;
+    assert.deepEqual(feedback.details?.freshness?.[0], {
+      agent: "claude",
+      fresh: 0,
+      aging: 0,
+      stale: 0,
+    });
+
+    const parsed = JSON.parse(renderAuditJson(makeReportWithDetails(scope)));
+    assert.equal(
+      parsed.scopes.harness.checks.some(
+        (check: { details?: unknown }) => check.details !== undefined,
+      ),
+      true,
+    );
+  });
+
+  it("non-json audit renderers ignore structured details", () => {
+    const { scope } = computeHarness(makeCtx());
+    const reportWithDetails = makeReportWithDetails(scope);
+    const reportWithoutDetails = makeReportWithDetails({
+      ...scope,
+      checks: scope.checks.map((check) => {
+        const next = { ...check };
+        delete next.details;
+        return next;
+      }),
+    });
+
+    assert.equal(
+      renderAuditMarkdown(reportWithDetails),
+      renderAuditMarkdown(reportWithoutDetails),
+    );
+    assert.equal(
+      renderAuditText(reportWithDetails),
+      renderAuditText(reportWithoutDetails),
+    );
+    assert.equal(
+      renderAuditSarif(reportWithDetails),
+      renderAuditSarif(reportWithoutDetails),
+    );
+  });
+
+  it("audit details flag defaults on and can strip structured payloads", () => {
+    const parsed = parseCLIArgs(["audit", ".", "--no-audit-details"]);
+    assert.equal(parsed.auditDetails, false);
+    assert.throws(
+      () => parseCLIArgs(["quality", ".", "--no-audit-details"]),
+      /--no-audit-details is only valid for the audit command/,
+    );
+  });
+
+  it("old audit fixtures without details still render as json", () => {
+    const { scope } = computeHarness(makeCtx());
+    const reportWithoutDetails = makeReportWithDetails({
+      ...scope,
+      checks: scope.checks.map((check) => {
+        const next = { ...check };
+        delete next.details;
+        return next;
+      }),
+    });
+    const parsed = JSON.parse(renderAuditJson(reportWithoutDetails));
+
+    assert.equal(
+      parsed.scopes.harness.checks.some(
+        (check: { details?: unknown }) => check.details !== undefined,
+      ),
+      false,
     );
   });
 
@@ -2961,7 +3284,7 @@ describe("setup check dependency status", () => {
     }
   });
 
-  it("aggregate audit fails when config declares an agent with no instruction file", async () => {
+  it("aggregate audit ignores legacy config agents and checks all supported agents", async () => {
     const project = await makeTempProject(async (root) => {
       await writeProjectFile(
         root,
@@ -2981,16 +3304,17 @@ describe("setup check dependency status", () => {
 
       assert.equal(report.scopes.agent.status, "fail");
       assert.equal(instruction?.status, "fail");
-      assert.match(
-        instruction?.failure?.message ?? "",
-        /Configured agent instruction files missing: codex \(AGENTS\.md\)/,
-      );
+      const message = instruction?.failure?.message ?? "";
+      assert.match(message, /Supported agent instruction files missing/);
+      assert.match(message, /codex \(AGENTS\.md\)/);
+      assert.match(message, /gemini \(GEMINI\.md\)/);
+      assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
     } finally {
       await project.cleanup();
     }
   });
 
-  it("aggregate audit names every missing configured agent in a declared-four partial install", async () => {
+  it("aggregate audit names every missing supported agent in a partial install", async () => {
     const project = await makeTempProject(async (root) => {
       await writeProjectFile(
         root,
@@ -3010,6 +3334,7 @@ describe("setup check dependency status", () => {
       const message = instruction?.failure?.message ?? "";
 
       assert.equal(instruction?.status, "fail");
+      assert.match(message, /Supported agent instruction files missing/);
       assert.match(message, /codex \(AGENTS\.md\)/);
       assert.match(message, /gemini \(GEMINI\.md\)/);
       assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
@@ -3034,11 +3359,15 @@ describe("setup check dependency status", () => {
       assert.equal(instruction?.status, "fail");
       assert.match(
         instruction?.failure?.message ?? "",
-        /No configured agents or agent instruction files found/,
+        /Supported agent instruction files missing/,
+      );
+      assert.match(
+        report.scopes.agent.summary.agentSpecificEvidence ?? "",
+        /agent-specific check\(s\) skipped in aggregate mode/,
       );
       assert.equal(
         report.scopes.setup.summary.skills,
-        `0/${SKILL_NAMES.length} installed (no configured agents)`,
+        `0/${SKILL_NAMES.length} installed`,
       );
     } finally {
       await project.cleanup();

@@ -3,7 +3,11 @@
  * 4 checks: deny-covers-secrets, deny-blocks-dangerous, deny-blocks-pipe-to-shell,
  * deny-hook-registered.
  */
-import type { HarnessCheck, AuditContext } from "../types.js";
+import type {
+  AuditContext,
+  HarnessCheck,
+  HarnessCheckDetails,
+} from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 
@@ -66,6 +70,68 @@ function classifySecretDeny(ctx: Pick<AuditContext, "agents">) {
   return { covered, scriptOnly, uncoveredSettings, uncoveredScript };
 }
 
+function secretDenyDetails(
+  agents: AuditContext["agents"],
+): HarnessCheckDetails {
+  return {
+    denyMatrix: agents.map((af) => {
+      const missingPatterns: string[] = [];
+      const isScriptOnly = af.agent.denyMechanism.type === "deny-script";
+      if (!isScriptOnly && !af.hooks.readDenyCoversSecrets) {
+        missingPatterns.push("file-read-secret-paths");
+      }
+      if (!af.hooks.bashDenyCoversSecrets) {
+        missingPatterns.push("bash-secret-paths");
+      }
+      return {
+        agent: af.agent.id,
+        missingPatterns,
+        extraPatterns: [],
+        hookRegistered: af.hooks.denyIsRegistered,
+      };
+    }),
+  };
+}
+
+function pipeToShellDetails(
+  agents: AuditContext["agents"],
+): HarnessCheckDetails {
+  return {
+    denyMatrix: agents.map((af) => ({
+      agent: af.agent.id,
+      missingPatterns: af.hooks.denyBlocksPipeToShell ? [] : ["pipe-to-shell"],
+      extraPatterns: [],
+      hookRegistered: af.hooks.denyIsRegistered,
+    })),
+  };
+}
+
+function denyRegistrationDetails(
+  agents: AuditContext["agents"],
+  unregistered: string[],
+  noDeny: string[],
+  pathMismatch: string[],
+): HarnessCheckDetails {
+  return {
+    denyMatrix: agents.map((af) => {
+      const missingPatterns: string[] = [];
+      if (unregistered.includes(af.agent.id)) {
+        missingPatterns.push("deny-hook-registration");
+      }
+      if (noDeny.includes(af.agent.id)) missingPatterns.push("deny-hook");
+      if (pathMismatch.includes(af.agent.id)) {
+        missingPatterns.push("deny-hook-path");
+      }
+      return {
+        agent: af.agent.id,
+        missingPatterns,
+        extraPatterns: [],
+        hookRegistered: af.hooks.denyIsRegistered,
+      };
+    }),
+  };
+}
+
 const denyCoversSecrets: HarnessCheck = {
   id: "deny-covers-secrets",
   name: "Deny blocks direct literal secret paths",
@@ -79,6 +145,7 @@ const denyCoversSecrets: HarnessCheck = {
   run: (ctx) => {
     const { covered, scriptOnly, uncoveredSettings, uncoveredScript } =
       classifySecretDeny(ctx);
+    const details = secretDenyDetails(ctx.agents);
 
     const anyUncovered =
       uncoveredSettings.length > 0 || uncoveredScript.length > 0;
@@ -86,13 +153,16 @@ const denyCoversSecrets: HarnessCheck = {
     if (covered.length === 0 && !anyUncovered) {
       // All agents are script-only and covered - platform limitation, not a failure
       return {
-        ...pass([
-          "Limited assurance: no agents support file-read deny patterns",
-          ...scriptOnly.map(
-            (id) =>
-              `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but file-read deny is unavailable`,
-          ),
-        ]),
+        ...pass(
+          [
+            "Limited assurance: no agents support file-read deny patterns",
+            ...scriptOnly.map(
+              (id) =>
+                `${id}: limited assurance - script-only deny; Bash hook blocks direct literal secret paths, but file-read deny is unavailable`,
+            ),
+          ],
+          details,
+        ),
         displayStatus: "info",
         assurance: "limited",
       };
@@ -112,7 +182,7 @@ const denyCoversSecrets: HarnessCheck = {
       );
     }
     if (!anyUncovered) {
-      const result = pass(findings);
+      const result = pass(findings, details);
       if (scriptOnly.length === 0) return result;
       return { ...result, displayStatus: "info", assurance: "limited" };
     }
@@ -141,7 +211,7 @@ const denyCoversSecrets: HarnessCheck = {
         `${uncoveredScript.join(", ")}: add an is_secret_path_touch (or equivalent) check in the Bash deny hook. Script-only agents have no file-read deny surface; the Bash hook is the only enforcement layer.`,
       );
     }
-    return fail(findings, recs, fixes);
+    return fail(findings, recs, fixes, details);
   },
 };
 
@@ -163,30 +233,39 @@ const denyBlocksDangerous: HarnessCheck = {
     const findings: string[] = [];
     const recs: string[] = [];
     const fixes: string[] = [];
+    const denyMatrix: NonNullable<HarnessCheckDetails["denyMatrix"]> = [];
     let anyFail = false;
     for (const af of ctx.agents) {
       const { denyBlocksRmRf, denyBlocksGitPush, denyBlocksChmod } = af.hooks;
-      if (denyBlocksRmRf && denyBlocksGitPush && denyBlocksChmod) {
-        findings.push(`${af.agent.id}: deny blocks rm -rf, git-push, chmod`);
+      const missingPatterns: string[] = [];
+      if (!denyBlocksRmRf) missingPatterns.push("broad rm -r");
+      if (!denyBlocksGitPush) missingPatterns.push("git-push");
+      if (!denyBlocksChmod) missingPatterns.push("chmod");
+      denyMatrix.push({
+        agent: af.agent.id,
+        missingPatterns,
+        extraPatterns: [],
+        hookRegistered: af.hooks.denyIsRegistered,
+      });
+      if (missingPatterns.length === 0) {
+        findings.push(
+          `${af.agent.id}: deny blocks broad rm -r, git-push, chmod`,
+        );
       } else {
         anyFail = true;
-        const missing: string[] = [];
-        if (!denyBlocksRmRf) missing.push("rm -rf");
-        if (!denyBlocksGitPush) missing.push("git-push");
-        if (!denyBlocksChmod) missing.push("chmod");
         findings.push(
-          `${af.agent.id}: deny missing coverage for ${missing.join(", ")}`,
+          `${af.agent.id}: deny missing coverage for ${missingPatterns.join(", ")}`,
         );
         recs.push(
-          `Add deny patterns for ${missing.join(", ")} to ${af.agent.id}`,
+          `Add deny patterns for ${missingPatterns.join(", ")} to ${af.agent.id}`,
         );
         fixes.push(
-          `Add deny patterns for ${missing.join(", ")} in ${af.agent.id} agent configuration.`,
+          `Add deny patterns for ${missingPatterns.join(", ")} in ${af.agent.id} agent configuration.`,
         );
       }
     }
-    if (anyFail) return fail(findings, recs, fixes);
-    return pass(findings);
+    if (anyFail) return fail(findings, recs, fixes, { denyMatrix });
+    return pass(findings, { denyMatrix });
   },
 };
 
@@ -208,6 +287,7 @@ const denyBlocksPipeToShell: HarnessCheck = {
   run: (ctx) => {
     const covered: string[] = [];
     const uncovered: string[] = [];
+    const details = pipeToShellDetails(ctx.agents);
     for (const af of ctx.agents) {
       if (af.hooks.denyBlocksPipeToShell) {
         covered.push(af.agent.id);
@@ -216,9 +296,10 @@ const denyBlocksPipeToShell: HarnessCheck = {
       }
     }
     if (uncovered.length === 0) {
-      return pass([
-        `${covered.join(", ")}: deny blocks pipe-to-shell (curl | bash)`,
-      ]);
+      return pass(
+        [`${covered.join(", ")}: deny blocks pipe-to-shell (curl | bash)`],
+        details,
+      );
     }
     if (covered.length === 0) {
       return fail(
@@ -227,6 +308,7 @@ const denyBlocksPipeToShell: HarnessCheck = {
         [
           "Add a deny pattern matching curl|bash and wget|sh in agent deny configuration.",
         ],
+        details,
       );
     }
     return fail(
@@ -235,6 +317,7 @@ const denyBlocksPipeToShell: HarnessCheck = {
       [
         `Add deny patterns for curl|bash and wget|sh to ${uncovered.join(", ")} agent configuration.`,
       ],
+      details,
     );
   },
 };
@@ -279,6 +362,7 @@ function buildDenyRegistrationFailure(
   agents: AuditContext["agents"],
   registered: string[],
   unregistered: string[],
+  noDeny: string[],
   pathMismatch: string[],
 ) {
   const findings = [
@@ -306,16 +390,21 @@ function buildDenyRegistrationFailure(
         `Fix ${id} hook registration to point at the canonical deny hook (${findAgent(agents, id)?.agent.denyHookFile})`,
     ),
   ];
-  return fail(findings, actions, [
-    ...unregistered.map(
-      (id) =>
-        `Add a ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "PreToolUse"} hook entry in ${id} agent settings that runs deny-dangerous.sh.`,
-    ),
-    ...pathMismatch.map(
-      (id) =>
-        `Update the ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "PreToolUse"} hook in ${id} to reference ${findAgent(agents, id)?.agent.denyHookFile}.`,
-    ),
-  ]);
+  return fail(
+    findings,
+    actions,
+    [
+      ...unregistered.map(
+        (id) =>
+          `Add a ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "PreToolUse"} hook entry in ${id} agent settings that runs deny-dangerous.sh.`,
+      ),
+      ...pathMismatch.map(
+        (id) =>
+          `Update the ${findAgent(agents, id)?.agent.hookEvents.preTool ?? "PreToolUse"} hook in ${id} to reference ${findAgent(agents, id)?.agent.denyHookFile}.`,
+      ),
+    ],
+    denyRegistrationDetails(agents, unregistered, noDeny, pathMismatch),
+  );
 }
 
 const denyHookRegistered: HarnessCheck = {
@@ -337,6 +426,7 @@ const denyHookRegistered: HarnessCheck = {
         ctx.agents,
         registered,
         unregistered,
+        noDeny,
         pathMismatch,
       );
     }
@@ -351,6 +441,7 @@ const denyHookRegistered: HarnessCheck = {
     ];
     return pass(
       findings.length > 0 ? findings : ["No agents with deny hooks to check"],
+      denyRegistrationDetails(ctx.agents, unregistered, noDeny, pathMismatch),
     );
   },
 };

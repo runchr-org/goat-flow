@@ -16,6 +16,11 @@ const vendorAssets = [
     "node_modules/@xterm/addon-fit/lib/addon-fit.js",
     "dist/dashboard/addon-fit.js",
   ],
+  [
+    "node_modules/markdown-it/dist/markdown-it.min.js",
+    "dist/dashboard/markdown-it.js",
+  ],
+  ["node_modules/js-yaml/dist/js-yaml.min.js", "dist/dashboard/js-yaml.js"],
 ];
 
 for (const [from, to] of vendorAssets) {

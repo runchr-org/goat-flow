@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-12
+last_reviewed: 2026-05-20
 ---
 
 ## Footgun: Project-browser modal is reachable only via header-span click, not from the add-project flow
@@ -88,6 +88,27 @@ last_reviewed: 2026-05-12
 
 ---
 
+## Footgun: Dashboard aggregate facts and Home agent cards can use different agent sets
+
+**Status:** active | **Created:** 2026-05-13 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Home can show or hide agent cards differently from the aggregate Agent Setup scope. A project may report aggregate `agent-instruction` as passing even when the Home summary is supposed to expose missing supported agents.
+
+**Evidence:**
+- `src/cli/server/dashboard-routes.ts` (search: `resolveDashboardManagedAgentIds`) resolves the managed agent ids used for dashboard per-agent cards.
+- `src/cli/audit/audit.ts` (search: `runAuditBatch`) extracts aggregate facts once, then derives per-agent facts from that batch.
+- `src/cli/facts/orchestrator.ts` (search: `managedAgentIds`) receives the dashboard-managed agent set so aggregate facts and per-agent cards use the same ids.
+- `test/integration/dashboard-server.test.ts` (search: `includes all supported agents even when config lists one`) caught the partial-fix failure: cards were moving toward all supported agents, but the aggregate agent scope still passed with only the config-listed agent.
+
+**Why it happens:** The dashboard report has two related but separate paths: aggregate audit scopes and per-agent Home cards. Changing only the route-level managed-agent helper does not change the fact extraction already performed inside `runAuditBatch`; the batch extractor needs the same managed agent ids before it derives aggregate and per-agent facts.
+
+**Prevention:**
+1. For Home agent visibility changes, update both `resolveDashboardManagedAgentIds` and the `runAuditBatch` aggregate fact extraction path.
+2. Regression tests must assert both `report.agentScores[].id` and `report.scopes.agent`; card-only assertions can miss aggregate scope drift.
+3. Use a fixture where `.goat-flow/config.yaml` lists only one agent while supported registry expectations require all dashboard agents.
+
+---
+
 ## Footgun: Dashboard terminal prompts can be dropped before browser attachment
 
 **Status:** active | **Created:** 2026-05-10 | **Evidence:** ACTUAL_MEASURED
@@ -109,8 +130,10 @@ last_reviewed: 2026-05-12
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksCommittedPaste`) recognises Gemini's `[Pasted Text: N lines]` marker, and `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`) delays Gemini's Enter submit briefly after that marker so the TUI has committed the collapsed paste.
 - User-provided installed dashboard at `http://127.0.0.1:34769/` on 2026-05-12: clicking Setup -> Run Setup in Terminal for Claude Code v2.1.139 pasted `[Pasted text #1 +36 lines]` and stayed there after a 4s wait; one manual Enter advanced the same prompt into Claude's command execution.
 - `src/dashboard/dashboard-terminal.ts` (search: `TERMINAL_PASTE_COMMIT_DELAY_MS`) now delays Claude and Gemini Enter submits after pasted-text markers so the TUI has a quiet window to commit the collapsed paste before Enter is sent.
+- User-observed Codex dashboard session on 2026-05-19: Codex CLI 0.131.0 failed during config load, returned to the fallback shell, and the queued quality prompt was pasted into bash where its Markdown lines executed as shell commands.
+- `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksRunnerStartupFailure`) suppresses queued launch prompts when runner startup output proves the prompt would land in a fallback shell instead of the agent composer.
 
-**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write, or sending Enter before Claude has committed the pasted-text block, can also leave Claude in its pasted-text composer state without submitting.
+**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write, or sending Enter before Claude has committed the pasted-text block, can also leave Claude in its pasted-text composer state without submitting. If the runner exits during startup, goat-flow's terminal wrapper intentionally leaves an interactive shell open, so launch-prompt fallback timers must distinguish agent composers from shell prompts after runner failure.
 
 **Prevention:**
 1. For dashboard launch buttons, create promptless backend terminal sessions and send the prompt after the browser terminal is attached and runner output looks ready or has gone quiet.
@@ -119,6 +142,33 @@ last_reviewed: 2026-05-12
 4. Verify built-dashboard behavior after restarting the dashboard process; a running `dist/cli/cli.js dashboard` server keeps old terminal code in memory until restart.
 5. For runner TUIs with auth or splash redraws, gate launch prompts on that runner's real composer marker and test its pasted-text marker separately; Gemini needs both `Type your message or @path/to/file` readiness and delayed submit after `[Pasted Text: ...]`.
 6. Do not make pasted-text marker handling instant for Claude Code; Claude Code v2.1.139 can drop an Enter sent in the same redraw burst as `[Pasted text #N +M lines]`, so marker-triggered submit needs a short quiet delay just like Gemini.
+7. Treat runner config/startup errors as prompt-delivery blockers; do not let quiet-window or absolute fallback timers force-send prompts after output such as `Error loading configuration:`.
+
+---
+
+## Footgun: Workspace terminal waiting state has multiple derived surfaces
+
+**Status:** active | **Created:** 2026-05-19 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** The Workspace header or terminal pane can show a session waiting while the summary meters still count it as running, or an active session can briefly show "Awaiting input" and then flip back to running while the terminal is still visibly blocked on a prompt. A browser-side terminal can also show "Session ended" while `/api/terminal/sessions` still lists the backend PTY as active and the terminal scrollback is visibly waiting on a runner permission prompt.
+
+**Evidence:**
+- `src/dashboard/views/workspace.html` (search: `runningSessions()`) excludes `sessionIsWaiting(s)` from the running meter after the 2026-05-19 fix. Before that, `meterRunning()` counted every `status === 'active'` session, including waiting sessions.
+- `src/dashboard/views/workspace.html` (search: `waitingForRunner: s.connected === true`) maps local loading/no-output sessions into the same waiting path used by the rail and meters.
+- `src/dashboard/dashboard-terminal.ts` (search: `dashboardNextAwaitingInputState`) keeps awaiting-input state latched across transient spinner/status redraws instead of clearing it on every non-empty output chunk.
+- `test/unit/dashboard-terminal-launch.test.ts` (search: `excludes waiting sessions from the Workspace running meter`) pins the meter split, and `test/unit/dashboard-terminal-launch.test.ts` (search: `"\r✻ Thinking…"`) pins redraw preservation.
+- `src/cli/server/terminal.ts` (search: `Detach on WebSocket close - session keeps running`) treats browser WebSocket close as detach; `src/dashboard/dashboard-terminal.ts` (search: `Handle the terminal WebSocket closing`) must not convert that detach into local `ended=true` unless `exit`, `shutdown`, a terminal-ending error, or a session refresh proves the backend session is gone.
+- `test/unit/dashboard-terminal-launch.test.ts` (search: `treats terminal WebSocket close as detach until an exit message arrives`) pins the detach-vs-ended contract, and `test/unit/dashboard-terminal-launch.test.ts` (search: `marks disconnected local sessions ended when refresh proves they are gone`) pins the true-termination reconciliation.
+
+**Why it happens:** `/api/terminal/sessions` only exposes lifecycle `status` (`active` / `terminated`) plus age and idle duration. Browser-only facts such as `awaitingInput`, loading/no-output state, transient runner redraws, and the distinction between a detached WebSocket and an ended PTY live in `src/dashboard/dashboard-terminal.ts`, `src/dashboard/app.ts`, and `src/dashboard/views/workspace.html`. If a new UI surface counts sessions directly from `status === 'active'`, clears `awaitingInput` based on a single PTY output chunk instead of the still-visible terminal tail, or treats browser WebSocket close as terminal exit, the Workspace surfaces drift apart.
+
+**Prevention:**
+1. For Workspace session summaries, derive running from "active and not waiting", never from `status === 'active'` alone.
+2. Keep waiting classification shared across expanded cards, collapsed pips, top meters, and the active terminal header.
+3. When changing terminal output heuristics, test redraw frames such as `\r✻ Thinking…` separately from real progress text like `Continuing...`.
+4. Do not assume the server can classify "waiting" unless the wire contract grows a durable field; today that state is browser-local.
+5. Treat browser WebSocket close as detached/disconnected until a backend `exit`, `shutdown`, terminal-ending error, or `/api/terminal/sessions` refresh proves the PTY is gone.
+6. When changing reconnect or local-session binding, test stale ended local shells separately from live disconnected shells so an old local overlay cannot block `openServerSession`.
 
 ---
 

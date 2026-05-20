@@ -1,15 +1,16 @@
 ---
 category: auditor-and-rubric
-last_reviewed: 2026-05-11
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Rubric changes require fixture expectation sync
 
 **Created:** 2026-04-03
+**Status:** historical | **Reason:** Scanner/rubric system removed per ADR-013; current audit-check fixture changes still need the same expectation-sync discipline.
 
-Scanner and rubric changes can invalidate "known failing" fixture expectations even when the implementation is correct. If a check is renamed, tightened, or moves responsibility to a different detector, fixture assertions must be re-read against live scanner output before treating the failure as a code bug.
+Historical scanner/rubric changes (removed per ADR-013) could invalidate "known failing" fixture expectations even when the implementation was correct. Current audit-check changes can do the same. If a check is renamed, tightened, or moves responsibility to a different detector, fixture assertions must be re-read against live audit/check output before treating the failure as a code bug.
 
-**Pattern:** For fixture-driven scanner tests, verify the current failing check IDs from the real scan result first, then update both the test assertions and fixture metadata together. Do not trust older expected IDs after rubric work.
+**Pattern:** For historical scanner tests or current fixture-driven audit tests, verify the current failing check IDs from the real result first, then update both the test assertions and fixture metadata together. Do not trust older expected IDs after check/rubric work.
 
 **Trigger:** Human review reports a failing fixture after rubric or detector changes. Reproduce the failing scan, capture the actual check IDs, then sync the fixture corpus and test expectations in the same change.
 
@@ -51,15 +52,27 @@ Scanner and rubric changes can invalidate "known failing" fixture expectations e
 
 ---
 
-## Lesson: Doc counts drifted silently across multiple milestones
+## Lesson: Quality report suggestions need ADR reconciliation before gate changes
+
+**Status:** active | **Created:** 2026-05-19
+
+**What happened:** Four same-agent harness quality reports on 2026-05-19 correctly observed that Verification, Recovery, Context, Constraints, and Feedback Loop signals were partly structural. Several suggested making missing post-turn hooks, task-state semantics, or learning-loop capture hard audit failures. Reading `.goat-flow/lessons/setup-and-migration.md` (search: `Optional workflow state must not become audit or quality gates`), `.goat-flow/decisions/ADR-015-remove-stop-lint-from-core.md` (search: `No post-turn hooks found to evaluate`), and `.goat-flow/decisions/ADR-026-remove-workspace-boundary-check.md` (search: `runtime context`) showed those gates had already been intentionally rejected or narrowed.
+
+**Root cause:** Quality reports are good at finding over-marketed signals, but they do not automatically know which weak signals are deliberate product contracts. Treating every "weak" observation as a gating bug would have reversed prior decisions and reintroduced optional workflow-state penalties.
+
+**Prevention:** Before implementing quality-report recommendations that change audit status, scoring, or setup gates, reconcile the suggestion against current ADRs and lessons. If the report is right about presentation but wrong about gating, preserve the existing pass/fail contract and add an explicit limit, warning, or prompt note instead. Evidence anchors: `src/cli/audit/audit.ts` (search: `addNonGatingEvidenceLimits`), `src/cli/audit/types.ts` (search: `limits: string[]`), `src/cli/prompt/compose-quality.ts` (search: `metrics=${concern.metrics}`).
+
+---
+
+## Lesson: Doc counts drift silently across multiple milestones
 
 **Created:** 2026-04-13
 
-**What happened:** architecture.md claimed "~165 rubric checks + 32 anti-patterns" but actual code had 79 rubric checks and 12 active anti-patterns. code-map.md said "AP1-AP23" implying 23 when only 12 are active. The counts changed as checks were removed/consolidated across milestones but docs were never updated. Seven-agent critique independently flagged this as a trust problem - the "canonical source of truth" file had wrong numbers.
+**What happened:** Historical scanner-era docs claimed stale rubric-check and anti-pattern totals after the implementation had already consolidated or removed many checks (the scanner was later removed per ADR-013). The counts changed across milestones but architecture/code-map docs were not updated. Seven-agent critique independently flagged this as a trust problem - the "canonical source of truth" file had wrong numbers.
 
-**Root cause:** No automated validation links count claims in docs to actual code. Each milestone that removed anti-patterns (AP2, AP3, AP4, AP7, AP10, AP11, AP17, AP18, AP21, AP22) updated the code but not the architecture doc.
+**Root cause:** No automated validation linked count claims in docs to actual code. Each milestone that removed or consolidated checks updated the implementation but not the architecture doc.
 
-**Prevention:** Either derive counts from code at build time, or add a CI check that greps architecture.md/code-map.md for count claims and compares against actual exports. After removing/adding any check or anti-pattern, grep docs for the old count.
+**Prevention:** Either derive counts from code at build time, or add a CI check that greps architecture.md/code-map.md for count claims and compares against actual exports. After removing/adding any audit, quality, or other counted check surface, grep docs for the old count.
 
 ---
 

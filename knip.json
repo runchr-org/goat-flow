@@ -4,6 +4,7 @@
     ".goat-flow/scratchpad/**",
     "src/dashboard/app.ts",
     "src/dashboard/dashboard-custom-prompts.ts",
+    "src/dashboard/markdown.ts",
     "src/dashboard/dashboard-projects.ts",
     "src/dashboard/dashboard-prompts.ts",
     "src/dashboard/dashboard-readers.ts",
@@ -12,6 +13,7 @@
     "src/dashboard/globals.d.ts"
   ],
   "ignoreDependencies": [
+    "@stryker-mutator/core",
     "@xterm/addon-fit",
     "@xterm/xterm"
   ]

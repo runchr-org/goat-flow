@@ -2,7 +2,7 @@
  * Recovery concern: Can the agent resume after crash or compaction?
  * 2 checks: milestone-tracking, session-logs.
  */
-import type { HarnessCheck } from "../types.js";
+import type { HarnessCheck, HarnessCheckDetails } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 import { collectMarkdownFiles } from "./helpers.js";
@@ -46,6 +46,13 @@ const milestoneTracking: HarnessCheck = {
   /** Run the Milestone tracking configured check. */
   run: (ctx) => {
     const tasksDir = ".goat-flow/tasks";
+    const buildDetails = (fileCount: number): HarnessCheckDetails => ({
+      recovery: ctx.agents.map((af) => ({
+        agent: af.agent.id,
+        dir: tasksDir,
+        fileCount,
+      })),
+    });
     if (!ctx.fs.exists(tasksDir)) {
       return fail(
         ["No tasks directory found"],
@@ -53,13 +60,17 @@ const milestoneTracking: HarnessCheck = {
         [
           "Create .goat-flow/tasks/ so optional task, roadmap, and milestone notes have a stable home.",
         ],
+        buildDetails(0),
       );
     }
     const allMdFiles = collectMarkdownFiles(ctx.fs, tasksDir);
     if (allMdFiles.length === 0) {
-      return pass([
-        "Tasks directory exists (empty - valid for new projects; task tracking is optional)",
-      ]);
+      return pass(
+        [
+          "Tasks directory exists (empty - valid for new projects; task tracking is optional)",
+        ],
+        buildDetails(0),
+      );
     }
     const markerCounts: number[] = [];
     for (const f of allMdFiles) {
@@ -71,7 +82,7 @@ const milestoneTracking: HarnessCheck = {
       `Tasks directory exists with ${allMdFiles.length} markdown file(s) and ${totalMarkers} checkbox marker(s)`,
       "Task and milestone content is optional local workflow state; checkbox completion, status, testing gates, and roadmap progress are not audited.",
     ];
-    return pass(findings);
+    return pass(findings, buildDetails(allMdFiles.length));
   },
 };
 
@@ -87,6 +98,13 @@ const sessionLogs: HarnessCheck = {
   /** Run the Session logs directory check. */
   run: (ctx) => {
     const logsDir = ".goat-flow/logs/sessions";
+    const buildDetails = (fileCount: number): HarnessCheckDetails => ({
+      recovery: ctx.agents.map((af) => ({
+        agent: af.agent.id,
+        dir: logsDir,
+        fileCount,
+      })),
+    });
     if (!ctx.fs.exists(logsDir)) {
       return fail(
         ["No session logs directory"],
@@ -94,10 +112,14 @@ const sessionLogs: HarnessCheck = {
         [
           "Create .goat-flow/logs/sessions/ and start logging sessions for continuity between conversations.",
         ],
+        buildDetails(0),
       );
     }
+    let fileCount = 0;
     try {
-      ctx.fs.listDir(logsDir);
+      fileCount = ctx.fs
+        .listDir(logsDir)
+        .filter((f) => f.endsWith(".md")).length;
     } catch {
       return fail(
         ["Session logs path exists but is not readable as a directory"],
@@ -105,9 +127,10 @@ const sessionLogs: HarnessCheck = {
         [
           "Remove or rename the file at .goat-flow/logs/sessions and recreate as a directory.",
         ],
+        buildDetails(0),
       );
     }
-    return pass(["Session logs directory exists"]);
+    return pass(["Session logs directory exists"], buildDetails(fileCount));
   },
 };
 

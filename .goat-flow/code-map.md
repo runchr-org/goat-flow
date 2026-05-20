@@ -5,7 +5,7 @@ Quick orientation for agents working on the goat-flow codebase.
 ## src/cli/ -- TypeScript CLI auditor and dashboard
 
 ```
-cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality, stats)
+cli.ts                     # Entry point: command parser (audit, setup, dashboard, quality, events, stats)
 classify-state.ts          # Project adoption classifier (bare/partial/v0.9/outdated/current/error)
 constants.ts               # SKILL_NAMES, AUDIT_VERSION
 index.ts                   # Programmatic library entry: re-exports stable audit/prompt/config/utility APIs
@@ -24,13 +24,17 @@ audit/
   check-factual-claims.ts  # Cold-path factual-claim extraction (skill/check counts, broken refs)
   check-snapshot-claims.ts # Snapshot-claim lint for CHANGELOG / release-frozen docs (M06b)
   provenance-types.ts      # Evidence-provenance schema for audit checks (M05)
-  harness/                 # 16 pass/fail completeness checks grouped by concern (5 files + helpers + index)
+  harness/                 # 17 checks grouped by concern (6 advisory, 9 integrity, 2 metric) across 5 files + helpers + index
   render.ts                # Output formatters (text, json, markdown)
   types.ts                 # Audit-specific types (AuditReport, CheckResult, AuditFailure)
 
 config/
   reader.ts                # Loads and validates .goat-flow/config.yaml
   types.ts                 # GoatFlowConfig, LoadedConfig interfaces
+
+evidence/
+  envelope.ts              # EvidenceEnvelope schema, validation, JSONL append, and tail reader
+  redaction.ts             # Hash/length redaction helpers for sensitive event payloads
 
 detect/
   agents.ts                # Agent detection from installed artefacts
@@ -51,7 +55,10 @@ prompt/
   compose-quality.ts       # Generates quality-assessment prompts for agents (prompt mode only)
 
 quality/
+  candidacy.ts             # Scores installed artifacts as skill-quality candidates
   schema.ts                # Strict quality-report parser for agent-written JSON reports
+  quality-config.ts        # Per-project skill-quality rubric overrides
+  skill-quality.ts         # Deterministic skill/reference quality scoring engine
   ids.ts                   # Positional finding-id generation (`type:file-slug:line-or-_`)
   history.ts               # Loads agent-written reports, renders history, and derives diffs
 
@@ -83,7 +90,7 @@ globals.d.ts               # Global type declarations for the frontend bundle
 index.html                 # Dashboard HTML entry point
 preset-prompts.json        # Built-in prompt templates for quality and setup modes
 styles.css                 # Dashboard stylesheet
-views/                     # HTML view templates (about, home, projects, prompts, quality, settings, setup, skills, workspace)
+views/                     # HTML view templates (about, coming-soon, home, projects, prompts, quality, settings, setup, skills, tasks, workspace)
 ```
 
 ## workflow/ -- Setup templates, skills, and reference docs
@@ -131,6 +138,7 @@ deny-dangerous.self-test.sh # Self-test corpus sourced by deny-dangerous.sh --se
 deploy-landing.sh          # Deploy landing page to hosting
 install-browser-tools.sh   # Install browser-use and Playwright for page capture
 npm-publish.sh             # Wrapper: npm publish sanity checks
+mutation-test.sh           # Opt-in StrykerJS mutation-testing helper with target menu
 preflight-checks.sh        # Pre-commit/CI gate: lint, typecheck, cross-ref checks
 prettier-check.sh          # Wrapper: prettier --check (lint)
 prettier.sh                # Wrapper: prettier --write (format)
@@ -176,7 +184,7 @@ code-map.md                # This file
 glossary.md                # Domain terms
 patterns/                  # Proven approaches worth reusing (categorised bucket files)
 
-config.yaml                # Project config (version, agents, skills, line limits)
+config.yaml                # Project config (version, skills, optional calibration)
 
 skill-reference/           # Shared skill doctrine (committed, install-copied from workflow/skills/reference/)
   skill-preamble.md        # Loaded by every goat-* skill invocation
@@ -198,6 +206,7 @@ lessons/                   # Behavioural mistake records (committed)
 tasks/                     # Milestone files and plan subdirs (gitignored local state; anchors only are committed)
 logs/sessions/             # Session logs (gitignored)
 logs/quality/              # Saved quality reports + prose companions (gitignored; README committed)
+logs/events/               # Evidence-envelope event JSONL (gitignored; README committed)
 logs/critiques/            # `/goat-critique` run snapshots (gitignored; README committed)
 logs/security/             # `/goat-security` assessment history (gitignored; README committed)
 logs/uploads/              # Per-session terminal upload-image staging (gitignored; runtime-only)

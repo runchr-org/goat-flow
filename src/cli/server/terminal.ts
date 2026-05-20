@@ -3,8 +3,7 @@
  * It validates runner and project inputs, spawns CLI sessions, and brokers WebSocket traffic.
  */
 import { randomUUID } from "node:crypto";
-import { extname, resolve } from "node:path";
-import { statSync } from "node:fs";
+import { extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import type { WebSocket } from "ws";
 import type {
@@ -16,6 +15,8 @@ import type {
   Runner,
 } from "./types.js";
 import { decodeClientMessage } from "./decoders.js";
+import { getAgentProfiles } from "../agents/registry.js";
+import { validateProjectPath } from "./local-paths.js";
 
 // node-pty types - optional dep, can't use static import
 /** Lazily imported node-pty module type */
@@ -29,14 +30,6 @@ type IPty = ReturnType<typeof import("node-pty").spawn>;
  *  Single source of truth consumed by the dashboard API, client guards, and docs. */
 export const MAX_SESSIONS = 10;
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 480;
-
-/** CLI binary names for each runner. */
-const RUNNER_BINARIES: Record<Runner, string> = {
-  claude: "claude",
-  codex: "codex",
-  gemini: "gemini",
-  copilot: "copilot",
-};
 
 const WINDOWS_RUNNER_EXTENSION_PRIORITY = [
   ".exe",
@@ -84,6 +77,21 @@ interface TerminalSpawnSpec {
   env: NodeJS.ProcessEnv;
   initialInput: string | null;
 }
+
+type TerminalTraceEventKind = "terminal.send" | "prompt.send";
+
+export interface TerminalTraceEvent {
+  eventKind: TerminalTraceEventKind;
+  sessionId: string;
+  projectPath: string;
+  cwd: string;
+  targetPath: string;
+  runner: Runner;
+  input: string;
+  bytes: number;
+}
+
+export type TerminalTraceSink = (event: TerminalTraceEvent) => void;
 
 /** Format a full prompt as one terminal paste submitted once to the runner. */
 function formatInitialPromptInput(prompt: string): string {
@@ -214,24 +222,6 @@ function resolveCLIPath(name: string): string | null {
   }
 }
 
-/** Validate that a project path is safe to use as a CWD. */
-function validateProjectPath(projectPath: string): string {
-  const resolved = resolve(projectPath);
-
-  try {
-    const stat = statSync(resolved);
-    if (!stat.isDirectory()) {
-      throw new Error(`Invalid project path: not a directory`);
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("Invalid project path"))
-      throw err;
-    throw new Error(`Invalid project path: does not exist`);
-  }
-
-  return resolved;
-}
-
 /** Clamp a terminal dimension to a safe integer range. */
 function clampDim(value: unknown, max: number, fallback: number): number {
   return Number.isInteger(value) &&
@@ -249,6 +239,10 @@ function sendMessage(ws: WebSocket, msg: ServerMessage): void {
   }
 }
 
+function looksLikePromptSend(input: string): boolean {
+  return input.includes("\x1b[200~");
+}
+
 /** Manages PTY-backed terminal sessions for the dashboard */
 export class TerminalManager {
   private sessions = new Map<string, TerminalSession>();
@@ -257,14 +251,16 @@ export class TerminalManager {
   private nodePtyAvailable: boolean | null = null;
   private startedAt = Date.now();
   private idleTimeoutMs: number | null;
+  private readonly traceSink: TerminalTraceSink | null;
 
-  constructor(idleTimeoutMinutes?: number) {
+  constructor(idleTimeoutMinutes?: number, traceSink?: TerminalTraceSink) {
     const minutes = idleTimeoutMinutes ?? DEFAULT_IDLE_TIMEOUT_MINUTES;
     this.idleTimeoutMs = minutes === 0 ? null : minutes * 60 * 1000;
+    this.traceSink = traceSink ?? null;
     // Resolve all runner CLI paths at startup
-    for (const [runner, binary] of Object.entries(RUNNER_BINARIES)) {
-      const path = resolveCLIPath(binary);
-      if (path) this.runnerPaths.set(runner as Runner, path);
+    for (const profile of getAgentProfiles()) {
+      const path = resolveCLIPath(profile.terminalBinary);
+      if (path) this.runnerPaths.set(profile.id, path);
     }
   }
 
@@ -475,6 +471,10 @@ export class TerminalManager {
       if (msg.type === "input") {
         session.lastInputAt = Date.now();
         this.resetIdleTimer(session);
+        this.traceTerminalInput(session, "terminal.send", msg.data);
+        if (looksLikePromptSend(msg.data)) {
+          this.traceTerminalInput(session, "prompt.send", msg.data);
+        }
         session.pty?.write(msg.data);
       } else {
         session.pty?.resize(
@@ -575,6 +575,28 @@ export class TerminalManager {
       session.ws = null;
     }
     this.sessions.delete(session.id);
+  }
+
+  /** Emit redaction-ready input metadata; tracing errors never affect PTY writes. */
+  private traceTerminalInput(
+    session: TerminalSession,
+    eventKind: TerminalTraceEventKind,
+    input: string,
+  ): void {
+    try {
+      this.traceSink?.({
+        eventKind,
+        sessionId: session.id,
+        projectPath: session.projectPath,
+        cwd: session.cwd,
+        targetPath: session.targetPath,
+        runner: session.runner,
+        input,
+        bytes: Buffer.byteLength(input, "utf-8"),
+      });
+    } catch {
+      /* trace sink failures must not affect terminal input */
+    }
   }
 
   /** Reset the idle-timeout timer for a session. */

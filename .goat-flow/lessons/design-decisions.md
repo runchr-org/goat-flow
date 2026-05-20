@@ -1,6 +1,6 @@
 ---
 category: design-decisions
-last_reviewed: 2026-05-02
+last_reviewed: 2026-05-18
 ---
 
 ## Lesson: Doer-verifier is theater in single-agent context
@@ -89,7 +89,7 @@ Keep internal audit taxonomy and counts in deeper diagnostic views, expanded sec
 
 **Created:** 2026-04-18
 
-M13's first draft extended `goat-flow quality` by asking the agent to write a structured report to `.goat-flow/quality/history/<date>-<agent>.json` under a single-path READ-ONLY exception. The rest of `src/cli/prompt/compose-quality.ts` (`:137`, `:147`, `:431`) actively treats any agent write as a quality finding - so the draft required the agent to perform the exact operation the surrounding prompt is designed to detect and report. `/goat-sbao` full-mode critique caught this as the load-bearing architectural error across all three sub-agents.
+M13's first draft extended `goat-flow quality` by asking the agent to write a structured report to `.goat-flow/quality/history/<date>-<agent>.json` under a single-path READ-ONLY exception. The surrounding quality prompt contract already forbids tracked-file writes and treats attempts to edit tracked files or write outside allowed gitignored local-state paths as findings (`src/cli/prompt/compose-quality.ts` (search: `No tracked-file writes`) and `src/cli/prompt/compose-quality.ts` (search: `If any skill attempts to edit tracked files`)) - so the draft required the agent to perform the exact operation the surrounding prompt was designed to detect and report. `/goat-critique` full-mode critique caught this as the load-bearing architectural error across all three sub-agents.
 
 **Why it happened:** When a spec adds a new feature that needs persistence, "just carve a narrow exception" feels minimal. But the carved exception is prompt-text-only - there is no mechanical sandbox on what path the agent actually writes to (path traversal was Agent A's framing). More importantly, the agent is now instructed to (a) check existing files to compute a same-day suffix, (b) write to a specific path, (c) avoid writing anywhere else. Agents are unreliable at directory listing + race-free numbering + path discipline; pushing that onto the prompt is the kind of brittleness the project's feedback-loop footguns already document.
 

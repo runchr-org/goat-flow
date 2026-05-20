@@ -38,7 +38,6 @@ import {
   findArtifact,
   scoreArtifact,
   scoreAllArtifacts,
-  type SkillQualityReport,
 } from "../../src/cli/quality/skill-quality.js";
 import {
   cloneQualityConfig,
@@ -107,9 +106,33 @@ function writeSkill(projectRoot: string, name: string, content: string): void {
   writeText(join(projectRoot, ".claude/skills", name, "SKILL.md"), content);
 }
 
+// ---------------------------------------------------------------------------
+// Cached repo artifact discovery + scoring — both walk the entire repo tree
+// and `scoreAllArtifacts` additionally scores every installed skill/reference.
+// Lazy-caching avoids repeating the same expensive walk in 10+ tests. Tests
+// must treat the returned data as read-only.
+// ---------------------------------------------------------------------------
+
+let cachedRepoArtifacts: ReturnType<typeof discoverArtifacts> | null = null;
+function getRepoArtifacts(): ReturnType<typeof discoverArtifacts> {
+  if (cachedRepoArtifacts === null) {
+    cachedRepoArtifacts = discoverArtifacts(PROJECT_ROOT);
+  }
+  return cachedRepoArtifacts;
+}
+
+let cachedRepoScoredArtifacts: ReturnType<typeof scoreAllArtifacts> | null =
+  null;
+function getRepoScoredArtifacts(): ReturnType<typeof scoreAllArtifacts> {
+  if (cachedRepoScoredArtifacts === null) {
+    cachedRepoScoredArtifacts = scoreAllArtifacts(PROJECT_ROOT);
+  }
+  return cachedRepoScoredArtifacts;
+}
+
 describe("artifact discovery", () => {
   it("discovers installed skills from .claude/skills/", () => {
-    const artifacts = discoverArtifacts(PROJECT_ROOT);
+    const artifacts = getRepoArtifacts();
     const skills = artifacts.filter((a) => a.kind === "skill");
     assert.ok(
       skills.length >= 7,
@@ -120,7 +143,7 @@ describe("artifact discovery", () => {
   });
 
   it("discovers shared references and playbooks", () => {
-    const artifacts = discoverArtifacts(PROJECT_ROOT);
+    const artifacts = getRepoArtifacts();
     const refs = artifacts.filter((a) => a.kind === "shared-reference");
     assert.ok(refs.some((r) => r.id === "reference:browser-use"));
     assert.ok(refs.some((r) => r.id === "reference:page-capture"));
@@ -128,7 +151,7 @@ describe("artifact discovery", () => {
   });
 
   it("excludes README.md from references", () => {
-    const artifacts = discoverArtifacts(PROJECT_ROOT);
+    const artifacts = getRepoArtifacts();
     assert.ok(!artifacts.some((a) => a.name === "README"));
   });
 
@@ -145,7 +168,7 @@ describe("artifact discovery", () => {
   });
 
   it("aggregates mirrored skills without duplicate artifact rows", () => {
-    const artifacts = discoverArtifacts(PROJECT_ROOT);
+    const artifacts = getRepoArtifacts();
     const goatArtifacts = artifacts.filter((a) => a.id === "skill:goat");
     assert.equal(goatArtifacts.length, 1);
     assert.ok(
@@ -250,50 +273,27 @@ describe("artifact discovery", () => {
 });
 
 describe("skill scoring", () => {
-  let goatPlanReport: SkillQualityReport;
-
-  it("scores goat-plan with a keep-skill recommendation", () => {
-    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
-    goatPlanReport = scoreArtifact(PROJECT_ROOT, artifact);
-
-    assert.equal(goatPlanReport.artifact.id, "skill:goat-plan");
-    assert.equal(goatPlanReport.recommendation, "keep-skill");
-    assert.ok(goatPlanReport.totalScore > 0, "expected a positive total score");
-    assert.ok(
-      goatPlanReport.maxTotalScore > 0,
-      "expected a positive max total score",
-    );
-  });
-
-  it("goat-plan has high trigger clarity", () => {
+  it("scores goat-plan with a keep-skill recommendation and per-dimension thresholds", () => {
     const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
     const report = scoreArtifact(PROJECT_ROOT, artifact);
+
+    assert.equal(report.artifact.id, "skill:goat-plan");
+    assert.equal(report.recommendation, "keep-skill");
+    assert.ok(report.totalScore > 0, "expected a positive total score");
+    assert.ok(report.maxTotalScore > 0, "expected a positive max total score");
     const trigger = report.metrics.find((m) => m.metric === "trigger-clarity")!;
-    assert.ok(trigger);
+    const workflow = report.metrics.find(
+      (m) => m.metric === "workflow-completeness",
+    )!;
+    const fit = report.metrics.find((m) => m.metric === "skill-reference-fit")!;
     assert.ok(
       trigger.score >= 10,
       `expected trigger score >= 10, got ${trigger.score}`,
     );
-  });
-
-  it("goat-plan has complete workflow", () => {
-    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
-    const report = scoreArtifact(PROJECT_ROOT, artifact);
-    const workflow = report.metrics.find(
-      (m) => m.metric === "workflow-completeness",
-    )!;
-    assert.ok(workflow);
     assert.ok(
       workflow.score >= 10,
       `expected workflow score >= 10, got ${workflow.score}`,
     );
-  });
-
-  it("goat-plan has strong skill-reference fit", () => {
-    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
-    const report = scoreArtifact(PROJECT_ROOT, artifact);
-    const fit = report.metrics.find((m) => m.metric === "skill-reference-fit")!;
-    assert.ok(fit);
     assert.ok(fit.score >= 7, `expected fit score >= 7, got ${fit.score}`);
   });
 
@@ -1403,7 +1403,7 @@ describe("classification", () => {
 
 describe("scoreAllArtifacts", () => {
   it("scores all discovered artifacts without error", () => {
-    const reports = scoreAllArtifacts(PROJECT_ROOT);
+    const reports = getRepoScoredArtifacts();
     assert.ok(
       reports.length >= 10,
       `expected at least 10 artifacts, got ${reports.length}`,
@@ -1429,10 +1429,7 @@ describe("scoreAllArtifacts", () => {
       }
     >;
     const reportsById = new Map(
-      scoreAllArtifacts(PROJECT_ROOT).map((report) => [
-        report.artifact.id,
-        report,
-      ]),
+      getRepoScoredArtifacts().map((report) => [report.artifact.id, report]),
     );
     for (const [id, expected] of Object.entries(fixture)) {
       const report = reportsById.get(id);
@@ -1454,7 +1451,7 @@ describe("scoreAllArtifacts", () => {
 
 describe("metric completeness", () => {
   it("every report has exactly 9 metrics", () => {
-    const reports = scoreAllArtifacts(PROJECT_ROOT);
+    const reports = getRepoScoredArtifacts();
     for (const report of reports) {
       assert.equal(
         report.metrics.length,
@@ -1465,7 +1462,7 @@ describe("metric completeness", () => {
   });
 
   it("metric scores do not exceed their maxScore", () => {
-    const reports = scoreAllArtifacts(PROJECT_ROOT);
+    const reports = getRepoScoredArtifacts();
     for (const report of reports) {
       for (const m of report.metrics) {
         assert.ok(
@@ -1481,7 +1478,7 @@ describe("metric completeness", () => {
   });
 
   it("totalScore equals sum of metric scores", () => {
-    const reports = scoreAllArtifacts(PROJECT_ROOT);
+    const reports = getRepoScoredArtifacts();
     for (const report of reports) {
       const sum = report.metrics.reduce((s, m) => s + m.score, 0);
       assert.equal(
@@ -1577,7 +1574,7 @@ describe("workflow-summary description detection (M10 §4)", () => {
   });
 
   it("FP rate stays under 10% on the in-tree .claude/skills corpus", () => {
-    const reports = scoreAllArtifacts(PROJECT_ROOT);
+    const reports = getRepoScoredArtifacts();
     const installedSkills = reports.filter(
       (r) => r.artifact.kind === "skill" && r.artifact.source === "installed",
     );

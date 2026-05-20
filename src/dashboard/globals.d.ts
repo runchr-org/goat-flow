@@ -9,10 +9,25 @@ type AuditCheckType = "integrity" | "advisory" | "metric";
 type AuditCheckImpact = "none" | "scope-fail" | "score-only";
 type AuditCheckEvidenceKind = "semantic" | "structural";
 type AuditCheckAssurance = "full" | "limited";
+type EnforcementCapabilityStatus =
+  | "hard"
+  | "limited"
+  | "soft"
+  | "missing"
+  | "unknown";
+type EnforcementCapabilitySource =
+  | "local-settings"
+  | "local-hook"
+  | "runtime-self-test"
+  | "manifest"
+  | "provider-docs"
+  | "not-observed";
 /** Dashboard-local runner union. Keep this aligned with `src/cli/types.ts`.
  *  Importing CLI types here causes the dashboard build to emit `src/cli/types.js`
  *  back into the source tree, which then poisons lint/format/drift gates. */
 type RunnerId = "claude" | "codex" | "gemini" | "copilot";
+type PromptInvocationStyle = "slash" | "dollar";
+type SkillSource = "installed" | "agent-mirror" | "github-mirror";
 type SessionStatus = "starting" | "active" | "terminated";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +60,9 @@ interface AuditCheckProvenance {
   reason?: string;
 }
 
+/** Structured harness detail payloads are forwarded verbatim for dashboard pages. */
+type AuditCheckDetails = Record<string, unknown>;
+
 /** Individual check result inside an audit scope. */
 interface AuditCheck {
   id: string;
@@ -58,6 +76,7 @@ interface AuditCheck {
   evidenceKind?: AuditCheckEvidenceKind;
   assurance?: AuditCheckAssurance;
   failure?: AuditFailure;
+  details?: AuditCheckDetails;
 }
 
 /** Audit scope as returned by the /api/audit endpoint. */
@@ -73,6 +92,7 @@ interface AuditConcern {
   status: AuditStatus;
   score: number;
   findings: string[];
+  limits: string[];
   recommendations: string[];
   howToFix: string[];
   integrityPass: number;
@@ -83,6 +103,25 @@ interface AuditConcern {
   metrics: number;
 }
 
+/** One advisory enforcement matrix row for an agent. */
+interface EnforcementCapability {
+  id: string;
+  label: string;
+  status: EnforcementCapabilityStatus;
+  sources: EnforcementCapabilitySource[];
+  summary: string;
+  evidence: string[];
+}
+
+/** Per-agent advisory enforcement matrix. */
+interface AgentEnforcementCapability {
+  agent: RunnerId;
+  name: string;
+  advisory: true;
+  capabilities: EnforcementCapability[];
+  summary: Record<EnforcementCapabilityStatus, number>;
+}
+
 /** Per-agent audit summary shown on the Home and Audit views. */
 interface AgentScore {
   id: RunnerId;
@@ -90,6 +129,7 @@ interface AgentScore {
   agent: AuditScope;
   harness: AuditScope | null;
   concerns: Record<string, AuditConcern> | null;
+  enforcement: AgentEnforcementCapability | null;
 }
 
 /** Named audit scopes included in the dashboard report payload. */
@@ -132,6 +172,11 @@ interface RecentLesson {
 interface SupportedAgent {
   id: RunnerId;
   name: string;
+  terminalBinary: string;
+  setupSurfaces: string[];
+  promptInvocationStyle: PromptInvocationStyle;
+  skillSource: SkillSource;
+  supportsPostTurnHook: boolean;
 }
 
 /** Agent detection info from `/api/agents/installed`. */
@@ -148,11 +193,50 @@ interface BrowseDir {
 }
 
 /** Project entry shown in the dashboard Projects view. */
+type ProjectIdentitySource = "git-remote" | "goat-marker" | "path";
+
 interface ProjectEntry {
   path: string;
+  paths?: string[];
+  identity?: string;
+  identitySource?: ProjectIdentitySource;
+  remoteUrlHash?: string;
+  markerId?: string;
   state: string;
   action: string;
   details: string;
+}
+
+/** Milestone summary from the selected project's `.goat-flow/tasks/`. */
+interface TaskMilestoneSummary {
+  filename: string;
+  path: string;
+  title: string;
+  status: string;
+  objective: string;
+  totalTasks: number;
+  completedTasks: number;
+  modifiedAt: string;
+}
+
+/** Top-level task directory summary from `.goat-flow/tasks/`. */
+interface TaskPlanSummary {
+  name: string;
+  path: string;
+  modifiedAt: string;
+  milestoneCount: number;
+  active: boolean;
+}
+
+/** Response from `/api/tasks` after reading or changing active task-plan state. */
+interface TaskState {
+  taskRoot: string;
+  exists: boolean;
+  active: string | null;
+  activeExists: boolean;
+  selectedPlan: string | null;
+  plans: TaskPlanSummary[];
+  milestones: TaskMilestoneSummary[];
 }
 
 /** Quality-assessment prompt payload returned by `/api/quality`. */
@@ -160,6 +244,7 @@ interface QualityResult {
   command: "quality";
   agent: RunnerId;
   auditStatus: AuditStatus | "unavailable";
+  auditCacheStatus: "hit" | "miss" | "bypass";
   auditSummary: string;
   prompt: string;
 }
@@ -564,4 +649,9 @@ interface Window {
   __GOAT_FLOW_PRESETS__?: Preset[];
   Terminal?: new (options: Record<string, unknown>) => XTermInstance;
   FitAddon?: { FitAddon: new () => FitAddonInstance };
+  jsyaml?: { load(text: string): unknown };
+  renderMarkdown?: (
+    text: string,
+    opts?: { frontmatter?: "strip" | "passthrough"; breaks?: boolean },
+  ) => { html: string; frontmatter: Record<string, unknown> | null };
 }

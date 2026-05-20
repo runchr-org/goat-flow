@@ -5,9 +5,9 @@
  * shared report contract does not expose stack-derived fields.
  */
 import type { ProjectFacts, ReadonlyFS, AgentId, StackInfo } from "../types.js";
-import { KNOWN_AGENT_IDS } from "../types.js";
 import type { LoadedConfig } from "../config/types.js";
-import { detectAgents, PROFILES } from "../detect/agents.js";
+import { getKnownAgentIds } from "../agents/registry.js";
+import { PROFILES } from "../detect/agents.js";
 import { detectStack } from "../detect/project-stack.js";
 import { extractSharedFacts } from "./shared/index.js";
 import { extractAgentFacts } from "./agent/index.js";
@@ -21,29 +21,12 @@ interface ExtractOptions {
   agentFilter: AgentId | null;
   projectPath?: string;
   configState: LoadedConfig;
+  /** Optional agent set supplied by callers that must not be narrowed by config. */
+  managedAgentIds?: AgentId[];
   /** Skip expensive setup-time stack detection for dashboard summary audits. */
   includeStack?: boolean;
   /** Optional development/test profiler for extraction timing. */
   profile?: FactExtractionProfiler;
-}
-
-const KNOWN_AGENT_SET = new Set<string>(KNOWN_AGENT_IDS);
-
-/** Return true when a config string names a supported agent profile. */
-function isAgentId(id: string): id is AgentId {
-  return KNOWN_AGENT_SET.has(id);
-}
-
-/** Keep configured agents in first-seen order while ignoring duplicates. */
-function uniqueConfiguredAgentIds(ids: string[]): AgentId[] {
-  const seen = new Set<AgentId>();
-  const unique: AgentId[] = [];
-  for (const id of ids) {
-    if (!isAgentId(id) || seen.has(id)) continue;
-    seen.add(id);
-    unique.push(id);
-  }
-  return unique;
 }
 
 function span<T>(
@@ -76,20 +59,11 @@ export function extractProjectFacts(
   fs: ReadonlyFS,
   options: ExtractOptions,
 ): ProjectFacts {
-  /** All detected agent profiles in the project */
-  let agents = detectAgents(fs);
-
-  // An explicit --agent flag is the strongest selector and wins over config.yaml.
-  if (options.agentFilter) {
-    agents = agents.filter((a) => a.id === options.agentFilter);
-  }
-  // Otherwise, config.yaml can narrow an auto-detected project to the supported agents
-  // the project has chosen to manage with goat-flow.
-  else if (options.configState.config.agents) {
-    agents = uniqueConfiguredAgentIds(options.configState.config.agents).map(
-      (id) => PROFILES[id],
-    );
-  }
+  const managedAgentIds =
+    options.agentFilter !== null
+      ? [options.agentFilter]
+      : (options.managedAgentIds ?? getKnownAgentIds());
+  const agents = managedAgentIds.map((id) => PROFILES[id]);
 
   /** Detected technology stack (language, framework, etc.) */
   const stack =

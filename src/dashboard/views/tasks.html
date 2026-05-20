@@ -1,0 +1,204 @@
+<!-- ═══ Plans View ═══ -->
+<div
+  x-show="activeView === 'tasks'"
+  x-cloak
+  class="gf-tasks-view"
+  style="height: calc(100vh - 3.5rem); overflow-y: auto"
+>
+  <main class="gf-tasks-page">
+    <header class="gf-page-head">
+      <div>
+        <div class="gf-section-label">Recovery</div>
+        <h1>Plans</h1>
+        <p>
+          Milestone state from <code>.goat-flow/tasks/</code> in the selected
+          project, with active plan selection.
+        </p>
+      </div>
+      <button
+        @click="loadTasks()"
+        :disabled="tasksLoading"
+        class="gf-btn gf-btn-md gf-btn-secondary"
+      >
+        <span x-text="tasksLoading ? 'Refreshing...' : 'Refresh'"></span>
+      </button>
+    </header>
+
+    <div x-show="tasksLoading && !tasksState" class="gf-card gf-task-loading">
+      Loading plans...
+    </div>
+
+    <div x-show="tasksError" x-cloak class="gf-card gf-task-error" role="alert">
+      <div class="gf-text-primary">Plans could not be loaded</div>
+      <p x-text="tasksError"></p>
+    </div>
+
+    <template x-if="tasksState && !tasksState.exists">
+      <section class="gf-card gf-task-empty">
+        <span class="gf-empty-mark">M00</span>
+        <h2>No plans directory found</h2>
+        <p>
+          <code x-text="tasksState.taskRoot"></code>
+          does not exist for the selected project.
+        </p>
+      </section>
+    </template>
+
+    <template x-if="tasksState && tasksState.exists">
+      <section
+        class="gf-tasks-layout"
+        @gf-select-task-plan="selectTaskPlan($event.detail.planName)"
+        @gf-set-active-task-plan="setActiveTaskPlan($event.detail.planName)"
+      >
+        <aside class="gf-card gf-task-plans">
+          <div class="gf-task-panel-head">
+            <div>
+              <div class="gf-section-label">Plans</div>
+              <h2 x-text="tasksState.plans.length"></h2>
+            </div>
+            <div x-show="tasksState.active" class="gf-task-active-wrap">
+              <span class="gf-tooltip-wrap">
+                <button
+                  type="button"
+                  class="gf-info-button gf-task-active-help"
+                  @click.stop
+                  aria-label="What active plan means"
+                  aria-describedby="task-active-plan-tip"
+                >
+                  ?
+                </button>
+                <span
+                  id="task-active-plan-tip"
+                  class="gf-tooltip gf-task-active-tooltip"
+                  role="tooltip"
+                >
+                  Active is the default work plan. Goat skills scan this folder
+                  for current milestones and review/spec context; other plans
+                  stay visible but are not the default.
+                </span>
+              </span>
+              <span
+                class="gf-task-active-pill"
+                x-text="'active: ' + tasksState.active"
+              ></span>
+            </div>
+          </div>
+
+          <div x-show="tasksState.plans.length === 0" class="gf-empty-state">
+            <span class="gf-empty-mark">--</span>
+            <p>No plans are present.</p>
+          </div>
+
+          <div class="gf-task-plan-list">
+            <template x-for="plan in tasksState.plans" :key="plan.path">
+              <div
+                class="gf-task-plan-row"
+                :class="{
+                  'is-selected': plan.name === tasksState.selectedPlan,
+                  'is-active-plan': plan.active,
+                }"
+              >
+                <button
+                  @click="$dispatch('gf-select-task-plan', { planName: plan.name })"
+                  class="gf-task-plan-main"
+                  :aria-label="'View plan ' + plan.name"
+                >
+                  <span>
+                    <strong x-text="plan.name"></strong>
+                    <small
+                      x-text="plan.milestoneCount + ' milestone' + (plan.milestoneCount === 1 ? '' : 's')"
+                    ></small>
+                  </span>
+                </button>
+                <button
+                  @click.stop="$dispatch('gf-set-active-task-plan', { planName: plan.name })"
+                  class="gf-task-plan-active-btn"
+                  :class="{ 'is-active': plan.active }"
+                  :disabled="plan.active || tasksActivePlanSaving === plan.name"
+                  :title="plan.active ? 'Active plan' : 'Set active plan'"
+                  :aria-label="plan.active ? plan.name + ' is the active plan' : 'Set ' + plan.name + ' as active plan'"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 5v14" />
+                    <path d="M5 5h11l-2 4 2 4H5" />
+                  </svg>
+                </button>
+              </div>
+            </template>
+          </div>
+        </aside>
+
+        <section class="gf-card gf-task-milestones">
+          <div class="gf-task-panel-head">
+            <div>
+              <div class="gf-section-label">Milestones</div>
+              <h2 x-text="tasksState.selectedPlan || 'No plan selected'"></h2>
+            </div>
+            <span
+              class="gf-task-path"
+              x-text="tasksState.taskRoot"
+              :title="tasksState.taskRoot"
+            ></span>
+          </div>
+
+          <div
+            x-show="tasksState.milestones.length === 0"
+            class="gf-empty-state"
+          >
+            <span class="gf-empty-mark">M00</span>
+            <p>No milestone files were found for this plan.</p>
+          </div>
+
+          <div class="gf-task-milestone-list">
+            <template
+              x-for="milestone in tasksState.milestones"
+              :key="milestone.path"
+            >
+              <article class="gf-task-milestone">
+                <div class="gf-task-milestone-main">
+                  <div class="gf-task-milestone-copy">
+                    <div class="gf-task-meta-row">
+                      <span class="gf-task-status" x-text="milestone.status">
+                      </span>
+                      <span x-text="taskModifiedLabel(milestone.modifiedAt)">
+                      </span>
+                    </div>
+                    <h3 x-text="milestone.title"></h3>
+                    <p
+                      x-show="milestone.objective"
+                      x-text="milestone.objective"
+                    ></p>
+                    <code x-text="milestone.filename"></code>
+                  </div>
+                  <div class="gf-task-progress">
+                    <span x-text="taskProgressLabel(milestone)"></span>
+                    <div
+                      class="gf-task-progress-track"
+                      role="progressbar"
+                      :aria-valuenow="milestone.completedTasks"
+                      aria-valuemin="0"
+                      :aria-valuemax="milestone.totalTasks"
+                    >
+                      <span
+                        class="gf-task-progress-fill"
+                        :style="{ width: taskProgressPct(milestone) + '%' }"
+                      ></span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </template>
+          </div>
+        </section>
+      </section>
+    </template>
+  </main>
+</div>

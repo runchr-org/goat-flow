@@ -1,6 +1,6 @@
 ---
 category: setup-and-migration
-last_reviewed: 2026-05-03
+last_reviewed: 2026-05-18
 ---
 
 ## Lesson: Agents given broad setup tasks rewrite shared docs as agent-specific
@@ -27,9 +27,9 @@ last_reviewed: 2026-05-03
 
 **Created:** 2026-03-20
 
-**What happened:** Both rampart and sus-form-detector agents dropped Sub-Agent Objectives (f) and Communication When Blocked (g) when compressing CLAUDE.md toward the line target. The instructions said "Do NOT skip sections (f)-(i)" but only in Prompt B - Prompt A (used for new projects) didn't have this warning.
+**What happened:** Both rampart and sus-form-detector agents dropped Sub-Agent Objectives (f) and Communication When Blocked (g) when compressing CLAUDE.md toward the line target. In the historical setup prompt flow, the instructions said "Do NOT skip sections (f)-(i)" in Prompt B, but Prompt A (used for new projects) didn't have this warning. That old setup-prompt path no longer exists; current per-agent setup guidance lives under `workflow/setup/agents/`.
 
-**Prevention:** Every constraint that agents are likely to cut under pressure must appear in BOTH the template (execution-loop.md) AND the prompt that invokes it (Prompt A in agents/claude.md). A rule in only one place is a rule that gets missed.
+**Prevention:** Every constraint that agents are likely to cut under pressure must appear in both the shared template (`workflow/setup/reference/execution-loop.md` (search: `Target: under 125 lines. Hard limit: 150.`)) and the current per-agent setup guide under `workflow/setup/agents/` (search: `configured line target and hard limit`). A rule in only one place is a rule that gets missed.
 
 ---
 
@@ -71,7 +71,7 @@ last_reviewed: 2026-05-03
 
 **What happened:** The dashboard rated Recovery low because audit treated unchecked `.goat-flow/tasks/` milestone checkboxes as degraded recovery. It also rated Verification low because `test-runner-configured` required a structured/detected test command or saved validation artifact. The user corrected both assumptions: task checkboxes are optional local workflow state and can be long-term roadmap or brainstorming; project test command choice is project-specific and belongs in quality/release review, not deterministic install audit.
 
-**Prevention:** Deterministic audit may check that goat-flow-owned directories and hook/registration surfaces exist, but must not score optional local workflow state or project-specific command calibration. Quality prompts must also avoid flagging unchecked task/milestone checkboxes, status fields, roadmap files, or completion percentages by themselves. Only report task-file issues when an observed skill behavior fails. Evidence anchors: `src/cli/audit/harness/check-recovery.ts` (search: `not audited`), `src/cli/audit/harness/check-verification.ts` (search: `3 checks`), `src/cli/prompt/compose-quality.ts` (search: `Do NOT report them as quality findings`).
+**Prevention:** Deterministic audit may check that goat-flow-owned directories and hook/registration surfaces exist, but must not score optional local workflow state or project-specific command calibration. Quality prompts must also avoid flagging unchecked task/milestone checkboxes, status fields, roadmap files, or completion percentages by themselves. Only report task-file issues when an observed skill behavior fails. Evidence anchors: `src/cli/audit/harness/check-recovery.ts` (search: `not audited`), `src/cli/audit/harness/check-verification.ts` (search: `evidence-before-claims`), `src/cli/prompt/compose-quality.ts` (search: `Do NOT report them as quality findings`).
 
 ---
 

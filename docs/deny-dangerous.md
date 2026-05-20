@@ -25,6 +25,7 @@ The shipped template is intended to block or prompt on the common high-risk comm
 
 - unscoped `rm -rf`
 - all git push (ADR-025)
+- GitHub writes via `gh`, including issue/PR comments, releases, workflow runs, secrets/variables, and `gh api` write methods
 - `chmod 777`
 - pipe-to-shell and pipe-to-interpreter patterns like `curl | bash`
 - direct literal `.env` / `.env.*` access, except read-only `.env.example` inspection
@@ -40,7 +41,7 @@ These files are command guards, not general ignore files.
 
 - Claude sensitive-file exclusion is primarily `permissions.deny` in `.claude/settings.json`, with a `Read(.env.example)` allowlist for non-secret examples.
 - Gemini sensitive-file exclusion is primarily `.geminiignore`, with settings and hooks as defense in depth; `.env.example` is explicitly unignored for read-only inspection.
-- Codex has no Claude-compatible `settings.json` permission syntax. Sensitive project-file exclusions use `.codex/config.toml` permission profiles; exact-path read rules can allow top-level `.env.example`, and recursive secret denies remain glob-based `none` rules. The Bash-matched deny hook in `.codex/hooks/deny-dangerous.sh` remains the command guard.
+- Codex has no Claude-compatible `settings.json` permission syntax. Sensitive project-file exclusions use `.codex/config.toml` permission profiles; trailing `/**` subtree denies are safe in the base template, while exact-path rules are added only for files that exist in the checkout. The Bash-matched deny hook in `.codex/hooks/deny-dangerous.sh` remains the command guard and allows read-only `.env.example` inspection.
 - Copilot uses `.copilotignore` for context exclusion and `.github/hooks/deny-dangerous.sh` for runtime command blocking.
 
 ## Verification

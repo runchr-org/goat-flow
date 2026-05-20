@@ -106,12 +106,15 @@ If preflight fails, fix the underlying issue. Do not bypass with `--no-verify`.
 - `.claude/settings.local.json` (user-specific, gitignored)
 - `.claude/projects/`, `.claude/worktrees/` (session data, gitignored)
 - `.goat-flow/logs/sessions/*.md`, `.goat-flow/logs/quality/*.json|*.md`,
-  `.goat-flow/logs/critiques/*.md` (workspace-local runtime state, gitignored)
+  `.goat-flow/logs/events/*.jsonl`, `.goat-flow/logs/critiques/*.md`
+  (workspace-local runtime state, gitignored)
 - Files containing secrets or credentials
 
-Committed under `.goat-flow/`: `architecture.md`, `code-map.md`, `patterns/`,
-`config.yaml`, `decisions/`, `footguns/`, `lessons/`, `skill-reference/`,
-and the `tasks/`, `scratchpad/`, `logs/` directory anchors.
+Committed under `.goat-flow/`: `.goat-flow/architecture.md`,
+`.goat-flow/code-map.md`, `.goat-flow/patterns/`, `.goat-flow/config.yaml`,
+`.goat-flow/decisions/`, `.goat-flow/footguns/`, `.goat-flow/lessons/`,
+`.goat-flow/skill-reference/`, and the `.goat-flow/tasks/`,
+`.goat-flow/scratchpad/`, `.goat-flow/logs/` directory anchors.
 
 ## Version Bumps
 

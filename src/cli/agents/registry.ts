@@ -3,9 +3,8 @@
  *
  * `workflow/manifest.json` is the single writable authority for framework
  * support metadata. This module exposes the typed runtime facade consumed by
- * detection, prompts, config validation, and dashboard surfaces.
+ * detection, prompts, and dashboard surfaces.
  */
-import type { LoadedConfig } from "../config/types.js";
 import { loadManifest } from "../manifest/manifest.js";
 import type {
   AgentProfile as ManifestAgentProfile,
@@ -63,15 +62,40 @@ function requireDir(
   return trimmed;
 }
 
+/** Require a manifest capability string to be present and non-empty. */
+function requireCapabilityString(
+  id: AgentId,
+  field: string,
+  value: string | undefined,
+): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    throw new Error(
+      `workflow/manifest.json agent "${id}" is missing capabilities.${field}`,
+    );
+  }
+  return trimmed;
+}
+
 /** Convert a manifest agent entry into the runtime profile. */
 function toRuntimeProfile(
   id: AgentId,
   agent: ManifestAgentProfile,
 ): AgentProfile {
+  const capabilities = agent.capabilities;
   return {
     id,
     name: agent.name,
     instructionFile: agent.instruction_file,
+    terminalBinary: requireCapabilityString(
+      id,
+      "terminal_binary",
+      capabilities.terminal_binary,
+    ),
+    setupSurfaces: [...capabilities.setup_surfaces],
+    promptInvocationStyle: capabilities.prompt_invocation_style,
+    skillSource: capabilities.skill_source,
+    supportsPostTurnHook: agent.hook_events.post_turn !== null,
     settingsFile: agent.settings ?? null,
     hookConfigFile: agent.hook_config_file ?? agent.settings ?? null,
     skillsDir: requireDir(id, "skills_dir", agent.skills_dir),
@@ -139,25 +163,4 @@ function isKnownAgentId(
   return (
     isAgentId(value) && Object.prototype.hasOwnProperty.call(agents, value)
   );
-}
-
-/** Return configured agents as manifest-backed runtime profiles. */
-export function getConfiguredAgents(config: LoadedConfig): AgentProfile[] {
-  const configured = config.config.agents;
-  if (configured === null) {
-    return getAgentProfiles();
-  }
-  const agents = loadManifest().agents;
-  return configured
-    .filter((id): id is AgentId => isKnownAgentId(id, agents))
-    .flatMap((id) => {
-      const agent = agents[id];
-      return agent ? [toRuntimeProfile(id, agent)] : [];
-    });
-}
-
-/** Return configured agent ids that do not exist in the manifest-backed registry. */
-export function findUnknownConfiguredAgents(configured: string[]): string[] {
-  const agents = loadManifest().agents;
-  return configured.filter((id) => !isKnownAgentId(id, agents));
 }

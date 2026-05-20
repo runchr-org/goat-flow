@@ -164,13 +164,17 @@ describe("uploadDirForSession", () => {
     // `absPath` is filesystem-shape (host-native separators, drive letter on
     // Windows for absolute POSIX inputs). `relPath` is POSIX-shape so the UI
     // renders consistently across platforms.
-    const target = "/tmp/proj";
-    const dir = uploadDirForSession(target, "abc123");
-    assert.equal(
-      dir.absPath,
-      resolvePath("/tmp/proj/.goat-flow/logs/uploads/abc123"),
-    );
-    assert.equal(dir.relPath, ".goat-flow/logs/uploads/abc123");
+    const target = mkdtempSync(join(tmpdir(), "gf-upload-proj-"));
+    try {
+      const dir = uploadDirForSession(target, "abc123");
+      assert.equal(
+        dir.absPath,
+        resolvePath(target, ".goat-flow/logs/uploads/abc123"),
+      );
+      assert.equal(dir.relPath, ".goat-flow/logs/uploads/abc123");
+    } finally {
+      rmSync(target, { recursive: true, force: true });
+    }
   });
 
   it("rejects session ids that contain unsafe characters", () => {
@@ -206,7 +210,7 @@ describe("uploadDirForSession", () => {
 
       assert.throws(
         () => uploadDirForSession(target, "sess1"),
-        /escapes session target directory/,
+        /Local path validation failed \(state-path\): state path escape/,
       );
       assert.equal(existsSync(join(outside, "sess1")), false);
     } finally {

@@ -1,6 +1,6 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-10
+last_reviewed: 2026-05-20
 ---
 
 ## Lesson: Dashboard release QA should avoid real agent runners unless runner behavior is the target
@@ -22,6 +22,10 @@ last_reviewed: 2026-05-10
 **What happened:** While double-checking an unrelated Codex config fix, `npm run test:slow` failed in `checkDrift: installer round-trip fixture` because the temp repo's preflight reported `Dashboard view names drift between manifest and architecture prose`. The Codex fix was clean; the blocker was stale `.goat-flow/architecture.md` prose missing the `skill` dashboard view in both required snippets.
 
 **2026-05-10 recurrence:** Manual v1.6.0 CLI release smoke hit the same class through `node dist/cli/cli.js audit . --check-content --format text`: `Cold-Path Content Lint` failed because `docs/dashboard.md` listed dashboard headings without the manifest-backed `skills` view. Adding the missing `### Skills` section changed the check to `Cold-Path Content Lint: PASS (0 warning(s), 9 info, 177 file(s) scanned)`.
+
+**2026-05-15 recurrence:** During M00 side-menu execution, the focused dashboard route test failed before reaching `/api/tasks` because `validateManifest` reported `facts.dashboard_views drift` after `src/dashboard/views/tasks.html` and `src/dashboard/views/coming-soon.html` were added. The fix was to add both view names to `workflow/manifest.json` and update the two dashboard view lists in `.goat-flow/architecture.md` before rerunning the route slice.
+
+**2026-05-18 recurrence:** During the v1.7.0 version bump, `node --import tsx src/cli/cli.ts audit . --check-drift --check-content --format json` failed after the scripted version surfaces were already consistent. The remaining warnings were cold-path doc drift around the manifest-backed `coming-soon` view (`src/dashboard/views/coming-soon.html` (search: `Coming Soon Destinations`)) and `docs/audit-and-quality.md` (search: `Verification:           PASS (4/4)`) not being updated after the Verification harness concern grew to 4 checks. The fix was to align both doc claims, then rerun the content audit.
 
 **Root cause:** I treated the broad slow suite as a final confirmation step, but it also runs repo-wide cold-path truth checks through `scripts/preflight-checks.sh`. Those checks can surface unrelated committed dashboard doc drift that focused tests do not touch.
 
@@ -47,11 +51,23 @@ last_reviewed: 2026-05-10
 
 **What happened:** M03 added a VM-loaded browser helper test for `dashboard-custom-prompts.ts`. The first focused run failed even though the expected and actual arrays had the same printed contents, because `assert.deepEqual` compared an array created inside the VM realm against a host-realm array literal.
 
-**Current recurrence:** On 2026-05-02, custom prompt form tests repeated this trap for validation arrays, surface tag arrays, and flag group arrays returned from the VM context. The helper behavior was correct; the assertions needed `Array.from(...)` or scalar field comparisons.
+**Current recurrence:** On 2026-05-02, custom prompt form tests repeated this trap for validation arrays, surface tag arrays, and flag group arrays returned from the VM context. On 2026-05-16, the manifest-backed runner hint test hit the same issue for `dashboardValidateCustomPromptDraft(ctx)`. On 2026-05-20, the dashboard readers enforcement-summary regression failed with "Values have same structure but are not reference-equal" because `readDashboardReport` returned a VM-realm plain object. The helper behavior was correct; the assertions needed `Array.from(...)`, host-realm normalization, or scalar field comparisons.
 
 **Root cause:** The test executed browser helper code in `node:vm` to avoid changing classic-script exports, but the assertion treated cross-realm arrays like normal host arrays.
 
 **Prevention:** When testing browser classic-script helpers through `node:vm`, normalize VM-produced arrays/objects with host constructors before strict structural assertions, or compare scalar fields. Evidence anchor: `test/unit/dashboard-custom-prompts.test.ts` (search: `Array.from(helpers.dashboardValidateCustomPromptDraft(ctx))`).
+
+---
+
+## Lesson: Dashboard row metadata should not widen UI sort contracts
+
+**Status:** active | **Created:** 2026-05-16
+
+**What happened:** While adding stable dashboard project identity, `npm run typecheck` failed after `ProjectEntry` gained optional identity metadata and `paths?: string[]`. `ProjectSortKey` was defined as `"name" | keyof ProjectEntry`, so adding non-string fields widened sort values to `string | string[] | undefined` and broke `localeCompare`. The first dashboard integration rerun also failed because the roundtrip test asserted exact `paths` array order even though identity grouping made alias order incidental.
+
+**Root cause:** I treated `ProjectEntry` as both the UI row model and the sortable-column contract. Extending the row shape for identity metadata unintentionally changed the sort type. The test had the same path-only assumption: it verified array order rather than the durable property, which is that all aliases are preserved under one identity-keyed record.
+
+**Prevention:** When adding metadata fields to dashboard row types, keep `ProjectSortKey` as an explicit union of sortable string columns. For identity or alias migrations, assert identity grouping, alias set membership, and title preservation; do not assert incidental path-array ordering unless the ordering is part of the product contract. Evidence anchors: `src/dashboard/app.ts` (search: `type ProjectSortKey = "name"`), `test/integration/dashboard-server.test.ts` (search: `persists project identities without raw private remote URLs`).
 
 ---
 
@@ -95,6 +111,18 @@ last_reviewed: 2026-05-10
 **Root cause:** The dashboard server prefers `dist/dashboard/preset-prompts.json` when it exists. Source edits plus `npm run typecheck` do not refresh that built asset, so a local `dist/` directory can make focused source-run tests verify stale data.
 
 **Prevention:** After changing dashboard static assets that are copied by `build:dashboard`, run `npm run build:dashboard` before dashboard-server asset smoke tests, or explicitly remove stale `dist/` before relying on source fallback.
+
+---
+
+## Lesson: Built dashboard browser smoke needs a restarted server after template edits
+
+**Status:** active | **Created:** 2026-05-15
+
+**What happened:** While adding the Tasks active-plan toggle, the built dashboard browser smoke kept showing the old direct Alpine handlers after `npm run build:dashboard`. Clicking the flag wrote `.goat-flow/tasks/.active`, but the visible active marker stayed stale until I manually refreshed. The running dashboard process had cached the assembled HTML before the template-handler fix landed; after restarting `node dist/cli/cli.js dashboard .`, browser-use showed the new dispatched handlers and the active marker flipped immediately from `1.7.0` to `_archived` and back.
+
+**Root cause:** `serveDashboard()` caches `assembleDashboardHtml(shellPath)` at startup when dev mode is off. Rebuilding `dist/dashboard/views/tasks.html` updates files on disk, but an already-running built dashboard server keeps serving the old assembled shell.
+
+**Prevention:** After changing dashboard HTML/view templates, run `npm run build:dashboard`, restart the built dashboard server, then repeat browser-use smoke against the new URL. Evidence anchors: `src/cli/server/dashboard.ts` (search: `let cachedTemplate`), `src/cli/server/dashboard.ts` (search: `assembleDashboardHtml(shellPath)`), `src/dashboard/views/tasks.html` (search: `gf-set-active-task-plan`).
 
 ---
 

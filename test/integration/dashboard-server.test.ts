@@ -4,7 +4,16 @@
  */
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -14,6 +23,10 @@ import {
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
+import {
+  validateEvidenceEnvelope,
+  type EvidenceEnvelope,
+} from "../../src/cli/evidence/envelope.js";
 import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
 import { TERMINAL_UPLOAD_MAX_BODY_BYTES } from "../../src/cli/server/terminal-uploads.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -34,6 +47,15 @@ const require = createRequire(import.meta.url);
 const childProcess =
   require("node:child_process") as typeof import("node:child_process");
 const originalExecFileSync = childProcess.execFileSync;
+const CODEX_WORKSPACE_ROOT_ENTRIES = [
+  '"." = "write"',
+  '"secrets/**" = "none"',
+  '".ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '".docker/**" = "none"',
+  '".gnupg/**" = "none"',
+  '".kube/**" = "none"',
+];
 const CODEX_CONFIG = [
   'model = "gpt-5"',
   'default_permissions = "goat-flow"',
@@ -41,19 +63,7 @@ const CODEX_CONFIG = [
   "hooks = true",
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
-  '[permissions.goat-flow.filesystem.":project_roots"]',
-  '"." = "write"',
-  '".env.example" = "read"',
-  '".env" = "none"',
-  '"**/.env" = "none"',
-  '".env.*" = "none"',
-  '"**/.env.*" = "none"',
-  '".ssh/**" = "none"',
-  '"**/.ssh/**" = "none"',
-  '".aws/**" = "none"',
-  '"**/.aws/**" = "none"',
-  '"*.pem" = "none"',
-  '"**/*.pem" = "none"',
+  `":workspace_roots" = { ${CODEX_WORKSPACE_ROOT_ENTRIES.join(", ")} }`,
   "",
 ].join("\n");
 
@@ -227,6 +237,35 @@ async function fetchJson(
   const res = await fetch(`${baseUrl}${path}`, { ...init, headers });
   assertJsonResponse(res, path);
   return { res, body: await res.json() };
+}
+
+async function readEventEnvelopes(root: string): Promise<EvidenceEnvelope[]> {
+  const dir = join(root, ".goat-flow", "logs", "events");
+  let files: string[];
+  try {
+    files = (await readdir(dir))
+      .filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/u.test(name))
+      .sort();
+  } catch {
+    return [];
+  }
+  const envelopes: EvidenceEnvelope[] = [];
+  for (const file of files) {
+    const content = await readFile(join(dir, file), "utf-8");
+    for (const line of content.split(/\r?\n/u)) {
+      if (line.trim()) envelopes.push(JSON.parse(line) as EvidenceEnvelope);
+    }
+  }
+  return envelopes;
+}
+
+function assertValidEmittedEnvelope(envelope: EvidenceEnvelope): void {
+  assert.deepEqual(
+    validateEvidenceEnvelope(envelope, (path) =>
+      existsSync(join(PROJECT_PATH, path)),
+    ),
+    [],
+  );
 }
 
 async function writeProjectFile(
@@ -866,6 +905,15 @@ describe("dashboard /api/audit", () => {
       assert.ok(getKnownAgentIds().includes(id as AgentId));
       assert.equal(entry.name, getAgentProfileMap()[id as AgentId].name);
       assertAuditScope(entry.agent, "Dashboard report agentScores[].agent");
+      const enforcement = expectRecord(
+        entry.enforcement,
+        "Dashboard report agentScores[].enforcement",
+      );
+      assert.equal(enforcement.agent, id);
+      assert.ok(
+        Array.isArray(enforcement.capabilities),
+        "Dashboard report should include enforcement capabilities",
+      );
       if (entry.harness !== null) {
         assertAuditScope(
           entry.harness,
@@ -878,13 +926,13 @@ describe("dashboard /api/audit", () => {
     }
   });
 
-  it("includes configured agents even when their instruction files are missing", async () => {
+  it("includes all supported agents even when config lists one", async () => {
     const root = await mkdtemp(join(tmpdir(), "goat-flow-dashboard-agents-"));
     try {
       await writeProjectFile(
         root,
         ".goat-flow/config.yaml",
-        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - claude\n  - codex\n  - codex\n  - gemini\n  - copilot\nskills:\n  install: all\n`,
+        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\nskills:\n  install: all\n`,
       );
       await writeProjectFile(
         root,
@@ -905,18 +953,18 @@ describe("dashboard /api/audit", () => {
       );
       assert.match(
         JSON.stringify(aggregateAgent),
-        /Configured agent instruction files missing: codex \(AGENTS\.md\), gemini \(GEMINI\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
+        /Supported agent instruction files missing: codex \(AGENTS\.md\), gemini \(GEMINI\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
       );
 
       const agentScores = report.agentScores as unknown[];
       const scoreIds = agentScores.map((score, index) =>
-        String(expectRecord(score, `Configured-agent score[${index}]`).id),
+        String(expectRecord(score, `Supported-agent score[${index}]`).id),
       );
       assert.deepEqual(scoreIds, ["claude", "codex", "gemini", "copilot"]);
 
       const scoresById = new Map<string, Record<string, unknown>>();
       for (const score of agentScores) {
-        const entry = expectRecord(score, "Configured-agent score");
+        const entry = expectRecord(score, "Supported-agent score");
         scoresById.set(String(entry.id), entry);
       }
 
@@ -1169,11 +1217,11 @@ describe("dashboard /api/audit", () => {
     }
   });
 
-  it("returns 500 with JSON for a nonexistent project path", async () => {
+  it("returns 400 with JSON for a nonexistent project path", async () => {
     const { res, body } = await fetchJson(
       `/api/audit?path=${encodeURIComponent(MISSING_PATH)}`,
     );
-    assert.equal(res.status, 500);
+    assert.equal(res.status, 400);
 
     const error = expectRecord(body, "Audit error");
     assert.equal(typeof error.error, "string");
@@ -1250,11 +1298,23 @@ describe("dashboard /api/browse", () => {
     assert.ok(names.includes("src"), "Browse response should include src/");
   });
 
-  it("returns 500 with JSON for an unreadable path", async () => {
+  it("allows passive browsing of exact system roots without granting write capability", async () => {
+    if (process.platform === "win32") return;
+
+    const { res, body } = await fetchJson(
+      `/api/browse?path=${encodeURIComponent("/")}`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Browse root response");
+    assert.equal(data.current, "/");
+    assert.ok(Array.isArray(data.dirs));
+  });
+
+  it("returns 400 with JSON for an unreadable path", async () => {
     const { res, body } = await fetchJson(
       `/api/browse?path=${encodeURIComponent(MISSING_PATH)}`,
     );
-    assert.equal(res.status, 500);
+    assert.equal(res.status, 400);
 
     const data = expectRecord(body, "Browse error");
     assert.equal(typeof data.error, "string");
@@ -1579,7 +1639,10 @@ describe("dashboard /api/quality", () => {
     const data = expectRecord(body, "Quality mode response");
     assert.equal(data.command, "quality");
     assert.equal(data.agent, "claude");
-    assert.match(String(data.prompt), /Skill Suite Quality Assessment/);
+    assert.match(
+      String(data.prompt),
+      /# GOAT Flow Skills Assessment - Claude Code/,
+    );
     assert.match(String(data.prompt), /"quality_mode": "skills"/);
   });
 
@@ -1595,45 +1658,71 @@ describe("dashboard /api/quality", () => {
       assert.equal(data.command, "quality");
       assert.equal(data.agent, "claude");
       assert.equal(data.auditStatus, "unavailable");
-      assert.match(String(data.prompt), /Audit: UNAVAILABLE/);
+      assert.match(String(data.prompt), /Audit: NOT LOADED/);
+      assert.match(String(data.prompt), /fast quality prompt/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits a redacted evidence envelope for generated quality prompts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-quality-events-"));
+    try {
+      const { res, body } = await fetchJson(
+        `/api/quality?path=${encodeURIComponent(root)}&agent=claude&fast=true`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Quality event response");
+      const prompt = String(data.prompt);
+
+      const envelopes = await readEventEnvelopes(root);
+      const event = envelopes.find(
+        (candidate) => candidate.event_kind === "quality.prompt",
+      );
+      assert.ok(event, "quality prompt request should emit an event envelope");
+      assertValidEmittedEnvelope(event);
+      assert.equal(JSON.stringify(event).includes(prompt), false);
+
+      const payload = expectRecord(event.payload, "Quality event payload");
+      const redactedPrompt = expectRecord(
+        payload.prompt,
+        "Quality event payload.prompt",
+      );
+      assert.equal(redactedPrompt.kind, "redacted");
+      assert.equal(redactedPrompt.label, "quality prompt");
+      assert.equal(typeof redactedPrompt.sha256, "string");
+      assert.equal(typeof redactedPrompt.length, "number");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
 
   it("reuses cached quality audits unless fresh=true is requested", async () => {
-    const runTimedQualityRequest = async (
+    const runQualityRequest = async (
       suffix: string,
-    ): Promise<{ ms: number; body: Record<string, unknown> }> => {
-      const t0 = performance.now();
+    ): Promise<Record<string, unknown>> => {
       const { res, body } = await fetchJson(
         `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude${suffix}`,
       );
-      const ms = performance.now() - t0;
       assert.equal(res.status, 200);
-      return { ms, body: expectRecord(body, "Quality cache response") };
+      return expectRecord(body, "Quality cache response");
     };
 
-    const first = await runTimedQualityRequest("&fresh=true");
-    const second = await runTimedQualityRequest("");
-    const third = await runTimedQualityRequest("&fresh=true");
+    const first = await runQualityRequest("&fresh=true");
+    const second = await runQualityRequest("");
+    const third = await runQualityRequest("&fresh=true");
 
-    assert.equal(first.body.command, "quality");
-    assert.equal(second.body.command, "quality");
-    assert.equal(third.body.command, "quality");
-    assert.equal(first.body.agent, "claude");
-    assert.equal(second.body.agent, "claude");
-    assert.equal(third.body.agent, "claude");
-    assert.equal(first.body.prompt, second.body.prompt);
-    assert.equal(first.body.prompt, third.body.prompt);
-    assert.ok(
-      second.ms <= Math.max(20, first.ms / 3),
-      `cached quality request should be materially faster than a fresh audit (fresh=${Math.round(first.ms)}ms cached=${Math.round(second.ms)}ms)`,
-    );
-    assert.ok(
-      second.ms <= Math.max(20, third.ms / 3),
-      `fresh=true should bypass the cache and stay materially slower than the cached request (fresh=${Math.round(third.ms)}ms cached=${Math.round(second.ms)}ms)`,
-    );
+    assert.equal(first.command, "quality");
+    assert.equal(second.command, "quality");
+    assert.equal(third.command, "quality");
+    assert.equal(first.agent, "claude");
+    assert.equal(second.agent, "claude");
+    assert.equal(third.agent, "claude");
+    assert.equal(first.prompt, second.prompt);
+    assert.equal(first.prompt, third.prompt);
+    assert.equal(first.auditCacheStatus, "bypass");
+    assert.equal(second.auditCacheStatus, "hit");
+    assert.equal(third.auditCacheStatus, "bypass");
   });
 
   for (const agent of getKnownAgentIds()) {
@@ -2094,11 +2183,16 @@ describe("dashboard /api/projects", () => {
 
     const get = await fetchJson("/api/projects/list");
     assert.equal(get.res.status, 200);
-    assert.deepEqual(get.body, {
-      paths: nextPaths,
-      favorites: nextFavorites,
-      projectTitles: nextProjectTitles,
-    });
+    const body = expectRecord(get.body, "dashboard state");
+    assert.deepEqual(new Set(body.paths as string[]), new Set(nextPaths));
+    assert.deepEqual(body.favorites, nextFavorites);
+    const projectTitles = expectRecord(
+      body.projectTitles,
+      "dashboard state projectTitles",
+    );
+    assert.ok(Object.values(projectTitles).includes("goat-flow WSL"));
+    const projects = expectRecord(body.projects, "dashboard state projects");
+    assert.ok(Object.keys(projects).length >= 1);
   });
 
   it("clears a project title when an empty string is posted", async () => {
@@ -2116,6 +2210,10 @@ describe("dashboard /api/projects", () => {
     const get = await fetchJson("/api/projects/list");
     const body = expectRecord(get.body, "dashboard state");
     assert.deepEqual(body.projectTitles, {});
+    assert.ok(
+      Object.keys(expectRecord(body.projects, "dashboard projects")).length >=
+        1,
+    );
   });
 
   it("migrates the legacy projects file with empty favorites and titles", async () => {
@@ -2128,11 +2226,12 @@ describe("dashboard /api/projects", () => {
 
     const get = await fetchJson("/api/projects/list");
     assert.equal(get.res.status, 200);
-    assert.deepEqual(get.body, {
-      paths: nextPaths,
-      favorites: [],
-      projectTitles: {},
-    });
+    const body = expectRecord(get.body, "dashboard state");
+    assert.deepEqual(body.paths, nextPaths);
+    assert.deepEqual(body.favorites, []);
+    assert.deepEqual(body.projectTitles, {});
+    const projects = expectRecord(body.projects, "dashboard projects");
+    assert.ok(Object.keys(projects).length >= 1);
   });
 
   it("returns 400 for invalid project list JSON", async () => {
@@ -2145,6 +2244,24 @@ describe("dashboard /api/projects", () => {
 
     const data = expectRecord(body, "Projects list error");
     assert.equal(typeof data.error, "string");
+  });
+
+  it("rejects exact shared temp roots when saving project state", async () => {
+    if (process.platform === "win32") return;
+
+    const { res, body } = await fetchJson("/api/projects/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paths: ["/tmp"],
+        favorites: [],
+        projectTitles: {},
+      }),
+    });
+    assert.equal(res.status, 400);
+    const data = expectRecord(body, "Projects list blocked-root error");
+    assert.match(String(data.error), /Local path validation failed/);
+    assert.doesNotMatch(String(data.error), /\/tmp/);
   });
 
   it("returns 405 for unsupported project list methods", async () => {
@@ -2169,14 +2286,385 @@ describe("dashboard /api/projects", () => {
       "Projects status item",
     );
     assert.equal(project.path, PROJECT_PATH);
+    assert.equal(typeof project.identity, "string");
+    assert.match(
+      String(project.identitySource),
+      /^(git-remote|goat-marker|path)$/,
+    );
     assert.equal(typeof project.state, "string");
     assert.equal(typeof project.action, "string");
     assert.equal(typeof project.details, "string");
   });
 
+  it("reports blocked roots through the project status result", async () => {
+    if (process.platform === "win32") return;
+
+    const { res, body } = await fetchJson(
+      `/api/projects/status?paths=${encodeURIComponent("/tmp")}`,
+    );
+    assert.equal(res.status, 200);
+    const data = expectRecord(body, "Projects status blocked-root response");
+    assert.ok(Array.isArray(data.projects));
+    const project = expectRecord(
+      (data.projects as unknown[])[0],
+      "Projects status blocked-root item",
+    );
+    assert.equal(project.state, "error");
+    assert.match(String(project.details), /Local path validation failed/);
+  });
+
+  it("resolves matching git remotes to one dashboard project identity", async () => {
+    const one = await mkdtemp(join(tmpdir(), "goat-flow-git-project-one-"));
+    const two = await mkdtemp(join(tmpdir(), "goat-flow-git-project-two-"));
+    const remoteUrl = "git@github.com:Example/PrivateRepo.git";
+    try {
+      runGit(one, ["init"]);
+      runGit(one, ["remote", "add", "origin", remoteUrl]);
+      runGit(two, ["init"]);
+      runGit(two, ["remote", "add", "origin", remoteUrl]);
+
+      const { body } = await fetchJson(
+        `/api/projects/status?paths=${encodeURIComponent(`${one},${two}`)}`,
+      );
+      const data = expectRecord(body, "Projects status response");
+      assert.ok(Array.isArray(data.projects));
+      const [first, second] = data.projects as unknown[];
+      const firstProject = expectRecord(first, "First project");
+      const secondProject = expectRecord(second, "Second project");
+      assert.equal(firstProject.identity, secondProject.identity);
+      assert.equal(firstProject.identitySource, "git-remote");
+      assert.equal(typeof firstProject.remoteUrlHash, "string");
+      assert.equal(JSON.stringify(data).includes(remoteUrl), false);
+    } finally {
+      await rm(one, { recursive: true, force: true });
+      await rm(two, { recursive: true, force: true });
+    }
+  });
+
+  it("uses a local goat-flow marker for non-git projects across renames", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-marker-project-"));
+    const moved = `${root}-renamed`;
+    try {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        "version: 1.7.0\n",
+      );
+      const first = await fetchJson(
+        `/api/projects/status?paths=${encodeURIComponent(root)}`,
+      );
+      const firstBody = expectRecord(first.body, "First status");
+      assert.ok(Array.isArray(firstBody.projects));
+      const firstProject = expectRecord(
+        (firstBody.projects as unknown[])[0],
+        "First project",
+      );
+      assert.equal(firstProject.identitySource, "goat-marker");
+      const marker = await readFile(
+        join(root, ".goat-flow", "project-id"),
+        "utf-8",
+      );
+      assert.match(marker, /gf_[0-9a-f-]{36}/i);
+
+      await rename(root, moved);
+      const second = await fetchJson(
+        `/api/projects/status?paths=${encodeURIComponent(moved)}`,
+      );
+      const secondBody = expectRecord(second.body, "Second status");
+      assert.ok(Array.isArray(secondBody.projects));
+      const secondProject = expectRecord(
+        (secondBody.projects as unknown[])[0],
+        "Second project",
+      );
+      assert.equal(secondProject.identity, firstProject.identity);
+      assert.equal(secondProject.path, moved);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(moved, { recursive: true, force: true });
+    }
+  });
+
+  it("does not create project identity markers during passive browse", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-browse-project-"));
+    try {
+      await writeProjectFile(
+        root,
+        ".goat-flow/config.yaml",
+        "version: 1.7.0\n",
+      );
+      const { res } = await fetchJson(
+        `/api/browse?path=${encodeURIComponent(root)}`,
+      );
+      assert.equal(res.status, 200);
+      await assert.rejects(
+        readFile(join(root, ".goat-flow", "project-id"), "utf-8"),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("persists project identities without raw private remote URLs", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-private-remote-"));
+    const alias = await mkdtemp(join(tmpdir(), "goat-flow-private-alias-"));
+    const remoteUrl = "ssh://git@example.internal/private/repo.git";
+    try {
+      runGit(root, ["init"]);
+      runGit(root, ["remote", "add", "origin", remoteUrl]);
+      runGit(alias, ["init"]);
+      runGit(alias, ["remote", "add", "origin", remoteUrl]);
+      const post = await fetchJson("/api/projects/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paths: [root, alias],
+          favorites: [],
+          projectTitles: { [root]: "Private Project" },
+        }),
+      });
+      assert.equal(post.res.status, 200);
+      const persisted = await readFile(DASHBOARD_STATE_PATH, "utf-8");
+      assert.equal(persisted.includes(remoteUrl), false);
+      assert.match(persisted, /"remoteUrlHash":/);
+      assert.match(persisted, /"title": "Private Project"/);
+      const parsed = expectRecord(
+        JSON.parse(persisted),
+        "Persisted dashboard state",
+      );
+      const projects = expectRecord(parsed.projects, "Persisted projects");
+      assert.equal(Object.keys(projects).length, 1);
+      const project = expectRecord(
+        Object.values(projects)[0],
+        "Persisted project",
+      );
+      assert.deepEqual(
+        new Set(project.paths as string[]),
+        new Set([root, alias]),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(alias, { recursive: true, force: true });
+    }
+  });
+
   it("returns 400 without paths", async () => {
     const { res } = await fetchJson("/api/projects/status");
     assert.equal(res.status, 400);
+  });
+});
+
+describe("dashboard /api/tasks", () => {
+  it("returns an empty state when the selected project has no tasks directory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-no-tasks-"));
+    try {
+      const { res, body } = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Tasks response");
+      assert.equal(data.exists, false);
+      assert.equal(data.active, null);
+      assert.equal(data.activeExists, false);
+      assert.equal(data.selectedPlan, null);
+      assert.deepEqual(data.plans, []);
+      assert.deepEqual(data.milestones, []);
+      await assert.rejects(
+        readFile(join(root, ".goat-flow", "tasks", ".active")),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("parses task directories, active marker, milestones, and malformed fallbacks", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-tasks-"));
+    try {
+      await writeProjectFile(root, ".goat-flow/tasks/.active", "1.7.0\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/1.7.0/M00-side-menu-navigation.md",
+        [
+          "# M00: Side Menu Navigation",
+          "",
+          "**Status:** in-progress",
+          "**Objective:** Build a desktop side menu.",
+          "",
+          "- [x] Done",
+          "- [ ] Pending",
+          "",
+        ].join("\n"),
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/1.7.0/M01-malformed.md",
+        "no heading or metadata\n- [ ] fallback task\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Tasks response");
+      assert.equal(data.taskRoot, join(root, ".goat-flow", "tasks"));
+      assert.equal(data.exists, true);
+      assert.equal(data.active, "1.7.0");
+      assert.equal(data.activeExists, true);
+      assert.equal(data.selectedPlan, "1.7.0");
+      assert.ok(Array.isArray(data.plans));
+      assert.ok(Array.isArray(data.milestones));
+      const plans = data.plans as Record<string, unknown>[];
+      assert.equal(plans[0]?.name, "1.7.0");
+      assert.equal(plans[0]?.milestoneCount, 2);
+      assert.equal(plans[0]?.active, true);
+
+      const milestones = data.milestones as Record<string, unknown>[];
+      assert.equal(milestones[0]?.filename, "M00-side-menu-navigation.md");
+      assert.equal(milestones[0]?.title, "M00: Side Menu Navigation");
+      assert.equal(milestones[0]?.status, "in-progress");
+      assert.equal(milestones[0]?.objective, "Build a desktop side menu.");
+      assert.equal(milestones[0]?.totalTasks, 2);
+      assert.equal(milestones[0]?.completedTasks, 1);
+      assert.equal(milestones[1]?.filename, "M01-malformed.md");
+      assert.equal(milestones[1]?.title, "M01-malformed.md");
+      assert.equal(milestones[1]?.status, "unknown");
+      assert.equal(milestones[1]?.totalTasks, 1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves stale active markers without treating them as selected plans", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-stale-active-"));
+    try {
+      await writeProjectFile(root, ".goat-flow/tasks/.active", "missing\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/1.7.0/M00-demo.md",
+        "# M00: Demo\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Tasks response");
+      assert.equal(data.active, "missing");
+      assert.equal(data.activeExists, false);
+      assert.equal(data.selectedPlan, "1.7.0");
+      const plans = data.plans as Record<string, unknown>[];
+      assert.equal(plans[0]?.active, false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("updates the active task plan for the selected project", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-active-task-"));
+    try {
+      await writeProjectFile(root, ".goat-flow/tasks/.active", "one\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/one/M00-one.md",
+        "# M00: One\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/two/M00-two.md",
+        "# M00: Two\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: "two" }),
+        },
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Tasks response");
+      assert.equal(data.active, "two");
+      assert.equal(data.activeExists, true);
+      assert.equal(data.selectedPlan, "two");
+      const plans = data.plans as Record<string, unknown>[];
+      assert.equal(plans.find((plan) => plan.name === "two")?.active, true);
+      assert.equal(
+        await readFile(join(root, ".goat-flow", "tasks", ".active"), "utf-8"),
+        "two\n",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects invalid active task plan updates", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-active-invalid-"));
+    try {
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/one/M00-one.md",
+        "# M00: One\n\n**Status:** planned\n- [ ] Pending\n",
+      );
+
+      const traversal = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: "../one" }),
+        },
+      );
+      assert.equal(traversal.res.status, 400);
+      assert.match(
+        String(expectRecord(traversal.body, "Traversal response").error),
+        /top-level task plan directory/,
+      );
+
+      const missing = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: "missing" }),
+        },
+      );
+      assert.equal(missing.res.status, 404);
+      assert.match(
+        String(expectRecord(missing.body, "Missing plan response").error),
+        /not found/,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the selected target tasks tree instead of the controlling workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goat-flow-target-tasks-"));
+    try {
+      await writeProjectFile(root, ".goat-flow/tasks/.active", "target\n");
+      await writeProjectFile(
+        root,
+        ".goat-flow/tasks/target/M01-target.md",
+        "# M01: Target Tasks\n\n**Status:** planned\n**Objective:** Target only.\n",
+      );
+
+      const { res, body } = await fetchJson(
+        `/api/tasks?path=${encodeURIComponent(root)}`,
+      );
+      assert.equal(res.status, 200);
+      const data = expectRecord(body, "Tasks response");
+      assert.equal(data.taskRoot, join(root, ".goat-flow", "tasks"));
+      assert.equal(data.selectedPlan, "target");
+      const milestones = data.milestones as Record<string, unknown>[];
+      assert.equal(milestones.length, 1);
+      assert.equal(milestones[0]?.filename, "M01-target.md");
+      assert.equal(
+        milestones[0]?.path,
+        join(root, ".goat-flow", "tasks", "target", "M01-target.md"),
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

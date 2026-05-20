@@ -2,7 +2,7 @@
 
 **A dashboard for auditing, configuring, and running your AI coding agents.**
 
-One command opens a local menu for auditing, deterministic setup, guided agent prompts, and the dashboard. Supports Claude Code, Codex, Gemini CLI, and Copilot CLI.
+One command opens a local menu for auditing, deterministic setup, guided agent prompts, and the dashboard. The manifest-backed support matrix currently covers Claude Code, Codex, Gemini CLI, and Copilot CLI.
 
 [![npm version](https://img.shields.io/npm/v/@blundergoat/goat-flow.svg)](https://www.npmjs.com/package/@blundergoat/goat-flow) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) 
 
@@ -22,7 +22,6 @@ What do you want to do?
 **Install locally (optional)**
 
 ```bash
-pnpm add -D @blundergoat/goat-flow               # pnpm
 npm install --save-dev @blundergoat/goat-flow    # npm
 ```
 
@@ -38,9 +37,19 @@ For the dashboard's embedded terminal, you'll need `node-pty` to compile. See [T
 
 ![Dashboard](docs/assets/dashboard-preview.png)
 
+The desktop dashboard uses a persistent side menu for primary navigation. The
+header keeps the current project switcher, runner switcher, and utility actions
+available while you move between views.
+
 ### Home
 
 Live audit results for every supported agent. Per-agent cards show pass/fail across two scopes (GOAT Flow Setup, Agent Setup) with actionable fix hints. An AI Harness section scores each agent across five concerns - Context, Constraints, Verification, Recovery, and Feedback Loop - so you can see exactly where your setup is strong and where it's weak. "What to do next" action cards surface the highest-priority gaps. Re-audit after changes without leaving the page.
+
+### Plans
+
+Plan milestone view for the selected project. Surfaces `.goat-flow/tasks/` plan
+directories, milestone status, and checkbox progress, and lets you set the
+active plan.
 
 ### Setup
 
@@ -54,15 +63,18 @@ Prompts include structured workflows like pre-walk-through notes with targeted t
 
 ### Workspace
 
-Split layout for terminal work. A sessions rail lists all running terminal sessions (up to 10) with runner, age, and idle indicators. Single-click switching between sessions. The right pane is a full xterm.js terminal with WebSocket-based PTY - run Claude, Codex, Gemini, or Copilot directly in the browser.
+Split layout for terminal work. A sessions rail lists all running terminal sessions (up to 10) with runner, age, and idle indicators, plus collapsed-rail tooltips and an active-session status pip. Single-click switching between sessions. The right pane is a full xterm.js terminal with WebSocket-based PTY - run Claude, Codex, Gemini, or Copilot directly in the browser. Drag and drop images onto the terminal pane to attach them to the next prompt.
 
 ### Projects
 
-Multi-project browser. Register multiple project paths, view their audit status at a glance, and "Audit All" in one click. Select a project to switch context across the entire dashboard.
+Multi-project browser. Register multiple projects, view their audit status at a glance, and "Audit All" in one click. Titles and favorites follow a stable identity where possible: git remote hash first, then a local `.goat-flow/project-id` marker for non-git goat-flow projects, then path fallback. Select a project to switch context across the entire dashboard.
 
 ### Quality
 
-Generate agent quality-assessment prompts. Select a target agent, generate the prompt, and preview the full output with embedded audit results.
+Generate agent quality-assessment prompts. Select a target agent, generate the
+prompt, and preview the full output with embedded audit results. Passive page
+loads use cached audit enrichment when available so the view opens quickly;
+Regenerate requests a fresh audit before composing the prompt.
 
 ## What's under the hood
 
@@ -114,6 +126,8 @@ npx @blundergoat/goat-flow@latest install . --agent claude
 
 Use `--force` only when you want to overwrite existing settings, `.goat-flow/config.yaml`, and remove deprecated skills. For outdated or v0.9 projects, the installer automatically updates the config version and cleans deprecated skill directories.
 
+The installer keeps `.goat-flow/config.yaml` free of agent allowlists by default. Dashboard Home and aggregate `goat-flow audit .` read the supported agent registry from `workflow/manifest.json`, so they always show or check the current manifest-backed setup status. Use `--agent <id>` when you intentionally want one agent.
+
 The install includes `.goat-flow/skill-reference/` for shared meta references and `.goat-flow/skill-playbooks/` for tool/capability playbooks. Generated or repaired instruction files route agents to `.goat-flow/skill-playbooks/` before declaring a requested tool unavailable.
 
 ### 3. Generate the setup prompt
@@ -140,9 +154,9 @@ Open the **Prompts** view, pick a workflow (code review, bug diagnosis, UI debug
 
 ## Multi-agent support
 
-GOAT Flow supports **Claude Code, Codex, Gemini CLI, and Copilot CLI**. All agents share the same execution loop, autonomy tiers, skills, and learning loop. The dashboard's runner switcher (top nav bar) lets you toggle between agents and see per-agent audit results side by side.
+GOAT Flow's current manifest-backed registry supports **Claude Code, Codex, Gemini CLI, and Copilot CLI**. All agents share the same execution loop, autonomy tiers, skills, and learning loop. The dashboard's runner switcher in the header lets you toggle between agents and see per-agent audit results side by side.
 
-Run `npx @blundergoat/goat-flow@latest manifest` to inspect the live agent matrix.
+Run `npx @blundergoat/goat-flow@latest manifest` to inspect the live agent matrix from `workflow/manifest.json`.
 
 ## CLI commands
 
@@ -153,10 +167,11 @@ npx goat-flow dashboard .                  # Launch the dashboard
 npx goat-flow audit .                      # Run audit (pass/fail output)
 npx goat-flow audit . --harness            # Add AI harness scoring
 npx goat-flow audit . --format json        # JSON output for CI
+npx goat-flow audit . --format sarif       # SARIF output for code scanning upload
 npx goat-flow install . --agent claude     # Copy/update system files
 npx goat-flow setup . --agent claude       # Generate setup prompt
 npx goat-flow quality . --agent claude     # Generate quality-assessment prompt
-npx goat-flow status .                     # Project state (bare/partial/v0.9/v1.0/v1.1)
+npx goat-flow status .                     # Project state (bare/partial/v0.9/outdated/current/error)
 npx goat-flow manifest                     # Agent support matrix
 ```
 
@@ -181,7 +196,7 @@ See [docs/audit-and-quality.md](docs/audit-and-quality.md) for the full framewor
 ## Troubleshooting
 
 **Terminal not showing in dashboard?**
-goat-flow installs without a C++ toolchain as of v1.2.4. If you need the dashboard's embedded terminal, you'll also need `node-pty` to compile. Install build tools (`sudo apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. If using pnpm: `pnpm approve-builds` (select node-pty). To skip the native build entirely: `npm install @blundergoat/goat-flow --omit=optional`.
+goat-flow installs without a C++ toolchain as of v1.2.4. If you need the dashboard's embedded terminal, you'll also need `node-pty` to compile. Install build tools (`sudo apt install build-essential python3` on Debian/Ubuntu, `xcode-select --install` on macOS), then run `npm rebuild node-pty`. To skip the native build entirely: `npm install @blundergoat/goat-flow --omit=optional`.
 
 **Audit fails on a fresh project?**
 Expected. Run `npx @blundergoat/goat-flow@latest install . --agent claude`, then generate the setup prompt with `npx @blundergoat/goat-flow@latest setup . --agent claude`.

@@ -165,6 +165,20 @@ function readRunnerId(value: unknown): RunnerId | null {
   return readInjectedRunnerIds().includes(runner) ? (runner as RunnerId) : null;
 }
 
+function readPromptInvocationStyle(
+  value: unknown,
+): PromptInvocationStyle | null {
+  return value === "slash" || value === "dollar" ? value : null;
+}
+
+function readSkillSource(value: unknown): SkillSource | null {
+  return value === "installed" ||
+    value === "agent-mirror" ||
+    value === "github-mirror"
+    ? value
+    : null;
+}
+
 /** Build the default setup-agent selection from the injected support list. */
 function buildDefaultSetupAgents(
   supportedAgents: SupportedAgent[],
@@ -299,6 +313,7 @@ function readAuditCheck(value: unknown): AuditCheck | null {
   }
   const failure = readAuditFailure(value.failure);
   if (failure) check.failure = failure;
+  if (isRecord(value.details)) check.details = value.details;
   return check;
 }
 
@@ -349,6 +364,7 @@ function readAuditConcern(value: unknown): AuditConcern | null {
     status,
     score: value.score,
     findings: readStringArray(value.findings),
+    limits: readStringArray(value.limits),
     recommendations: readStringArray(value.recommendations),
     howToFix: readStringArray(value.howToFix),
     integrityPass: readCount(value.integrityPass),
@@ -357,6 +373,100 @@ function readAuditConcern(value: unknown): AuditConcern | null {
     advisoryFail: readCount(value.advisoryFail),
     advisoryAcknowledged: readCount(value.advisoryAcknowledged),
     metrics: readCount(value.metrics),
+  };
+}
+
+/** Read an enforcement capability status from raw payload data. */
+function readEnforcementStatus(
+  value: unknown,
+): EnforcementCapabilityStatus | null {
+  return value === "hard" ||
+    value === "limited" ||
+    value === "soft" ||
+    value === "missing" ||
+    value === "unknown"
+    ? value
+    : null;
+}
+
+/** Read only the known enforcement status counters from raw payload data. */
+function readEnforcementSummary(
+  value: unknown,
+): Record<EnforcementCapabilityStatus, number> {
+  const summary: Record<EnforcementCapabilityStatus, number> = {
+    hard: 0,
+    limited: 0,
+    soft: 0,
+    missing: 0,
+    unknown: 0,
+  };
+  if (!isRecord(value)) return summary;
+  for (const [key, count] of Object.entries(value)) {
+    const status = readEnforcementStatus(key);
+    if (status && typeof count === "number") summary[status] = count;
+  }
+  return summary;
+}
+
+/** Read one enforcement source label from raw payload data. */
+function readEnforcementSource(
+  value: unknown,
+): EnforcementCapabilitySource | null {
+  return value === "local-settings" ||
+    value === "local-hook" ||
+    value === "runtime-self-test" ||
+    value === "manifest" ||
+    value === "provider-docs" ||
+    value === "not-observed"
+    ? value
+    : null;
+}
+
+/** Read one advisory enforcement capability row. */
+function readEnforcementCapability(
+  value: unknown,
+): EnforcementCapability | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id);
+  const label = readString(value.label);
+  const status = readEnforcementStatus(value.status);
+  const summary = readString(value.summary);
+  if (!id || !label || !status || !summary) return null;
+  return {
+    id,
+    label,
+    status,
+    sources: Array.isArray(value.sources)
+      ? value.sources
+          .map((source) => readEnforcementSource(source))
+          .filter(
+            (source): source is EnforcementCapabilitySource => source !== null,
+          )
+      : [],
+    summary,
+    evidence: readStringArray(value.evidence),
+  };
+}
+
+/** Read the advisory enforcement matrix for one agent. */
+function readAgentEnforcementCapability(
+  value: unknown,
+): AgentEnforcementCapability | null {
+  if (!isRecord(value)) return null;
+  const agent = readRunnerId(value.agent);
+  const name = readString(value.name);
+  if (!agent || !name || value.advisory !== true) return null;
+  const capabilities = Array.isArray(value.capabilities)
+    ? value.capabilities
+        .map((item) => readEnforcementCapability(item))
+        .filter((item): item is EnforcementCapability => item !== null)
+    : [];
+  return {
+    agent,
+    name,
+    advisory: true,
+    capabilities,
+    summary: readEnforcementSummary(value.summary),
   };
 }
 
@@ -394,6 +504,7 @@ function readAgentScore(value: unknown): AgentScore | null {
     agent: readAuditScope(value.agent, "Audit response agent scope"),
     harness,
     concerns,
+    enforcement: readAgentEnforcementCapability(value.enforcement),
   };
 }
 
@@ -463,6 +574,70 @@ function readRecentLesson(value: unknown): RecentLesson | null {
   };
 }
 
+/** Read a finite numeric payload field with a safe fallback. */
+function readFiniteNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/** Read one top-level task directory summary from `/api/tasks`. */
+function readTaskPlanSummary(value: unknown): TaskPlanSummary | null {
+  if (!isRecord(value)) return null;
+  const name = readString(value.name);
+  const path = readString(value.path);
+  if (!name || !path) return null;
+  return {
+    name,
+    path,
+    modifiedAt: readString(value.modifiedAt),
+    milestoneCount: readFiniteNumber(value.milestoneCount),
+    active: value.active === true,
+  };
+}
+
+/** Read one milestone summary from `/api/tasks`. */
+function readTaskMilestoneSummary(value: unknown): TaskMilestoneSummary | null {
+  if (!isRecord(value)) return null;
+  const filename = readString(value.filename);
+  const path = readString(value.path);
+  const title = readString(value.title);
+  if (!filename || !path || !title) return null;
+  return {
+    filename,
+    path,
+    title,
+    status: readString(value.status, "unknown"),
+    objective: readString(value.objective),
+    totalTasks: readFiniteNumber(value.totalTasks),
+    completedTasks: readFiniteNumber(value.completedTasks),
+    modifiedAt: readString(value.modifiedAt),
+  };
+}
+
+/** Read the selected project's `.goat-flow/tasks/` state. */
+function readTaskState(value: unknown): TaskState {
+  const payload = readRecord(value, "Tasks response");
+  return {
+    taskRoot: readString(payload.taskRoot),
+    exists: payload.exists === true,
+    active: readString(payload.active) || null,
+    activeExists: payload.activeExists === true,
+    selectedPlan: readString(payload.selectedPlan) || null,
+    plans: Array.isArray(payload.plans)
+      ? payload.plans
+          .map((plan) => readTaskPlanSummary(plan))
+          .filter((plan): plan is TaskPlanSummary => plan !== null)
+      : [],
+    milestones: Array.isArray(payload.milestones)
+      ? payload.milestones
+          .map((milestone) => readTaskMilestoneSummary(milestone))
+          .filter(
+            (milestone): milestone is TaskMilestoneSummary =>
+              milestone !== null,
+          )
+      : [],
+  };
+}
+
 /** Read the full dashboard report from raw payload data. */
 function readDashboardReport(value: unknown): DashboardClientReport {
   const payload = readRecord(value, "Audit response");
@@ -523,8 +698,35 @@ function readSupportedAgent(value: unknown): SupportedAgent | null {
   if (!isRecord(value)) return null;
   const id = readRunnerId(value.id);
   const name = readString(value.name);
-  if (!id || !name) return null;
-  return { id, name };
+  const terminalBinary = readString(value.terminalBinary).trim();
+  const setupSurfaces = readStringArray(value.setupSurfaces).filter(
+    (surface) => surface.trim().length > 0,
+  );
+  const promptInvocationStyle = readPromptInvocationStyle(
+    value.promptInvocationStyle,
+  );
+  const skillSource = readSkillSource(value.skillSource);
+  const supportsPostTurnHook = value.supportsPostTurnHook;
+  if (
+    !id ||
+    !name ||
+    !terminalBinary ||
+    setupSurfaces.length === 0 ||
+    !promptInvocationStyle ||
+    !skillSource ||
+    typeof supportsPostTurnHook !== "boolean"
+  ) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    terminalBinary,
+    setupSurfaces,
+    promptInvocationStyle,
+    skillSource,
+    supportsPostTurnHook,
+  };
 }
 
 /** Read the supported agent list injected into the dashboard shell. */
@@ -621,13 +823,11 @@ function readInjectedPresets(): Preset[] {
 /** Read one installed-agent record from raw payload data. */
 function readAgentInfo(value: unknown): AgentInfo | null {
   if (!isRecord(value)) return null;
-  const id = readRunnerId(value.id);
-  const name = readString(value.name);
-  if (!id || !name || typeof value.installed !== "boolean") return null;
+  const agent = readSupportedAgent(value);
+  if (!agent || typeof value.installed !== "boolean") return null;
 
   return {
-    id,
-    name,
+    ...agent,
     installed: value.installed,
     version: typeof value.version === "string" ? value.version : null,
   };
@@ -648,13 +848,28 @@ function readProjectEntry(value: unknown): ProjectEntry | null {
   if (!isRecord(value)) return null;
   const path = readString(value.path);
   if (!path) return null;
+  const identity = readString(value.identity);
+  const identitySource =
+    value.identitySource === "git-remote" ||
+    value.identitySource === "goat-marker" ||
+    value.identitySource === "path"
+      ? value.identitySource
+      : null;
 
-  return {
+  const entry: ProjectEntry = {
     path,
+    paths: readStringArray(value.paths),
     state: readString(value.state),
     action: readString(value.action),
     details: readString(value.details),
   };
+  if (identity) entry.identity = identity;
+  if (identitySource) entry.identitySource = identitySource;
+  const remoteUrlHash = readString(value.remoteUrlHash);
+  if (remoteUrlHash) entry.remoteUrlHash = remoteUrlHash;
+  const markerId = readString(value.markerId);
+  if (markerId) entry.markerId = markerId;
+  return entry;
 }
 
 /** Read one backend terminal-session record from raw payload data. */
@@ -699,10 +914,12 @@ function readQualityResult(value: unknown): QualityResult {
   const payload = readRecord(value, "Quality response");
   const agent = readRunnerId(payload.agent);
   const auditStatus = readAuditStatus(payload.auditStatus);
+  const auditCacheStatus = readString(payload.auditCacheStatus);
   const command = readString(payload.command);
   if (
     !agent ||
     (!auditStatus && payload.auditStatus !== "unavailable") ||
+    !["hit", "miss", "bypass"].includes(auditCacheStatus) ||
     command !== "quality"
   ) {
     throw new Error("Quality response returned an invalid payload");
@@ -712,6 +929,7 @@ function readQualityResult(value: unknown): QualityResult {
     command: "quality",
     agent,
     auditStatus: auditStatus ?? "unavailable",
+    auditCacheStatus: auditCacheStatus as QualityResult["auditCacheStatus"],
     auditSummary: readString(payload.auditSummary),
     prompt: readString(payload.prompt),
   };

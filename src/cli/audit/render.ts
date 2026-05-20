@@ -2,12 +2,17 @@
  * Renderers for AuditReport: text (terminal), json (stable schema), markdown (PR comments).
  */
 import type {
+  AgentEnforcementCapability,
+  EnforcementCapabilityStatus,
+} from "./enforcement.js";
+import type {
   AuditConcernKey,
   AuditReport,
   AuditScope,
   ContentReport,
   DriftReport,
 } from "./types.js";
+export { renderAuditSarif } from "./sarif.js";
 
 // === Text renderer ===
 
@@ -23,6 +28,46 @@ const RESET = "\x1b[0m";
 function statusBadge(status: "pass" | "fail" | "skipped"): string {
   if (status === "skipped") return `${YELLOW}SKIP${RESET}`;
   return status === "pass" ? `${GREEN}PASS${RESET}` : `${RED}FAIL${RESET}`;
+}
+
+const ENFORCEMENT_STATUS_LABELS: Record<EnforcementCapabilityStatus, string> = {
+  hard: "HARD",
+  limited: "LIMITED",
+  soft: "SOFT",
+  missing: "MISSING",
+  unknown: "UNKNOWN",
+};
+
+/** Render a non-gating enforcement status label. */
+function enforcementStatus(status: EnforcementCapabilityStatus): string {
+  if (status === "hard")
+    return `${GREEN}${ENFORCEMENT_STATUS_LABELS[status]}${RESET}`;
+  if (status === "missing") {
+    return `${RED}${ENFORCEMENT_STATUS_LABELS[status]}${RESET}`;
+  }
+  if (status === "limited" || status === "soft") {
+    return `${YELLOW}${ENFORCEMENT_STATUS_LABELS[status]}${RESET}`;
+  }
+  return `${DIM}${ENFORCEMENT_STATUS_LABELS[status]}${RESET}`;
+}
+
+/** Render the advisory enforcement matrix in terminal text format. */
+function renderEnforcementMatrix(matrix: AgentEnforcementCapability[]): string {
+  const lines: string[] = [];
+  lines.push(
+    `${BOLD}Agent Enforcement Matrix:${RESET}  ${DIM}advisory; does not affect audit status${RESET}`,
+  );
+  lines.push("");
+  for (const agent of matrix) {
+    lines.push(`  ${CYAN}${agent.name}${RESET}`);
+    for (const item of agent.capabilities) {
+      lines.push(
+        `    ${enforcementStatus(item.status)} ${item.label}: ${item.summary}`,
+      );
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trimEnd();
 }
 
 /** Render one audit scope in the terminal text format. */
@@ -54,6 +99,41 @@ const CONCERN_LABELS: Record<AuditConcernKey, string> = {
   feedback_loop: "Feedback Loop",
 };
 
+function renderHarnessConcerns(report: AuditReport, lines: string[]): void {
+  if (!report.concerns || !report.scopes.harness) {
+    lines.push(
+      `${DIM}Tip: Run with --harness for AI harness completeness checks across 5 concerns.${RESET}`,
+    );
+    return;
+  }
+
+  lines.push("");
+  lines.push(
+    `${BOLD}AI Harness Completeness:${RESET}  ${statusBadge(report.scopes.harness.status)}`,
+  );
+  lines.push("");
+
+  for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
+    const concern = report.concerns[key];
+    const label = CONCERN_LABELS[key];
+    const badge = statusBadge(concern.status);
+    lines.push(`  ${CYAN}${label}${RESET}  ${badge}`);
+    for (const finding of concern.findings) {
+      lines.push(`    ${DIM}${finding}${RESET}`);
+    }
+    for (const limit of concern.limits) {
+      lines.push(`    ${YELLOW}Limit: ${limit}${RESET}`);
+    }
+    for (let i = 0; i < concern.recommendations.length; i++) {
+      lines.push(`    ${YELLOW}-> ${concern.recommendations[i]}${RESET}`);
+      if (concern.howToFix[i]) {
+        lines.push(`       ${CYAN}Fix: ${concern.howToFix[i]}${RESET}`);
+      }
+    }
+    lines.push("");
+  }
+}
+
 /** Render the full audit report in the terminal text format. */
 export function renderAuditText(report: AuditReport): string {
   const lines: string[] = [];
@@ -68,37 +148,15 @@ export function renderAuditText(report: AuditReport): string {
 
   lines.push(`Result: ${statusBadge(report.status)}`);
 
-  // Harness completeness concerns
-  if (report.concerns && report.scopes.harness) {
+  const enforcement = Array.isArray(report.enforcement)
+    ? report.enforcement
+    : [];
+  if (enforcement.length > 0) {
     lines.push("");
-    lines.push(
-      `${BOLD}AI Harness Completeness:${RESET}  ${statusBadge(report.scopes.harness.status)}`,
-    );
-    lines.push("");
-
-    for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
-      const concern = report.concerns[key];
-      const label = CONCERN_LABELS[key];
-      const badge = statusBadge(concern.status);
-      lines.push(`  ${CYAN}${label}${RESET}  ${badge}`);
-      for (const finding of concern.findings) {
-        lines.push(`    ${DIM}${finding}${RESET}`);
-      }
-      if (concern.recommendations.length > 0) {
-        for (let i = 0; i < concern.recommendations.length; i++) {
-          lines.push(`    ${YELLOW}-> ${concern.recommendations[i]}${RESET}`);
-          if (concern.howToFix[i]) {
-            lines.push(`       ${CYAN}Fix: ${concern.howToFix[i]}${RESET}`);
-          }
-        }
-      }
-      lines.push("");
-    }
-  } else {
-    lines.push(
-      `${DIM}Tip: Run with --harness for AI harness completeness checks across 5 concerns.${RESET}`,
-    );
+    lines.push(renderEnforcementMatrix(enforcement));
   }
+
+  renderHarnessConcerns(report, lines);
 
   if (report.drift) {
     lines.push("");
@@ -232,6 +290,9 @@ function renderMdHarnessConcerns(report: AuditReport, lines: string[]): void {
     lines.push(`### ${CONCERN_LABELS[key]}: ${mdScopeStatus(concern.status)}`);
     for (const finding of concern.findings) {
       lines.push(`- ${finding}`);
+    }
+    for (const limit of concern.limits) {
+      lines.push(`- *Limit:* ${limit}`);
     }
     for (let i = 0; i < concern.recommendations.length; i++) {
       lines.push(`- *Recommendation:* ${concern.recommendations[i]}`);

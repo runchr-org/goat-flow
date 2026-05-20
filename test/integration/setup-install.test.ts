@@ -17,6 +17,10 @@ import { spawnSync } from "node:child_process";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const disposables: string[] = [];
+const gitAvailable =
+  spawnSync("git", ["--version"], {
+    encoding: "utf-8",
+  }).status === 0;
 
 after(() => {
   for (const dir of disposables) {
@@ -46,8 +50,48 @@ function runInstaller(root: string, ...extraArgs: string[]) {
   );
 }
 
+function runCliInstaller(root: string, ...extraArgs: string[]) {
+  return spawnSync(
+    "node",
+    [
+      "--import",
+      "tsx",
+      join(PROJECT_ROOT, "src", "cli", "cli.ts"),
+      "install",
+      root,
+      ...extraArgs,
+    ],
+    {
+      cwd: PROJECT_ROOT,
+      encoding: "utf-8",
+      timeout: 30000,
+    },
+  );
+}
+
+function git(root: string, args: string[]): void {
+  const result = spawnSync("git", args, {
+    cwd: root,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "GOAT Test",
+      GIT_AUTHOR_EMAIL: "goat@example.test",
+      GIT_COMMITTER_NAME: "GOAT Test",
+      GIT_COMMITTER_EMAIL: "goat@example.test",
+    },
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+function addCommit(root: string, subject: string): void {
+  writeFileSync(join(root, "history.txt"), `${subject}\n`, { flag: "a" });
+  git(root, ["add", "history.txt"]);
+  git(root, ["commit", "-m", subject]);
+}
+
 describe("setup --apply installer", () => {
-  it("scaffolds config.yaml for only the requested agent", () => {
+  it("scaffolds config.yaml without an agents allowlist", () => {
     const root = makeTempProject();
     const result = runInstaller(root, "--agent", "codex");
 
@@ -56,10 +100,9 @@ describe("setup --apply installer", () => {
       join(root, ".goat-flow", "config.yaml"),
       "utf-8",
     );
-    assert.match(config, /agents:\n  - codex\n/);
-    assert.doesNotMatch(config, /  - claude\n/);
-    assert.doesNotMatch(config, /  - gemini\n/);
-    assert.doesNotMatch(config, /  - copilot\n/);
+    assert.doesNotMatch(config, /^agents:/m);
+    const gitignore = readFileSync(join(root, ".gitignore"), "utf-8");
+    assert.match(gitignore, /^node_modules\/$/m);
     assert.equal(
       existsSync(join(root, ".agents", "skills", "goat", "SKILL.md")),
       true,
@@ -74,7 +117,7 @@ describe("setup --apply installer", () => {
     );
   });
 
-  it("adds the requested agent to an existing config.yaml", () => {
+  it("removes an existing agents allowlist from config.yaml", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -87,11 +130,11 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /agents:\n  - claude\n  - codex\n/);
+    assert.doesNotMatch(config, /^agents:/m);
     assert.match(config, /custom_key: preserve_me/);
   });
 
-  it("does not duplicate an agent already listed in config.yaml", () => {
+  it("removes multi-agent allowlists without touching other config", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -104,10 +147,11 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.equal(config.match(/  - codex\n/g)?.length, 1);
+    assert.doesNotMatch(config, /^agents:/m);
+    assert.match(config, /skills:\n  install: all\n/);
   });
 
-  it("adds an agents block when existing config.yaml has none", () => {
+  it("keeps agents absent when existing config.yaml has none", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -120,10 +164,11 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /agents:\n  - codex\n/);
+    assert.doesNotMatch(config, /^agents:/m);
+    assert.match(config, /skills:\n  install: all\n/);
   });
 
-  it("replaces agents null with the requested agent", () => {
+  it("removes agents null from config.yaml", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
     mkdirSync(configDir, { recursive: true });
@@ -136,9 +181,47 @@ describe("setup --apply installer", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /agents:\n  - codex\n/);
     assert.doesNotMatch(config, /agents: null/);
+    assert.match(config, /skills:\n  install: all\n/);
   });
+
+  it("does not duplicate an existing node_modules gitignore entry", () => {
+    const root = makeTempProject();
+    writeFileSync(join(root, ".gitignore"), "dist/\nnode_modules\n");
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const gitignore = readFileSync(join(root, ".gitignore"), "utf-8");
+    assert.equal(gitignore.match(/^node_modules$/gm)?.length, 1);
+    assert.doesNotMatch(gitignore, /^node_modules\/$/m);
+    assert.match(gitignore, /^dist\/$/m);
+  });
+
+  it(
+    "CLI install seeds missing GitHub commit instructions from target git history",
+    { skip: !gitAvailable },
+    () => {
+      const root = makeTempProject();
+      git(root, ["init"]);
+      git(root, ["config", "user.name", "GOAT Test"]);
+      git(root, ["config", "user.email", "goat@example.test"]);
+      for (let i = 0; i < 10; i += 1) {
+        addCommit(root, `feat(setup): add fixture ${i}`);
+      }
+
+      const result = runCliInstaller(root, "--agent", "copilot");
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+
+      const guidance = readFileSync(
+        join(root, ".github", "git-commit-instructions.md"),
+        "utf-8",
+      );
+      assert.match(guidance, /generated from recent git history/);
+      assert.match(guidance, /Use conventional commits/);
+      assert.match(result.stdout, /Git commit instructions:/);
+    },
+  );
 });
 
 // ── Bug 1: Config version stuck on upgrade ──────────────────────────────
@@ -163,11 +246,7 @@ describe("--update-config-version flag", () => {
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
     assert.doesNotMatch(config, /1\.4\.3/, "old version should be replaced");
-    assert.match(
-      config,
-      /agents:\n  - claude\n  - codex\n/,
-      "agents list must be preserved",
-    );
+    assert.doesNotMatch(config, /^agents:/m, "agents list must be removed");
     assert.match(
       config,
       /custom_key: preserve_me/,
@@ -189,6 +268,7 @@ describe("--update-config-version flag", () => {
 
     const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
     assert.match(config, /1\.3\.0/, "version should remain unchanged");
+    assert.doesNotMatch(config, /^agents:/m, "agents list should be removed");
   });
 });
 

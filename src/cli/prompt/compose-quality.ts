@@ -2,15 +2,20 @@
  * Composes a structured quality-assessment prompt for a selected agent.
  * Embeds live audit results when available.
  */
-import type { AgentId } from "../types.js";
+import type { AgentId, SharedFacts } from "../types.js";
 import type { AuditReport, AuditConcernKey } from "../audit/types.js";
 import type { QualityHistoryEntry } from "../quality/history.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { getAgentProfile } from "../agents/registry.js";
 import { getPackageVersion } from "../paths.js";
-import { posix } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, posix } from "node:path";
 import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";
 import type { SkillQualityReport } from "../quality/skill-quality.js";
+import {
+  renderLearningLoopContext,
+  selectLearningLoopContext,
+} from "./learning-loop-context.js";
 
 /**
  * Build the forward-slash project sub-path that goes inside a Bash snippet in
@@ -32,11 +37,15 @@ interface QualityInput {
   agent: AgentId;
   projectPath: string;
   auditReport: AuditReport | null;
+  auditUnavailableReason?: AuditUnavailableReason;
   priorReport?: QualityHistoryEntry | null;
   qualityMode?: QualityMode;
   selectedProjectPath?: string;
   runDate?: string;
+  sharedFacts?: SharedFacts | null;
 }
+
+type AuditUnavailableReason = "audit-failed" | "fast-cache-only";
 
 interface QualityPayload {
   command: "quality";
@@ -62,6 +71,22 @@ function jsonString(value: string): string {
 /** Render a Bash single-quoted literal so generated snippets do not expand `$` or backticks. */
 function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/** Infer the report scope from the project package metadata. */
+function inferQualityScope(projectPath: string): "framework-self" | "consumer" {
+  const packagePath = join(projectPath, "package.json");
+  try {
+    if (!existsSync(packagePath)) return "consumer";
+    const raw = JSON.parse(readFileSync(packagePath, "utf-8")) as {
+      name?: unknown;
+    };
+    return raw.name === "@blundergoat/goat-flow"
+      ? "framework-self"
+      : "consumer";
+  } catch {
+    return "consumer";
+  }
 }
 
 /** Render the audit summary block embedded in the quality prompt. */
@@ -96,8 +121,13 @@ function renderAuditSummary(report: AuditReport): string {
       "Harness completeness (structural integrity, not quality assessment):",
     );
     for (const key of keys) {
+      const concern = report.concerns[key];
+      const limits =
+        concern.limits.length > 0
+          ? `; limits: ${concern.limits.join(" | ")}`
+          : "";
       lines.push(
-        `- ${key}: ${report.concerns[key].status === "pass" ? "PASS" : "FAIL"}`,
+        `- ${key}: ${concern.status === "pass" ? "PASS" : "FAIL"} (${concern.score}%; metrics=${concern.metrics}${limits})`,
       );
     }
   }
@@ -105,8 +135,33 @@ function renderAuditSummary(report: AuditReport): string {
   return lines.join("\n");
 }
 
+/** Render the summary text returned when no audit report is embedded. */
+function renderAuditUnavailableSummary(reason: AuditUnavailableReason): string {
+  if (reason === "fast-cache-only") {
+    return "Audit data not loaded (fast cache-only mode had no cached report).";
+  }
+  return "Audit data unavailable (audit could not complete).";
+}
+
+/** Render the heading used when no audit report is embedded. */
+function renderAuditUnavailableHeading(reason: AuditUnavailableReason): string {
+  if (reason === "fast-cache-only") {
+    return "**Audit: NOT LOADED (FAST CACHE-ONLY MODE)**";
+  }
+  return "**Audit: UNAVAILABLE**";
+}
+
 /** Render the fallback note used when audit data is unavailable. */
-function renderDegradedNote(): string {
+function renderDegradedNote(reason: AuditUnavailableReason): string {
+  if (reason === "fast-cache-only") {
+    return [
+      "",
+      "> **Note:** The dashboard requested a fast quality prompt and no cached audit report was available.",
+      "> This does not mean the audit failed. Run the Re-audit action or `goat-flow audit . --harness --agent <id>` for live audit status.",
+      "> Continue the assessment, but do not infer setup failure from this cache miss.",
+      "",
+    ].join("\n");
+  }
   return [
     "",
     "> **Note:** The automated audit could not complete on this project.",
@@ -152,8 +207,6 @@ function focusedQualityModePrompt(
       ? `node --import tsx src/cli/cli.ts audit . --agent ${agent} --harness --check-drift --format json`
       : "node --import tsx src/cli/cli.ts audit . --check-drift --format json";
     return [
-      "GOAT Flow Process Quality Assessment",
-      "",
       "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
       "",
       "Assess the goat-flow framework process in the controlling workspace: instruction files, .goat-flow/config.yaml, .goat-flow/architecture.md, .goat-flow/code-map.md, .goat-flow/skill-reference/, .goat-flow/skill-playbooks/, workflow/setup/, workflow/manifest.json, installed skill mirrors, hooks, quality prompt modes, and validation scripts.",
@@ -162,14 +215,12 @@ function focusedQualityModePrompt(
       "",
       "Use grep-first retrieval for .goat-flow/footguns/, .goat-flow/lessons/, and .goat-flow/decisions/. Do not broad-load those directories.",
       "",
-      "Output sections: Pre-check Results; Findings ordered by severity; What works; What is weak or ceremonial; Contradictions and false paths; Top 5 improvements. Each finding must include severity, action type, exact file or semantic-anchor evidence, why it matters, and a verification command that would prove the fix. End with What was not verified.",
+      "Assessment checklist: Pre-check Results; Findings ordered by severity; What works; What is weak or ceremonial; Contradictions and false paths; Top 5 improvements; What was not verified. Use this checklist to decide the saved JSON scores and findings. Each saved finding's detail/evidence fields must include action type, exact file or semantic-anchor evidence, why it matters, and a verification command that would prove the fix.",
     ].join("\n");
   }
 
   if (mode === "skills") {
     return [
-      "Skill Suite Quality Assessment",
-      "",
       "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-critique, /goat-review, or any other goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
       "",
       "Assess all seven goat-flow skills: /goat, /goat-debug, /goat-plan, /goat-review, /goat-critique, /goat-security, and /goat-qa. Use .goat-flow/skill-playbooks/skill-quality-testing.md plus the relevant files under .goat-flow/skill-playbooks/skill-quality-testing/. Read the workflow template SKILL.md files and installed mirrors under .claude/skills/, .agents/skills/, and .github/skills/ where relevant.",
@@ -183,8 +234,6 @@ function focusedQualityModePrompt(
   }
 
   return [
-    "AI Harness Engineering Quality Assessment",
-    "",
     "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
     "",
     "Assess whether the selected target project's agent harness is actually usable, not only structurally present. Focus on context loading, constraint safety, verification evidence, recovery paths, feedback-loop durability, and whether instructions distinguish the controlling goat-flow workspace from the selected target.",
@@ -213,6 +262,8 @@ const LOCAL_ARTIFACT_MARKERS = [
   "task-local",
 ] as const;
 
+// M07: quality prompts may request semantic anchors for durable follow-up, but
+// automatic tracked learning-loop writes belong to CLI-owned code after opt-in.
 function includesAnyMarker(text: string, markers: readonly string[]): boolean {
   return markers.some((marker) => text.includes(marker));
 }
@@ -315,6 +366,19 @@ function renderPriorReportContext(
   return lines.join("\n");
 }
 
+function renderBoundedLearningLoopContext(
+  sharedFacts: SharedFacts | null | undefined,
+  qualityMode: QualityMode,
+): string {
+  if (!sharedFacts) return "";
+  if (qualityMode !== "agent-setup" && qualityMode !== "harness") return "";
+  const surface =
+    qualityMode === "harness" ? "quality-harness" : "quality-agent-setup";
+  return renderLearningLoopContext(
+    selectLearningLoopContext(sharedFacts, { surface }),
+  );
+}
+
 function appendFocusedReportContract(
   lines: string[],
   input: {
@@ -357,7 +421,7 @@ function appendFocusedReportContract(
   lines.push(`  "project_path": ${jsonString(input.projectPath)},`);
   lines.push(`  "run_date": ${jsonString(input.runDate)},`);
   lines.push(`  "audit_status": ${jsonString(input.auditStatus)},`);
-  lines.push('  "scope": "framework-self | consumer",');
+  lines.push(`  "scope": ${jsonString(inferQualityScope(input.projectPath))},`);
   lines.push(`  "rubric_version": ${jsonString(getPackageVersion())},`);
   lines.push(`  "quality_mode": ${jsonString(input.qualityMode)},`);
   lines.push(
@@ -467,6 +531,14 @@ function composeFocusedQuality(
   lines.push("");
   lines.push(renderPriorReportContext(priorReport, qualityMode));
   lines.push("");
+  const learningLoopContext = renderBoundedLearningLoopContext(
+    input.sharedFacts,
+    qualityMode,
+  );
+  if (learningLoopContext) {
+    lines.push(learningLoopContext);
+    lines.push("");
+  }
   appendFocusedReportContract(lines, {
     agent,
     projectPath,
@@ -734,6 +806,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     agent,
     projectPath,
     auditReport,
+    auditUnavailableReason = "audit-failed",
     priorReport = null,
     qualityMode = "agent-setup",
     runDate = formatLocalDate(),
@@ -758,7 +831,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
 
   const auditSummaryText = auditReport
     ? renderAuditSummary(auditReport)
-    : "Audit data unavailable (audit could not complete).";
+    : renderAuditUnavailableSummary(auditUnavailableReason);
 
   const skillFacts = loadManifest().facts.skills;
   const skillList = skillFacts.names
@@ -777,7 +850,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   );
   lines.push("");
   lines.push(
-    "REPORTING-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any tracked files. Do NOT apply patches or implement fixes. Gitignored local artifacts written by validation tools or normal reporting workflows (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`, `.goat-flow/logs/**`, `.goat-flow/scratchpad/**`, `.goat-flow/tasks/**`) are fine - they don't change the repo's committed state and do not count as writes for this assessment contract. This prompt also instructs you to write your final JSON report to `.goat-flow/logs/quality/<filename>.json`.",
+    "REPORTING-ONLY ASSESSMENT MODE. Do NOT edit, create, rename, move, or delete any tracked files. Do NOT apply patches or implement fixes. Do NOT use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. Gitignored local artifacts written by validation tools or normal reporting workflows (e.g. `dist/`, `node_modules/`, `.claude/worktrees/`, `.goat-flow/logs/**`, `.goat-flow/scratchpad/**`, `.goat-flow/tasks/**`) are fine - they don't change the repo's committed state and do not count as writes for this assessment contract. This prompt also instructs you to write your final JSON report to `.goat-flow/logs/quality/<filename>.json`.",
   );
   lines.push("");
 
@@ -870,7 +943,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     "- Unchecked task or milestone checkboxes, milestone status fields, roadmap files, and task-file completion percentages are local workflow state. Do NOT report them as quality findings by themselves. Only report task-file issues when they cause an observed skill behavior failure, such as ignoring explicit user intent or corrupting task files.",
   );
   lines.push(
-    "- `toolchain` and `ask_first` fields in `config.yaml` were removed from the base setup in v1.1.0 (see ADR-014). A lean config.yaml with only version, agents, and skills is correct - not a gap.",
+    "- `toolchain` and `ask_first` fields in `config.yaml` were removed from the base setup in v1.1.0 (see ADR-014). A lean config.yaml with version and skills is correct - not a gap; legacy `agents:` entries are ignored.",
   );
   lines.push("");
 
@@ -894,13 +967,21 @@ export function composeQuality(input: QualityInput): QualityPayload {
       );
     }
   } else {
-    lines.push("**Audit: UNAVAILABLE**");
-    lines.push(renderDegradedNote());
+    lines.push(renderAuditUnavailableHeading(auditUnavailableReason));
+    lines.push(renderDegradedNote(auditUnavailableReason));
   }
   lines.push("");
 
   lines.push(renderPriorReportContext(priorReport, qualityMode));
   lines.push("");
+  const learningLoopContext = renderBoundedLearningLoopContext(
+    input.sharedFacts,
+    qualityMode,
+  );
+  if (learningLoopContext) {
+    lines.push(learningLoopContext);
+    lines.push("");
+  }
 
   // Step 0 - Ground yourself (CLI version: audit already injected)
   lines.push("---");
@@ -937,7 +1018,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     `ls ${skillsDir}/                                  # expect ${skillFacts.total} goat-flow skill directories`,
   );
   lines.push(
-    "cat .goat-flow/config.yaml                        # minimal valid config: version, agents, skills; line-limits/toolchain are optional calibration only",
+    "cat .goat-flow/config.yaml                        # minimal valid config: version and skills; legacy agents is ignored; line-limits/toolchain are optional calibration only",
   );
   lines.push("```");
   lines.push("");
@@ -1369,7 +1450,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(`  "project_path": ${jsonString(projectPath)},`);
   lines.push(`  "run_date": ${jsonString(runDate)},`);
   lines.push(`  "audit_status": ${jsonString(auditStatus)},`);
-  lines.push('  "scope": "framework-self | consumer",');
+  lines.push(`  "scope": ${jsonString(inferQualityScope(projectPath))},`);
   lines.push(`  "rubric_version": ${jsonString(getPackageVersion())},`);
   lines.push(`  "quality_mode": ${jsonString(qualityMode)},`);
   lines.push(

@@ -19,7 +19,6 @@
  */
 import type { AuditContext } from "./types.js";
 import type { ContentFinding, ContentSeverity } from "./types.js";
-import type { CheckEvidence } from "./provenance-types.js";
 import { SKILL_NAMES } from "../constants.js";
 import { getInstalledSkillRoots, getSkillFiles } from "../manifest/manifest.js";
 
@@ -232,17 +231,6 @@ const LEGACY_EXECUTION_LOOP: PatternRule[] = [
       "Legacy 'VERIFY → LOG' step detected. The v1.2 Execution Loop ends at VERIFY; session logging is finalised at step-06, not as an inline loop step.",
   },
 ];
-
-export const CONTENT_QUALITY_EVIDENCE: CheckEvidence = {
-  source_type: "community",
-  source_urls: [
-    "https://github.com/blundergoat/cclint#contentappropriatenessrule",
-    "https://github.com/blundergoat/cclint#contentorganizationrule",
-  ],
-  verified_on: "2026-04-17",
-  normative_level: "SHOULD",
-  evidence_paths: [".goat-flow/lessons/verification.md"],
-};
 
 /** One iteration of code-block state: toggled on fence lines, guards all matchers. */
 function isFenceLine(line: string): boolean {

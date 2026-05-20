@@ -3,7 +3,11 @@
  * 2 checks: feedback-loop-active (directory existence), decisions-tracked.
  * A fresh install with zero entries is a valid PASS.
  */
-import type { HarnessCheck } from "../types.js";
+import type {
+  AuditContext,
+  HarnessCheck,
+  HarnessCheckDetails,
+} from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
 import { pass, fail } from "./helpers.js";
 
@@ -28,6 +32,38 @@ function feedbackProvenance(
   };
 }
 
+function learningLoopFreshnessDetails(ctx: AuditContext): HarnessCheckDetails {
+  const buckets = [
+    ...ctx.facts.shared.footguns.buckets,
+    ...ctx.facts.shared.lessons.buckets,
+  ];
+  const count = (band: "fresh" | "aging" | "stale") =>
+    buckets.filter((bucket) => bucket.freshnessBand === band).length;
+  const fresh = count("fresh");
+  const aging = count("aging");
+  const stale = count("stale");
+  return {
+    freshness: ctx.agents.map((af) => ({
+      agent: af.agent.id,
+      fresh,
+      aging,
+      stale,
+    })),
+  };
+}
+
+function decisionsFreshnessDetails(ctx: AuditContext): HarnessCheckDetails {
+  const { decisions } = ctx.facts.shared;
+  return {
+    freshness: ctx.agents.map((af) => ({
+      agent: af.agent.id,
+      fresh: decisions.dirExists ? decisions.fileCount : 0,
+      aging: 0,
+      stale: decisions.dirExists ? 0 : 1,
+    })),
+  };
+}
+
 const feedbackLoopActive: HarnessCheck = {
   id: "feedback-loop-active",
   name: "Feedback loop directories exist",
@@ -41,6 +77,7 @@ const feedbackLoopActive: HarnessCheck = {
   run: (ctx) => {
     const findings: string[] = [];
     const missing: string[] = [];
+    const details = learningLoopFreshnessDetails(ctx);
 
     const footgunsDir = ctx.config.config.footguns.path;
     const lessonsDir = ctx.config.config.lessons.path;
@@ -70,6 +107,7 @@ const feedbackLoopActive: HarnessCheck = {
         findings,
         [`Create missing directories: ${missing.join(", ")}`],
         [`Create ${missing.join(" and ")} to enable the feedback loop.`],
+        details,
       );
     }
 
@@ -100,6 +138,7 @@ const feedbackLoopActive: HarnessCheck = {
         [
           "Run `goat-flow stats . --check` (or `npx goat-flow stats . --check`), then update the cited footgun/lesson entries so every backticked local path resolves or is rewritten as external incident prose.",
         ],
+        details,
       );
     }
     if (invalidLineRefs.length > 0 || formatDiagnostics.length > 0) {
@@ -117,6 +156,7 @@ const feedbackLoopActive: HarnessCheck = {
         [
           "Run `goat-flow stats . --check`, replace brittle file:line references with semantic anchors, and add valid bucket frontmatter.",
         ],
+        details,
       );
     }
     if (staleBuckets.length > 0) {
@@ -131,9 +171,10 @@ const feedbackLoopActive: HarnessCheck = {
         [
           "Review each stale bucket, fix any stale advice, and update its YYYY-MM-DD last_reviewed frontmatter.",
         ],
+        details,
       );
     }
-    return pass(findings);
+    return pass(findings, details);
   },
 };
 
@@ -149,6 +190,7 @@ const decisionsTracked: HarnessCheck = {
   /** Run the Decisions directory exists check. */
   run: (ctx) => {
     const { decisions } = ctx.facts.shared;
+    const details = decisionsFreshnessDetails(ctx);
     if (!decisions.dirExists) {
       return fail(
         ["No decisions directory"],
@@ -158,11 +200,13 @@ const decisionsTracked: HarnessCheck = {
         [
           "Create .goat-flow/decisions/ and log significant technical decisions with context and rationale.",
         ],
+        details,
       );
     }
-    return pass([
-      `Decisions directory exists (${decisions.fileCount} records)`,
-    ]);
+    return pass(
+      [`Decisions directory exists (${decisions.fileCount} records)`],
+      details,
+    );
   },
 };
 

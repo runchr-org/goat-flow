@@ -77,6 +77,7 @@ export function stubConfig(
       },
       userRole: "developer",
       telemetry: false,
+      learningLoop: { autoCapture: { enabled: false, targets: [] } },
       knownGaps: [],
       skillOverrides: {},
       ...overrides,
@@ -277,6 +278,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       misplacedPaths: [],
     },
     localInstructionsLineCount: 0,
+    learningLoopEntries: [],
   };
 }
 

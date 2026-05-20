@@ -112,9 +112,22 @@ type HelperContext = {
     runner?: string,
     options?: LaunchOptions,
   ): Promise<void>;
+  dashboardConnectTerminal(
+    ctx: LaunchContext,
+    sessionId: string,
+    wsUrl: string,
+  ): void;
+  dashboardOpenServerSession(
+    ctx: LaunchContext,
+    serverSession: Record<string, unknown>,
+  ): Promise<void>;
   dashboardEndSession(ctx: LaunchContext, sessionId: string): void;
   dashboardOutputLooksAwaitingInput(text: string): boolean;
   dashboardOutputLooksReadyForLaunchPrompt(
+    text: string,
+    runner?: string,
+  ): boolean;
+  dashboardOutputLooksRunnerStartupFailure(
     text: string,
     runner?: string,
   ): boolean;
@@ -172,6 +185,7 @@ type TimerControls = {
 function loadHelpers(
   fetchImpl: typeof fetch,
   timers: TimerControls = { setTimeout, clearTimeout },
+  extraGlobals: Record<string, unknown> = {},
 ): HelperContext {
   const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
   const js = transpileModule(source, {
@@ -184,6 +198,8 @@ function loadHelpers(
     console,
     setTimeout: timers.setTimeout,
     clearTimeout: timers.clearTimeout,
+    setInterval,
+    clearInterval,
     WebSocket: { OPEN: 1 },
     readRecord: (value: unknown): unknown => value,
     readErrorMessage: (value: unknown): string | null =>
@@ -195,15 +211,19 @@ function loadHelpers(
         : null,
     readString: (value: unknown): string | null =>
       typeof value === "string" ? value : null,
+    ...extraGlobals,
   });
   runInContext(
     `${js}
 globalThis.__helpers = {
   dashboardSendToTerminalSession,
   dashboardLaunchInTerminal,
+  dashboardConnectTerminal,
+  dashboardOpenServerSession,
   dashboardEndSession,
   dashboardOutputLooksAwaitingInput,
   dashboardOutputLooksReadyForLaunchPrompt,
+  dashboardOutputLooksRunnerStartupFailure,
   dashboardNextAwaitingInputState,
   dashboardScheduleLaunchPrompt,
   dashboardHandleLaunchPromptOutput,
@@ -378,7 +398,183 @@ function createFakeTimers(): TimerControls & {
   };
 }
 
+class FakeTerminal {
+  cols = 80;
+  rows = 24;
+  _addonFit?: FakeFitAddon;
+  written: string[] = [];
+
+  loadAddon(addon: FakeFitAddon): void {
+    this._addonFit = addon;
+  }
+
+  open(): void {
+    return;
+  }
+
+  write(data: string): void {
+    this.written.push(data);
+  }
+
+  focus(): void {
+    return;
+  }
+
+  dispose(): void {
+    return;
+  }
+
+  attachCustomKeyEventHandler(): void {
+    return;
+  }
+
+  onData(): void {
+    return;
+  }
+
+  onResize(): void {
+    return;
+  }
+
+  hasSelection(): boolean {
+    return false;
+  }
+
+  getSelection(): string {
+    return "";
+  }
+
+  buffer = {
+    active: {
+      length: 0,
+      getLine(): null {
+        return null;
+      },
+    },
+  };
+}
+
+class FakeFitAddon {
+  fit(): void {
+    return;
+  }
+}
+
+class FakeResizeObserver {
+  observe(): void {
+    return;
+  }
+
+  disconnect(): void {
+    return;
+  }
+}
+
+class FakeDashboardWebSocket {
+  static OPEN = 1;
+  readyState = 1;
+  sent: string[] = [];
+  onopen?: () => void;
+  onmessage?: (event: { data: string }) => void;
+  onclose?: () => void;
+  onerror?: () => void;
+
+  constructor(
+    public readonly url: string,
+    public readonly instances: FakeDashboardWebSocket[],
+  ) {
+    instances.push(this);
+  }
+
+  send(payload: string): void {
+    this.sent.push(payload);
+  }
+
+  close(): void {
+    this.readyState = 3;
+    this.onclose?.();
+  }
+}
+
+function makeBrowserTerminalGlobals(): {
+  globals: Record<string, unknown>;
+  sockets: FakeDashboardWebSocket[];
+} {
+  const sockets: FakeDashboardWebSocket[] = [];
+  const WebSocketCtor = class extends FakeDashboardWebSocket {
+    constructor(url: string) {
+      super(url, sockets);
+    }
+  };
+  return {
+    sockets,
+    globals: {
+      window: {
+        Terminal: FakeTerminal,
+        FitAddon: { FitAddon: FakeFitAddon },
+        addEventListener(): void {
+          return;
+        },
+        removeEventListener(): void {
+          return;
+        },
+      },
+      document: {
+        getElementById(): { innerHTML: string; offsetWidth: number } {
+          return { innerHTML: "", offsetWidth: 80 };
+        },
+      },
+      location: { protocol: "http:", host: "127.0.0.1:31337" },
+      navigator: {
+        clipboard: {
+          readText: async (): Promise<string> => "",
+          writeText: async (): Promise<void> => {},
+        },
+      },
+      ResizeObserver: FakeResizeObserver,
+      WebSocket: WebSocketCtor,
+    },
+  };
+}
+
 describe("dashboard terminal launch flow", () => {
+  it("keeps controlling cwd and selected target separate in terminal create payloads", async () => {
+    const createBodies: unknown[] = [];
+    const helpers = loadHelpers(async (input, init) => {
+      if (String(input) === "/api/terminal/create") {
+        createBodies.push(JSON.parse(String(init?.body ?? "{}")));
+        return {
+          json: async () => ({
+            id: "session-boundary",
+            wsUrl: "/ws/terminal/session-boundary",
+          }),
+        } as Response;
+      }
+      return { json: async () => ({ ok: true }) } as Response;
+    });
+    const ctx = makeContext({
+      projectPath: "/tmp/selected-target",
+    });
+
+    await helpers.dashboardLaunchInTerminal(ctx, "inspect target", "claude", {
+      cwdPath: "/tmp/controlling-goat-flow",
+      targetPath: "/tmp/selected-target",
+      promptLabel: "Boundary check",
+    });
+
+    assert.deepStrictEqual(createBodies, [
+      {
+        prompt: "",
+        projectPath: "/tmp/controlling-goat-flow",
+        targetPath: "/tmp/selected-target",
+        runner: "claude",
+      },
+    ]);
+    assert.equal(ctx.sessions[0]?.cwd, "/tmp/controlling-goat-flow");
+    assert.equal(ctx.sessions[0]?.targetPath, "/tmp/selected-target");
+    assert.equal(ctx.sessions[0]?.projectPath, "/tmp/selected-target");
+  });
+
   it("sends terminal text to the requested session instead of the current active tab", async () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1291,6 +1487,49 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(fetchCount, 2);
   });
 
+  it("marks disconnected local sessions ended when refresh proves they are gone", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () =>
+        ({
+          json: async () => ({
+            activeCount: 0,
+            maxSessions: 10,
+            sessions: [],
+          }),
+        }) as Response,
+      timers,
+    );
+    const session = {
+      id: "session-gone",
+      runner: "claude",
+      promptLabel: "Gone session",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: true,
+      outputTail: "Do you want to proceed?\n1. Yes\n2. No",
+      loadingPhase: "ready",
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      sessions: [session],
+      _terminalRefs: { "session-gone": {} },
+    });
+
+    const refresh = helpers.dashboardUpdateSessionCount(ctx);
+    timers.tick(50);
+    await refresh;
+
+    assert.equal(session.ended, true);
+    assert.equal(session.awaitingInput, false);
+  });
+
   it("loading overlay escalates slow starts and clears on first output", () => {
     const timers = createFakeTimers();
     const helpers = loadHelpers(
@@ -1504,6 +1743,177 @@ describe("dashboard terminal launch flow", () => {
     ]);
   });
 
+  it("treats terminal WebSocket close as detach until an exit message arrives", () => {
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const calls: string[] = [];
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      { setTimeout, clearTimeout },
+      globals,
+    );
+    const session = {
+      id: "session-detach",
+      runner: "copilot",
+      promptLabel: "Detached session",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: true,
+      outputTail: "Do you want to run this command?\n1. Yes\n2. No",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-detach",
+      sessions: [session],
+      _terminalRefs: { "session-detach": {} },
+      async updateSessionCount(): Promise<void> {
+        calls.push("updateSessionCount");
+      },
+    });
+
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-detach",
+      "/ws/terminal/session-detach",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+    assert.equal(session.connected, true);
+
+    socket.onclose?.();
+
+    assert.equal(session.connected, false);
+    assert.equal(session.ended, false);
+    assert.equal(session.awaitingInput, true);
+    assert.deepStrictEqual(ctx.recentTerminalSessions, []);
+
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "exit", code: 0, signal: null }),
+    });
+
+    assert.equal(session.ended, true);
+    assert.equal(session.connected, false);
+    assert.equal(session.awaitingInput, false);
+  });
+
+  it("treats missing-session WebSocket errors as true termination", () => {
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      { setTimeout, clearTimeout },
+      globals,
+    );
+    const session = {
+      id: "session-missing",
+      runner: "claude",
+      promptLabel: "Missing session",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: true,
+      outputTail: "",
+      loadingPhase: "connecting",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-missing",
+      sessions: [session],
+      _terminalRefs: { "session-missing": {} },
+    });
+
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-missing",
+      "/ws/terminal/session-missing",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "error",
+        message: "Session not found or already terminated",
+      }),
+    });
+    socket.onclose?.();
+
+    assert.equal(session.ended, true);
+    assert.equal(session.connected, false);
+    assert.equal(session.awaitingInput, false);
+  });
+
+  it("reconnects server-active sessions when an ended local shell is stale", async () => {
+    const calls: string[] = [];
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const endedLocal = {
+      id: "session-live",
+      runner: "codex",
+      promptLabel: "Stale local session",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: true,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-live",
+      sessions: [endedLocal],
+      async loadXterm(): Promise<void> {
+        calls.push("loadXterm");
+      },
+      connectTerminal(sessionId: string, wsUrl: string): void {
+        calls.push(`connect:${sessionId}:${wsUrl}`);
+      },
+      async $nextTick(): Promise<void> {
+        calls.push("$nextTick");
+      },
+    });
+
+    await helpers.dashboardOpenServerSession(ctx, {
+      id: "session-live",
+      runner: "codex",
+      status: "active",
+      createdAt: new Date().toISOString(),
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      lastInputAt: Date.now(),
+    });
+
+    assert.equal(ctx.sessions.length, 1);
+    assert.equal(ctx.sessions[0]?.id, "session-live");
+    assert.equal(ctx.sessions[0]?.ended, false);
+    assert.deepStrictEqual(calls, [
+      "loadXterm",
+      "$nextTick",
+      "connect:session-live:/ws/terminal/session-live",
+    ]);
+  });
+
   it("cleans up the backend session when xterm loading fails after creation", async () => {
     const calls: string[] = [];
     const helpers = loadHelpers(async (input, init) => {
@@ -1640,7 +2050,19 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.equal(
       helpers.dashboardOutputLooksAwaitingInput(
+        "Do\x1b[1Cyou\x1b[1Cwant\x1b[1Cto\x1b[1Cproceed?\n1. Yes\n2. Yes, and remember\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
         "Bash command\ncommand -v browser-use\nEsc to cancel · Tab to amend · ctrl+e to explain",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Bash command\ncommand -v browser-use\nEsc\x1b[1Cto\x1b[1Ccancel\x1b[1C·\x1b[1CTab\x1b[1Cto\x1b[1Camend\x1b[1C·\x1b[1Cctrl+e\x1b[1Cto\x1b[1Cexplain",
       ),
       true,
     );
@@ -1660,6 +2082,111 @@ describe("dashboard terminal launch flow", () => {
       ),
       true,
     );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Do you want to run this command?\n1. Yes\n2. Yes, and don't ask again for [...] in this repo\n3. No, and tell Copilot what to do differently (Esc to stop)",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Allow execution of [bash]\n1. Allow once\n2. Allow for this session\n3. No, suggest changes (esc)",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Would you like to run the following command?\n1. Yes, proceed\n2. Yes, and don't ask again for commands that start with '...'\n3. No, and tell Codex what to do differently\n(esc)",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Bash command ...\nDo you want to proceed?\n1. Yes\n2. No\nEsc to cancel · Tab to amend · ctrl+e to explain",
+      ),
+      true,
+    );
+  });
+
+  it("detects awaiting-input when Claude Code lays out the footer with CHA cursor-absolute jumps", () => {
+    // Real Claude Code TUI fragment: it positions every word of the
+    // "Esc to cancel · Tab to amend" footer with CHA (ESC[<col>G).
+    // Before the parser fix the words collapsed to "Esctocanceltoamend"
+    // and every word-boundary regex failed.
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const claudeFooter =
+      "\x1b[2G\x1b[38;5;246mEsc\x1b[6Gto\x1b[9Gcancel\x1b[16G·" +
+      "\x1b[18GTab\x1b[22Gto\x1b[25Gamend\x1b[31G·\x1b[33Gctrl+e\x1b[40Gto\x1b[43Gexplain";
+    assert.equal(helpers.dashboardOutputLooksAwaitingInput(claudeFooter), true);
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(false, "", claudeFooter),
+      true,
+    );
+  });
+
+  it("detects awaiting-input when Claude Code marks numbered choices with ❯ and CHA layout", () => {
+    // Real Claude Code permission prompt: marker is U+276F (❯), not [›>],
+    // and the words inside each option are positioned by CHA. Even after
+    // CHA is normalised to spaces the marker class must accept ❯.
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const claudePrompt = [
+      "Do you want to proceed?",
+      "❯\x1b[4G\x1b[38;5;246m1.\x1b[7G\x1b[38;5;153mYes",
+      "",
+      " \x1b[4G\x1b[38;5;246m2.\x1b[7G\x1b[38;5;153mNo",
+    ].join("\n");
+    assert.equal(helpers.dashboardOutputLooksAwaitingInput(claudePrompt), true);
+  });
+
+  it("detects awaiting-input when a runner broadcasts an Action Required OSC title", () => {
+    // codex and gemini signal blocked state through the terminal title bar
+    // (OSC 0). The dashboard never reads xterm's title, so the OSC payload
+    // itself is the only signal we get in outputTail.
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const codexBell =
+      "Running tool…\n\x1b]0;[ ! ] Action Required | goat-flow\x07";
+    const geminiBell =
+      "Waiting on user…\n\x1b]0;✋  Action Required (goat-flow)\x07";
+    const explicitAwaiting = "Idle\n\x1b]0;awaiting confirmation — copilot\x07";
+    assert.equal(helpers.dashboardOutputLooksAwaitingInput(codexBell), true);
+    assert.equal(helpers.dashboardOutputLooksAwaitingInput(geminiBell), true);
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(explicitAwaiting),
+      true,
+    );
+    // ESC \ string-terminator form must work too.
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "tool running\n\x1b]0;[ ! ] Action Required\x1b\\",
+      ),
+      true,
+    );
+  });
+
+  it("does not trip awaiting-input on benign OSC titles or text containing 'action required'", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    // Plain working title — no awaiting signal.
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "\x1b]0;~/projects/goat-flow\x07All checks passing.",
+      ),
+      false,
+    );
+    // "Action Required" inside body prose, no title, no numbered prompt.
+    assert.equal(
+      helpers.dashboardOutputLooksAwaitingInput(
+        "Reading ticket: Action Required by Friday.\nDone.",
+      ),
+      false,
+    );
   });
 
   it("clears awaiting-input state when later output resumes normally", () => {
@@ -1673,8 +2200,24 @@ describe("dashboard terminal launch flow", () => {
       true,
     );
     assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "",
+        "Do\x1b[1Cyou\x1b[1Cwant\x1b[1Cto\x1b[1Cproceed?\n1. Yes\n2. Explain\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
       helpers.dashboardNextAwaitingInputState(true, prompt, "\nContinuing..."),
       false,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(true, prompt, "\r✻ Thinking…"),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(true, prompt, "\r✢ Thinking…"),
+      true,
     );
     assert.equal(
       helpers.dashboardNextAwaitingInputState(false, prompt, "\nRunning..."),
@@ -1683,6 +2226,76 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(
       helpers.dashboardNextAwaitingInputState(true, prompt, "\n   "),
       true,
+    );
+  });
+
+  it("detects awaiting-input prompts split across terminal chunks", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "Do you want to run this command?\n",
+        "1. Yes\n2. Yes, and don't ask again for [...] in this repo\n3. No, and tell Copilot what to do differently (Esc to stop)",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "Allow execution of [bash]\n",
+        "1. Allow once\n2. Allow for this session\n3. No, suggest changes (esc)",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "Would you like to run the following command?\n",
+        "1. Yes, proceed\n2. Yes, and don't ask again for commands that start with 'ls'\n3. No, and tell Codex what to do differently\n(esc)",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "Bash command ...\nDo you want to proceed?\n",
+        "1. Yes\n2. No\nEsc to cancel · Tab to amend · ctrl+e to explain",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        true,
+        "Do you want to run this command?\n",
+        "1. Yes\n2. Yes, and don't ask again\n3. No",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        "Do you want to run this command?\n1. Yes\n",
+        "2. No\nEsc to cancel",
+      ),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardNextAwaitingInputState(
+        false,
+        [
+          "Do you want to run this command?",
+          "1. Yes",
+          "2. No",
+          "1",
+          "Running command...",
+          "Done.",
+        ].join("\n"),
+        "\nNext steps:\n1. Inspect the result\n2. Update the docs\n",
+      ),
+      false,
     );
   });
 
@@ -1712,6 +2325,25 @@ describe("dashboard terminal launch flow", () => {
       helpers.dashboardOutputLooksReadyForLaunchPrompt(
         "/remote-control is active · Code in CLI\nloading project...",
       ),
+      false,
+    );
+  });
+
+  it("does not treat a Codex config failure followed by a shell prompt as runner readiness", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const output = [
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+
+    assert.equal(
+      helpers.dashboardOutputLooksRunnerStartupFailure(output, "codex"),
+      true,
+    );
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(output, "codex"),
       false,
     );
   });
@@ -1847,6 +2479,33 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
   });
 
+  it("clears queued launch prompts when Codex fails before prompt delivery", () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const ctx = makeLaunchPromptContext();
+    const session = ctx.sessions[0] as Record<string, unknown>;
+    session.runner = "codex";
+
+    helpers.dashboardScheduleLaunchPrompt(ctx, "launch-session", "run prompt");
+    session.outputTail = [
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+    helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
+    timers.tick(7000);
+
+    assert.deepStrictEqual(ctx.sent, []);
+    assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
+    assert.equal(session.loadingPhase, "error");
+    assert.equal(
+      session.loadingError,
+      "Runner failed before prompt delivery. Check the terminal output above.",
+    );
+  });
+
   it("detects the compact Claude composer footer as runner readiness", () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1957,10 +2616,41 @@ describe("dashboard terminal launch flow", () => {
   it("maps awaiting-input sessions into the workspace waiting state", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
     assert.match(source, /awaitingInput: s\.awaitingInput === true/);
+    assert.match(source, /waitingForRunner: s\.connected === true/);
     assert.match(source, /return s\.awaitingInput === true \|\|/);
+    assert.match(source, /s\.waitingForRunner === true/);
     assert.match(
       source,
       /this\.allSessions\(\)\.filter\(s => this\.sessionIsWaiting\(s\)\)/,
+    );
+  });
+
+  it("keeps detached live sessions out of recent history", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(
+      source,
+      /const inactive = this\.serverSessions\.filter\(s => s\.status !== 'active'\)/,
+    );
+    assert.match(
+      source,
+      /const rows = \[\.\.\.this\.recentTerminalSessions, \.\.\.inactive\]/,
+    );
+    assert.doesNotMatch(
+      source,
+      /recentSessions\(\)[\s\S]{0,500}localSessionRows/,
+    );
+  });
+
+  it("excludes waiting sessions from the Workspace running meter", () => {
+    const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
+    assert.match(source, /runningSessions\(\) \{/);
+    assert.match(
+      source,
+      /s\.status === 'active' && !this\.sessionIsWaiting\(s\)/,
+    );
+    assert.match(
+      source,
+      /meterRunning\(\) \{ return this\.runningSessions\(\)\.length; \}/,
     );
   });
 
@@ -1987,19 +2677,19 @@ describe("dashboard terminal launch flow", () => {
       source,
       /x-text="launching \? 'Launching\.\.\.' : 'New terminal'"/,
     );
-    assert.match(
-      source,
-      /:style="\{ padding: sessionsCollapsed \? '8px 6px' : '0 12px' \}"/,
-    );
+    assert.match(source, /class="workspace-session-rail"/);
+    assert.match(source, /'is-collapsed': sessionsCollapsed/);
   });
 
   it("keeps the collapsed workspace rail actionable", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
-    assert.match(source, /title="Launch from prompts"/);
+    assert.match(source, /aria-label="New session"/);
     assert.match(source, /:key="'ws-collapsed-' \+ s\.id"/);
     assert.match(source, /@click="openSession\(s\)"/);
     assert.match(source, /:aria-label="'Open ' \+ sessionTitleFor\(s\)"/);
-    assert.match(source, /justify-content: flex-start;/);
+    assert.match(source, /class="workspace-session-dot"/);
+    assert.match(source, /:class="'is-' \+ sessionPipTone\(s\)"/);
+    assert.match(source, />Expand sessions</);
   });
 
   it("routes terminal upload notes to the originating session", () => {
@@ -2076,12 +2766,22 @@ describe("dashboard terminal launch flow", () => {
       /session\.loadingPhase === "ready" \|\| session\.loadingPhase === "error"/,
     );
     assert.match(source, /return tail\.length === 0/);
+    assert.match(source, /get terminalDetached\(\): boolean/);
+    assert.match(source, /s\.id === session\.id && s\.status === "active"/);
+    assert.match(
+      source,
+      /s\.id === id && s\.ended !== true && s\.connected === true/,
+    );
   });
 
   it("renders the Waiting-for-runner badge in the workspace header", () => {
     const source = readFileSync(WORKSPACE_VIEW_PATH, "utf-8");
     assert.match(source, /x-show="terminalWaitingForRunner"/);
     assert.match(source, /Waiting for runner\.\.\./);
+    assert.match(
+      source,
+      /\(terminalWaitingForRunner \|\| terminalAwaitingInput\) \? 'gf-status-waiting'/,
+    );
   });
 
   it("renders a terminal loading overlay inside each session shell", () => {
@@ -2092,6 +2792,8 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.match(workspace, /class="terminal-session-shell"/);
     assert.match(workspace, /class="terminal-loading-overlay"/);
+    assert.match(workspace, /terminalDetached \|\| terminalEnded/);
+    assert.match(workspace, /Session detached/);
     assert.match(
       workspace,
       /x-show="!session\.ended && session\.loadingPhase !== 'ready'"/,

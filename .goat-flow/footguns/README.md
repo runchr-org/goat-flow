@@ -7,6 +7,16 @@ If a proven approach should be reused → `.goat-flow/patterns/` instead.
 
 **"Add a footgun" = create/update an entry here.** Not runtime code, not console diagnostics, not test assertions, not UI warnings. A footgun is a documentation artifact. If the user also wants a code change, they will ask for it separately.
 
+## Automatic Capture Policy
+
+Manual edits are normal: an explicit request to add or update a durable learning-loop entry means edit the Markdown in the correct directory. Programmatic automatic capture from terminal sessions, quality reports, PR reviews, or agent output is disabled unless `.goat-flow/config.yaml` explicitly sets `learning-loop.auto-capture.enabled: true` and a CLI-owned writer for that target exists. Prompts may suggest an entry, but automatic durable writes belong to CLI-owned code after opt-in.
+
+Auto-capture candidates must follow Extract / Consolidate / Skip:
+
+- Extract only when the item changes a future READ/SCOPE/ACT/VERIFY decision.
+- Consolidate into an existing entry when the same root cause already exists.
+- Skip raw tool output, successful smoke runs, UI/deploy churn, chain-of-thought, screenshots, raw JSON/HTML, duplicate dumps, and "I read the docs" summaries.
+
 Every entry MUST include file path evidence with a **grep-friendly semantic anchor** - a function name, unique string, section heading, or search pattern that survives refactors. Line numbers go stale on every edit; semantic anchors don't.
 
 **Good:** `check-agent-setup.ts` (search: `howToFix.*deprecated`) - emits blocked commands

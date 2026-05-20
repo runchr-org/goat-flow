@@ -56,14 +56,6 @@ interface DashboardQualityGenerateOptions {
   fresh?: boolean;
 }
 
-const SETUP_INSTRUCTION_SURFACES: Record<RunnerId, string> = {
-  claude: "CLAUDE.md, .claude/settings.json",
-  codex: "AGENTS.md, .codex/config.toml, .codex/hooks.json",
-  gemini: "GEMINI.md, .gemini/settings.json",
-  copilot:
-    ".github/copilot-instructions.md, .github/instructions/**/*.instructions.md, .github/hooks/hooks.json",
-};
-
 function dashboardAgentDisplayName(
   ctx: DashboardSetupQualityContext,
   agentId: RunnerId,
@@ -76,7 +68,10 @@ function dashboardAgentDisplayName(
 function dashboardSetupInstructionSurfaces(
   ctx: DashboardSetupQualityContext,
 ): string {
-  return SETUP_INSTRUCTION_SURFACES[ctx.setupSelectedAgent];
+  const agent = ctx.supportedAgents.find(
+    (entry) => entry.id === ctx.setupSelectedAgent,
+  );
+  return agent?.setupSurfaces.join(", ") ?? ctx.setupSelectedAgent;
 }
 
 function dashboardQualityModePreset(
@@ -98,7 +93,7 @@ function dashboardHarnessQualityPrompt(): string {
     "",
     "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
     "",
-    "Assess whether the selected target project's agent harness is actually usable, not only structurally present. Focus on context loading, constraint safety, verification evidence, recovery paths, and feedback-loop durability.",
+    "Assess whether the selected target project's agent harness is actually usable, not only structurally present. Focus on context loading, constraint safety, verification evidence, recovery paths, feedback-loop durability, and whether instructions distinguish the controlling goat-flow workspace from the selected target.",
     "",
     "Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts audit . --harness --format json from the controlling workspace when applicable; node --import tsx src/cli/cli.ts stats . --check when the selected target is a goat-flow installation. Command output wins over prose.",
     "",
@@ -208,6 +203,11 @@ function dashboardQualityReportLogPrompt(
   const projectPathJson = JSON.stringify(projectPath);
   const modeJson = JSON.stringify(mode.id);
   const versionJson = JSON.stringify(window.__GOAT_FLOW_VERSION__ ?? "unknown");
+  const scopeJson = JSON.stringify(
+    mode.id === "process" || mode.id === "skills"
+      ? "framework-self"
+      : "consumer",
+  );
   const reportRootShell = dashboardQualityShellQuote(projectPath);
   const validatorRootShell = dashboardQualityShellQuote(
     dashboardQualityControllingWorkspace(),
@@ -235,7 +235,7 @@ function dashboardQualityReportLogPrompt(
     `  "project_path": ${projectPathJson},`,
     '  "run_date": "YYYY-MM-DD",',
     '  "audit_status": "pass | fail | unavailable",',
-    '  "scope": "framework-self | consumer",',
+    `  "scope": ${scopeJson},`,
     `  "rubric_version": ${versionJson},`,
     `  "quality_mode": ${modeJson},`,
     '  "scores": {',

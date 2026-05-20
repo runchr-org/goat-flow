@@ -14,15 +14,15 @@ The menu can start the dashboard, copy/update goat-flow system files, generate a
 
 ### `goat-flow audit [path] [flags]`
 
-Validate setup correctness. The base audit runs two deterministic scopes (all pass/fail): GOAT Flow Setup and Agent Setup. Pass `--harness` to add the AI Harness Completeness scope (16 checks across 5 concerns - verifies structural installation of each concern). Harness results contribute to the overall audit status.
+Validate setup correctness. The base audit runs two deterministic scopes (all pass/fail): GOAT Flow Setup and Agent Setup. Pass `--harness` to add the AI Harness Completeness scope (17 checks across 5 concerns - verifies structural installation of each concern). Harness results contribute to the overall audit status. Audit JSON/text also includes an advisory per-agent enforcement matrix; it explains hard, limited, soft, missing, and unknown enforcement evidence without changing pass/fail status.
 
 | Flag | Description |
 |------|-------------|
 | `--agent <id>` | Filter to one manifest-backed agent id. Run `npx goat-flow manifest` to inspect the current registry. |
-| `--harness` | Add AI Harness Completeness scope (16 checks, installed/not-installed per concern) |
+| `--harness` | Add AI Harness Completeness scope (17 checks, installed/not-installed per concern) |
 | `--check-drift` | Add skill template-vs-installed drift detection (orphan directories, byte-level divergence) |
 | `--check-content` | Add cold-path content lint (vague terms, generic instructions, factual-claim drift) |
-| `--format <type>` | Output: json, text, markdown (default: auto) |
+| `--format <type>` | Output: json, text, markdown, sarif (default: auto) |
 | `--verbose` | Show per-check details |
 | `--output <file>` | Write to file instead of stdout |
 
@@ -31,8 +31,13 @@ npx goat-flow audit .                      # Audit current directory
 npx goat-flow audit . --harness            # Include AI harness completeness checks
 npx goat-flow audit . --agent claude       # Audit scoped to Claude
 npx goat-flow audit . --format json        # JSON output for CI
+npx goat-flow audit . --format sarif       # SARIF output for CI/code scanning upload
 npx goat-flow audit . --output report.json # Write to file
 ```
+
+The enforcement matrix is deliberately conservative. It reports local facts such as deny-hook registration, secret-path file-read coverage, secret shell-read blocking, and deny-hook self-test evidence. General file read/write restriction capability remains `unknown` unless goat-flow has explicit evidence; it is not inferred from setup success.
+
+`--format sarif` exports the same deterministic audit findings as SARIF 2.1.0. It is an interchange format for CI and SARIF-aware tools; goat-flow is still reporting harness/setup integrity findings, not source-code vulnerabilities. Failing setup, agent, and harness checks become SARIF results. `--check-drift` and `--check-content` findings are included when those audit sections are enabled. Checks without target-file evidence are emitted without fabricated locations; GitHub code scanning accepts SARIF without annotations, but it only displays code annotations for results that include `locations[]`.
 
 ### `goat-flow quality [path] --agent <id> [--mode <mode>]`
 
@@ -45,6 +50,10 @@ npx goat-flow quality . --agent codex          # Quality prompt for Codex
 ```
 
 The agent derives the date/time from its shell and generates a 5-character lowercase-alphanumeric random suffix so parallel runs do not collide. If prior same-agent, same-mode quality history exists, the generated prompt embeds the latest saved report so the new review can mark current findings as `new` or `persisted`.
+
+The CLI command composes the prompt with fresh audit context. The dashboard
+Quality page may use cached audit enrichment for passive page loads, but its
+Regenerate action follows the same fresh-audit path.
 
 ### `goat-flow quality candidacy <description> [--draft <file>] [--format json]`
 
@@ -92,7 +101,7 @@ npx goat-flow quality diff 2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-b
 
 ### `goat-flow manifest [--check] [--format json]`
 
-Print the resolved single-source-of-truth manifest (agent registry, installed skills, required files, and derived facts). Pass `--check` to validate that the static manifest matches observed repo state (exits non-zero on drift, used by CI).
+Print the resolved single-source-of-truth manifest (agent registry, agent capability metadata, installed skills, required files, and derived facts). Pass `--check` to validate that the static manifest matches observed repo state and capability schema (exits non-zero on drift, used by CI).
 
 ```bash
 npx goat-flow manifest                    # Print resolved manifest as Markdown
@@ -108,6 +117,18 @@ Report learning-loop health: live entry counts by bucket, stale file refs, and `
 npx goat-flow stats                       # Learning-loop health report
 npx goat-flow stats --check               # CI gate for bucket hygiene
 npx goat-flow stats --format json         # Machine-readable report
+```
+
+### `goat-flow events tail [path] [--limit <n>] [--format json]`
+
+Read the newest local evidence-envelope events from
+`.goat-flow/logs/events/*.jsonl`. Text output is JSONL for piping; `--format json`
+returns a pretty JSON array. Event records are checkout-local runtime continuity,
+not committed project knowledge.
+
+```bash
+npx goat-flow events tail . --limit 20
+npx goat-flow events tail . --limit 50 --format json
 ```
 
 ### `goat-flow setup [path] --agent <id>`
@@ -126,7 +147,7 @@ Use `--apply` when you want setup to run the deterministic file-copy installer i
 
 ### `goat-flow install [path] --agent <id> [--force]`
 
-Copy or update goat-flow system files without an agent: skills, shared skill references, hook scripts, agent settings templates, `.goat-flow/` README/gitignore anchors, and `.goat-flow/config.yaml` when it is missing. Existing settings and config are skipped unless `--force` is passed. For outdated or v0.9 projects the installer automatically updates the config version field and (for v0.9) removes deprecated skill directories; use `--force` for a full overwrite instead.
+Copy or update goat-flow system files without an agent: skills, shared skill references, hook scripts, agent settings templates, `.goat-flow/` README/gitignore anchors, and `.goat-flow/config.yaml` when it is missing. Existing settings are skipped unless `--force` is passed. Existing config files are preserved, but legacy `agents:` allowlists are removed so the dashboard and aggregate CLI audit do not hide supported agent installs. The installer also appends `node_modules/` to the project root `.gitignore` when missing. For outdated or v0.9 projects the installer automatically updates the config version field and (for v0.9) removes deprecated skill directories; use `--force` for a full overwrite instead.
 
 The shared references include `.goat-flow/skill-reference/README.md` for meta-reference doctrine, while `.goat-flow/skill-playbooks/README.md` indexes tool/capability playbooks such as `browser-use.md` and `page-capture.md`. Generated or repaired instruction files include a Router Table pointer to `.goat-flow/skill-playbooks/` so agents check local availability playbooks before declaring a tool unavailable.
 
@@ -167,10 +188,12 @@ Common tasks and the commands to run:
 | Get a harness quality prompt | `npx goat-flow quality . --agent claude --mode harness` |
 | Review quality trend history | `npx goat-flow quality history --agent claude` |
 | Compare two saved quality runs | `npx goat-flow quality diff --agent claude` |
+| Inspect local dashboard/session events | `npx goat-flow events tail . --limit 20` |
 | Generate a setup prompt | `npx goat-flow setup . --agent claude` |
 | Decide what kind of artifact to author | `npx goat-flow quality candidacy "..."` |
 | Scaffold a new skill | `npx goat-flow skill new "..." --name <slug>` |
 | Use this in CI | `npx goat-flow audit . --format json` |
+| Export SARIF for code scanning | `npx goat-flow audit . --format sarif --output goat-flow-audit.sarif` |
 | Open the dashboard | `npx goat-flow dashboard .` |
 
 **CI pipeline example:**
@@ -179,6 +202,36 @@ Common tasks and the commands to run:
 # Fail the build if audit doesn't pass
 npx goat-flow audit . --format json --output report.json
 ```
+
+**GitHub code scanning SARIF example:**
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+steps:
+  - uses: actions/checkout@v4
+  - name: Run goat-flow audit as SARIF
+    id: goat-flow-audit
+    run: |
+      set +e
+      npx goat-flow audit . --harness --check-drift --check-content --format sarif --output goat-flow-audit.sarif
+      status=$?
+      echo "status=$status" >> "$GITHUB_OUTPUT"
+      exit 0
+  - name: Upload goat-flow SARIF
+    uses: github/codeql-action/upload-sarif@v3
+    if: always()
+    with:
+      sarif_file: goat-flow-audit.sarif
+      category: goat-flow-audit
+  - name: Enforce goat-flow audit gate
+    if: steps.goat-flow-audit.outputs.status != '0'
+    run: exit 1
+```
+
+The upload step is separate from the audit gate so failed audits still publish their SARIF file. GitHub categories distinguish multiple SARIF uploads for the same commit. Current GitHub code-scanning limits include 10 MB per gzip-compressed SARIF file, 25,000 results per run, and only the top 5,000 results displayed.
 
 **First-time setup:**
 

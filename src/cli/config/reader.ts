@@ -5,19 +5,16 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
-import type { AgentId, ReadonlyFS } from "../types.js";
+import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION } from "../constants.js";
-import { getKnownAgentIds } from "../agents/registry.js";
 import type {
   GoatFlowConfig,
+  LearningLoopAutoCaptureTarget,
   LoadedConfig,
   ValidationIssue,
   ValidationResult,
 } from "./types.js";
 
-/** Manifest-backed agent identifiers accepted in the config's `agents` field. */
-const KNOWN_AGENTS = new Set(getKnownAgentIds());
-const KNOWN_AGENT_LIST = Array.from(KNOWN_AGENTS).join(", ");
 /** Top-level config keys recognized by the validator (others trigger warnings). */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   "version",
@@ -27,6 +24,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "toolchain",
   "userRole",
   "telemetry",
+  "learning-loop",
   "known-gaps",
   "skill-overrides",
   "harness",
@@ -54,6 +52,12 @@ const CONFIG_DEFAULTS: GoatFlowConfig = {
   },
   userRole: "developer",
   telemetry: false,
+  learningLoop: {
+    autoCapture: {
+      enabled: false,
+      targets: [],
+    },
+  },
   knownGaps: [],
   skillOverrides: {},
   terminal: { idleTimeoutMinutes: 480 },
@@ -81,6 +85,12 @@ function cloneDefaults(): GoatFlowConfig {
     },
     userRole: CONFIG_DEFAULTS.userRole,
     telemetry: CONFIG_DEFAULTS.telemetry,
+    learningLoop: {
+      autoCapture: {
+        enabled: CONFIG_DEFAULTS.learningLoop.autoCapture.enabled,
+        targets: [...CONFIG_DEFAULTS.learningLoop.autoCapture.targets],
+      },
+    },
     knownGaps: [...CONFIG_DEFAULTS.knownGaps],
     skillOverrides: { ...CONFIG_DEFAULTS.skillOverrides },
     terminal: { ...CONFIG_DEFAULTS.terminal },
@@ -109,13 +119,6 @@ function readConfigText(projectRoot: string, fs?: ReadonlyFS): string | null {
 function mergeVersion(value: unknown, merged: GoatFlowConfig): void {
   if (typeof value === "string") {
     merged.version = value;
-  }
-}
-
-/** Apply an explicit agent allowlist or null auto-detect override. */
-function mergeAgents(value: unknown, merged: GoatFlowConfig): void {
-  if (value === null || Array.isArray(value)) {
-    merged.agents = value as string[] | null;
   }
 }
 
@@ -156,10 +159,43 @@ function mergeToolchain(value: unknown, merged: GoatFlowConfig): void {
 /** Valid userRole values accepted in the config file. */
 const KNOWN_USER_ROLES = new Set(["developer", "investigator", "tester"]);
 
+/** Valid durable learning-loop targets accepted for future auto-capture. */
+const LEARNING_LOOP_AUTO_CAPTURE_TARGETS: ReadonlySet<string> =
+  new Set<LearningLoopAutoCaptureTarget>([
+    "lessons",
+    "footguns",
+    "patterns",
+    "decisions",
+  ]);
+
+/** Narrow one raw target string to the supported durable learning-loop kinds. */
+function isLearningLoopAutoCaptureTarget(
+  value: unknown,
+): value is LearningLoopAutoCaptureTarget {
+  return (
+    typeof value === "string" && LEARNING_LOOP_AUTO_CAPTURE_TARGETS.has(value)
+  );
+}
+
 /** Apply a valid userRole override from the raw config. */
 function mergeUserRole(value: unknown, merged: GoatFlowConfig): void {
   if (typeof value === "string" && KNOWN_USER_ROLES.has(value)) {
     merged.userRole = value as GoatFlowConfig["userRole"];
+  }
+}
+
+/** Apply future automatic learning-loop capture policy from the raw config. */
+function mergeLearningLoop(value: unknown, merged: GoatFlowConfig): void {
+  if (!isRecord(value)) return;
+  const autoCapture = value["auto-capture"];
+  if (!isRecord(autoCapture)) return;
+  if (typeof autoCapture.enabled === "boolean") {
+    merged.learningLoop.autoCapture.enabled = autoCapture.enabled;
+  }
+  if (Array.isArray(autoCapture.targets)) {
+    merged.learningLoop.autoCapture.targets = autoCapture.targets.filter(
+      isLearningLoopAutoCaptureTarget,
+    );
   }
 }
 
@@ -180,7 +216,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   mergeVersion(raw.version, merged);
   // Path overrides for footguns/lessons/decisions/tasks/logs removed in v1.1.0.
   // Canonical paths (.goat-flow/*) are always used.
-  mergeAgents(raw.agents, merged);
+  // Legacy `agents:` is intentionally ignored. Use `--agent <id>` to scope commands.
   mergeSkills(raw.skills, merged);
 
   // YAML key is `line-limits` (kebab-case), TypeScript field is `lineLimits` (camelCase)
@@ -188,6 +224,7 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
   mergeToolchain(raw.toolchain, merged);
   mergeUserRole(raw.userRole, merged);
   if (typeof raw.telemetry === "boolean") merged.telemetry = raw.telemetry;
+  mergeLearningLoop(raw["learning-loop"], merged);
 
   // YAML key is `known-gaps` (kebab-case), TypeScript field is `knownGaps` (camelCase)
   if (Array.isArray(raw["known-gaps"])) {
@@ -332,6 +369,21 @@ function validateVersionField(
   }
 }
 
+/** Warn when the removed legacy agent allowlist appears in config. */
+function validateLegacyAgentsField(
+  raw: RawConfig,
+  warnings: ValidationIssue[],
+  _errors: ValidationIssue[],
+): void {
+  if ("agents" in raw && raw.agents !== null && raw.agents !== undefined) {
+    pushWarning(
+      warnings,
+      "agents",
+      "ignored; use --agent <id> to scope commands",
+    );
+  }
+}
+
 /** Validate line-limit overrides and ensure target stays below limit. */
 function validateLineLimitsField(
   raw: RawConfig,
@@ -371,51 +423,6 @@ function validateToolchainField(
     if ("format" in value)
       validateStringArray(value.format, "toolchain.format", errors);
   });
-}
-
-/** Validate an explicit list of enabled agents. */
-function validateAgentList(
-  agents: unknown[],
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  if (agents.length === 0) {
-    pushError(
-      errors,
-      "agents",
-      "cannot be empty; omit the field to auto-detect",
-    );
-  }
-  for (const [index, value] of agents.entries()) {
-    if (typeof value !== "string") {
-      pushError(errors, `agents[${index}]`, "must be a string");
-      continue;
-    }
-    if (!KNOWN_AGENTS.has(value as AgentId)) {
-      pushError(
-        errors,
-        `agents[${index}]`,
-        `unknown agent "${value}" - known agents: ${KNOWN_AGENT_LIST}`,
-      );
-    }
-  }
-}
-
-/** Validate the optional top-level agents selector. */
-function validateAgentsField(
-  raw: RawConfig,
-  warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  if (!("agents" in raw)) return;
-  const { agents } = raw;
-  if (agents !== null && !Array.isArray(agents)) {
-    pushError(errors, "agents", "must be null or an array");
-    return;
-  }
-  if (Array.isArray(agents)) {
-    validateAgentList(agents, warnings, errors);
-  }
 }
 
 /** Validate an explicit `skills.install` allowlist. */
@@ -513,6 +520,50 @@ function validateTelemetryField(
   }
 }
 
+/** Validate future automatic learning-loop capture policy when present. */
+function validateLearningLoopField(
+  raw: RawConfig,
+  _warnings: ValidationIssue[],
+  errors: ValidationIssue[],
+): void {
+  validateObjectField(raw, "learning-loop", errors, (value) => {
+    if (!("auto-capture" in value)) return;
+    const autoCapture = value["auto-capture"];
+    if (!isRecord(autoCapture)) {
+      pushError(errors, "learning-loop.auto-capture", "must be an object");
+      return;
+    }
+
+    if ("enabled" in autoCapture && typeof autoCapture.enabled !== "boolean") {
+      pushError(
+        errors,
+        "learning-loop.auto-capture.enabled",
+        "must be a boolean",
+      );
+    }
+
+    if (!("targets" in autoCapture)) return;
+    if (!Array.isArray(autoCapture.targets)) {
+      pushError(
+        errors,
+        "learning-loop.auto-capture.targets",
+        "must be an array",
+      );
+      return;
+    }
+
+    for (const [index, target] of autoCapture.targets.entries()) {
+      if (!isLearningLoopAutoCaptureTarget(target)) {
+        pushError(
+          errors,
+          `learning-loop.auto-capture.targets[${index}]`,
+          `must be one of: ${Array.from(LEARNING_LOOP_AUTO_CAPTURE_TARGETS).join(", ")}`,
+        );
+      }
+    }
+  });
+}
+
 /** Validate the known-gaps field when present. */
 function validateKnownGapsField(
   raw: RawConfig,
@@ -561,12 +612,13 @@ function validateTerminalField(
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
+  validateLegacyAgentsField,
   validateLineLimitsField,
-  validateAgentsField,
   validateSkillsField,
   validateToolchainField,
   validateUserRoleField,
   validateTelemetryField,
+  validateLearningLoopField,
   validateKnownGapsField,
   validateSkillOverridesField,
   validateHarnessField,

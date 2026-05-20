@@ -1,6 +1,6 @@
 ---
 category: agent-behavior-trust
-last_reviewed: 2026-05-09
+last_reviewed: 2026-05-19
 ---
 
 ## Lesson: Prose-only "show terminal output" rules lose to brevity pressure
@@ -39,27 +39,27 @@ last_reviewed: 2026-05-09
 **Fix:** Added verification gates to workflow templates and setup guides. Templates now say: "Only document what currently exists. Verify by reading source files, not documentation."
 
 ---
-## Lesson: SBAO uses 2 core-trio agents + 1 fresh-context agent, not 3 single-perspective agents
+## Lesson: goat-critique uses 2 core-trio agents + 1 fresh-context agent, not 3 single-perspective agents
 **Created:** 2026-04-05
 
-**What happened:** When running SBAO on the M32 plan, the agent launched 3 sub-agents - one as SKEPTIC, one as ANALYST, one as STRATEGIST. This splits the core trio into isolated perspectives instead of having each agent generate internal tension between all three. The correct structure is: 2 agents each running the full core trio (SKEPTIC + ANALYST + STRATEGIST internally), plus 1 fresh-context agent with no framework at all.
+**What happened:** When running goat-critique (formerly SBAO) on the M32 plan, the agent launched 3 sub-agents - one as SKEPTIC, one as ANALYST, one as STRATEGIST. This splits the core trio into isolated perspectives instead of having each agent generate internal tension between all three. The correct structure is: 2 agents each running the full core trio (SKEPTIC + ANALYST + STRATEGIST internally), plus 1 fresh-context agent with no framework at all.
 
 **Why it matters:** The core trio's value comes from triangular tension - one agent weighing "what could go wrong" against "what's the cost/benefit" against "what's the fastest path." Splitting them into separate agents eliminates that tension. The fresh-context agent exists to catch blind spots the framework creates - if all 3 agents use the framework, there's no control group.
 
-**Prevention:** Before launching SBAO sub-agents, re-read the SBAO spec in `workflow/skills/goat-critique/SKILL.md` or `.claude/skills/goat-critique/SKILL.md`. The structure is always: 2 agents with core trio, 1 agent without. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.
+**Prevention:** Before launching goat-critique sub-agents, re-read `workflow/skills/goat-critique/SKILL.md` (search: `MUST Spawn all three sub-agents`) or `.claude/skills/goat-critique/SKILL.md` (search: `SKEPTIC/ANALYST/STRATEGIST combined lens`). The structure is always: 2 agents with core trio, 1 agent without. Never split SKEPTIC/ANALYST/STRATEGIST into separate agents.
 
 ---
-## Lesson: SBAO role-played inline despite existing lesson saying not to
+## Lesson: goat-critique was role-played inline despite existing lesson saying not to
 
 **Created:** 2026-04-09
 
-**What happened:** User asked for SBAO critique of M10-M13 plans. The agent wrote three "perspectives" (Skeptical User, Shipping Pragmatist, Framework Architect) inline - no Agent tool calls, no sub-agents launched. The output looked like SBAO but was the main agent arguing with itself from its own accumulated context. The user caught it: "SBAO should be done with sub agents to have fresh perspectives."
+**What happened:** User asked for goat-critique of M10-M13 plans. The agent wrote three "perspectives" (Skeptical User, Shipping Pragmatist, Framework Architect) inline - no Agent tool calls, no sub-agents launched. The output looked like critique but was the main agent arguing with itself from its own accumulated context. The user caught it: "SBAO should be done with sub agents to have fresh perspectives."
 
-**Why this is worse than the first time:** The lesson from 2026-04-05 ("SBAO uses 2 core-trio agents + 1 fresh-context agent, not 3 single-perspective agents") was already in this file. The agent had read the lessons directory earlier in the session. It knew the correct process and still defaulted to the easier path of writing perspectives inline. Reading a lesson is not the same as following it.
+**Why this is worse than the first time:** The lesson from 2026-04-05 ("goat-critique uses 2 core-trio agents + 1 fresh-context agent, not 3 single-perspective agents") was already in this file. The agent had read the lessons directory earlier in the session. It knew the correct process and still defaulted to the easier path of writing perspectives inline. Reading a lesson is not the same as following it.
 
-**Root cause:** The SKILL.md says "Launch 3 sub-agents in parallel" but nothing mechanically prevents the agent from interpreting "launch" as "imagine." The agent's path of least resistance is to write inline - launching sub-agents requires more effort (crafting prompts, waiting for results, synthesizing). Without a hard check ("did you actually use the Agent tool?"), the agent will default to the faster wrong approach.
+**Root cause:** The current skill says "Spawn all three sub-agents in parallel" in Phase 1, but nothing mechanically prevents the agent from interpreting "spawn" as "imagine." The agent's path of least resistance is to write inline - launching sub-agents requires more effort (crafting prompts, waiting for results, synthesizing). Without a hard check ("did you actually use the host's delegation mechanism?"), the agent will default to the faster wrong approach.
 
-**Prevention:** M14 task created to add mechanical enforcement: (1) explicit "MUST use Agent tool" in Phase 3, (2) "never role-play perspectives inline" in Constraints, (3) process self-check before ranking step. The lesson alone wasn't enough - the process needs a gate.
+**Prevention:** The current enforcement lives in the Constraints block: `workflow/skills/goat-critique/SKILL.md` (search: `MUST Spawn all three sub-agents`). Phase 1 handles spawning (`workflow/skills/goat-critique/SKILL.md` (search: `Spawn all three sub-agents in parallel`)); Phase 3 is cross-examination (`workflow/skills/goat-critique/SKILL.md` (search: `## Phase 3 - Cross-Examine`)). Never role-play perspectives inline.
 
 ---
 ## Lesson: Automated code review bots produce predictable false positive patterns
@@ -110,7 +110,11 @@ last_reviewed: 2026-05-09
 
 **Prevention:** When a profile field says an agent "can't" do something, verify against the current docs before building workarounds. Capabilities evolve - a limitation at setup time may not still hold.
 
-**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true`, keep `.env.example` as an exact read rule, and reserve recursive globs for `none` denies. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`, `Codex read rules must be exact paths`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
+**Updated 2026-05-09:** The same trap recurred around Codex hooks and permissions, then needed a same-day correction from runtime evidence. Codex CLI 0.129.0 reports `[features].codex_hooks` as deprecated and lists `hooks` as the stable feature; it also rejects `read` access on recursive filename globs such as `**/.env.example` with `filesystem glob path '**/.env.example' only supports 'none' access`. Current goat-flow templates therefore use `[features].hooks = true` and rely on the Bash hook, not an absent exact TOML rule, for read-only `.env.example` inspection. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`), `workflow/install-goat-flow.sh` (search: `features.codex_hooks`), `src/cli/audit/check-agent-setup.ts` (search: `Deprecated Codex feature flag`).
+
+**Updated 2026-05-19:** Codex CLI 0.131.0 tightened the permission-profile shape further: filename and match-anywhere globs such as `*.key`, `**/*.key`, `.env.*`, and `**/.ssh/**` now fail config loading even with `none` access. Runtime evidence: `codex "diagnostic no-op"` in this repo returned `Error loading configuration: filesystem glob path **/*.key only supports none access; use an exact path or trailing /** for none subtree access`. Current templates use trailing root subtrees in the base profile, add exact root paths only when those files exist, and rely on `.codex/hooks/deny-dangerous.sh` for direct literal filename-extension shell access. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `Exact entries must point at files`), `.codex/config.toml` (search: `absent exact`), `src/cli/facts/agent/settings.ts` (search: `existingExactPathsAreDenied`).
+
+**Updated again 2026-05-19:** The same fix still left Codex TUI startup warnings because goat-flow emitted `:project_roots`. Codex 0.131.0's local binary recognizes `:workspace_roots`, not `:project_roots`; it warned that `:project_roots` plus every nested deny entry was unrecognized. Current templates now keep `":workspace_roots" = { ... }` under `[permissions.goat-flow.filesystem]`, and audit rejects legacy project-root entries as current secret coverage because Codex 0.131.0 ignores them. Evidence anchors: `workflow/hooks/agent-config/codex.toml` (search: `":workspace_roots" = {`), `.codex/config.toml` (search: `":workspace_roots" = {`), `src/cli/facts/agent/settings.ts` (search: `collectCodexWorkspaceRootEntries`), `.goat-flow/footguns/hooks.md` (search: `Codex workspace-root permission profiles must use the local 0.131 token`).
 
 ---
 ## Lesson: Agent skips AI testing gate and offers to continue
@@ -155,7 +159,7 @@ last_reviewed: 2026-05-09
 
 **Created:** 2026-04-20
 
-**What happened:** Multiple same-day quality reports (`.goat-flow/logs/quality/2026-04-20-1139-claude-91ao4.json`, `.goat-flow/logs/quality/2026-04-20-1200-claude-i7rlb.json`) flagged that `.claude/skills/goat/SKILL.md` (the dispatcher) routes to `/goat-critique` without first confirming sub-agent / Agent-tool delegation is available in the session. The subsequent `/goat-critique` synthesis accepted the concern as a MEDIUM "ship if easy" fix and added a dispatcher pre-check to the pre-1.2.0 task list. User corrected: all four supported agents (Claude Code, Codex, Gemini, Copilot per `.goat-flow/config.yaml` and `workflow/manifest.json`) ship sub-agent / delegated-agent capability. The pre-check would be dead ceremony guarding against a failure mode that no longer exists.
+**What happened:** Multiple same-day quality reports on 2026-04-20 flagged that `.claude/skills/goat/SKILL.md` (the dispatcher) routes to `/goat-critique` without first confirming sub-agent / Agent-tool delegation is available in the session. The subsequent `/goat-critique` synthesis accepted the concern as a MEDIUM "ship if easy" fix and added a dispatcher pre-check to the pre-1.2.0 task list. User corrected: all four supported agents (Claude Code, Codex, Gemini, Copilot per `.goat-flow/config.yaml` and `workflow/manifest.json`) ship sub-agent / delegated-agent capability. The pre-check would be dead ceremony guarding against a failure mode that no longer exists.
 
 **Root cause:** Reviewing agents treated sub-agent delegation as a platform capability that might vary per environment - because historically it did. None of the reviewing agents (or the synthesising critique) grounded the "constrained environments" claim against goat-flow's actual supported-agent list; the reasoning stayed abstract.
 

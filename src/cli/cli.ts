@@ -2,7 +2,7 @@
 
 /**
  * Command-line entry point for goat-flow.
- * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, quality, setup, dashboard, and info workflows.
+ * Handles argv parsing, command dispatch, exit codes, and on-disk output for audit, quality, setup, dashboard, events, and info workflows.
  */
 
 import { parseArgs } from "node:util";
@@ -12,7 +12,7 @@ import { writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
-import type { AuditReport } from "./audit/types.js";
+import type { AuditReport, AuditScope, CheckResult } from "./audit/types.js";
 import { QUALITY_MODES, type QualityMode } from "./quality/schema.js";
 import type { CandidacyResult } from "./quality/candidacy.js";
 
@@ -21,6 +21,10 @@ import { getKnownAgentIds } from "./agents/registry.js";
 import { classifyProjectState } from "./classify-state.js";
 import { createFS } from "./facts/fs.js";
 import { buildInstallerInvocation } from "./install-invocation.js";
+import {
+  ensureGitCommitInstructions,
+  type CommitConventionDetection,
+} from "./prompt/commit-guidance.js";
 
 /** Current package version used in --version output */
 const PACKAGE_VERSION = getPackageVersion();
@@ -53,18 +57,21 @@ Commands:
   dashboard         Launch browser dashboard with audit, setup, and terminal
   manifest          Print the resolved single-source-of-truth manifest (--check validates consistency)
   stats             Learning-loop health report (live entry counts, stale refs, freshness). Use --check for CI.
+  events tail       Read local gitignored evidence-envelope events
   skill new         Author a new skill or playbook from a description, draft, or interactive prompt.
 Arguments:
   project-path    Target project directory (default: .)
 
 Flags:
-  --format <type>   Output format: json, text, markdown (omit for auto-detect: text in terminal, json otherwise)
+  --format <type>   Output format: json, text, markdown, sarif (omit for auto-detect: text in terminal, json otherwise)
   --agent <id>      Filter to one agent: ${validAgentList()}
   --mode <mode>     Quality prompt/history/diff mode: ${QUALITY_MODES.join(", ")}
   --all             Quality history: lift the default 20-run limit
+  --limit <n>       Events tail: number of newest envelopes to read (default: 20, max: 500)
   --harness         Audit: add AI Harness Completeness scope (pass/fail checks across 5 concerns)
   --check-drift     Audit: detect skill template-vs-installed drift and orphan directories
   --check-content   Audit: cold-path content lint (vague terms, generic instructions, factual drift)
+  --no-audit-details Audit JSON: omit structured harness detail payloads
   --check           Manifest: validate static-vs-observed consistency (exits non-zero on drift)
   --apply           Setup: copy/update deterministic system files instead of generating a prompt
   --force           Install/setup --apply: overwrite settings, config, and remove deprecated skills
@@ -82,6 +89,7 @@ Examples:
   goat-flow audit . --harness          Audit with AI harness completeness checks
   goat-flow audit . --agent claude     Audit scoped to Claude
   goat-flow audit . --format json      JSON output for CI
+  goat-flow audit . --format sarif     SARIF output for CI/code scanning upload
   goat-flow install . --agent claude   Copy/update goat-flow system files
   goat-flow setup . --agent claude --apply
   goat-flow setup --agent claude       Setup prompt for Claude
@@ -95,6 +103,7 @@ Examples:
   goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow stats                      Learning-loop health report
   goat-flow stats --check              Fail if any bucket is missing last_reviewed or has stale refs
+  goat-flow events tail . --limit 20   Print local evidence-envelope events as JSONL
   goat-flow skill new "<description>"  Scaffold a skill from a natural-language description
   goat-flow skill ./repo new "<description>"
   goat-flow skill new --draft <path>   Validate an existing draft against the candidacy check
@@ -119,11 +128,13 @@ type Command =
   | "status"
   | "audit"
   | "quality"
+  | "events"
   | "skill"
   | "manifest"
   | "stats";
 
 type SkillSubcommand = "new";
+type EventsSubcommand = "tail";
 
 type QualitySubcommand =
   | "prompt"
@@ -144,9 +155,11 @@ interface ParsedArgValues {
   verbose?: boolean;
   output?: string;
   all?: boolean;
+  limit?: string;
   harness?: boolean;
   "check-drift"?: boolean;
   "check-content"?: boolean;
+  "no-audit-details"?: boolean;
   check?: boolean;
   apply?: boolean;
   force?: boolean;
@@ -171,6 +184,7 @@ const COMMANDS: Command[] = [
   "status",
   "audit",
   "quality",
+  "events",
   "skill",
   "manifest",
   "stats",
@@ -184,7 +198,7 @@ const REMOVED_COMMANDS: Record<string, string> = {
     '"critique" was renamed to "quality". Use "goat-flow quality . --agent <id>".',
 };
 /** Accepted values for the --format flag */
-const VALID_FORMATS = ["json", "text", "markdown"] as const;
+const VALID_FORMATS = ["json", "text", "markdown", "sarif"] as const;
 /** Accepted values for the --agent flag. Resolved lazily so that manifest drift
  *  does not crash commands (like `--help` or `--version`) that do not need the
  *  agent list. Strict callers get the exception; help-text callers fall back. */
@@ -225,6 +239,7 @@ export interface ParsedCLI extends CLIOptions {
   harness: boolean;
   checkDrift: boolean;
   checkContent: boolean;
+  auditDetails: boolean;
   check: boolean;
   apply: boolean;
   force: boolean;
@@ -241,8 +256,20 @@ export interface ParsedCLI extends CLIOptions {
   skillName: string | null;
   skillInteractive: boolean;
   skillSkipConfirm: boolean;
+  eventsSubcommand: EventsSubcommand | null;
+  eventsLimit: number;
   all: boolean;
 }
+
+type SkillCLIFields = Pick<
+  ParsedCLI,
+  | "skillSubcommand"
+  | "skillDescription"
+  | "skillDraftPath"
+  | "skillName"
+  | "skillInteractive"
+  | "skillSkipConfirm"
+>;
 
 /** Parse the positional subcommand from raw CLI args. Empty argv opens the menu. */
 function parseCommand(argv: string[]): {
@@ -275,7 +302,7 @@ function parseFormatArg(value: string | undefined): CLIOptions["format"] {
   if (!value) return defaultFormat;
   if (!VALID_FORMATS.includes(value as (typeof VALID_FORMATS)[number])) {
     throw new CLIError(
-      `Invalid format: ${value}. Use: json, text, markdown`,
+      `Invalid format: ${value}. Use: json, text, markdown, sarif`,
       2,
     );
   }
@@ -436,6 +463,27 @@ function parseQualityPositionals(
   };
 }
 
+/** Parse events subcommand positionals. */
+function parseEventsPositionals(positionals: string[]): {
+  eventsSubcommand: EventsSubcommand;
+  projectPath: string;
+} {
+  const [first, second, ...rest] = positionals;
+  if (first !== "tail") {
+    throw new CLIError('events requires subcommand "tail".', 2);
+  }
+  if (rest.length > 0) {
+    throw new CLIError(
+      "events tail accepts at most one positional project path.",
+      2,
+    );
+  }
+  return {
+    eventsSubcommand: "tail",
+    projectPath: resolve(second ?? "."),
+  };
+}
+
 /** Return the project path and quality-specific positionals for a command. */
 function parseCommandPositionals(
   command: Command,
@@ -524,13 +572,45 @@ function parseSkillPositionals(positionals: string[]): SkillPositionals {
 }
 
 /** Validate flags shared across commands. */
+function rejectFlagOutsideCommand(
+  command: Command,
+  expectedCommand: Command,
+  flag: string,
+  isSet: boolean,
+): void {
+  if (command === expectedCommand || !isSet) return;
+  throw new CLIError(
+    `${flag} is only valid for the ${expectedCommand} command.`,
+    2,
+  );
+}
+
 function validateCommonFlags(command: Command, values: ParsedArgValues): void {
-  if (command !== "quality" && values.all === true) {
-    throw new CLIError("--all is only valid for the quality command.", 2);
-  }
-  if (command !== "quality" && values.mode !== undefined) {
-    throw new CLIError("--mode is only valid for the quality command.", 2);
-  }
+  rejectFlagOutsideCommand(
+    command,
+    "audit",
+    "--format sarif",
+    values.format === "sarif",
+  );
+  rejectFlagOutsideCommand(command, "quality", "--all", values.all === true);
+  rejectFlagOutsideCommand(
+    command,
+    "quality",
+    "--mode",
+    values.mode !== undefined,
+  );
+  rejectFlagOutsideCommand(
+    command,
+    "events",
+    "--limit",
+    values.limit !== undefined,
+  );
+  rejectFlagOutsideCommand(
+    command,
+    "audit",
+    "--no-audit-details",
+    values["no-audit-details"] === true,
+  );
 }
 
 /** Returns true when the command resolves to a deterministic install/apply path. */
@@ -630,6 +710,36 @@ function validateFlagCombinations(
   validateQualityFlags(command, values, qualitySubcommand);
 }
 
+/** Parse the events tail limit, clamping only after rejecting invalid input. */
+function parseEventsLimitArg(value: string | undefined): number {
+  if (value === undefined) return 20;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0 || String(parsed) !== value) {
+    throw new CLIError("--limit must be a positive integer.", 2);
+  }
+  return Math.min(parsed, 500);
+}
+
+function buildSkillCLIFields(
+  command: Command,
+  values: ParsedArgValues,
+  positionals: SkillPositionals,
+): SkillCLIFields {
+  const isSkillCommand = command === "skill";
+  return {
+    skillSubcommand: positionals.skillSubcommand,
+    skillDescription: positionals.skillDescription,
+    skillDraftPath:
+      isSkillCommand && typeof values.draft === "string"
+        ? resolve(values.draft)
+        : null,
+    skillName:
+      isSkillCommand && typeof values.name === "string" ? values.name : null,
+    skillInteractive: isSkillCommand && values.interactive === true,
+    skillSkipConfirm: isSkillCommand && values.yes === true,
+  };
+}
+
 /** Parse raw CLI argv into a structured ParsedCLI options object */
 export function parseCLIArgs(argv: string[]): ParsedCLI {
   const { command, filteredArgs } = parseCommand(argv);
@@ -644,9 +754,11 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
       verbose: { type: "boolean", default: false },
       output: { type: "string", short: "o" },
       all: { type: "boolean", default: false },
+      limit: { type: "string" },
       harness: { type: "boolean", default: false },
       "check-drift": { type: "boolean", default: false },
       "check-content": { type: "boolean", default: false },
+      "no-audit-details": { type: "boolean", default: false },
       check: { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
       force: { type: "boolean", default: false },
@@ -670,14 +782,27 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     positionals,
     typeof parsedValues.draft === "string" ? parsedValues.draft : null,
   );
+  const eventsPositionals =
+    command === "events"
+      ? parseEventsPositionals(positionals)
+      : { eventsSubcommand: null, projectPath: qualityPositionals.projectPath };
+  const projectPath =
+    command === "events"
+      ? eventsPositionals.projectPath
+      : qualityPositionals.projectPath;
   const skillPositionals: SkillPositionals =
     command === "skill"
       ? parseSkillPositionals(positionals)
       : {
           skillSubcommand: null,
           skillDescription: null,
-          projectPath: qualityPositionals.projectPath,
+          projectPath,
         };
+  const skillFields = buildSkillCLIFields(
+    command,
+    parsedValues,
+    skillPositionals,
+  );
   validateFlagCombinations(
     command,
     parsedValues,
@@ -686,17 +811,15 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
 
   return {
     command,
-    projectPath: qualityPositionals.projectPath,
+    projectPath,
     format: parseFormatArg(parsedValues.format),
     agent: parseAgentArg(parsedValues.agent),
     verbose: parsedValues.verbose === true,
-    output: resolveOutputPath(
-      parsedValues.output,
-      qualityPositionals.projectPath,
-    ),
+    output: resolveOutputPath(parsedValues.output, projectPath),
     harness: parsedValues.harness === true,
     checkDrift: parsedValues["check-drift"] === true,
     checkContent: parsedValues["check-content"] === true,
+    auditDetails: parsedValues["no-audit-details"] !== true,
     check: parsedValues.check === true,
     apply: parsedValues.apply === true,
     force: parsedValues.force === true,
@@ -707,22 +830,39 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
     qualityValidatePath: qualityPositionals.qualityValidatePath,
     qualityMode: parseQualityModeArg(parsedValues.mode),
     candidacyInput: qualityPositionals.candidacyInput,
-    skillSubcommand: skillPositionals.skillSubcommand,
-    skillDescription: skillPositionals.skillDescription,
-    skillDraftPath:
-      command === "skill" && typeof parsedValues.draft === "string"
-        ? resolve(parsedValues.draft)
-        : null,
-    skillName:
-      command === "skill" && typeof parsedValues.name === "string"
-        ? parsedValues.name
-        : null,
-    skillInteractive: command === "skill" && parsedValues.interactive === true,
-    skillSkipConfirm: command === "skill" && parsedValues.yes === true,
+    ...skillFields,
+    eventsSubcommand: eventsPositionals.eventsSubcommand,
+    eventsLimit: parseEventsLimitArg(parsedValues.limit),
     all: parsedValues.all === true,
     dev: parsedValues.dev === true,
     help: parsedValues.help === true,
     version: parsedValues.version === true,
+  };
+}
+
+function stripCheckDetails(check: CheckResult): CheckResult {
+  const stripped: CheckResult = { ...check };
+  delete stripped.details;
+  return stripped;
+}
+
+function stripScopeDetails(scope: AuditScope): AuditScope {
+  return {
+    ...scope,
+    checks: scope.checks.map(stripCheckDetails),
+  };
+}
+
+function stripAuditDetails(report: AuditReport): AuditReport {
+  return {
+    ...report,
+    scopes: {
+      setup: stripScopeDetails(report.scopes.setup),
+      agent: stripScopeDetails(report.scopes.agent),
+      harness: report.scopes.harness
+        ? stripScopeDetails(report.scopes.harness)
+        : null,
+    },
   };
 }
 
@@ -1009,6 +1149,27 @@ function collectInstallerFlags(options: ParsedCLI, agent: AgentId): string[] {
   return flags;
 }
 
+function commitGuidanceInstallSummary(
+  detection: CommitConventionDetection,
+): string {
+  if (detection.status === "insufficient-history") {
+    return detection.gitAvailable
+      ? `stub generated from ${detection.total} commits`
+      : "stub generated because git history was unavailable";
+  }
+  return `${detection.status} guidance generated from ${detection.total} commits`;
+}
+
+function emitCommitGuidanceInstallResult(projectPath: string): void {
+  const result = ensureGitCommitInstructions(projectPath);
+  if (result.status !== "written" || result.detection === null) return;
+  console.log("");
+  console.log("Git commit instructions:");
+  console.log(
+    `  ✓ ${result.path} (${commitGuidanceInstallSummary(result.detection)})`,
+  );
+}
+
 /** Handle deterministic install/update by delegating to the packaged installer. */
 function handleInstallCommand(options: ParsedCLI): void {
   if (!options.agent) {
@@ -1046,7 +1207,9 @@ function handleInstallCommand(options: ParsedCLI): void {
   }
   if (result.status !== 0) {
     process.exitCode = result.status ?? 1;
+    return;
   }
+  emitCommitGuidanceInstallResult(options.projectPath);
 }
 
 /** Write rendered output to file or stdout. */
@@ -1084,8 +1247,12 @@ function handleInfoCommand(options: ParsedCLI): void {
 async function handleAuditCommand(options: ParsedCLI): Promise<void> {
   const { createFS } = await import("./facts/fs.js");
   const { runAudit } = await import("./audit/audit.js");
-  const { renderAuditText, renderAuditJson, renderAuditMarkdown } =
-    await import("./audit/render.js");
+  const {
+    renderAuditText,
+    renderAuditJson,
+    renderAuditMarkdown,
+    renderAuditSarif,
+  } = await import("./audit/render.js");
 
   const fs = createFS(options.projectPath);
   const report = runAudit(fs, options.projectPath, {
@@ -1095,13 +1262,19 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
     checkContent: options.checkContent,
   });
 
+  const reportForRender = options.auditDetails
+    ? report
+    : stripAuditDetails(report);
+
   let rendered: string;
   if (options.format === "json") {
-    rendered = renderAuditJson(report);
+    rendered = renderAuditJson(reportForRender);
   } else if (options.format === "markdown") {
-    rendered = renderAuditMarkdown(report);
+    rendered = renderAuditMarkdown(reportForRender);
+  } else if (options.format === "sarif") {
+    rendered = renderAuditSarif(reportForRender);
   } else {
-    rendered = renderAuditText(report);
+    rendered = renderAuditText(reportForRender);
   }
 
   writeOutput(options, rendered);
@@ -1292,6 +1465,8 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   const { runAudit } = await import("./audit/audit.js");
   const { composeQuality } = await import("./prompt/compose-quality.js");
   const { findLatestQualityReport } = await import("./quality/history.js");
+  const { loadConfig } = await import("./config/reader.js");
+  const { extractSharedFacts } = await import("./facts/shared/index.js");
 
   const fs = createFS(options.projectPath);
 
@@ -1312,6 +1487,10 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   for (const warning of historyWarnings) {
     console.error(warning);
   }
+  const sharedFacts = extractSharedFacts(
+    fs,
+    loadConfig(options.projectPath, fs),
+  );
 
   const result = composeQuality({
     agent: options.agent,
@@ -1319,6 +1498,7 @@ async function handleQualityCommand(options: ParsedCLI): Promise<void> {
     auditReport,
     priorReport,
     qualityMode,
+    sharedFacts,
   });
 
   if (options.format === "json") {
@@ -1371,6 +1551,20 @@ async function handleStatsCommand(options: ParsedCLI): Promise<void> {
     rendered = renderStatsText(report);
   }
   writeOutput(options, rendered.trimEnd());
+}
+
+/** Handle local evidence-envelope event reads. */
+async function handleEventsCommand(options: ParsedCLI): Promise<void> {
+  if (options.eventsSubcommand !== "tail") {
+    throw new CLIError("Usage: goat-flow events tail [path] [--limit 20]", 2);
+  }
+  const { tailEvidenceEvents } = await import("./evidence/envelope.js");
+  const events = tailEvidenceEvents(options.projectPath, options.eventsLimit);
+  if (options.format === "json") {
+    writeOutput(options, JSON.stringify(events, null, 2));
+    return;
+  }
+  writeOutput(options, events.map((event) => JSON.stringify(event)).join("\n"));
 }
 
 /** Handle the manifest command: resolve + print the single-source-of-truth manifest. */
@@ -1444,6 +1638,7 @@ const COMMAND_HANDLERS: Partial<
   install: handleInstallCommand,
   audit: handleAuditCommand,
   quality: handleQualityCommand,
+  events: handleEventsCommand,
   skill: handleSkillCommand,
   manifest: handleManifestCommand,
   stats: handleStatsCommand,

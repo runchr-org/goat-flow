@@ -1,11 +1,13 @@
 # Deterministic Audit Checks
 
-`npx goat-flow audit` currently registers **35 deterministic checks**:
+`npx goat-flow audit` currently registers **36 deterministic checks**:
 
 - **19 build checks**: 15 setup-scope checks plus 4 agent-scope checks
-- **16 harness checks**: additional checks enabled by `--harness`
+- **17 harness checks**: additional checks enabled by `--harness`
 
 Default `npx goat-flow audit .` runs the build checks. `npx goat-flow audit . --harness` runs those same build checks plus the harness checks. Harness checks are still deterministic even when they are typed as `integrity`, `advisory`, or `metric`; the type changes scoring behavior, not whether the check is deterministic.
+
+Machine-readable output is available with `--format json` or `--format sarif`. SARIF output registers each active audit check id as a SARIF rule id and emits results only for actionable audit findings: failing setup/agent/harness checks plus drift/content findings when those optional checks are enabled. SARIF rule ids are derived from the stable goat-flow check ids below, so renaming a check id is a downstream alert-identity change for SARIF consumers.
 
 Source of truth:
 
@@ -32,7 +34,7 @@ Build mode is the structural install gate. It validates files, directories, conf
 | `tasks` | Tasks | `.goat-flow/tasks/`, `.goat-flow/tasks/.gitignore`, and `.goat-flow/tasks/README.md` exist |
 | `scratchpad` | Scratchpad | `.goat-flow/scratchpad/`, `.goat-flow/scratchpad/.gitignore`, and `.goat-flow/scratchpad/README.md` exist |
 | `goat-flow-gitignore` | goat-flow gitignore exceptions | `.goat-flow/.gitignore` exists and contains the `!skill-reference/`, `!skill-reference/**`, `!skill-playbooks/`, `!skill-playbooks/**` un-ignore entries. Catches pre-1.6.1 installs whose stale gitignore silently hid the playbook pack from git. Remediation re-runs the installer (always overwrites `.goat-flow/.gitignore`) and prompts a `git add` of the previously hidden directories |
-| `instruction-file-skill-reference-pointer` | Instruction file skill-playbooks pointer | Skips when both `.goat-flow/skill-reference/` and `.goat-flow/skill-playbooks/` are absent. When present, requires the full meta-reference and playbook pack, a READ-step rule to consult `.goat-flow/skill-playbooks/` and run playbook Availability Checks before declaring tools unavailable, and a Router Table pointer in each present instruction file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
+| `instruction-file-skill-reference-pointer` | Instruction file skill-playbooks pointer | Requires the full meta-reference and playbook pack, a READ-step rule to consult `.goat-flow/skill-playbooks/` and run playbook Availability Checks before declaring tools unavailable, and a Router Table pointer in each present instruction file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`). Missing `.goat-flow/skill-reference/` or `.goat-flow/skill-playbooks/` files fail here instead of falling through to `other-files` |
 | `other-files` | Other required files | Every manifest-required file or directory not already covered by a named setup check exists, including quality-log surfaces |
 | `config-parses` | Config file | `.goat-flow/config.yaml` exists, parses as YAML, and validates against the manifest-backed config contract |
 | `config-version` | Config version | `.goat-flow/config.yaml` declares the current `AUDIT_VERSION` |
@@ -53,7 +55,7 @@ Aggregate-mode nuance:
 
 ## Harness Checks
 
-`npx goat-flow audit . --harness` adds **16** deterministic harness-completeness checks on top of the 19 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`. JSON output exposes each check's raw `status` plus `displayStatus`, `impact`, and optional `assurance` so score-only metric/advisory warnings and platform-limited passes do not look like ordinary hard failures or full-assurance passes.
+`npx goat-flow audit . --harness` adds **17** deterministic harness-completeness checks on top of the 19 build checks. These checks are grouped by concern and typed as `integrity`, `advisory`, or `metric`. JSON output exposes each check's raw `status` plus `displayStatus`, `impact`, and optional `assurance` so score-only metric/advisory warnings and platform-limited passes do not look like ordinary hard failures or full-assurance passes.
 
 | Concern | Check id | Type | What it validates |
 |---------|----------|------|-------------------|
@@ -62,12 +64,13 @@ Aggregate-mode nuance:
 | Context | `doc-paths-resolve` | `integrity` | Router-table paths, `.goat-flow/architecture.md` backtick paths, and curated audit/glossary docs backtick paths resolve to real files |
 | Context | `instruction-sections-present` | `advisory` | Structural smoke check for required hot-path headings: Truth Order, Execution Loop, Definition of Done, and Router Table |
 | Context | `boundary-guidance-present` | `advisory` | Structural smoke check for workspace boundary guidance (controlling workspace vs target workspace separation) |
-| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; agents with file-read deny need both settings/Codex permission coverage and Bash-hook direct-path coverage. Script-only agents can pass with `assurance: "limited"` because file-read deny is unavailable. |
-| Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block `rm -rf`, all git push (ADR-025), and `chmod` |
+| Constraints | `deny-covers-secrets` | `integrity` | Direct literal secret-path reads are blocked by the deny layer; agents with file-read deny need both settings/Codex permission coverage and Bash-hook direct-path coverage. Codex permission coverage is limited to exact paths and trailing `/**` subtrees accepted by the current CLI. Script-only agents can pass with `assurance: "limited"` because file-read deny is unavailable. |
+| Constraints | `deny-blocks-dangerous` | `integrity` | Deny patterns block broad recursive deletion, all git push (ADR-025), and `chmod` |
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
 | Verification | `hooks-registered` | `integrity` | Post-turn hook registrations and on-disk hook files stay in sync |
 | Verification | `commit-guidance` | `advisory` | Commit guidance exists at `.github/git-commit-instructions.md` when `.github/` exists, or in a supporting commit-guidance document otherwise |
+| Verification | `evidence-before-claims` | `metric` | Present instruction files carry the Hallucination red-flags clauses and Rationalisations-to-reject pointer |
 | Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof. Metric failures do not fail the harness scope, but they reduce the concern score. |
 | Recovery | `milestone-tracking` | `integrity` | `.goat-flow/tasks/` exists; task count, checkbox completion, milestone status, and roadmap progress are optional local workflow state |
 | Recovery | `session-logs` | `integrity` | `.goat-flow/logs/sessions/` exists |
@@ -80,6 +83,6 @@ Aggregate-mode nuance:
 |---------|-----------------|-------|
 | `npx goat-flow audit .` | 15 setup + 4 agent = 19 build checks | Structural install gate only |
 | `npx goat-flow audit . --agent <id>` | Same 19 build checks, with agent checks enforced for the selected agent | Best way to validate one runtime's install state |
-| `npx goat-flow audit . --harness` | 19 build + 16 harness = 35 checks | Adds harness completeness, still deterministic |
+| `npx goat-flow audit . --harness` | 19 build + 17 harness = 36 checks | Adds harness completeness, still deterministic |
 
 Harness mode is still structural. It does not judge whether the content is actually good for the project; that remains the job of `npx goat-flow quality`.

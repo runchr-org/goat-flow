@@ -12,6 +12,7 @@ import type {
   ReadonlyFS,
 } from "../types.js";
 import type { LoadedConfig } from "../config/types.js";
+import type { AgentEnforcementCapability } from "./enforcement.js";
 import type { CheckEvidence } from "./provenance-types.js";
 
 // === JSON contract types (stable public API) ===
@@ -41,6 +42,10 @@ export interface CheckResult {
   evidenceKind?: CheckEvidenceKind;
   /** Assurance label for checks that pass with a known platform limitation. */
   assurance?: CheckAssurance;
+  /** M30: Structured per-check detail. Forwarded verbatim from
+   *  `HarnessCheckResult.details`; absent for build checks and for harness
+   *  checks that haven't been extended yet. */
+  details?: HarnessCheckDetails;
 }
 
 export interface AuditScope {
@@ -55,6 +60,8 @@ export interface AuditConcern {
   /** Percentage of passing checks for this concern (0-100). */
   score: number;
   findings: string[];
+  /** Non-gating evidence limits that keep a PASS from being read as complete assurance. */
+  limits: string[];
   recommendations: string[];
   howToFix: string[];
   /** Count of passing integrity checks. */
@@ -89,6 +96,8 @@ export interface AuditReport {
     harness: AuditScope | null;
   };
   concerns: Record<AuditConcernKey, AuditConcern> | null;
+  /** Advisory per-agent enforcement capability matrix. Does not affect status. */
+  enforcement: AgentEnforcementCapability[];
   /** Drift section, populated when --check-drift is set. */
   drift: DriftReport | null;
   /** Content-lint section, populated when --check-content is set. */
@@ -245,4 +254,77 @@ export interface HarnessCheckResult {
   displayStatus?: CheckDisplayStatus;
   /** Optional assurance label for checks that pass with caveats. */
   assurance?: CheckAssurance;
+  /** M30: Structured per-check detail for dashboard consumers. Discriminated by
+   *  the parent `HarnessCheck.id`; each consuming page reads the keys it knows.
+   *  Plain-text and markdown audit renderers ignore this block. */
+  details?: HarnessCheckDetails;
+}
+
+/** M30: Structured per-check detail union. Keyed by `HarnessCheck.id`.
+ *  Pages that consume the dashboard `/api/audit` response read the keys for
+ *  their concern; unknown keys are ignored. Keep this synced with the per-check
+ *  shapes declared in `.goat-flow/tasks/1.7.0/M30-audit-payload-structured-detail.md`. */
+export interface HarnessCheckDetails {
+  /** instruction-line-count */
+  lineCounts?: {
+    agent: AgentId;
+    actual: number;
+    target: number;
+    hardLimit: number;
+  }[];
+  /** execution-loop-present */
+  executionLoop?: {
+    agent: AgentId;
+    found: boolean;
+    sectionLabel: string;
+    missingSteps: string[];
+  }[];
+  /** doc-paths-resolve */
+  docPaths?: {
+    totalPaths: number;
+    resolvedCount: number;
+    unresolved: { ref: string; source: string }[];
+  };
+  /** instruction-sections-present */
+  sections?: {
+    agent: AgentId;
+    required: string[];
+    present: string[];
+    missing: string[];
+  }[];
+  /** boundary-guidance-present */
+  boundary?: {
+    agent: AgentId;
+    controllingWorkspace: boolean;
+    targetWorkspace: boolean;
+    boundaryHeading: boolean;
+  }[];
+  /** deny-covers-secrets / deny-blocks-dangerous / deny-blocks-pipe-to-shell / deny-hook-registered */
+  denyMatrix?: {
+    agent: AgentId;
+    missingPatterns: string[];
+    extraPatterns: string[];
+    hookRegistered: boolean;
+  }[];
+  /** hooks-registered / commit-guidance / evidence-before-claims / post-turn-hook-integrity */
+  verification?: {
+    agent: AgentId;
+    reason: string;
+    expected?: string;
+    actual?: string;
+  }[];
+  /** milestone-tracking / session-logs */
+  recovery?: {
+    agent: AgentId;
+    dir: string;
+    fileCount: number;
+    mostRecent?: string;
+  }[];
+  /** feedback-loop-active / decisions-tracked */
+  freshness?: {
+    agent: AgentId;
+    fresh: number;
+    aging: number;
+    stale: number;
+  }[];
 }

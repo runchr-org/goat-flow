@@ -1,6 +1,32 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-12
+last_reviewed: 2026-05-20
+---
+
+## Lesson: Cache-behaviour tests need observable contracts
+
+**Status:** active | **Created:** 2026-05-20
+
+**What happened:** While replacing a flaky Quality cache timing assertion, my first counter-based test tried to observe deny-hook self-test executions by monkeypatching `child_process.execFileSync`. The route path imports `execFileSync` as a named binding before the test patch, so the counter stayed at zero and the focused dashboard integration test failed even though the product behavior was the target.
+
+**Root cause:** I swapped a timing smell for an implementation-observation smell. Imported Node builtins and transitive helpers are not a reliable public signal for cache behavior.
+
+**Prevention:** For server cache behavior, expose a narrow response/debug contract or inject an explicit dependency, then assert that contract at the route boundary. Avoid timing ratios and late monkeypatches of already-imported helpers. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `getOrRunQualityAudit`), `test/integration/dashboard-server.test.ts` (search: `reuses cached quality audits unless fresh=true is requested`), `src/cli/audit/check-agent-setup.ts` (search: `import { execFileSync }`).
+
+---
+
+## Lesson: Reference-pack wording fixes must check word budget immediately
+
+**Status:** active | **Created:** 2026-05-19
+
+**What happened:** While replacing vague `correctly` success criteria in the skill-quality TDD table, my first wording pushed `workflow/skills/playbooks/skill-quality-testing/tdd-iteration.md` to 3022 words, then a partial trim still failed at 3008 words. The ADR-023 contract caught both failures before the change could ship.
+
+**Root cause:** I treated a content-lint cleanup as a tiny prose edit and did not account for the progressive reference-pack word cap before verification.
+
+**Prevention:** For topical files under `skill-quality-testing/`, make table criteria terse first and run `node --import tsx --test test/contract/skill-hardening-contracts.test.ts` immediately after wording edits. Evidence anchors: `test/contract/skill-hardening-contracts.test.ts` (search: `progressive reference packs stay within the 3000-word cap per file`), `workflow/skills/playbooks/skill-quality-testing/tdd-iteration.md` (search: `Expected outcome in new scenario`).
+
+**Recurrence 2026-05-20:** Shared-reference wording hit the same trap when `skill-preamble.md` exceeded the 1500-word cap before focused contract verification caught it. Check enforced caps immediately after shared prose edits. Evidence anchor: `test/contract/skill-hardening-contracts.test.ts` (search: `always-loaded shared references stay within the 1500-word cap`).
+
 ---
 
 ## Lesson: Browser terminal fixes need live runner proof, not just timer-unit proof
@@ -30,6 +56,8 @@ last_reviewed: 2026-05-12
 **Prevention:** After changing source-grep tests for dashboard classic scripts, run Prettier before the focused test rerun. If a regex only protects structure, make whitespace flexible enough for formatter reflow or use a small VM helper test instead.
 
 **Recurrence 2026-05-12:** While self-hosting xterm assets, `test/integration/dashboard-server.test.ts` fetched `/assets/xterm.js` successfully but failed because the assertion looked for `XTerm`, a string not present in the minified upstream bundle. The route was correct; the test anchor was wrong. For vendored/minified assets, assert route status/content type and stable feature strings observed in the actual bundle, such as `bracketedPasteMode`, not package names or branding text.
+
+**Recurrence 2026-05-16:** While moving setup instruction surfaces into manifest-backed agent capabilities, full `npm test` failed because `test/unit/preset-prompts.test.ts` still asserted literal `CLAUDE.md, .claude/settings.json` strings in `dashboard-setup-quality.ts`. The product change was correct; the test had become a stale parallel authority. For manifest-backed refactors, update source-grep tests to assert the data boundary (`workflow/manifest.json` plus injected fields) instead of the old duplicated literals.
 
 ---
 
@@ -96,6 +124,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Fix:** For parser refactors, verify in this order: (1) print/exercise the extracted intermediate values, (2) run the focused regression suite, (3) run `npx tsc --noEmit`, then (4) run the full test suite. Heuristics should match behavior patterns like `grep ... | while read ... [ ! -e ]`, not just keywords in step names.
 
 ---
+
 ## Lesson: Rubric honesty changes need both in-memory and disk-backed fixture sync
 
 **Status:** historical | **Created:** 2026-04-03 | **Reason:** Rubric/scanner system removed per ADR-013; specific check IDs no longer exist
@@ -105,6 +134,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Fix:** Whenever a rubric check changes semantics, verify in this order: (1) focused in-memory regression, (2) disk-backed fixture corpus, (3) full suite. Search for the check ID in `test/fixtures/` before treating the change as complete.
 
 ---
+
 ## Lesson: New blocking checks can break passing fixtures even when the scanner is correct
 
 **Status:** historical | **Created:** 2026-04-03 | **Reason:** Scanner/rubric system removed per ADR-013
@@ -114,11 +144,12 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Fix:** When adding a new required check, audit both failure fixtures and passing baselines. For rubric changes, verify in this order: (1) focused regression, (2) disk-backed passing fixtures, (3) disk-backed failing fixtures, (4) full suite. If a positive fixture drops, update the fixture input first, not the expected score.
 
 ---
+
 ## Lesson: Regressions caught too late - tests run at milestone granularity, not edit granularity
 
 **Status:** active | **Created:** 2026-04-05
 
-**What happened:** Claude Insights reported 68 buggy-code friction events across 112 sessions (61% of sessions had at least one). The `/goat-qa` skill generates test plans after implementation, and `stop-lint.sh` runs linting after every turn, but neither catches logic regressions mid-implementation. Tests only run when the user explicitly asks or when a milestone completes. Regressions introduced in turn 3 of a 10-turn implementation aren't caught until the end, when the debugging context is stale.
+**What happened:** Claude Insights reported 68 buggy-code friction events across 112 sessions (61% of sessions had at least one). The `/goat-qa` skill generates test plans after implementation, and `stop-lint.sh` used to run linting after every turn before its removal from goat-flow core per ADR-015, but neither caught logic regressions mid-implementation. Tests only run when the user explicitly asks or when a milestone completes. Regressions introduced in turn 3 of a 10-turn implementation aren't caught until the end, when the debugging context is stale.
 
 **Root cause:** The verification loop runs at the wrong granularity. Lint after every turn catches syntax. Tests after every milestone catch logic. The gap between these two is where regressions hide.
 
@@ -128,6 +159,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 3. For test-heavy projects (1000+ tests), a focused test subset (changed files only) avoids the full-suite penalty while still catching regressions early
 
 ---
+
 ## Lesson: `npm test -- <file>` can still run the full suite
 
 **Status:** active | **Created:** 2026-04-18
@@ -139,6 +171,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Fix:** For focused test verification in this repo, invoke the underlying command directly: `node --import tsx --test test/unit/quality-command.test.ts`. Reserve `npm test` for deliberate full-suite runs.
 
 ---
+
 ## Lesson: Semantic drift checks must normalize natural-language lists before claiming mismatch
 
 **Status:** active | **Created:** 2026-04-18
@@ -155,32 +188,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 3. Treat a new drift rule that immediately flags corrected docs as a checker bug until the parser is disproven.
 
 ---
-## Lesson: Untracked source-shadow files can poison lint, formatter, and drift gates together
 
-**Status:** active | **Created:** 2026-04-20
-
-**What happened:** A tiny Prompts view color tweak looked unrelated to the TypeScript gates, but the first verification rerun still failed preflight and the installer round-trip fixture. The real blocker was an untracked JavaScript shadow file sitting next to the canonical `src/cli/types.ts`. ESLint tried to parse the stray `.js` file against the TypeScript project config, Prettier treated it as a source file under `src/**/*.{ts,js,html}`, and the fixture cloned the same bad state into its temp repo.
-
-**Root cause:** A generated or accidental source-shadow file under `src/` can evade attention because typecheck and the visible diff for the requested change point elsewhere. The repo gates scan the filesystem, not just tracked TS files, so an untracked sibling output can contaminate lint/format/drift verification far away from the user-visible edit.
-
-**Fix:** Check `git status` and `git ls-files` when lint/prettier/fixture failures do not match the touched file. If the blocker is an untracked source-shadow file like `src/**/*.js` beside a canonical `src/**/*.ts`, delete it and rerun the exact failing gates.
-
-**Prevention:**
-1. When preflight suddenly fails with mixed ESLint + Prettier + drift-fixture errors after a small change, scan for untracked source-shadow files under `src/` before changing the requested code again.
-2. Treat `src/**/*.js` siblings of tracked `src/**/*.ts` files as suspicious unless the repo intentionally tracks them.
-
----
-## Lesson: Shared hook refactors need both hook-local proof and repo-wide preflight
-
-**Created:** 2026-04-21
-
-**What happened:** A `deny-dangerous.sh` hardening pass looked correct after the first edit, but the canonical self-test immediately failed because `BASH_REMATCH` was reused after a recursive `check_segment` call inside the new command-substitution helper. After fixing that, the hook copies all passed their own `--self-test`, yet full `bash scripts/preflight-checks.sh` still failed because `scripts/deny-dangerous.sh` is linted under the stricter repo-wide `shellcheck scripts/*.sh` profile, which does not exclude `SC2016` the way the hook-directory check does. The installer round-trip fixture failed for the same reason because it clones the current checkout before running temp-repo preflight.
-
-**Prevention:**
-1. In Bash regex helpers, copy `BASH_REMATCH[n]` into local variables before any recursive call or nested regex operation that can overwrite it.
-2. For shared hook templates, do not stop at `bash workflow/hooks/deny-dangerous.sh --self-test`; also rerun the repo-wide `shellcheck scripts/*.sh scripts/maintenance/*.sh` and full `bash scripts/preflight-checks.sh`, because `scripts/deny-dangerous.sh` and fixture clones exercise stricter paths than the hook directories.
-
----
 ## Lesson: Filtered manifest ids still need explicit indexed-lookup proof in TypeScript
 
 **Status:** active | **Created:** 2026-04-21
@@ -196,6 +204,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 2. When a helper signature or typed callback changes in a touched `.ts` file, include `prettier --check` or `prettier --write` in the focused verification pass before closeout.
 
 ---
+
 ## Lesson: Snapshot fixtures can carry metadata beyond the typed numeric contract
 
 **Status:** active | **Created:** 2026-04-24
@@ -211,6 +220,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 2. For historical compatibility tests, verify the required semantic fields and tolerate additive metadata unless the test is explicitly enforcing exact wire format.
 
 ---
+
 ## Lesson: Test suite must exercise the published invocation path
 
 **Status:** active | **Created:** 2026-04-24
@@ -224,6 +234,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 2. When modifying the entry-point guard or anything that controls whether `main()` runs, verify via symlink invocation, not just direct `node dist/cli/cli.js`.
 
 ---
+
 ## Lesson: Source-mode CLI proof does not refresh the package binary
 
 **Status:** active | **Created:** 2026-04-27
@@ -237,6 +248,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 2. If source-mode and `npx` results disagree, check `dist/` freshness before changing the business logic again.
 
 ---
+
 ## Lesson: deny-dangerous self-test needs no-space redirect and false-positive probes
 
 **Status:** active | **Created:** 2026-04-24
@@ -252,6 +264,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 2. Do not treat `--self-test` as sufficient evidence for shell parsing changes until it includes the exact reproduction strings that originally demonstrated the bug.
 
 ---
+
 ## Lesson: Shell metacharacters in verification searches can corrupt source files
 
 **Status:** active | **Created:** 2026-04-26
@@ -264,6 +277,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 
 ---
 ---
+
 ## Lesson: Contract tests pin doctrine wording and path semantics
 
 **Status:** active | **Created:** 2026-04-25
@@ -271,6 +285,8 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **What happened:** While removing one forbidden phrase and changing dashboard quality report ownership, the first full `npm test` run failed two contract-style checks: `test/contract/skill-hardening-contracts.test.ts` still required the established "hardening debt" evidence language, and `test/unit/preset-prompts.test.ts` still asserted the old relative quality-report path message.
 
 **Root cause:** I treated wording cleanup and path-semantics changes as local edits, but these surfaces are intentionally pinned by tests because agents consume the exact phrasing.
+
+**Recurrence 2026-05-17:** During M10 path validation hardening, the first full `npm test` run caught `test/smoke/dashboard-endpoints.test.ts` still asserting the old `Invalid project path` terminal error wording after `validateProjectPath` moved to the shared `LocalPathValidationError` contract. Evidence anchors: `src/cli/server/local-paths.ts` (search: `Local path validation failed`), `test/smoke/dashboard-endpoints.test.ts` (search: `rejects missing and file project paths before PTY launch`).
 
 **Prevention:** Before broad prose or prompt wording changes, search tests for the exact phrase and adjacent command text. If the product semantics are changing, update the contract test in the same edit; if the test protects unrelated established doctrine, keep that phrase intact.
 
@@ -291,6 +307,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 2. Treat a plain-Node `ERR_MODULE_NOT_FOUND` on source `.js` specifiers as a likely invocation-path problem until the `tsx`-loaded run fails too.
 
 ---
+
 ## Lesson: Split transient preflight test failures from task regressions
 
 **Status:** active | **Created:** 2026-04-26
@@ -302,6 +319,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** When preflight fails in the test phase after unrelated gate fixes, rerun the named failing test area and then the exact fast-suite command directly before changing task files again. The preflight wrapper now reruns `test:fast` once when the first test-phase attempt fails; a retry pass records a warning with the initial `not ok` lines instead of failing the whole gate. Report the split explicitly: which original gate was fixed, which direct test summary passed, and whether preflight isolated a transient first-run failure.
 
 ---
+
 ## Lesson: Serve local HTML over localhost for browser-use evidence
 
 **Status:** active | **Created:** 2026-04-27
@@ -313,6 +331,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** For local HTML/browser-use verification, serve the directory over localhost before opening the page. Treat `file://` empty DOM output as a verification-environment issue to rerun over HTTP before drawing conclusions. Evidence anchors: `workflow/skills/playbooks/browser-use.md` (search: `Local HTML shows an empty DOM`), `.goat-flow/skill-playbooks/browser-use.md` (search: `serve the directory over localhost`).
 
 ---
+
 ## Lesson: Browser-use installer smoke must exercise the wrapper path
 
 **Status:** active | **Created:** 2026-05-12
@@ -324,6 +343,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** Browser tooling installers must run a real wrapper-level smoke: `command -v browser-use`, `browser-use open` against a localhost-served page, a DOM/title read, and session cleanup. For root-run wrappers, set `IN_DOCKER=true` before `browser_use.config` imports so Chrome gets no-sandbox flags. Snapshot and reap browser-use daemon PIDs around `close`, because PID files may disappear before the process exits. Evidence anchors: `scripts/install-browser-tools.sh` (search: `browser-use uses IN_DOCKER`), `scripts/install-browser-tools.sh` (search: `Verifying browser-use CLI launches`), `scripts/install-browser-tools.sh` (search: `browser_use_kill_pid`).
 
 ---
+
 ## Lesson: Temp cleanup must satisfy destructive-command hooks
 
 **Status:** active | **Created:** 2026-05-08
@@ -335,6 +355,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** For verification scratch space, prefer non-recursive cleanup (`rm -f` known files, then `rmdir`) or an explicit literal temp path pattern that satisfies the hook. Do not combine validation and variable-scoped `rm -rf` in the same command.
 
 ---
+
 ## Lesson: Hook regex edits need syntax probes before self-test fanout
 
 **Status:** active | **Created:** 2026-04-27
@@ -346,6 +367,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `scripts/deny-dangerous.sh` (search: `normalize_time_prefix`), `scripts/deny-dangerous.self-test.sh` (search: `env chdir git push`), `test/unit/dashboard-setup-quality.test.ts` (search: `qualityHistoryRows.length`).
 
 ---
+
 ## Lesson: Stats fixtures need real files for line-reference assertions
 
 **Status:** active | **Created:** 2026-04-27
@@ -357,6 +379,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** In temp-repo stats fixtures, cite a file the fixture creates when asserting line-reference behavior. For this path, `.goat-flow/footguns/hooks.md` is created by the fixture and can carry both the bucket body and a self-reference. Evidence anchor: `test/integration/stats-command.test.ts` (search: `missing semantic anchor`).
 
 ---
+
 ## Lesson: Shared npm build scripts must avoid shell builtins on Windows
 
 **Status:** active | **Created:** 2026-04-29
@@ -380,6 +403,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Prevention:** Before editing `EXPECTED_RELEASE_SNAPSHOTS` or `workflow/manifest-snapshots/README.md`, read the matching versioned snapshot JSON files and copy their `snapshot_facts` values. Only update the current release snapshot after confirming the catalog/check change is intentionally part of that release. Evidence anchors: `test/unit/check-snapshot-claims.test.ts` (search: `EXPECTED_RELEASE_SNAPSHOTS`), `workflow/manifest-snapshots/v1.3.2.json` (search: `"checks_harness": 16`), `workflow/manifest-snapshots/v1.4.0.json` (search: `"presets_count": 26`).
 
 ---
+
 ## Lesson: Audit check tests should assert the public failure field
 
 **Status:** active | **Created:** 2026-05-06

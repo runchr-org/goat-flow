@@ -678,7 +678,7 @@ describe("checkDrift: installer round-trip fixture", () => {
       const preflight = runCommand(
         root,
         "bash",
-        ["scripts/preflight-checks.sh"],
+        ["scripts/preflight-checks.sh", "--verbose", "--no-color"],
         400000,
       );
       assert.equal(
@@ -686,7 +686,11 @@ describe("checkDrift: installer round-trip fixture", () => {
         0,
         `preflight should pass in temp round-trip repo:\n${preflight.output}`,
       );
-      assert.match(preflight.output, /PREFLIGHT PASSED/);
+      // Footer verdict line in the redesigned formatter (M-preflight-redesign).
+      assert.match(
+        preflight.output,
+        /^\s*PASS(?: \(with warnings\))?\s+\d+\s+checks/m,
+      );
       assert.match(
         preflight.output,
         /All installed skill files match workflow templates/,

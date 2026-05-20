@@ -4,7 +4,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig } from "../../src/cli/config/reader.js";
-import { getKnownAgentIds } from "../../src/cli/agents/registry.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
@@ -35,6 +34,8 @@ describe("config defaults when file is missing", () => {
     assert.equal(result.config.lineLimits.limit, 150);
     assert.equal(result.config.userRole, "developer");
     assert.deepStrictEqual(result.config.toolchain.test, []);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, false);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, []);
   });
 });
 
@@ -56,6 +57,61 @@ toolchain:
     assert.deepStrictEqual(result.config.toolchain.test, ["npm test"]);
     assert.deepStrictEqual(result.config.toolchain.lint, ["eslint ."]);
     assert.deepStrictEqual(result.config.toolchain.build, ["tsc"]);
+  });
+});
+
+describe("config merges learning-loop auto-capture policy", () => {
+  it("defaults automatic capture to disabled with no targets", () => {
+    const result = loadConfig("/tmp", configFS(null));
+    assert.equal(result.valid, true);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, false);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, []);
+  });
+
+  it("parses explicit automatic capture settings from YAML", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+learning-loop:
+  auto-capture:
+    enabled: true
+    targets:
+      - lessons
+      - footguns
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, true);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, true);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, [
+      "lessons",
+      "footguns",
+    ]);
+  });
+
+  it("fails closed when automatic capture config is malformed", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+learning-loop:
+  auto-capture:
+    enabled: "yes"
+    targets:
+      - quality-reports
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, false);
+    assert.equal(result.config.learningLoop.autoCapture.enabled, false);
+    assert.deepStrictEqual(result.config.learningLoop.autoCapture.targets, []);
+    assert.ok(
+      result.errors.some(
+        (error) => error.path === "learning-loop.auto-capture.enabled",
+      ),
+      JSON.stringify(result.errors),
+    );
+    assert.ok(
+      result.errors.some(
+        (error) => error.path === "learning-loop.auto-capture.targets[0]",
+      ),
+      JSON.stringify(result.errors),
+    );
   });
 });
 
@@ -117,22 +173,25 @@ skills:
   });
 });
 
-describe("config validates agent ids against the registry", () => {
-  it("errors with the manifest-backed supported-agent list", () => {
+describe("config ignores legacy agents field", () => {
+  it("does not let agents act as an audit allowlist", () => {
     const yaml = `
 version: "${AUDIT_VERSION}"
 agents:
   - cursor
+  - 42
+  - claude
 `;
     const result = loadConfig("/tmp", configFS(yaml));
-    assert.equal(result.valid, false);
+    assert.equal(result.valid, true);
+    assert.equal(result.config.agents, null);
+    assert.deepEqual(result.errors, []);
     assert.ok(
-      result.errors.some(
-        (error) =>
-          error.path === "agents[0]" &&
-          error.message.includes(getKnownAgentIds().join(", ")),
+      result.warnings.some(
+        (warning) =>
+          warning.path === "agents" && warning.message.includes("ignored"),
       ),
-      JSON.stringify(result.errors),
+      JSON.stringify(result.warnings),
     );
   });
 });
@@ -153,10 +212,7 @@ describe("config parse errors", () => {
 // M17-7: Config loading fails closed
 // ---------------------------------------------------------------------------
 describe("config fails closed on validation errors", () => {
-  it("returns defaults (not a partial merge) when agents array has bad element types", () => {
-    // A config with an invalid agents array must not leak the malformed
-    // shape through to downstream consumers. The merge layer used to silently
-    // forward non-string elements; M17-7 requires defaults on validation fail.
+  it("keeps defaults when legacy agents has bad element types", () => {
     const yaml = `
 version: "${AUDIT_VERSION}"
 agents:
@@ -165,18 +221,18 @@ agents:
   - "claude"
 `;
     const result = loadConfig("/tmp", configFS(yaml));
-    assert.equal(result.valid, false);
-    // Defaults have agents: null (auto-detect). The malformed array must NOT
-    // be passed through.
+    assert.equal(result.valid, true);
     assert.equal(
       result.config.agents,
       null,
-      "config.agents must be defaults (null) when validation fails, not the malformed array",
+      "legacy config.agents must not leak into downstream consumers",
     );
-    // Error detail should still be surfaced so callers can report it.
     assert.ok(
-      result.errors.some((e) => e.path.startsWith("agents[")),
-      `errors must name the failing element paths: ${JSON.stringify(result.errors)}`,
+      result.warnings.some(
+        (warning) =>
+          warning.path === "agents" && warning.message.includes("ignored"),
+      ),
+      JSON.stringify(result.warnings),
     );
   });
 

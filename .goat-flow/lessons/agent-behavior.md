@@ -1,6 +1,31 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-11
+last_reviewed: 2026-05-20
+---
+
+## Lesson: Agent parsed "use X to find Y" as "audit X for Y" when X was a CLI tool
+
+**Created:** 2026-05-20
+
+**What happened:** User in cwd `/home/devgoat/projects/goat-flow` asked: *"can u use /home/devgoat/projects/gruff-workspace/gruff-ts to try and find low quality tests"*. The agent interpreted this as "audit gruff-ts's own test file" and spent a multi-turn session reading `gruff-workspace/gruff-ts/src/cli.test.ts` (4270 lines), producing a 9-finding low-quality-test report, then drafting a milestone (`M35-gruff-ts-test-quality-fixes.md`) full of fixes to gruff-ts's test file. The user actually meant: *use gruff-ts (which is a "TypeScript project quality analyzer" CLI with `bin/gruff-ts`) to scan this repo's tests*. When the user asked for the milestone in `goat-flow/.goat-flow/tasks/1.7.0/`, the agent had a second chance to re-read the original request and didn't — instead it asked only about file location, not about which project was the tool and which was the target, then doubled down on the wrong interpretation through three more rounds (self-critique pass, full rewrite) until the user lost trust and stopped the work.
+
+**Root cause:** The agent parsed "use X to find Y" as "audit X for Y" without checking whether X was a tool or a target. Three signals were present and missed:
+
+1. **gruff-ts's package.json declares `"bin": { "gruff-ts": "./bin/gruff-ts" }`** and the README describes it as a "TypeScript project quality analyzer." This is a CLI tool, not a codebase to audit. "Use a CLI tool" almost always means "invoke it", not "audit its source."
+2. **The cwd was a different project** (`goat-flow`) than the path mentioned (`gruff-workspace/gruff-ts`). When a user working in project A references project B, the default reading should be "B is a tool/reference I'm pointing you to," not "switch your target to B." Switching project context mid-session is unusual; introducing a tool to apply to the current context is normal.
+3. **The disambiguation question the agent asked was the wrong question.** When the user said "milestone here", the agent asked *"which workspace?"* (a file-location question) instead of *"is gruff-ts the tool to run or the project to fix?"* (the semantic question). The user's answer ("goat-flow workspace") was consistent with both interpretations — but the agent took it as ratification of the original interpretation rather than a signal to re-read the request.
+
+**Why it matters:** Hours of work produced a milestone targeting the wrong repository. Worse, the agent's self-critique pass (which caught real formatting flaws in the milestone) created false confidence — "the doc is well-structured" masked "the doc is for the wrong project." The user explicitly stated they had lost trust in the agent's reading. A tool-vs-target misread is among the highest-cost interpretation errors because everything downstream — research, scoping, planning, writing — compounds on the wrong premise. The milestone format checks (anchors, sequencing, conventions) all came back green while the work was fundamentally misaimed.
+
+**Prevention:**
+
+1. **When a request names a path or project, classify it as TOOL or TARGET before doing any work.** Signals it is a TOOL: has `bin/` with executable; `package.json` declares `bin`; README/description uses words like "CLI", "analyzer", "linter", "tool", "checker"; lives outside the cwd. Signals it is a TARGET: is the cwd itself or a subpath of it; the request is about modifying, refactoring, or understanding it as code; no executable surface. **If both classifications are plausible, ASK before reading more than the README and `package.json`.**
+2. **Parse "use X to find/check/analyze/scan Y" as "invoke X against Y" by default when X is a CLI tool.** The verb "use" combined with a tool-shaped object means invocation, not audit. "Audit X" or "review X" or "find issues in X" mean the opposite — they target X.
+3. **Working directory is load-bearing context.** When cwd is project A and a request mentions project B, the default null hypothesis is "B is being introduced as a tool or reference for work in A." Switching the target to B requires explicit signal ("look at the tests in B and tell me what's wrong").
+4. **Disambiguation questions must target the semantic uncertainty, not the surface uncertainty.** "Which workspace for the milestone?" is a surface question (file path). "Is X the tool or the target?" is the semantic question. Ask the semantic question first; surface questions can be answered after the interpretation is locked in.
+5. **When a user provides clarification mid-task, re-read the original request before continuing.** Clarifications are evidence to re-evaluate the whole interpretation, not just to ratify the current direction. If the clarification is consistent with two readings, the agent has not actually disambiguated.
+6. **Self-critique passes verify form, not premise.** A milestone with correct anchors, sequencing, and conventions can still be aimed at the wrong project. Self-critique catches presentation bugs; it does not catch interpretation bugs. Before iterating on a doc's quality, sanity-check the doc's premise against the original request verbatim.
+
 ---
 
 ## Lesson: Agent cited gitignored content as evidence in committed docs
@@ -89,11 +114,13 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 ## Lesson: When deny hook blocks a command, use the unblocked equivalent
 
 **Created:** 2026-03-28
-**Updated:** 2026-05-01
+**Updated:** 2026-05-17
 
 **What happened:** Agent needed to delete `.github/skills/goat-onboard/` and `.github/skills/goat-reflect/` directories. Used `rm -rf` which was blocked by deny-dangerous.sh. Instead of using `rm file && rmdir dir` (which is not blocked), the agent asked the user to delete manually - wasting a round trip on something trivially solvable.
 
 **Repeat incident:** During CLI menu/install verification, the installer smoke command used `rm -rf "$tmp"` for temp cleanup and the deny hook blocked it. The corrected smoke used a fixed `/tmp/goat-flow-install-smoke-*` path, preserved the command status, and cleaned up with `rm -r "$tmp"` after verification.
+
+**Repeat incident 2026-05-17:** During release-blocker cleanup, an inline Node heredoc for mechanically splitting lesson buckets was blocked with `BLOCKED: Command has more than 50 chained segments`. The corrected path was to put the helper in `.goat-flow/scratchpad/split-lessons-release.mjs`, run it as a plain `node` file, and delete the temporary helper after the move.
 
 **Root cause:** Agent defaulted to `rm -rf` out of habit and treated the deny hook block as a dead end instead of thinking about alternatives for 2 seconds.
 **Fix:** When a command is blocked, think about the unblocked equivalent. `rm -rf dir/` → `rm dir/file && rmdir dir/`. `mv old new` → `mv -n old new`. The deny hook blocks dangerous patterns, not all file operations.
@@ -102,12 +129,13 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 ## Lesson: Installed skill files are not templates
 **Created:** 2026-04-04
+**Status:** historical | **Reason:** The scanner was removed per ADR-013; the installed-files-are-real-files lesson remains active.
 
-**What happened:** Scanner flagged AP18 (ADAPT comments in installed skills) causing a -2pt deduction on all 3 agents. Instead of fixing the installed files, the agent dismissed the failure as "expected for a template repo" and proposed suppressing AP18 when scanning the goat-flow repo. The user corrected this: `.claude/skills/`, `.agents/skills/`, `.github/skills/` are real project files that must pass the scanner at 100% - they are not templates. The templates live in `workflow/skills/` where ADAPT markers belong.
+**What happened:** The historical scanner system (removed per ADR-013) flagged AP18 (ADAPT comments in installed skills) causing a -2pt deduction on all 3 agents. Instead of fixing the installed files, the agent dismissed the failure as "expected for a template repo" and proposed suppressing AP18 when scanning the goat-flow repo. The user corrected this: `.claude/skills/`, `.agents/skills/`, `.github/skills/` are real project files that must pass the relevant installed-artifact checks - they are not templates. The templates live in `workflow/skills/` where ADAPT markers belong.
 
-**Why it matters:** The entire point of the scanner is to validate installed files. Dismissing scanner failures on installed files undermines the tool's purpose. The distinction between template source (`workflow/skills/`) and installed copies (`.claude/skills/`, `.agents/skills/`, `.github/skills/`) is fundamental to goat-flow's architecture.
+**Why it matters:** The historical scanner was removed per ADR-013, but the distinction between template source (`workflow/skills/`) and installed copies (`.claude/skills/`, `.agents/skills/`, `.github/skills/`) is still fundamental to goat-flow's architecture. Dismissing installed-artifact failures as template noise undermines the current audit/drift checks the same way it undermined the old scanner.
 
-**Prevention:** Never dismiss scanner failures on installed skill files as "expected." If the scanner flags something in `.claude/skills/`, `.agents/skills/`, or `.github/skills/`, fix it. Only `workflow/skills/` (the distribution templates) should have ADAPT markers. When the scanner reports a deduction, the default response is "fix the file" not "suppress the check."
+**Prevention:** Never dismiss historical scanner failures or current audit/drift findings on installed skill files as "expected." If a check flags something in `.claude/skills/`, `.agents/skills/`, or `.github/skills/`, fix the installed artifact. Only `workflow/skills/` (the distribution templates) should have ADAPT markers. The default response is "fix the file" not "suppress the check."
 
 ---
 
@@ -124,13 +152,13 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 ---
 
-## Lesson: Scanner 100% does not mean the project is correct
+## Lesson: Structural audit pass does not mean the project is correct
 
 **Created:** 2026-03-31
 
-**What happened:** goat-flow scored 100% on its own scanner while preflight-checks.sh failed with 8 errors. Scanner checked structural presence (files exist, have right headings). Preflight checked functional correctness (commands work, paths resolve, versions match).
+**What happened:** goat-flow historically scored 100% on its own scanner system (removed per ADR-013) while `preflight-checks.sh` failed with 8 errors. The scanner checked structural presence (files exist, have right headings). Preflight checked functional correctness (commands work, paths resolve, versions match).
 
-**Prevention:** Don't treat scanner score as a quality gate for the whole project. Use it for what it checks (structure) and preflight for what it checks (function). When they disagree, investigate.
+**Prevention:** Don't treat a structural audit/check pass as a quality gate for the whole project. Use structural checks for what they cover and preflight/targeted verification for functional correctness. When they disagree, investigate.
 
 ---
 

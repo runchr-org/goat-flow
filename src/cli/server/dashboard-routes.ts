@@ -5,8 +5,8 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -20,7 +20,6 @@ import {
   getAgentProfiles,
   getKnownAgentIds,
 } from "../agents/registry.js";
-import { detectAgents as detectConfiguredAgents } from "../detect/agents.js";
 import { createFS } from "../facts/fs.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
 import { extractSharedFacts } from "../facts/shared/index.js";
@@ -49,15 +48,47 @@ import {
 } from "../quality/quality-config.js";
 import { composeArtifactQualityPrompt } from "../prompt/compose-quality.js";
 import { buildStatsReport, checkStats } from "../stats/stats.js";
+import {
+  recordEvidenceEvent,
+  type EvidenceEventKind,
+  type EvidencePayload,
+} from "../evidence/envelope.js";
+import { redactEvidenceText } from "../evidence/redaction.js";
+import {
+  LocalPathValidationError,
+  resolveLocalStatePath,
+  validateLocalPath,
+  type LocalPathPurpose,
+} from "./local-paths.js";
 
 const KNOWN_AGENT_IDS = getKnownAgentIds();
 const KNOWN_AGENT_LIST = KNOWN_AGENT_IDS.join(", ");
 const AGENT_PROFILE_MAP = getAgentProfileMap();
 const AGENT_PROFILES = getAgentProfiles();
-const SUPPORTED_AGENTS = AGENT_PROFILES.map(({ id, name }) => ({ id, name }));
+const SUPPORTED_AGENTS = AGENT_PROFILES.map(
+  ({
+    id,
+    name,
+    terminalBinary,
+    setupSurfaces,
+    promptInvocationStyle,
+    skillSource,
+    supportsPostTurnHook,
+  }) => ({
+    id,
+    name,
+    terminalBinary,
+    setupSurfaces,
+    promptInvocationStyle,
+    skillSource,
+    supportsPostTurnHook,
+  }),
+);
 const VALID_AGENTS = new Set<string>(KNOWN_AGENT_IDS);
 const VALID_QUALITY_MODES = new Set<string>(QUALITY_MODES);
 const QUALITY_EVALUATE_MAX_BODY_BYTES = MAX_EVALUATE_CONTENT_BYTES + 64 * 1024;
+
+type QualityAuditCacheStatus = "hit" | "miss" | "bypass";
 
 interface DashboardPresetData {
   id: string;
@@ -67,10 +98,55 @@ interface DashboardPresetData {
   cat: string;
 }
 
+type ProjectIdentitySource = "git-remote" | "goat-marker" | "path";
+
+interface DashboardProjectIdentity {
+  identity: string;
+  identitySource: ProjectIdentitySource;
+  currentPath: string;
+  remoteUrlHash?: string;
+  markerId?: string;
+}
+
+interface DashboardProjectRecord extends DashboardProjectIdentity {
+  paths: string[];
+  title?: string;
+}
+
 interface DashboardStateData {
   paths: string[];
   favorites: string[];
   projectTitles: Record<string, string>;
+  projects: Record<string, DashboardProjectRecord>;
+}
+
+interface DashboardTaskMilestoneSummary {
+  filename: string;
+  path: string;
+  title: string;
+  status: string;
+  objective: string;
+  totalTasks: number;
+  completedTasks: number;
+  modifiedAt: string;
+}
+
+interface DashboardTaskPlanSummary {
+  name: string;
+  path: string;
+  modifiedAt: string;
+  milestoneCount: number;
+  active: boolean;
+}
+
+interface DashboardTaskState {
+  taskRoot: string;
+  exists: boolean;
+  active: string | null;
+  activeExists: boolean;
+  selectedPlan: string | null;
+  plans: DashboardTaskPlanSummary[];
+  milestones: DashboardTaskMilestoneSummary[];
 }
 
 interface LatestQualitySummary {
@@ -85,6 +161,13 @@ interface LatestQualitySummary {
   minorCount: number;
   evidenceMethods: string[];
   scope: string | null;
+}
+
+interface QualityRequestParams {
+  agent: AgentId;
+  qualityMode: QualityMode;
+  fresh: boolean;
+  fast: boolean;
 }
 
 interface RecentLessonSummary {
@@ -203,32 +286,237 @@ function parseQualityModeParam(param: string | null): QualityMode | null {
   return VALID_QUALITY_MODES.has(param) ? (param as QualityMode) : null;
 }
 
+function statOrNull(path: string) {
+  try {
+    return statSync(path);
+  } catch {
+    return null;
+  }
+}
+
+function readOptionalTextFile(path: string): string | null {
+  try {
+    return readFileSync(path, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+function listTaskMilestoneFilenames(planPath: string): string[] {
+  try {
+    return readdirSync(planPath, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^M.*\.md$/iu.test(entry.name))
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  } catch {
+    return [];
+  }
+}
+
+function readMarkdownField(
+  content: string,
+  pattern: RegExp,
+  fallback: string,
+): string {
+  return content.match(pattern)?.[1]?.trim() || fallback;
+}
+
+function readTaskProgress(content: string): {
+  totalTasks: number;
+  completedTasks: number;
+} {
+  const taskMatches = Array.from(content.matchAll(/^\s*-\s+\[( |x|X)\]/gmu));
+  return {
+    totalTasks: taskMatches.length,
+    completedTasks: taskMatches.filter(
+      (match) => match[1]?.toLowerCase() === "x",
+    ).length,
+  };
+}
+
+function parseTaskMilestone(
+  planPath: string,
+  filename: string,
+): DashboardTaskMilestoneSummary {
+  const path = join(planPath, filename);
+  const content = readOptionalTextFile(path) ?? "";
+  const modifiedAt = statOrNull(path)?.mtime.toISOString() ?? "";
+  const progress = readTaskProgress(content);
+  return {
+    filename,
+    path,
+    title: readMarkdownField(content, /^#\s+(.+)$/mu, filename),
+    status: readMarkdownField(content, /^\*\*Status:\*\*\s*(.+)$/mu, "unknown"),
+    objective: readMarkdownField(content, /^\*\*Objective:\*\*\s*(.+)$/mu, ""),
+    totalTasks: progress.totalTasks,
+    completedTasks: progress.completedTasks,
+    modifiedAt,
+  };
+}
+
+function buildTaskPlanSummary(
+  taskRoot: string,
+  name: string,
+  active: string | null,
+): DashboardTaskPlanSummary {
+  const planPath = join(taskRoot, name);
+  const milestoneFilenames = listTaskMilestoneFilenames(planPath);
+  const newestMilestoneTime = milestoneFilenames.reduce<number | null>(
+    (newest, filename) => {
+      const mtime = statOrNull(join(planPath, filename))?.mtime.getTime();
+      if (mtime === undefined) return newest;
+      return newest === null ? mtime : Math.max(newest, mtime);
+    },
+    null,
+  );
+  const planMtime = statOrNull(planPath)?.mtime.getTime() ?? 0;
+  const modifiedAt = new Date(newestMilestoneTime ?? planMtime).toISOString();
+  return {
+    name,
+    path: planPath,
+    modifiedAt,
+    milestoneCount: milestoneFilenames.length,
+    active: active === name,
+  };
+}
+
+function listTaskPlanNames(taskRoot: string): string[] {
+  return readdirSync(taskRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+    .map((entry) => entry.name);
+}
+
+function emptyDashboardTaskState(
+  taskRoot: string,
+  active: string | null,
+): DashboardTaskState {
+  return {
+    taskRoot,
+    exists: false,
+    active,
+    activeExists: false,
+    selectedPlan: null,
+    plans: [],
+    milestones: [],
+  };
+}
+
+function selectDashboardTaskPlan(
+  requestedPlan: string | null,
+  active: string | null,
+  activeExists: boolean,
+  plans: DashboardTaskPlanSummary[],
+): string | null {
+  const requestedExists = plans.some((plan) => plan.name === requestedPlan);
+  if (requestedPlan && requestedExists) return requestedPlan;
+  if (activeExists) return active;
+  return plans[0]?.name ?? null;
+}
+
+function buildDashboardTaskState(
+  projectPath: string,
+  requestedPlan: string | null,
+): DashboardTaskState {
+  const taskRoot = resolveLocalStatePath(projectPath, "tasks");
+  const taskRootStats = statOrNull(taskRoot);
+  const active =
+    readOptionalTextFile(join(taskRoot, ".active"))?.trim() || null;
+  if (!taskRootStats?.isDirectory()) {
+    return emptyDashboardTaskState(taskRoot, active);
+  }
+
+  const planNames = listTaskPlanNames(taskRoot);
+  const plans = planNames
+    .map((name) => buildTaskPlanSummary(taskRoot, name, active))
+    .sort((a, b) => {
+      const byMtime =
+        new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+      return byMtime !== 0 ? byMtime : a.name.localeCompare(b.name);
+    });
+  const activeExists = Boolean(
+    active && plans.some((plan) => plan.name === active),
+  );
+  const selectedPlan = selectDashboardTaskPlan(
+    requestedPlan,
+    active,
+    activeExists,
+    plans,
+  );
+  const selectedPlanPath = selectedPlan ? join(taskRoot, selectedPlan) : null;
+  const milestones = selectedPlanPath
+    ? listTaskMilestoneFilenames(selectedPlanPath).map((filename) =>
+        parseTaskMilestone(selectedPlanPath, filename),
+      )
+    : [];
+
+  return {
+    taskRoot,
+    exists: true,
+    active,
+    activeExists,
+    selectedPlan,
+    plans,
+    milestones,
+  };
+}
+
+function parseJsonObjectBody(body: string): Record<string, unknown> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new Error("Request body must be valid JSON");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Request body must be a JSON object");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function assertTopLevelPlanName(planName: string): void {
+  if (
+    planName === "." ||
+    planName === ".." ||
+    planName.includes("/") ||
+    planName.includes("\\") ||
+    planName.startsWith(".")
+  ) {
+    throw new Error("body.plan must name a top-level task plan directory");
+  }
+}
+
+function readActiveTaskPlanBody(body: string): string {
+  const parsed = parseJsonObjectBody(body);
+  const plan = parsed["plan"];
+  if (typeof plan !== "string" || plan.trim().length === 0) {
+    throw new Error("body.plan must be a non-empty string");
+  }
+  const normalized = plan.trim();
+  assertTopLevelPlanName(normalized);
+  return normalized;
+}
+
+function writeActiveTaskPlan(projectPath: string, planName: string): void {
+  const taskRoot = resolveLocalStatePath(projectPath, "tasks");
+  const taskRootStats = statOrNull(taskRoot);
+  if (!taskRootStats?.isDirectory()) {
+    throw new Error(".goat-flow/tasks does not exist for the selected project");
+  }
+  const planNames = listTaskPlanNames(taskRoot);
+  if (!planNames.includes(planName)) {
+    throw new Error(`task plan not found: ${planName}`);
+  }
+  writeFileSync(
+    resolveLocalStatePath(projectPath, "tasks/.active"),
+    `${planName}\n`,
+  );
+}
+
 /** Resolve the managed agent list for dashboard aggregate audits. */
 function resolveDashboardManagedAgentIds(
-  projectPath: string,
-  fs: ReturnType<typeof createFS>,
   agentFilter: AgentId | null,
 ): AgentId[] {
-  let ids: AgentId[];
-  const configState = loadConfig(projectPath, fs);
-  if (
-    configState.exists &&
-    configState.valid &&
-    configState.config.agents !== null
-  ) {
-    const seen = new Set<AgentId>();
-    ids = configState.config.agents.filter((id): id is AgentId => {
-      if (!VALID_AGENTS.has(id) || seen.has(id as AgentId)) return false;
-      seen.add(id as AgentId);
-      return true;
-    });
-  } else {
-    ids = detectConfiguredAgents(fs).map((agent) => agent.id);
-  }
-  if (agentFilter !== null && !ids.includes(agentFilter)) {
-    ids.push(agentFilter);
-  }
-  return ids;
+  return agentFilter === null ? [...KNOWN_AGENT_IDS] : [agentFilter];
 }
 
 /** Build the latest quality summary. */
@@ -468,6 +756,173 @@ function hashString(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+const PROJECT_ID_COMMENT =
+  "# Local goat-flow dashboard project identity. Gitignored by default.";
+
+function identitySourceFrom(value: unknown): ProjectIdentitySource | null {
+  return value === "git-remote" || value === "goat-marker" || value === "path"
+    ? value
+    : null;
+}
+
+function dedupeStrings(values: string[]): string[] {
+  const result: string[] = [];
+  for (const value of values) {
+    if (value && !result.includes(value)) result.push(value);
+  }
+  return result;
+}
+
+function normalizeProjectPath(projectPath: string): string {
+  const resolved = resolve(projectPath);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+function directoryExists(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function cleanRemotePath(host: string | undefined, path: string | undefined) {
+  const remotePath = path?.replace(/^\/+/u, "");
+  if (!host || !remotePath) return null;
+  return `${host.toLowerCase()}/${remotePath}`
+    .replace(/\.git$/u, "")
+    .replace(/\/+$/u, "");
+}
+
+function normalizeScpLikeRemote(trimmed: string): string | null {
+  const scpLike = trimmed.match(/^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/u);
+  if (!scpLike || trimmed.includes("://")) return null;
+  return cleanRemotePath(scpLike[1], scpLike[2]);
+}
+
+function normalizeUrlRemote(trimmed: string): string | null {
+  try {
+    const parsed = new URL(trimmed);
+    return cleanRemotePath(parsed.hostname, parsed.pathname);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeGitRemoteUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return (
+    normalizeScpLikeRemote(trimmed) ??
+    normalizeUrlRemote(trimmed) ??
+    trimmed.replace(/\.git$/u, "").replace(/\/+$/u, "")
+  );
+}
+
+function readGitRemote(projectPath: string): string | null {
+  try {
+    const output = execFileSync(
+      "git",
+      ["-C", projectPath, "config", "--get", "remote.origin.url"],
+      {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 1000,
+      },
+    );
+    return typeof output === "string" ? output.trim() : String(output).trim();
+  } catch {
+    return null;
+  }
+}
+
+function readProjectMarkerId(markerPath: string): string | null {
+  try {
+    const raw = readFileSync(markerPath, "utf-8");
+    for (const line of raw.split(/\r?\n/u)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      return trimmed;
+    }
+  } catch {
+    /* missing or unreadable marker */
+  }
+  return null;
+}
+
+function writeProjectMarkerId(markerPath: string): string | null {
+  try {
+    const markerId = `gf_${randomUUID()}`;
+    writeFileSync(markerPath, `${PROJECT_ID_COMMENT}\n${markerId}\n`, {
+      encoding: "utf-8",
+    });
+    return markerId;
+  } catch {
+    return null;
+  }
+}
+
+function resolveGitRemoteIdentity(
+  currentPath: string,
+): DashboardProjectIdentity | null {
+  const normalizedRemote = normalizeGitRemoteUrl(
+    readGitRemote(currentPath) ?? "",
+  );
+  if (!normalizedRemote) return null;
+  const remoteUrlHash = hashString(normalizedRemote);
+  return {
+    identity: `git-remote:${remoteUrlHash}`,
+    identitySource: "git-remote",
+    currentPath,
+    remoteUrlHash,
+  };
+}
+
+function resolveMarkerIdentity(
+  currentPath: string,
+  allowMarkerWrite: boolean,
+): DashboardProjectIdentity | null {
+  const goatFlowDir = join(currentPath, ".goat-flow");
+  if (!directoryExists(goatFlowDir)) return null;
+  let markerPath: string | null = null;
+  try {
+    markerPath = resolveLocalStatePath(currentPath, "project-id");
+  } catch (err) {
+    if (allowMarkerWrite) throw err;
+  }
+  const markerId =
+    markerPath === null
+      ? null
+      : (readProjectMarkerId(markerPath) ??
+        (allowMarkerWrite ? writeProjectMarkerId(markerPath) : null));
+  if (!markerId) return null;
+  return {
+    identity: `goat-marker:${markerId}`,
+    identitySource: "goat-marker",
+    currentPath,
+    markerId,
+  };
+}
+
+function resolveProjectIdentity(
+  projectPath: string,
+  options: { allowMarkerWrite?: boolean } = {},
+): DashboardProjectIdentity {
+  const currentPath = normalizeProjectPath(projectPath);
+  return (
+    resolveGitRemoteIdentity(currentPath) ??
+    resolveMarkerIdentity(currentPath, options.allowMarkerWrite === true) ?? {
+      identity: `path:${currentPath}`,
+      identitySource: "path",
+      currentPath,
+    }
+  );
+}
+
 function hashExistingFile(projectPath: string, relativePath: string): string {
   try {
     return hashString(readFileSync(join(projectPath, relativePath), "utf-8"));
@@ -649,6 +1104,8 @@ function buildDashboardReport(
         agent: pa.audit.scopes.agent,
         harness: pa.audit.scopes.harness,
         concerns: pa.audit.concerns,
+        enforcement:
+          pa.audit.enforcement.find((entry) => entry.agent === pa.id) ?? null,
       };
     }),
     status: auditRpt.status,
@@ -682,7 +1139,7 @@ interface AuditCacheEnvelope {
 function readConfigVersion(projectPath: string): string | null {
   try {
     const raw = readFileSync(
-      join(projectPath, ".goat-flow", "config.yaml"),
+      resolveLocalStatePath(projectPath, "config.yaml"),
       "utf-8",
     );
     const match = raw.match(/^version:\s*["']?([^\s"']+)["']?\s*$/m);
@@ -736,7 +1193,7 @@ function readAuditCache(
 ): { report: DashboardReport; cachedAt: string } | null {
   try {
     const raw = readFileSync(
-      join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
+      resolveLocalStatePath(projectPath, AUDIT_CACHE_FILE),
       "utf-8",
     );
     const envelope = parseAuditCacheEnvelope(raw);
@@ -770,7 +1227,7 @@ function writeAuditCache(
       report,
     };
     writeFileSync(
-      join(projectPath, ".goat-flow", AUDIT_CACHE_FILE),
+      resolveLocalStatePath(projectPath, AUDIT_CACHE_FILE),
       JSON.stringify(envelope),
     );
   } catch {
@@ -814,6 +1271,11 @@ export function createDashboardRouteHandlers(
     res: ServerResponse,
   ) => Promise<boolean>;
   handleBrowseRequest: (url: URL, res: ServerResponse) => boolean;
+  handleTasksRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
   handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
   handleProjectsListRequest: (
     req: IncomingMessage,
@@ -832,14 +1294,12 @@ export function createDashboardRouteHandlers(
     jsonResponse,
     readBody,
   } = deps;
-  const dashboardStateFile = join(
+  const dashboardStateFile = resolveLocalStatePath(
     absDefault,
-    ".goat-flow",
     "dashboard-state.json",
   );
-  const legacyProjectsListFile = join(
+  const legacyProjectsListFile = resolveLocalStatePath(
     absDefault,
-    ".goat-flow",
     "dashboard-projects.json",
   );
   const qualityAuditCache = new Map<
@@ -849,6 +1309,20 @@ export function createDashboardRouteHandlers(
       cachedAt: number;
     }
   >();
+
+  function recordDashboardEvent(
+    projectPath: string,
+    eventKind: EvidenceEventKind,
+    payload?: EvidencePayload,
+  ): void {
+    recordEvidenceEvent({
+      producer: "dashboard-session-trace",
+      actor: "server",
+      eventKind,
+      projectPath,
+      payload,
+    });
+  }
 
   function readQualityAuditCache(
     projectPath: string,
@@ -878,9 +1352,12 @@ export function createDashboardRouteHandlers(
     });
   }
 
-  /** Resolve a user-supplied path to an absolute path. */
-  function safeResolvePath(raw: string | null): string {
-    return resolve(raw || absDefault);
+  /** Validate a user-supplied local directory path for the requested operation. */
+  function validatedPath(
+    raw: string | null,
+    purpose: LocalPathPurpose,
+  ): string {
+    return validateLocalPath(raw || absDefault, purpose).path;
   }
 
   /** Read one optional string array property from a parsed dashboard state file. */
@@ -916,6 +1393,144 @@ export function createDashboardRouteHandlers(
     return result;
   }
 
+  function normalizeProjectRecordPaths(record: Record<string, unknown>) {
+    const paths = Array.isArray(record.paths)
+      ? record.paths
+          .filter((entry): entry is string => typeof entry === "string")
+          .map((entry) => normalizeProjectPath(entry))
+      : [];
+    return paths;
+  }
+
+  function readRecordString(
+    record: Record<string, unknown>,
+    key: string,
+  ): string | null {
+    const value = record[key];
+    return typeof value === "string" && value.length > 0 ? value : null;
+  }
+
+  function applyOptionalProjectRecordFields(
+    normalized: DashboardProjectRecord,
+    record: Record<string, unknown>,
+  ): void {
+    const remoteUrlHash = readRecordString(record, "remoteUrlHash");
+    const markerId = readRecordString(record, "markerId");
+    const title = readRecordString(record, "title")?.trim();
+    if (remoteUrlHash) normalized.remoteUrlHash = remoteUrlHash;
+    if (markerId) normalized.markerId = markerId;
+    if (title) normalized.title = title.slice(0, 120);
+  }
+
+  function normalizeDashboardProjectRecord(
+    identity: string,
+    value: unknown,
+  ): DashboardProjectRecord | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return null;
+    }
+    const record = value as Record<string, unknown>;
+    const identityValue = readRecordString(record, "identity") ?? identity;
+    const identitySource = identitySourceFrom(record.identitySource);
+    const currentPath = readRecordString(record, "currentPath");
+    if (!identityValue || !identitySource || !currentPath) return null;
+
+    const normalized: DashboardProjectRecord = {
+      identity: identityValue,
+      identitySource,
+      currentPath: normalizeProjectPath(currentPath),
+      paths: dedupeStrings([
+        normalizeProjectPath(currentPath),
+        ...normalizeProjectRecordPaths(record),
+      ]),
+    };
+    applyOptionalProjectRecordFields(normalized, record);
+    return normalized;
+  }
+
+  function readOptionalProjectRecordsProperty(
+    value: Record<string, unknown>,
+  ): Record<string, DashboardProjectRecord> {
+    const raw = value.projects;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const records: Record<string, DashboardProjectRecord> = {};
+    for (const [identity, record] of Object.entries(raw)) {
+      const normalized = normalizeDashboardProjectRecord(identity, record);
+      if (normalized) records[normalized.identity] = normalized;
+    }
+    return records;
+  }
+
+  function addProjectRecord(
+    records: Map<string, DashboardProjectRecord>,
+    next: DashboardProjectRecord,
+  ): void {
+    const existing = records.get(next.identity);
+    if (!existing) {
+      records.set(next.identity, {
+        ...next,
+        paths: dedupeStrings(next.paths),
+      });
+      return;
+    }
+    records.set(next.identity, {
+      ...existing,
+      currentPath: next.currentPath,
+      paths: dedupeStrings([...existing.paths, ...next.paths]),
+      title: next.title ?? existing.title,
+      remoteUrlHash: next.remoteUrlHash ?? existing.remoteUrlHash,
+      markerId: next.markerId ?? existing.markerId,
+    });
+  }
+
+  function hydrateDashboardState(
+    state: DashboardStateData,
+    options: { allowMarkerWrite: boolean },
+  ): DashboardStateData {
+    const records = new Map<string, DashboardProjectRecord>();
+    for (const record of Object.values(state.projects)) {
+      addProjectRecord(records, record);
+    }
+
+    for (const path of state.paths) {
+      const identity = resolveProjectIdentity(path, {
+        allowMarkerWrite: options.allowMarkerWrite,
+      });
+      const title =
+        state.projectTitles[identity.identity] ?? state.projectTitles[path];
+      addProjectRecord(records, {
+        ...identity,
+        paths: [identity.currentPath],
+        ...(title ? { title } : {}),
+      });
+    }
+
+    const projectTitles: Record<string, string> = {};
+    for (const record of records.values()) {
+      const title =
+        record.title ??
+        state.projectTitles[record.identity] ??
+        state.projectTitles[record.currentPath];
+      if (title) {
+        record.title = title;
+        projectTitles[record.identity] = title;
+      }
+    }
+
+    const projects = Object.fromEntries(
+      [...records.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    );
+    const paths = dedupeStrings(
+      Object.values(projects).flatMap((record) => record.paths),
+    );
+    return {
+      paths,
+      favorites: dedupeStrings(state.favorites),
+      projectTitles,
+      projects,
+    };
+  }
+
   /** Normalize parsed dashboard state JSON into the server's expected shape. */
   function normalizeDashboardState(value: unknown): DashboardStateData | null {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -930,7 +1545,15 @@ export function createDashboardRouteHandlers(
       record,
       "projectTitles",
     );
-    return { paths, favorites, projectTitles };
+    return hydrateDashboardState(
+      {
+        paths,
+        favorites,
+        projectTitles,
+        projects: readOptionalProjectRecordsProperty(record),
+      },
+      { allowMarkerWrite: false },
+    );
   }
 
   /** Read dashboard state from the new file first, then the legacy projects-only file. */
@@ -946,15 +1569,11 @@ export function createDashboardRouteHandlers(
         /* try next location */
       }
     }
-    return { paths: [], favorites: [], projectTitles: {} };
+    return { paths: [], favorites: [], projectTitles: {}, projects: {} };
   }
 
-  /** Fail fast when an endpoint expects a real project directory. */
-  function requireProjectDirectory(projectPath: string): void {
-    const stats = statSync(projectPath);
-    if (!stats.isDirectory()) {
-      throw new Error(`${projectPath} is not a directory`);
-    }
+  function responseStatusForError(err: unknown, fallback: number): number {
+    return err instanceof LocalPathValidationError ? 400 : fallback;
   }
 
   /** Serve the dashboard shell and inject the default workspace path. */
@@ -1018,8 +1637,88 @@ export function createDashboardRouteHandlers(
     return !agentFilter && harness && isPackagedInstall();
   }
 
+  function buildDashboardAuditReport(
+    projectPath: string,
+    agentFilter: AgentId | null,
+    harness: boolean,
+    profiler: DashboardAuditProfiler,
+  ): DashboardReport {
+    const fs = createFS(projectPath);
+    const configAgents = profiler.span("managed-agent resolution", () =>
+      resolveDashboardManagedAgentIds(agentFilter),
+    );
+    const auditFactProfile =
+      agentFilter === null ? "dashboard-summary" : "full";
+    const batch = profiler.span("runAuditBatch", () =>
+      runAuditBatch(
+        fs,
+        projectPath,
+        {
+          agentFilter,
+          harness,
+          // Summary cards only need to know whether the deny mechanism is
+          // installed. Explicit per-agent audits and quality flows still run the
+          // slower runtime self-test.
+          denyMechanismEvidenceLevel:
+            agentFilter === null ? "present-only" : "full",
+          factProfile: auditFactProfile,
+          profile: profiler,
+        },
+        configAgents,
+      ),
+    );
+    return profiler.span("dashboard report build", () =>
+      buildDashboardReport(
+        batch.aggregate,
+        batch.perAgent,
+        projectPath,
+        profiler,
+      ),
+    );
+  }
+
+  function readCachedDashboardAudit(
+    projectPath: string,
+    fresh: boolean,
+    signature: string | null,
+    profiler: DashboardAuditProfiler,
+  ) {
+    if (fresh || signature === null) return null;
+    return profiler.span("cache read", () =>
+      readAuditCache(projectPath, packageVersion, signature),
+    );
+  }
+
   function parseAgentFilter(param: string | null): AgentId | null {
     return param && VALID_AGENTS.has(param) ? (param as AgentId) : null;
+  }
+
+  function parseQualityRequestParams(
+    url: URL,
+    res: ServerResponse,
+  ): QualityRequestParams | null {
+    const agentParam = url.searchParams.get("agent");
+    if (!agentParam || !VALID_AGENTS.has(agentParam)) {
+      jsonResponse(res, 400, {
+        error: `quality requires --agent. Valid: ${KNOWN_AGENT_LIST}`,
+      });
+      return null;
+    }
+
+    const modeParam = url.searchParams.get("mode");
+    if (modeParam && !VALID_QUALITY_MODES.has(modeParam)) {
+      jsonResponse(res, 400, {
+        error: `quality mode must be one of: ${QUALITY_MODES.join(", ")}`,
+      });
+      return null;
+    }
+
+    return {
+      agent: agentParam as AgentId,
+      qualityMode: parseQualityModeParam(modeParam) ?? "agent-setup",
+      fresh: url.searchParams.get("fresh") === "true",
+      fast: url.searchParams.get("fast") === "true",
+    };
   }
 
   function parseRequiredAgentParam(
@@ -1064,7 +1763,6 @@ export function createDashboardRouteHandlers(
   function handleAuditRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/audit") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const harness = url.searchParams.get("quality") === "true";
     const agentFilter = parseAgentFilter(url.searchParams.get("agent"));
     const fresh = url.searchParams.get("fresh") === "true";
@@ -1073,85 +1771,71 @@ export function createDashboardRouteHandlers(
     );
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const auditCacheSignature = isCacheEligible(agentFilter, harness)
         ? profiler.span("cache signature", () =>
             buildAuditCacheSignature(projectPath, packageVersion),
           )
         : null;
 
-      if (!fresh && isCacheEligible(agentFilter, harness)) {
-        const cached = profiler.span("cache read", () =>
-          readAuditCache(
-            projectPath,
-            packageVersion,
-            auditCacheSignature ?? "",
+      const cached = readCachedDashboardAudit(
+        projectPath,
+        fresh,
+        auditCacheSignature,
+        profiler,
+      );
+      if (cached) {
+        const report = profiler.span("learning-loop enrichment", () =>
+          enrichDashboardReport(cached.report, projectPath),
+        );
+        recordDashboardEvent(projectPath, "audit.run", {
+          cached: true,
+          harness,
+          agent: agentFilter ?? "all",
+          status: report.status,
+        });
+        jsonResponse(
+          res,
+          200,
+          appendAuditProfile(
+            {
+              ...report,
+              cached: true,
+              cachedAt: cached.cachedAt,
+            },
+            profiler,
           ),
         );
-        if (cached) {
-          const report = profiler.span("learning-loop enrichment", () =>
-            enrichDashboardReport(cached.report, projectPath),
-          );
-          jsonResponse(
-            res,
-            200,
-            appendAuditProfile(
-              {
-                ...report,
-                cached: true,
-                cachedAt: cached.cachedAt,
-              },
-              profiler,
-            ),
-          );
-          return true;
-        }
+        return true;
       }
 
-      const fs = createFS(projectPath);
-      const configAgents = profiler.span("managed-agent resolution", () =>
-        resolveDashboardManagedAgentIds(projectPath, fs, agentFilter),
-      );
-      const auditFactProfile =
-        agentFilter === null ? "dashboard-summary" : "full";
-      const batch = profiler.span("runAuditBatch", () =>
-        runAuditBatch(
-          fs,
-          projectPath,
-          {
-            agentFilter,
-            harness,
-            // Summary cards only need to know whether the deny mechanism is
-            // installed. Explicit per-agent audits and quality flows still run the
-            // slower runtime self-test.
-            denyMechanismEvidenceLevel:
-              agentFilter === null ? "present-only" : "full",
-            factProfile: auditFactProfile,
-            profile: profiler,
-          },
-          configAgents,
-        ),
-      );
-      const report = profiler.span("dashboard report build", () =>
-        buildDashboardReport(
-          batch.aggregate,
-          batch.perAgent,
-          projectPath,
-          profiler,
-        ),
+      const report = buildDashboardAuditReport(
+        projectPath,
+        agentFilter,
+        harness,
+        profiler,
       );
 
-      if (isCacheEligible(agentFilter, harness)) {
+      if (auditCacheSignature !== null) {
         profiler.span("cache write", () => {
           writeAuditCache(
             projectPath,
             packageVersion,
-            auditCacheSignature ?? "",
+            auditCacheSignature,
             report,
           );
         });
       }
 
+      recordDashboardEvent(projectPath, "audit.run", {
+        cached: false,
+        harness,
+        agent: agentFilter ?? "all",
+        status: report.status,
+      });
       jsonResponse(
         res,
         200,
@@ -1163,7 +1847,7 @@ export function createDashboardRouteHandlers(
     } catch (err) {
       jsonResponse(
         res,
-        500,
+        responseStatusForError(err, 500),
         appendAuditProfile(
           {
             error: err instanceof Error ? err.message : String(err),
@@ -1179,13 +1863,14 @@ export function createDashboardRouteHandlers(
   function handleSetupDetectRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/setup/detect") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
-
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       jsonResponse(res, 200, buildSetupDetectPayload(projectPath));
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1199,7 +1884,6 @@ export function createDashboardRouteHandlers(
   ): Promise<boolean> {
     if (url.pathname !== "/api/setup") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agentParam = url.searchParams.get("agent");
     if (!agentParam) {
       jsonResponse(res, 400, {
@@ -1216,7 +1900,10 @@ export function createDashboardRouteHandlers(
 
     const agent = agentParam as AgentId;
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const fs = createFS(projectPath);
       const configState = loadConfig(projectPath, fs);
       const facts = extractProjectFacts(fs, {
@@ -1235,11 +1922,16 @@ export function createDashboardRouteHandlers(
       const output = composeSetup(auditReport, facts, agent, {
         denyMechanismEvidenceLevel: "static",
       });
+      const renderedOutput = output ?? "No setup output generated.";
+      recordDashboardEvent(projectPath, "setup.prompt", {
+        agent,
+        output: redactEvidenceText("setup prompt", renderedOutput),
+      });
       jsonResponse(res, 200, {
-        output: output ?? "No setup output generated.",
+        output: renderedOutput,
       });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1253,10 +1945,13 @@ export function createDashboardRouteHandlers(
       cacheOnly = false,
       fresh = false,
     }: { cacheOnly?: boolean; fresh?: boolean } = {},
-  ): AuditReport | null {
+  ): { report: AuditReport | null; cacheStatus: QualityAuditCacheStatus } {
     const cached = readQualityAuditCache(projectPath, agent, fresh);
-    if (cached !== null) return cached;
-    if (cacheOnly) return null;
+    if (cached !== null) {
+      return { report: cached, cacheStatus: "hit" };
+    }
+    const cacheStatus = fresh ? "bypass" : "miss";
+    if (cacheOnly) return { report: null, cacheStatus };
     try {
       const fs = createFS(projectPath);
       const report = runAudit(fs, projectPath, {
@@ -1264,9 +1959,9 @@ export function createDashboardRouteHandlers(
         harness: true,
       });
       writeQualityAuditCache(projectPath, agent, report);
-      return report;
+      return { report, cacheStatus };
     } catch {
-      return null;
+      return { report: null, cacheStatus };
     }
   }
 
@@ -1274,51 +1969,53 @@ export function createDashboardRouteHandlers(
   function handleQualityRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/quality") return false;
 
-    const agentParam = url.searchParams.get("agent");
-    if (!agentParam || !VALID_AGENTS.has(agentParam)) {
-      jsonResponse(res, 400, {
-        error: `quality requires --agent. Valid: ${KNOWN_AGENT_LIST}`,
-      });
-      return true;
-    }
-
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
-    const selectedProjectPath = safeResolvePath(url.searchParams.get("target"));
-    const agent = agentParam as AgentId;
-    const modeParam = url.searchParams.get("mode");
-    const qualityMode = parseQualityModeParam(modeParam) ?? "agent-setup";
-    const fresh = url.searchParams.get("fresh") === "true";
-    const fast = url.searchParams.get("fast") === "true";
-
-    if (modeParam && !VALID_QUALITY_MODES.has(modeParam)) {
-      jsonResponse(res, 400, {
-        error: `quality mode must be one of: ${QUALITY_MODES.join(", ")}`,
-      });
-      return true;
-    }
+    const params = parseQualityRequestParams(url, res);
+    if (params === null) return true;
 
     try {
-      requireProjectDirectory(projectPath);
-      const auditReport = getOrRunQualityAudit(projectPath, agent, {
-        cacheOnly: fast,
-        fresh,
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
+      const selectedProjectPath = validatedPath(
+        url.searchParams.get("target"),
+        "project-read",
+      );
+      const fs = createFS(projectPath);
+      const sharedFacts = extractSharedFacts(fs, loadConfig(projectPath, fs));
+      const audit = getOrRunQualityAudit(projectPath, params.agent, {
+        cacheOnly: params.fast,
+        fresh: params.fresh,
       });
+      const auditReport = audit.report;
       const { entry: priorReport } = findLatestQualityReport(
         projectPath,
-        agent,
-        qualityMode,
+        params.agent,
+        params.qualityMode,
       );
       const result = composeQuality({
-        agent,
+        agent: params.agent,
         projectPath,
         auditReport,
+        auditUnavailableReason:
+          audit.report === null && params.fast ? "fast-cache-only" : undefined,
         priorReport,
-        qualityMode,
+        qualityMode: params.qualityMode,
         selectedProjectPath,
+        sharedFacts,
       });
-      jsonResponse(res, 200, result);
+      recordDashboardEvent(projectPath, "quality.prompt", {
+        agent: params.agent,
+        quality_mode: params.qualityMode,
+        audit_status: auditReport?.status ?? "unavailable",
+        prompt: redactEvidenceText("quality prompt", result.prompt),
+      });
+      jsonResponse(res, 200, {
+        ...result,
+        auditCacheStatus: audit.cacheStatus,
+      });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1332,7 +2029,6 @@ export function createDashboardRouteHandlers(
   ): Promise<boolean> {
     if (url.pathname !== "/api/quality/history") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agentParam = url.searchParams.get("agent");
     const agent =
       agentParam && VALID_AGENTS.has(agentParam)
@@ -1358,7 +2054,10 @@ export function createDashboardRouteHandlers(
     }
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const { buildQualityHistoryRows, loadQualityHistoryWindow } =
         await import("../quality/history.js");
       const history = loadQualityHistoryWindow(projectPath, {
@@ -1383,7 +2082,7 @@ export function createDashboardRouteHandlers(
         warnings: history.warnings,
       });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1397,7 +2096,6 @@ export function createDashboardRouteHandlers(
   ): boolean {
     if (url.pathname !== "/api/skill-quality/inventory") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agent = parseRequiredAgentParam(
       url.searchParams.get("agent"),
       "skill-quality inventory",
@@ -1405,14 +2103,17 @@ export function createDashboardRouteHandlers(
     );
     if (!agent) return true;
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const artifacts = discoverArtifacts(
         projectPath,
         runnerSkillQualityConfig(projectPath, agent),
       );
       jsonResponse(res, 200, { artifacts });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1423,7 +2124,6 @@ export function createDashboardRouteHandlers(
   function handleSkillQualityRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/skill-quality") return false;
 
-    const projectPath = safeResolvePath(url.searchParams.get("path"));
     const agent = parseRequiredAgentParam(
       url.searchParams.get("agent"),
       "skill-quality",
@@ -1440,7 +2140,10 @@ export function createDashboardRouteHandlers(
     }
 
     try {
-      requireProjectDirectory(projectPath);
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
       const config = runnerSkillQualityConfig(projectPath, agent);
       const artifact = findArtifact(projectPath, artifactId, config);
       if (!artifact) {
@@ -1453,7 +2156,7 @@ export function createDashboardRouteHandlers(
       const prompt = composeArtifactQualityPrompt(report);
       jsonResponse(res, 200, { ...report, prompt });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1514,10 +2217,10 @@ export function createDashboardRouteHandlers(
       return true;
     }
     try {
-      const projectPath = safeResolvePath(
-        url.searchParams.get("path") ?? absDefault,
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
       );
-      requireProjectDirectory(projectPath);
       const result = decoded.value.files
         ? evaluateUploadedBundle(projectPath, {
             files: decoded.value.files,
@@ -1533,7 +2236,7 @@ export function createDashboardRouteHandlers(
       jsonResponse(res, 200, result);
     } catch (err) {
       if (isAlias) markEvaluateAliasDeprecation(res);
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1544,8 +2247,8 @@ export function createDashboardRouteHandlers(
   function handleBrowseRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/browse") return false;
 
-    const dirPath = resolve(url.searchParams.get("path") || absDefault);
     try {
+      const dirPath = validatedPath(url.searchParams.get("path"), "browse");
       const entries = readdirSync(dirPath, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
         .map((entry) => entry.name)
@@ -1560,7 +2263,59 @@ export function createDashboardRouteHandlers(
         dirs,
       });
     } catch (err) {
-      jsonResponse(res, 500, {
+      jsonResponse(res, responseStatusForError(err, 500), {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
+  /** Return or update milestone/task state for the selected project. */
+  async function handleTasksRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname !== "/api/tasks") return false;
+
+    const requestedPlan = url.searchParams.get("plan");
+    if (req.method === "POST") {
+      try {
+        const projectPath = validatedPath(
+          url.searchParams.get("path"),
+          "write-local-state",
+        );
+        const planName = readActiveTaskPlanBody(await readBody(req));
+        writeActiveTaskPlan(projectPath, planName);
+        jsonResponse(res, 200, buildDashboardTaskState(projectPath, planName));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status =
+          message.includes("does not exist") || message.includes("not found")
+            ? 404
+            : 400;
+        jsonResponse(res, status, { error: message });
+      }
+      return true;
+    }
+
+    if (req.method !== "GET") {
+      jsonResponse(res, 405, { error: "Method not allowed" });
+      return true;
+    }
+
+    try {
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "project-read",
+      );
+      jsonResponse(
+        res,
+        200,
+        buildDashboardTaskState(projectPath, requestedPlan),
+      );
+    } catch (err) {
+      jsonResponse(res, responseStatusForError(err, 500), {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1574,15 +2329,18 @@ export function createDashboardRouteHandlers(
     installed: boolean;
     version: string | null;
   }[] {
-    return SUPPORTED_AGENTS.map(({ id, name }) => {
+    return SUPPORTED_AGENTS.map((agent) => {
       try {
         const whichCmd = process.platform === "win32" ? "where" : "which";
-        execFileSync(whichCmd, [id], { timeout: 3000, stdio: "pipe" });
+        execFileSync(whichCmd, [agent.terminalBinary], {
+          timeout: 3000,
+          stdio: "pipe",
+        });
         let version: string | null = null;
         if (includeVersions) {
           try {
             version = normalizeAgentVersionOutput(
-              execFileSync(id, ["--version"], {
+              execFileSync(agent.terminalBinary, ["--version"], {
                 timeout: 5000,
                 stdio: "pipe",
               }).toString(),
@@ -1591,9 +2349,9 @@ export function createDashboardRouteHandlers(
             /* version detection optional */
           }
         }
-        return { id, name, installed: true, version };
+        return { ...agent, installed: true, version };
       } catch {
-        return { id, name, installed: false, version: null };
+        return { ...agent, installed: false, version: null };
       }
     });
   }
@@ -1639,15 +2397,45 @@ export function createDashboardRouteHandlers(
           return true;
         }
         const { mkdir, rm, writeFile } = await import("node:fs/promises");
-        await mkdir(join(absDefault, ".goat-flow"), { recursive: true });
-        await writeFile(
-          dashboardStateFile,
-          JSON.stringify(decoded.value, null, 2),
+        const previousState = await loadDashboardState();
+        const validatedProjectPaths = decoded.value.paths.map(
+          (path) => validateLocalPath(path, "write-local-state").path,
         );
+        const nextState = hydrateDashboardState(
+          {
+            ...decoded.value,
+            paths: validatedProjectPaths,
+            projects: {},
+          },
+          { allowMarkerWrite: true },
+        );
+        const previousPaths = new Set(previousState.paths);
+        const nextPaths = new Set(nextState.paths);
+        const removedCount = previousState.paths.filter(
+          (path) => !nextPaths.has(path),
+        ).length;
+        const addedCount = nextState.paths.filter(
+          (path) => !previousPaths.has(path),
+        ).length;
+        await mkdir(dirname(dashboardStateFile), { recursive: true });
+        await writeFile(dashboardStateFile, JSON.stringify(nextState, null, 2));
         await rm(legacyProjectsListFile, { force: true });
+        recordDashboardEvent(absDefault, "project.save", {
+          project_count: nextState.paths.length,
+          favorite_count: nextState.favorites.length,
+          added_count: addedCount,
+          removed_count: removedCount,
+        });
+        if (removedCount > 0) {
+          recordDashboardEvent(absDefault, "project.remove", {
+            removed_count: removedCount,
+          });
+        }
         jsonResponse(res, 200, { ok: true });
       } catch (err) {
-        jsonResponse(res, 400, { error: String(err) });
+        jsonResponse(res, 400, {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
       return true;
     }
@@ -1673,9 +2461,17 @@ export function createDashboardRouteHandlers(
 
     const results = paths.map((p) => {
       try {
-        const resolved = resolve(p);
-        const fs = createFS(resolved);
-        return { path: resolved, ...classifyProjectState(fs) };
+        const projectPath = validateLocalPath(p, "write-local-state").path;
+        const identity = resolveProjectIdentity(projectPath, {
+          allowMarkerWrite: true,
+        });
+        const fs = createFS(identity.currentPath);
+        return {
+          path: identity.currentPath,
+          paths: [identity.currentPath],
+          ...identity,
+          ...classifyProjectState(fs),
+        };
       } catch (err) {
         return {
           path: p,
@@ -1685,6 +2481,22 @@ export function createDashboardRouteHandlers(
         };
       }
     });
+
+    if (paths.length === 1) {
+      const result = results[0];
+      if (
+        result &&
+        result.state !== "error" &&
+        typeof result.path === "string"
+      ) {
+        recordDashboardEvent(result.path, "project.switch", {
+          state: result.state,
+          identity: "identity" in result ? result.identity : "",
+          identity_source:
+            "identitySource" in result ? result.identitySource : "",
+        });
+      }
+    }
 
     jsonResponse(res, 200, { projects: results });
     return true;
@@ -1702,6 +2514,7 @@ export function createDashboardRouteHandlers(
     handleSkillQualityInventoryRequest,
     handleQualityEvaluateRequest,
     handleBrowseRequest,
+    handleTasksRequest,
     handleAgentDetectRequest,
     handleProjectsListRequest,
     handleProjectsStatusRequest,

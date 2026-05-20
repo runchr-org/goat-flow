@@ -1,48 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  findUnknownConfiguredAgents,
   getAgentProfile,
   getAgentProfileMap,
   getAgentProfiles,
-  getConfiguredAgents,
   getKnownAgentIds,
 } from "../../src/cli/agents/registry.js";
-import type { LoadedConfig } from "../../src/cli/config/types.js";
-import { AUDIT_VERSION } from "../../src/cli/constants.js";
-
-function stubConfig(agents: string[] | null): LoadedConfig {
-  return {
-    exists: true,
-    valid: true,
-    config: {
-      version: AUDIT_VERSION,
-      footguns: { path: ".goat-flow/footguns/" },
-      lessons: { path: ".goat-flow/lessons/" },
-      decisions: { path: ".goat-flow/decisions/" },
-      tasks: { path: ".goat-flow/tasks/" },
-      logs: { path: ".goat-flow/logs/" },
-      agents,
-      skills: { install: "all" },
-      lineLimits: { target: 125, limit: 150 },
-      toolchain: {
-        test: [],
-        lint: [],
-        build: [],
-        package: [],
-        format: [],
-      },
-      userRole: "developer",
-      telemetry: false,
-      knownGaps: [],
-      skillOverrides: {},
-      harness: { acknowledge: [] },
-    },
-    warnings: [],
-    errors: [],
-    parseError: null,
-  };
-}
 
 describe("agent registry", () => {
   it("exposes the manifest-backed support set", () => {
@@ -64,17 +27,6 @@ describe("agent registry", () => {
     assert.equal(codex.hookConfigFile, ".codex/hooks.json");
     assert.equal(codex.denyHookFile, ".codex/hooks/deny-dangerous.sh");
     assert.equal(codex.hookEvents.postTurn, "Stop");
-  });
-
-  it("returns configured-agent subsets from config.yaml state", () => {
-    assert.deepEqual(
-      getConfiguredAgents(stubConfig(["codex"])).map((agent) => agent.id),
-      ["codex"],
-    );
-    assert.deepEqual(
-      getConfiguredAgents(stubConfig(null)).map((agent) => agent.id),
-      ["claude", "codex", "gemini", "copilot"],
-    );
   });
 
   it("exposes Copilot's hook-config-only profile cleanly", () => {
@@ -115,11 +67,5 @@ describe("agent registry", () => {
     }
     assert.equal(profiles.claude.hooksDir, ".claude/hooks");
     assert.equal(profiles.copilot.skillsDir, ".github/skills");
-  });
-
-  it("reports unknown configured agents outside the manifest", () => {
-    assert.deepEqual(findUnknownConfiguredAgents(["codex", "cursor"]), [
-      "cursor",
-    ]);
   });
 });

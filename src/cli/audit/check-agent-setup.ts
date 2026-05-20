@@ -11,6 +11,7 @@ import type { CheckEvidence } from "./provenance-types.js";
 import type { ReadonlyFS } from "../types.js";
 import { AUDIT_VERSION, SKILL_NAMES } from "../constants.js";
 import { getTemplatePath } from "../paths.js";
+import { collectCodexWorkspaceRootEntries } from "../facts/agent/settings.js";
 
 const VERIFIED_ON = "2026-04-18";
 
@@ -83,20 +84,19 @@ function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
   };
 }
 
-/** Check configured managed agents whose primary instruction files are absent. */
-function checkConfiguredInstructionFilesPresent(
+/** Check supported managed agents whose primary instruction files are absent. */
+function checkSupportedInstructionFilesPresent(
   ctx: AuditContext,
 ): AuditFailure | null {
-  if (!ctx.config.exists) return null;
   const missing = ctx.agents
     .filter((af) => !af.instruction.exists)
     .map((af) => `${af.agent.id} (${af.agent.instructionFile})`);
   if (missing.length === 0) return null;
   return {
     check: "Agent instruction file",
-    message: `Configured agent instruction files missing: ${missing.join(", ")}`,
+    message: `Supported agent instruction files missing: ${missing.join(", ")}`,
     howToFix:
-      "Run `goat-flow setup --agent <id>` for each configured missing agent, or remove agents that this repo does not manage from .goat-flow/config.yaml.",
+      "Run `goat-flow setup --agent <id>` for each missing agent, or use `goat-flow audit . --agent <id>` to scope the audit to one agent.",
   };
 }
 
@@ -105,9 +105,7 @@ function checkAnyAgentConfigured(ctx: AuditContext): AuditFailure | null {
   if (ctx.agents.length > 0) return null;
   return {
     check: "Agent instruction file",
-    message: ctx.config.exists
-      ? "No agents configured in .goat-flow/config.yaml"
-      : "No configured agents or agent instruction files found",
+    message: "No supported agent instruction files found",
     howToFix:
       "Run `goat-flow setup --agent <id>` for the agent this repo should manage, then complete the project-specific setup steps.",
   };
@@ -232,7 +230,7 @@ const agentInstruction: BuildCheck = {
     }
     return (
       checkAnyAgentConfigured(ctx) ??
-      checkConfiguredInstructionFilesPresent(ctx) ??
+      checkSupportedInstructionFilesPresent(ctx) ??
       checkOrphanedArtifacts(ctx) ??
       checkCopilotCommitInstructionsPresent(ctx)
     );
@@ -406,6 +404,39 @@ function checkCodexHooksEnabled(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+function isCodexExactWorkspaceRootPath(pattern: string): boolean {
+  return pattern !== "." && !pattern.includes("*") && !pattern.endsWith("/**");
+}
+
+function checkCodexWorkspaceRootExactPaths(
+  ctx: AuditContext,
+): AuditFailure | null {
+  for (const af of ctx.agents) {
+    if (af.agent.id !== "codex") continue;
+    const settings = settingsObject(af.settings.parsed);
+    const defaultPermissions = settings?.default_permissions;
+    if (typeof defaultPermissions !== "string" || defaultPermissions === "") {
+      continue;
+    }
+    const missing = collectCodexWorkspaceRootEntries(
+      af.settings.parsed,
+      defaultPermissions,
+    )
+      .filter((entry) => isCodexExactWorkspaceRootPath(entry.pattern))
+      .map((entry) => entry.pattern)
+      .filter((pattern) => !ctx.fs.exists(pattern));
+    if (missing.length === 0) continue;
+    return {
+      check: "Agent settings",
+      message: `Codex permission profile lists exact workspace-root paths that do not exist: ${uniquePaths(missing).join(", ")}`,
+      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      howToFix:
+        "Remove absent exact entries from .codex/config.toml. Keep trailing `/**` subtree denies, and add exact `none`/`read` entries only for files that exist in this checkout.",
+    };
+  }
+  return null;
+}
+
 const agentSettings: BuildCheck = {
   id: "agent-settings",
   name: "Agent settings",
@@ -432,7 +463,11 @@ const agentSettings: BuildCheck = {
         howToFix: `Fix the JSON syntax in the settings file for ${invalid.join(", ")}.`,
       };
     }
-    return checkCodexDeprecatedHooksFlag(ctx) ?? checkCodexHooksEnabled(ctx);
+    return (
+      checkCodexDeprecatedHooksFlag(ctx) ??
+      checkCodexHooksEnabled(ctx) ??
+      checkCodexWorkspaceRootExactPaths(ctx)
+    );
   },
 };
 

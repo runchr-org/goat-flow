@@ -8,6 +8,7 @@ goat-flow has two evaluation commands. `audit` is deterministic - it runs checks
 npx goat-flow audit .                              # Build correctness (pass/fail)
 npx goat-flow audit . --harness                    # Include AI harness completeness checks
 npx goat-flow audit . --agent claude               # Scope to one agent
+npx goat-flow audit . --format sarif               # Export audit findings as SARIF 2.1.0
 npx goat-flow quality . --agent gemini             # Generate quality-assessment prompt for one agent
 npx goat-flow quality history --agent gemini       # Review saved trend history
 npx goat-flow quality diff --agent gemini          # Compare the latest two saved runs
@@ -15,7 +16,7 @@ npx goat-flow quality diff --agent gemini          # Compare the latest two save
 
 | Command | Output | Deterministic? | Gates CI? | Requires --agent? |
 |---------|--------|---------------|-----------|-------------------|
-| `audit` | Pass/fail per scope | Yes | Yes - exit 1 on failure | No (checks all configured agents) |
+| `audit` | Pass/fail per scope | Yes | Yes - exit 1 on failure | No (checks all supported agents) |
 | `audit --harness` | Pass/fail per harness concern | Yes | Yes - exit 1 on failure | No |
 | `quality` | Prompt for an agent | No - generates a prompt | Never | Yes |
 
@@ -23,7 +24,7 @@ npx goat-flow quality diff --agent gemini          # Compare the latest two save
 
 ## `goat-flow audit`
 
-Validates that the project's agent harness is structurally correct and complete. All checks are pass/fail.
+Validates that the project's agent harness is structurally correct and complete. All checks are pass/fail. Audit output also includes an advisory per-agent enforcement matrix so users can distinguish structural setup pass/fail from what local facts actually prove about command blocking, secret-path coverage, hook registration, and unknown broader file read/write enforcement.
 
 For the full deterministic inventory, including every check id and what it validates, see [Deterministic audit checks](audit-checks.md).
 
@@ -44,9 +45,9 @@ Checks are grouped by **scope**:
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists
 - `tasks` - `.goat-flow/tasks/` directory, `.gitignore`, and README exist (local-session state by design)
 - `scratchpad` - `.goat-flow/scratchpad/` directory, `.gitignore`, and README exist (local WIP by design)
-- `instruction-file-skill-reference-pointer` - when `.goat-flow/skill-reference/` or `.goat-flow/skill-playbooks/` exists, every present instruction file has both the READ-step availability-check rule and Router Table pointer to `.goat-flow/skill-playbooks/`, and the full meta-reference/playbook pack exists; when both directories are absent, this check is skipped
+- `instruction-file-skill-reference-pointer` - the full meta-reference/playbook pack exists, and every present instruction file has both the READ-step availability-check rule and Router Table pointer to `.goat-flow/skill-playbooks/`; missing `.goat-flow/skill-reference/` or `.goat-flow/skill-playbooks/` files fail here instead of falling through to `other-files`
 - `other-files` - Other required manifest surfaces not already covered by named setup checks exist (for example quality-log paths)
-- `config-parses` - `.goat-flow/config.yaml` parses and validates, including manifest-backed `agents:` ids
+- `config-parses` - `.goat-flow/config.yaml` parses and validates supported configuration fields; legacy `agents:` entries are ignored
 - `config-version` - Config version matches current release
 
 **agent scope** (Agent Setup) - 4 registered checks. In aggregate mode, only `agent-instruction` can actively fail without `--agent <id>`:
@@ -55,18 +56,32 @@ Checks are grouped by **scope**:
 - `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
 - `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, installed deny hook files match the workflow templates, and the smoke deny self-test passes when the script exists
 
-**Agent detection:** `audit` detects configured agents from the manifest-backed instruction-file registry (`workflow/manifest.json` via `src/cli/agents/registry.ts`). Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
+**Agent scope:** `audit` checks every supported manifest-backed agent from `workflow/manifest.json` unless `--agent <id>` is supplied. Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
+
+### Enforcement matrix
+
+`audit` JSON and text output includes an advisory `enforcement` matrix per audited agent. It uses the status values `hard`, `limited`, `soft`, `missing`, and `unknown` with evidence sources such as `local-hook`, `local-settings`, `runtime-self-test`, `manifest`, or `not-observed`.
+
+This matrix is a readout, not a gate. It does not change audit pass/fail status. It also does not infer broad filesystem restrictions from narrower evidence: secret-path read coverage, deny-hook installation, or a passing setup check do not by themselves prove general file read/write enforcement.
+
+### SARIF export (`--format sarif`)
+
+`audit --format sarif` renders the existing audit report as SARIF 2.1.0 for CI systems and SARIF-aware code-scanning integrations. The export does not change audit pass/fail semantics: CLI exit code still follows `report.status`, and SARIF results are derived from deterministic goat-flow findings rather than source-code vulnerability analysis.
+
+The renderer registers every rule from the active audit surface in `tool.driver.rules`, then emits results for failing setup, agent, and harness checks. `impact: "scope-fail"` maps to SARIF `error`; `impact: "score-only"` maps to `warning`; informational content findings map to `note`. Acknowledged advisory failures remain visible as SARIF results with `suppressions[]` so downstream consumers can distinguish acknowledged findings from absent findings.
+
+When `--check-drift` or `--check-content` is enabled, drift and content findings are included as SARIF rules/results with file locations where the finding already carries a repo-relative path. Checks without target-file evidence are still emitted as valid SARIF results, but no fake location is invented; GitHub code scanning only creates file annotations for results that include `locations[]`.
 
 ### Harness mode (`--harness`)
 
-Adds 16 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - affects concern score, never affects pass/fail status). JSON results also include `displayStatus`, `impact`, optional `evidenceKind`, optional `assurance`, and split provenance path bases (`framework_evidence_paths` vs `target_evidence_paths`) so score-only, structural-smoke, platform-limited, and framework-rationale evidence can be rendered honestly.
+Adds 17 checks across the five harness concerns on top of the default build checks. These check AI harness completeness -- whether the project has the structures that make agents effective. Harness checks are deterministic but classified by type (see `HarnessCheckType` in `src/cli/audit/types.ts`): **integrity** (drift from install state - affects concern status), **advisory** (best practice - affects status unless the check id is listed in `harness.acknowledge` in `config.yaml`), and **metric** (workflow maturity signal - affects concern score, never affects pass/fail status). JSON results also include `displayStatus`, `impact`, optional `evidenceKind`, optional `assurance`, and split provenance path bases (`framework_evidence_paths` vs `target_evidence_paths`) so score-only, structural-smoke, platform-limited, and framework-rationale evidence can be rendered honestly.
 
 Harness checks are grouped by **concern** -- the five things that matter for agent effectiveness. See [harness-engineering.md](harness-engineering.md) for what each concern means and the sources behind the model.
 
-**harness scope** (AI Harness Completeness) - 16 checks across 5 concerns:
+**harness scope** (AI Harness Completeness) - 17 checks across 5 concerns:
 - **Context** (5) - instruction file within line limit, execution loop present, doc paths resolve, required instruction sections present, workspace boundary guidance present
 - **Constraints** (4) - deny blocks direct literal secret paths, deny blocks dangerous commands, deny blocks pipe-to-shell, deny hook registered in agent settings
-- **Verification** (3) - hooks in sync, commit guidance, post-turn hook integrity
+- **Verification** (4) - hooks in sync, commit guidance, evidence-before-claims coverage, post-turn hook integrity
 - **Recovery** (2) - milestone tracking, session logs
 - **Feedback Loop** (2) - feedback loop directories exist, decisions tracked
 
@@ -75,7 +90,7 @@ Sample harness output:
 ```
 GOAT Flow Setup:          PASS
   Skills:                 7/7 installed
-  Config:                 valid, version 1.6.4
+  Config:                 valid, version 1.7.0
   InstructionFile:        118 lines
 
 Agent Setup:              PASS
@@ -85,7 +100,7 @@ Agent Setup:              PASS
 AI Harness Completeness:  PASS
   Context:                PASS (5/5)
   Constraints:            FAIL (3/4) - pipe-to-shell not blocked for codex
-  Verification:           PASS (3/3)
+  Verification:           PASS (4/4)
   Recovery:               PASS (2/2)
   Feedback Loop:          PASS (2/2)
 
@@ -118,7 +133,11 @@ The generated prompt asks the agent to:
 
 **Time and cost expectation:** A full assessment evaluates all 7 skills (file analysis by default; live invocation when context allows - `goat-critique` alone spawns 3 sub-agents if invoked). Expect 15-60 minutes depending on depth, with moderate token usage. If context is limited, the generated prompt requires at minimum testing `/goat` (routing), `/goat-review` (most common use), and `/goat-critique` (highest-cost skill).
 
-The prompt includes the current `audit` summary so the agent knows what's already passing or failing. If audit is failing, the prompt explicitly asks the agent to assess the incomplete setup.
+The prompt includes the current `audit` summary so the agent knows what's
+already passing or failing. If audit is failing, the prompt explicitly asks the
+agent to assess the incomplete setup. In the dashboard, passive Quality page
+loads may reuse cached audit enrichment for speed; explicit Regenerate and the
+CLI `quality` command request fresh audit context before composing the prompt.
 
 ### Quality report lifecycle
 

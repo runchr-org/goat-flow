@@ -22,6 +22,21 @@ interface GoatFlowSkillsConfig {
   "goat-review"?: GoatReviewConfig;
 }
 
+/** Durable learning-loop directories that future automatic capture may target. */
+export type LearningLoopAutoCaptureTarget =
+  | "lessons"
+  | "footguns"
+  | "patterns"
+  | "decisions";
+
+/** Programmatic learning-loop capture policy; disabled until explicitly opted in. */
+interface LearningLoopConfig {
+  autoCapture: {
+    enabled: boolean;
+    targets: LearningLoopAutoCaptureTarget[];
+  };
+}
+
 /** Normalized config shape after parsing and validating .goat-flow/config.yaml. */
 export interface GoatFlowConfig {
   version: string;
@@ -30,7 +45,7 @@ export interface GoatFlowConfig {
   decisions: { path: string };
   tasks: { path: string };
   logs: { path: string };
-  /** Detected agent IDs, or null if auto-detection should be used */
+  /** Legacy field retained for old config shape compatibility; command scoping uses --agent. */
   agents: string[] | null;
   /** Which skills to install: explicit list or 'all' for the full set */
   skills: GoatFlowSkillsConfig;
@@ -42,6 +57,8 @@ export interface GoatFlowConfig {
   userRole: "developer" | "investigator" | "tester";
   /** Opt-in skill usage telemetry (logs invocations to .goat-flow/logs/skill-usage.jsonl) */
   telemetry: boolean;
+  /** Opt-in policy for future automatic lesson/footgun/pattern/decision capture. */
+  learningLoop: LearningLoopConfig;
   /** Declared gaps that persist across sessions (e.g., "zero Python tests"). Readable by skills during Step 0. */
   knownGaps: string[];
   /** Placeholder for per-project skill customisation (M18). */

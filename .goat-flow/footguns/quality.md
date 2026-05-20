@@ -1,6 +1,6 @@
 ---
 category: quality
-last_reviewed: 2026-05-06
+last_reviewed: 2026-05-19
 ---
 
 ## Footgun: Quality reviews disappear when the agent skips the final JSON write
@@ -22,6 +22,24 @@ last_reviewed: 2026-05-06
 3. Only after the file exists on disk is `quality history` / `quality diff` meaningful - both silently return empty when nothing is saved, so a missing save looks identical to "no prior runs."
 
 See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't carve I/O side-effect exceptions into prompts that forbid I/O") for the historical thread that led here.
+
+---
+
+## Footgun: Audit score tempering fields must survive every renderer
+
+**Status:** active | **Created:** 2026-05-19 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A harness concern can truthfully pass while still needing a visible caveat, such as "Verification has no post-turn hook evidence" or "Constraints only prove known deny patterns; broad file read/write enforcement remains unknown." If a new renderer, dashboard reader, or prompt summary drops `AuditConcern.limits`, the UI can regress to a clean-looking PASS/100 even though the JSON contract contains the caveat.
+
+**Why it happens:** Audit output fans out through several parallel consumers: `AuditConcern` JSON, text/Markdown renderers, dashboard readers/types, Home/Quality/Setup scoring views, and quality-prompt summaries. A field that tempers a score is load-bearing even though it is non-gating, so forgetting one consumer recreates the old "green but over-marketed" failure mode.
+
+**Evidence:**
+- `src/cli/audit/types.ts` (search: `limits: string[]`) - `limits` is part of the public concern contract.
+- `src/cli/audit/render.ts` (search: `Limit:`) - terminal and Markdown output preserve the caveat.
+- `src/dashboard/dashboard-readers.ts` (search: `limits: readStringArray`) - dashboard payload readers preserve the field.
+- `src/cli/prompt/compose-quality.ts` (search: `limits: ${concern.limits.join`) - quality prompts include limits beside score and metric counts.
+
+**Prevention:** When adding or changing a non-gating audit caveat, update every audit consumer in the same patch: core type, JSON reader types, text/Markdown renderer, dashboard reader, prompt summary, and at least one unit test that fails if the caveat disappears from a human-facing surface.
 
 
 ## Resolved Entries

@@ -1,5 +1,19 @@
 # Changelog
 
+
+## v1.7.0 - 2026-05-20
+
+GOAT Flow 1.7.0 makes releases easier to check and the dashboard easier to use.
+
+- **Clearer audits** - `audit --format sarif` adds CI-friendly output, and audit reports now say what is proven, limited, or agent-specific.
+- **Agent settings from the manifest** - Agent setup now comes from `workflow/manifest.json`; aggregate audit covers Claude, Codex, Gemini, and Copilot by default.
+- **Dashboard Plans** - New Plans view reads `.goat-flow/tasks/`, previews milestones, tracks progress, and sets the active plan.
+- **More reliable workspace** - Terminal sessions better handle waiting/running/detached states, keep the selected project separate from the goat-flow workspace, improve Codex startup, support image drops, and detect input prompts from Claude and terminal titles.
+- **Safer dashboard basics** - Path checks, command execution, Markdown rendering, uploads, assets, project identity, navigation, and Quality page loading were tightened.
+- **Shorter prompt context** - Quality and setup prompts now get selected lessons, footguns, patterns, and decisions instead of whole files, with stale items filtered out.
+- **Stronger guardrails** - Deny hooks block GitHub writes through `gh`, tighten `.env.example` and heredoc checks, and expand self-tests across agent mirrors.
+- **Skill and release cleanup** - `goat-critique`, `goat-qa`, and `goat-review` now ask for clearer evidence; package/config/manifest/docs/templates/fixtures were synced to 1.7.0.
+
 ## v1.6.4 - 2026-05-12
 
 Dashboard cold-load and Skills evaluator release.

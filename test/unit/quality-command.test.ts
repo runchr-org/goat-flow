@@ -14,6 +14,8 @@ import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 import type { QualityHistoryEntry } from "../../src/cli/quality/history.js";
 import { parseQualityReport } from "../../src/cli/quality/schema.js";
+import type { LearningLoopEntryFact } from "../../src/cli/types.js";
+import { makeSharedFacts } from "../fixtures/projects/index.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const CLI_PATH = join(PROJECT_ROOT, "src", "cli", "cli.ts");
@@ -57,18 +59,32 @@ function runCLI(
   };
 }
 
-/** Extract the first ```json fenced block from a prompt string.
- *  Returns the JSON body with the scope placeholder replaced by a valid
- *  value so the example parses through the strict schema. Any other
- *  pipe-separated placeholder in the example will cause parse to fail,
- *  which is the canary behaviour we want. */
+/** Extract the first ```json fenced block from a prompt string. */
 function extractExampleJson(prompt: string): string {
   const match = prompt.match(/```json\n([\s\S]*?)\n```/);
   if (!match) throw new Error("no ```json fenced block found in prompt");
-  return match[1].replace(
-    '"scope": "framework-self | consumer"',
-    '"scope": "framework-self"',
-  );
+  return match[1];
+}
+
+function qualityContextEntry(
+  overrides: Partial<LearningLoopEntryFact> & { title: string },
+): LearningLoopEntryFact {
+  return {
+    sourcePath: ".goat-flow/footguns/auditor.md",
+    kind: "footgun",
+    title: overrides.title,
+    status: "active",
+    created: "2026-05-16",
+    updated: null,
+    resolved: null,
+    excerpt: `${overrides.title} excerpt`,
+    staleRefs: [],
+    invalidLineRefs: [],
+    hasValidAnchor: true,
+    bucketSizeBytes: 1_000,
+    order: 0,
+    ...overrides,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +151,12 @@ describe("quality prompt content", () => {
     assert.ok(
       result.prompt.includes("Do NOT apply patches or implement fixes."),
       "Should forbid patches and implementation",
+    );
+    assert.ok(
+      result.prompt.includes(
+        "Do NOT use /goat-review or any goat skill as the wrapper for this assessment",
+      ),
+      "Should forbid wrapping agent-setup assessment in a goat skill",
     );
     assert.ok(
       result.prompt.includes("tracked files"),
@@ -265,7 +287,7 @@ describe("quality prompt content", () => {
       runDate: "2026-04-25",
     });
 
-    assert.match(result.prompt, /Skill Suite Quality Assessment/);
+    assert.match(result.prompt, /# GOAT Flow Skills Assessment - Claude Code/);
     assert.match(result.prompt, /Assess all seven goat-flow skills/);
     assert.match(result.prompt, /"quality_mode": "skills"/);
     assert.match(
@@ -279,6 +301,57 @@ describe("quality prompt content", () => {
       parsed.ok,
       `skills-mode JSON example must parse: ${parsed.ok ? "" : parsed.error}`,
     );
+  });
+
+  it("generates focused process prompts without duplicate title lines", () => {
+    const result = composeQuality({
+      agent: "codex",
+      projectPath: PROJECT_ROOT,
+      auditReport: null,
+      qualityMode: "process",
+      runDate: "2026-05-19",
+    });
+    const firstLines = result.prompt.split("\n").slice(0, 4);
+    assert.deepEqual(firstLines, [
+      "# GOAT Flow Process Assessment - Codex",
+      "",
+      "REPORTING-ONLY ASSESSMENT MODE. Do not edit tracked files. Do not use /goat-review or any goat skill as the wrapper for this assessment; this prompt is the full assessment contract. You may read files, run read-only validation commands, and write normal gitignored reporting/local-state artifacts if the runner requires them. In this contract, gitignored logs, scratchpad notes, critique snapshots, quality reports, and task-local state do not count as writes; do not report them as read-only violations.",
+      "",
+    ]);
+    assert.doesNotMatch(result.prompt, /GOAT Flow Process Quality Assessment/);
+  });
+
+  it("adds bounded learning-loop context only to setup and harness quality prompts", () => {
+    const sharedFacts = {
+      ...makeSharedFacts(),
+      learningLoopEntries: [
+        qualityContextEntry({ title: "active prompt trap" }),
+        qualityContextEntry({
+          title: "resolved prompt trap",
+          status: "resolved",
+          resolved: "2026-05-16",
+        }),
+      ],
+    };
+    const harness = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+      qualityMode: "harness",
+      sharedFacts,
+    });
+    const skills = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+      qualityMode: "skills",
+      sharedFacts,
+    });
+
+    assert.match(harness.prompt, /<goat-learning-loop budget="\d+ bytes"/);
+    assert.match(harness.prompt, /active prompt trap/);
+    assert.doesNotMatch(harness.prompt, /resolved prompt trap/);
+    assert.doesNotMatch(skills.prompt, /<goat-learning-loop/);
   });
 
   it("defaults run_date from local calendar getters, not UTC ISO date", () => {
@@ -485,6 +558,11 @@ describe("quality with audit data", () => {
       result.prompt.includes("Agent Setup"),
       "Should mention agent setup scope",
     );
+    assert.match(result.prompt, /verification: PASS \(75%; metrics=2; limits:/);
+    assert.match(
+      result.prompt,
+      /constraints: PASS \(100%; metrics=0; limits: Constraint score covers verified deny patterns only/,
+    );
   });
 
   it("includes degraded context note when audit is unavailable", () => {
@@ -502,6 +580,29 @@ describe("quality with audit data", () => {
     assert.ok(
       result.prompt.includes("audit could not complete"),
       "Should include degraded context note",
+    );
+  });
+
+  it("distinguishes fast cache-only audit misses from audit failures", () => {
+    const result = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/nonexistent",
+      auditReport: null,
+      auditUnavailableReason: "fast-cache-only",
+    });
+
+    assert.equal(result.auditStatus, "unavailable");
+    assert.ok(
+      result.prompt.includes("Audit: NOT LOADED (FAST CACHE-ONLY MODE)"),
+      "Should distinguish cache-only misses from audit execution failures",
+    );
+    assert.ok(
+      result.prompt.includes("does not mean the audit failed"),
+      "Should warn agents not to infer audit failure from a cache miss",
+    );
+    assert.ok(
+      !result.prompt.includes("audit could not complete"),
+      "Should not claim the audit failed to complete when it was not loaded",
     );
   });
 });
@@ -535,6 +636,33 @@ describe("quality prompt JSON example parses through schema", () => {
     assert.ok(
       parsed.ok,
       `no-prior-report example must parse: ${parsed.ok ? "" : parsed.error}`,
+    );
+  });
+
+  it("JSON example emits a concrete scope enum, not a union placeholder", () => {
+    const consumerResult = composeQuality({
+      agent: "claude",
+      projectPath: "/tmp/test-project",
+      auditReport: null,
+      runDate: "2026-04-20",
+    });
+    const consumerJson = extractExampleJson(consumerResult.prompt);
+    assert.doesNotMatch(consumerJson, /framework-self \| consumer/);
+    assert.match(consumerJson, /"scope":\s*"consumer"/);
+
+    const frameworkResult = composeQuality({
+      agent: "claude",
+      projectPath: PROJECT_ROOT,
+      auditReport: null,
+      qualityMode: "process",
+      runDate: "2026-04-20",
+    });
+    const frameworkJson = extractExampleJson(frameworkResult.prompt);
+    assert.match(frameworkJson, /"scope":\s*"framework-self"/);
+    const parsed = parseQualityReport(JSON.parse(frameworkJson));
+    assert.ok(
+      parsed.ok,
+      `framework-self example must parse: ${parsed.ok ? "" : parsed.error}`,
     );
   });
 
@@ -678,10 +806,7 @@ describe("quality payload contract", () => {
       auditReport: null,
     });
 
-    assert.match(
-      result.prompt,
-      /minimal valid config: version, agents, skills/i,
-    );
+    assert.match(result.prompt, /minimal valid config: version and skills/i);
     assert.doesNotMatch(
       result.prompt,
       /should have version, agents, skills, line-limits/i,
@@ -762,7 +887,10 @@ describe("quality CLI output contract", () => {
     const payload = JSON.parse(result.stdout) as {
       prompt: string;
     };
-    assert.match(payload.prompt, /AI Harness Engineering Quality Assessment/);
+    assert.match(
+      payload.prompt,
+      /# GOAT Flow Harness Engineering Assessment - Claude Code/,
+    );
     assert.match(payload.prompt, /"quality_mode": "harness"/);
   });
 });

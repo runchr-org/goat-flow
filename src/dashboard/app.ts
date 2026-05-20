@@ -4,7 +4,7 @@
  * plain `<script>` tag rather than an ES module import.
  */
 
-type ProjectSortKey = "name" | keyof ProjectEntry;
+type ProjectSortKey = "name" | "state" | "action" | "details";
 
 /** Alpine.js data factory for the dashboard shell. */
 function app() {
@@ -29,6 +29,7 @@ function app() {
     copyLabel: "Copy",
     srAnnouncement: "",
     activeView: "home",
+    sideNavCollapsed: localStorage.getItem("gf-side-nav-collapsed") === "true",
     supportedAgents,
     installedAgents: [] as AgentInfo[],
     allAgents: [] as AgentInfo[],
@@ -45,15 +46,22 @@ function app() {
     otherCollapsed: false,
     confirmEndSessionId: null as string | null,
     _workspacePoll: null as ReturnType<typeof setInterval> | null,
-    /** Optional user-supplied display titles keyed by absolute project path.
+    /** Optional user-supplied display titles keyed by stable project identity.
      *  Persisted alongside paths/favorites in .goat-flow/dashboard-state.json so
-     *  the same repo on WIN vs WSL can carry different labels per machine. */
+     *  titles follow repos across path moves when the server can resolve identity. */
     projectTitles: {} as Record<string, string>,
+    projectIdentities: {} as Record<string, string>,
     editingProjectTitle: false,
     projectTitleDraft: "",
+    /** Resolve the stable dashboard-state key for a path, falling back for older payloads. */
+    projectKeyFor(path: string): string {
+      return this.projectIdentities[path] ?? path;
+    },
     /** Resolve the display name for a project path, preferring a user override. */
     displayNameFor(path: string): string {
-      const override = this.projectTitles[path];
+      const identityKey = this.projectKeyFor(path);
+      const override =
+        this.projectTitles[identityKey] ?? this.projectTitles[path];
       if (typeof override === "string" && override.length > 0) return override;
       return getProjectDisplayName(path);
     },
@@ -128,6 +136,14 @@ function app() {
     /** Return whether the active terminal has ended. */
     get terminalEnded(): boolean {
       return this._activeSession?.ended ?? false;
+    },
+    /** Return whether the active terminal is detached from a live backend session. */
+    get terminalDetached(): boolean {
+      const session = this._activeSession;
+      if (!session || session.ended || session.connected) return false;
+      return this.serverSessions.some(
+        (s) => s.id === session.id && s.status === "active",
+      );
     },
     /** Return whether the active terminal appears to be awaiting a user choice. */
     get terminalAwaitingInput(): boolean {
@@ -213,7 +229,9 @@ function app() {
     },
     /** Whether a backend session is currently bound to a local xterm instance. */
     isSessionBoundLocally(id: string): boolean {
-      return this.sessions.some((s) => s.id === id);
+      return this.sessions.some(
+        (s) => s.id === id && s.ended !== true && s.connected === true,
+      );
     },
 
     // --- Projects state ---
@@ -223,6 +241,13 @@ function app() {
     projectsSortKey: "name" as ProjectSortKey,
     projectsSortAsc: true,
     newProjectPath: "",
+
+    // --- Tasks state ---
+    tasksState: null as TaskState | null,
+    tasksLoading: false,
+    tasksActivePlanSaving: null as string | null,
+    tasksError: "",
+    selectedTaskPlan: null as string | null,
 
     // --- Quality state ---
     qualityAgent: defaultRunner,
@@ -836,6 +861,9 @@ function app() {
           void this.detectStack();
           this.scheduleSetupPrompt();
         }
+        if (v === "tasks") {
+          void this.loadTasks();
+        }
       });
       self.$watch("qualityAgent", () => {
         if (this.activeView === "quality") {
@@ -890,6 +918,10 @@ function app() {
           }
           if (this.activeView === "home") {
             void this.generateHomeQualitySummary();
+          }
+          if (this.activeView === "tasks") {
+            this.selectedTaskPlan = null;
+            void this.loadTasks();
           }
           this.skillQualityAbortController?.abort();
           this.skillQualityAbortController = null;
@@ -997,6 +1029,22 @@ function app() {
       });
     },
 
+    // -- Navigation --
+    comingSoonMeta(view: string): { title: string; desc: string } | null {
+      const meta: Record<string, { title: string; desc: string }> = {};
+      return meta[view] ?? null;
+    },
+    isComingSoonView(view?: string): boolean {
+      return this.comingSoonMeta(view ?? this.activeView) !== null;
+    },
+    toggleSideNav() {
+      this.sideNavCollapsed = !this.sideNavCollapsed;
+      localStorage.setItem(
+        "gf-side-nav-collapsed",
+        String(this.sideNavCollapsed),
+      );
+    },
+
     // -- API Calls --
     async runAudit(fresh = false) {
       this.auditing = true;
@@ -1053,9 +1101,7 @@ function app() {
               .map((agent) => readAgentInfo(agent))
               .filter((agent): agent is AgentInfo => agent !== null)
           : [];
-        if (this.supportedAgents.length === 0) {
-          this.supportedAgents = agents.map(({ id, name }) => ({ id, name }));
-        }
+        if (this.supportedAgents.length === 0) this.supportedAgents = agents;
         this.allAgents = agents;
         this.installedAgents = agents.filter((a) => a.installed);
         this.agentsLoaded = true;
@@ -1082,6 +1128,89 @@ function app() {
     /** Set a browsed directory as the active project. */
     selectDir(dir: BrowseDir) {
       dashboardSelectDir(this, dir);
+    },
+
+    // -- Tasks --
+    async loadTasks(planName?: string) {
+      this.tasksLoading = true;
+      this.tasksError = "";
+      const requestProjectPath = this.projectPath;
+      const requestedPlan = planName ?? this.selectedTaskPlan;
+      const planParam = requestedPlan
+        ? `&plan=${encodeURIComponent(requestedPlan)}`
+        : "";
+      try {
+        const res = await dashboardFetch(
+          `/api/tasks?path=${encodeURIComponent(requestProjectPath)}${planParam}`,
+        );
+        const payload = readRecord(await res.json(), "Tasks response");
+        const error = readErrorMessage(payload);
+        if (error) throw new Error(error);
+        if (this.projectPath !== requestProjectPath) return;
+        const state = readTaskState(payload);
+        this.tasksState = state;
+        this.selectedTaskPlan = state.selectedPlan;
+      } catch (err) {
+        if (this.projectPath !== requestProjectPath) return;
+        this.tasksState = null;
+        this.tasksError = err instanceof Error ? err.message : String(err);
+      } finally {
+        if (this.projectPath === requestProjectPath) this.tasksLoading = false;
+      }
+    },
+    selectTaskPlan(planName: string) {
+      this.selectedTaskPlan = planName;
+      void this.loadTasks(planName);
+    },
+    async setActiveTaskPlan(planName: string) {
+      if (!planName || this.tasksActivePlanSaving) return;
+      this.tasksActivePlanSaving = planName;
+      this.tasksError = "";
+      const requestProjectPath = this.projectPath;
+      try {
+        const res = await dashboardFetch(
+          `/api/tasks?path=${encodeURIComponent(requestProjectPath)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ plan: planName }),
+          },
+        );
+        const payload = readRecord(await res.json(), "Tasks response");
+        const error = readErrorMessage(payload);
+        if (error) throw new Error(error);
+        if (this.projectPath !== requestProjectPath) return;
+        const state = readTaskState(payload);
+        this.tasksState = state;
+        this.selectedTaskPlan = state.selectedPlan;
+        this.showToast(`Active plan set to ${planName}`);
+      } catch (err) {
+        if (this.projectPath !== requestProjectPath) return;
+        this.tasksError = err instanceof Error ? err.message : String(err);
+        this.showToast(this.tasksError || "Active plan update failed", true);
+      } finally {
+        if (
+          this.projectPath === requestProjectPath &&
+          this.tasksActivePlanSaving === planName
+        ) {
+          this.tasksActivePlanSaving = null;
+        }
+      }
+    },
+    taskProgressLabel(milestone: TaskMilestoneSummary): string {
+      return `${milestone.completedTasks}/${milestone.totalTasks}`;
+    },
+    taskProgressPct(milestone: TaskMilestoneSummary): number {
+      if (milestone.totalTasks <= 0) return 0;
+      return Math.round(
+        (milestone.completedTasks / milestone.totalTasks) * 100,
+      );
+    },
+    taskModifiedLabel(value: string): string {
+      if (!value) return "unknown";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "unknown";
+      return date.toLocaleString();
     },
 
     // -- Setup --

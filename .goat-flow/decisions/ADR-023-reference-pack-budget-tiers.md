@@ -2,12 +2,12 @@
 
 **Date:** 2026-04-20
 **Status:** Accepted
-**Updated:** 2026-05-10 - Path references amended for the v1.6.0 `skill-reference/` and `skill-playbooks/` split.
+**Updated:** 2026-05-18 - Path references amended for the v1.6.0 `skill-reference/` and `skill-playbooks/` split; obsolete line citation retargeted to the current deployment playbook anchor.
 **Milestone:** Quality-report follow-up (reports 1-4, persistent MAJOR finding across four runs)
 
 ## Context
 
-`skill-quality-testing.md:416` pinned a single reference-pack budget:
+The former `skill-quality-testing.md` budget rule pinned a single reference-pack budget (the current rule lives in `.goat-flow/skill-playbooks/skill-quality-testing/deployment.md` (search: `Token budget met per the four-tier model`)):
 
 > "Token budget met (dispatcher <500 words, functional skill <2500 words, reference pack <400 words per file)."
 
@@ -73,7 +73,18 @@ The installed `.goat-flow/skill-playbooks/skill-quality-testing.md` file becomes
 - Drift-check plumbing grows: `scripts/preflight-checks.sh`, `src/cli/audit/check-drift.ts` `SHARED_FILES` array, `workflow/install-goat-flow.sh`, `workflow/manifest.json`, and the `test/integration/audit-drift.test.ts` + `test/integration/preamble-sync.test.ts` fixture lists each gain the three new pairs.
 - `src/cli/audit/check-content-quality.ts` picks up the three new files so content-quality lint applies to the split content the same way it applied to the monolith.
 - Agents consulting `skill-quality-testing.md` for authoring guidance now read a short index, then load only the topical file their skill type needs (often just one).
-- The budget rule's new home is `deployment.md`. Cross-references that previously pointed at `skill-quality-testing.md` line 416 are forward-compatible because the file still exists (as the index) - but new cross-references should target `deployment.md` directly.
+- The budget rule's new home is `deployment.md` (`.goat-flow/skill-playbooks/skill-quality-testing/deployment.md` (search: `Token budget met per the four-tier model`)). Cross-references that previously pointed at the old `skill-quality-testing.md` budget line are forward-compatible because the file still exists as the index - but new cross-references should target `deployment.md` directly.
 - Future split work: if any of the three topical files exceeds 3000w, it splits further under the same model. `tdd-iteration.md` is the one to watch - it already sits at ~2800w carrying the bulk of the methodology, and any future content additions should be evaluated for whether they belong in a new topical file instead.
 
 **2026-05-02 amendment:** Dispatcher budget raised from <500 to ≤555. The dispatcher gained a structured Route Snapshot output contract, multi-intent decomposition protocol, GATHER checklist, and contract-test-mandated phrases (Proof Gate, "verification planning") that the original 500w budget didn't anticipate. The file was trimmed from 585w to 552w in the same pass - net reduction despite added features.
+
+**2026-05-17 measurement note:** The "Actual shipped state" table above (lines 16-20) and the "Under the new tiers" verdict (lines 42-46) reflect the 2026-04-20 baseline. Re-measured body word counts as of 2026-05-17:
+
+| File | 2026-04-20 baseline | 2026-05-17 measurement | Tier cap | Status |
+|------|---------------------|------------------------|----------|--------|
+| `skill-preamble.md` | 1181 | 1800 → trimmed to 1483 | <1500 | over → ✅ within |
+| `skill-conventions.md` | 977 | 1250 | <1500 | ✅ within |
+| `goat-review/SKILL.md` | — | 2537 → trimmed to 2495 | <2500 | over → ✅ within |
+| `tdd-iteration.md` | — | 3106 → trimmed to 2998 | <3000 | over → ✅ within |
+
+The preamble drifted 52% upward (1181→1800) between 2026-04-20 and 2026-05-17 with no enforcement check catching it. Three other files crossed their tier caps in the same period. Enforcement now lives in `test/contract/skill-hardening-contracts.test.ts` under `describe("ADR-023 word budget tiers", ...)` — failing tests now block budget regressions instead of waiting for quality-report runs to surface them.

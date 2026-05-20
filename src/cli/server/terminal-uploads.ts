@@ -5,14 +5,13 @@
  * handler module so file-level constants, MIME tables, sanitization, and
  * containment checks can be unit-tested without spinning up an HTTP server.
  */
+import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  realpathSync,
-  writeFileSync,
-} from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+  isPathWithin,
+  resolveValidatedLocalStatePath,
+  validateLocalPath,
+} from "./local-paths.js";
 
 /** Maximum bytes per uploaded image file (raw, post-base64-decode). */
 const TERMINAL_UPLOAD_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MiB
@@ -53,26 +52,6 @@ interface UploadDirectory {
   absPath: string;
   relPath: string;
   realRootPath: string;
-}
-
-function isPathWithin(parent: string, child: string): boolean {
-  const rel = relative(parent, child);
-  if (rel === "") return true;
-  if (isAbsolute(rel)) return false;
-  const [firstSegment] = rel.split(/[\\/]/);
-  return firstSegment !== "..";
-}
-
-function assertUploadComponentSafe(root: string, candidate: string): void {
-  if (!existsSync(candidate)) return;
-  if (lstatSync(candidate).isSymbolicLink()) {
-    throw new Error("Upload path escapes session target directory");
-  }
-  const realRoot = existsSync(root) ? realpathSync(root) : root;
-  const realCandidate = realpathSync(candidate);
-  if (!isPathWithin(realRoot, realCandidate)) {
-    throw new Error("Upload path escapes session target directory");
-  }
 }
 
 /** Strip directory components and unsafe characters from an upload filename. */
@@ -132,24 +111,15 @@ export function uploadDirForSession(
   if (!/^[a-zA-Z0-9_-]+$/u.test(sessionId)) {
     throw new Error("Invalid session id for upload path");
   }
-  const root = resolve(targetPath);
-  const absPath = resolve(root, ".goat-flow", "logs", "uploads", sessionId);
-  const rel = relative(root, absPath);
-  if (rel.startsWith("..") || resolve(root, rel) !== absPath) {
-    throw new Error("Upload path escapes session target directory");
-  }
-  for (const component of [
-    resolve(root, ".goat-flow"),
-    resolve(root, ".goat-flow", "logs"),
-    resolve(root, ".goat-flow", "logs", "uploads"),
-    absPath,
-  ]) {
-    assertUploadComponentSafe(root, component);
-  }
+  const target = validateLocalPath(targetPath, "upload");
+  const relPath = `.goat-flow/logs/uploads/${sessionId}`;
   return {
-    absPath,
-    relPath: rel.replace(/\\/gu, "/"),
-    realRootPath: existsSync(root) ? realpathSync(root) : root,
+    absPath: resolveValidatedLocalStatePath(
+      target,
+      `logs/uploads/${sessionId}`,
+    ),
+    relPath,
+    realRootPath: target.realPath,
   };
 }
 
