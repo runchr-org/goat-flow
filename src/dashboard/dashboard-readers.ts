@@ -327,16 +327,6 @@ function readStringRecord(value: unknown): Record<string, string> {
   return Object.fromEntries(entries);
 }
 
-/** Read a string-to-number map from raw payload data. */
-function readNumberRecord(value: unknown): Record<string, number> {
-  if (!isRecord(value)) return {};
-
-  const entries = Object.entries(value).filter(
-    (entry): entry is [string, number] => typeof entry[1] === "number",
-  );
-  return Object.fromEntries(entries);
-}
-
 /** Read one audit scope from raw payload data. */
 function readAuditScope(value: unknown, context: string): AuditScope {
   const payload = readRecord(value, context);
@@ -399,6 +389,25 @@ function readEnforcementStatus(
     : null;
 }
 
+/** Read only the known enforcement status counters from raw payload data. */
+function readEnforcementSummary(
+  value: unknown,
+): Record<EnforcementCapabilityStatus, number> {
+  const summary: Record<EnforcementCapabilityStatus, number> = {
+    hard: 0,
+    limited: 0,
+    soft: 0,
+    missing: 0,
+    unknown: 0,
+  };
+  if (!isRecord(value)) return summary;
+  for (const [key, count] of Object.entries(value)) {
+    const status = readEnforcementStatus(key);
+    if (status && typeof count === "number") summary[status] = count;
+  }
+  return summary;
+}
+
 /** Read one enforcement source label from raw payload data. */
 function readEnforcementSource(
   value: unknown,
@@ -457,14 +466,7 @@ function readAgentEnforcementCapability(
     name,
     advisory: true,
     capabilities,
-    summary: {
-      hard: 0,
-      limited: 0,
-      soft: 0,
-      missing: 0,
-      unknown: 0,
-      ...readNumberRecord(value.summary),
-    },
+    summary: readEnforcementSummary(value.summary),
   };
 }
 

@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import {
   LocalPathValidationError,
   resolveLocalStatePath,
+  resolveValidatedLocalStatePath,
   validateLocalPath,
 } from "../../src/cli/server/local-paths.js";
 
@@ -127,6 +128,19 @@ describe("resolveLocalStatePath", () => {
       assert.equal(
         resolveLocalStatePath(root, "logs/uploads/sess1", "upload"),
         join(root, ".goat-flow", "logs", "uploads", "sess1"),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves writes from an already validated project path", () => {
+    const root = mkdtempSync(join(tmpdir(), "gf-local-state-"));
+    try {
+      const project = validateLocalPath(root, "upload");
+      assert.equal(
+        resolveValidatedLocalStatePath(project, "logs/uploads/sess2"),
+        join(root, ".goat-flow", "logs", "uploads", "sess2"),
       );
     } finally {
       rmSync(root, { recursive: true, force: true });

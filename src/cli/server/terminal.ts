@@ -240,9 +240,7 @@ function sendMessage(ws: WebSocket, msg: ServerMessage): void {
 }
 
 function looksLikePromptSend(input: string): boolean {
-  return (
-    input.includes("\x1b[200~") || input.includes("\n") || input.length > 80
-  );
+  return input.includes("\x1b[200~");
 }
 
 /** Manages PTY-backed terminal sessions for the dashboard */

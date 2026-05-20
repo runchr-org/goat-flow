@@ -369,6 +369,21 @@ function validateVersionField(
   }
 }
 
+/** Warn when the removed legacy agent allowlist appears in config. */
+function validateLegacyAgentsField(
+  raw: RawConfig,
+  warnings: ValidationIssue[],
+  _errors: ValidationIssue[],
+): void {
+  if ("agents" in raw && raw.agents !== null && raw.agents !== undefined) {
+    pushWarning(
+      warnings,
+      "agents",
+      "ignored; use --agent <id> to scope commands",
+    );
+  }
+}
+
 /** Validate line-limit overrides and ensure target stays below limit. */
 function validateLineLimitsField(
   raw: RawConfig,
@@ -597,6 +612,7 @@ function validateTerminalField(
 /** Ordered list of field-level validators applied during config validation. */
 const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateVersionField,
+  validateLegacyAgentsField,
   validateLineLimitsField,
   validateSkillsField,
   validateToolchainField,

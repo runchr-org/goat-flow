@@ -374,7 +374,14 @@ describe("dashboard payload readers", () => {
             agent: "claude",
             name: "Claude Code",
             advisory: true,
-            summary: { hard: 1, limited: 0, soft: 0, missing: 0, unknown: 1 },
+            summary: {
+              hard: 1,
+              limited: 0,
+              soft: 0,
+              missing: 0,
+              unknown: 1,
+              experimental: 99,
+            },
             capabilities: [
               {
                 id: "shell-dangerous",
@@ -403,6 +410,15 @@ describe("dashboard payload readers", () => {
     assert.equal(enforcement?.capabilities.length, 2);
     assert.equal(enforcement?.capabilities[1]?.status, "unknown");
     assert.deepEqual(enforcement?.capabilities[0]?.sources, ["local-hook"]);
+    assert.equal(enforcement?.summary.hard, 1);
+    assert.equal(enforcement?.summary.limited, 0);
+    assert.equal(enforcement?.summary.soft, 0);
+    assert.equal(enforcement?.summary.missing, 0);
+    assert.equal(enforcement?.summary.unknown, 1);
+    assert.equal(
+      Object.hasOwn(enforcement?.summary ?? {}, "experimental"),
+      false,
+    );
   });
 
   it("preserves task-state fields used by the Tasks view", () => {

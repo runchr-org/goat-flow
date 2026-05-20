@@ -243,7 +243,7 @@ export interface SharedFacts {
   /** Total line count across canonical local-instruction files. */
   localInstructionsLineCount: number;
   /** Parsed entries for deterministic, bounded prompt retrieval. */
-  learningLoopEntries?: LearningLoopEntryFact[];
+  learningLoopEntries: LearningLoopEntryFact[];
 }
 
 /** Per-agent facts gathered from instruction files, settings, skills, and hooks */

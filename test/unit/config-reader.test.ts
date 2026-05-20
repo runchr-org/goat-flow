@@ -186,6 +186,13 @@ agents:
     assert.equal(result.valid, true);
     assert.equal(result.config.agents, null);
     assert.deepEqual(result.errors, []);
+    assert.ok(
+      result.warnings.some(
+        (warning) =>
+          warning.path === "agents" && warning.message.includes("ignored"),
+      ),
+      JSON.stringify(result.warnings),
+    );
   });
 });
 
@@ -219,6 +226,13 @@ agents:
       result.config.agents,
       null,
       "legacy config.agents must not leak into downstream consumers",
+    );
+    assert.ok(
+      result.warnings.some(
+        (warning) =>
+          warning.path === "agents" && warning.message.includes("ignored"),
+      ),
+      JSON.stringify(result.warnings),
     );
   });
 

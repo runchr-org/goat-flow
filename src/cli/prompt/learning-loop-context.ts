@@ -256,7 +256,7 @@ export function selectLearningLoopContext(
   options: LearningLoopContextOptions = {},
 ): LearningLoopContextSelection {
   const resolved = resolveLearningLoopOptions(options);
-  const sourceEntries = sharedFacts.learningLoopEntries ?? [];
+  const sourceEntries = sharedFacts.learningLoopEntries;
   const candidates = sourceEntries
     .filter((entry) =>
       allowedEntry(entry, {

@@ -14,6 +14,7 @@ import {
   pickWindowsRunnerPath,
   resolveCLIPath,
   TerminalManager,
+  type TerminalTraceEvent,
   validateProjectPath,
 } from "../../src/cli/server/terminal.js";
 import type { ServerMessage } from "../../src/cli/server/types.js";
@@ -54,6 +55,7 @@ interface TestTerminalManagerInternals {
   nodePtyAvailable: boolean | null;
   startedAt: number;
   idleTimeoutMs: number | null;
+  traceSink?: (event: TerminalTraceEvent) => void;
 }
 
 class FakeWebSocket {
@@ -418,5 +420,32 @@ describe("terminal exports", () => {
         message: "message.data: must be a string on input messages",
       },
     ]);
+  });
+
+  it("traces prompt sends only for bracketed-paste prompt input", () => {
+    const manager = makeManager();
+    const events: TerminalTraceEvent[] = [];
+    managerInternals(manager).traceSink = (event) => events.push(event);
+    const { session, writes } = makeSession();
+    managerInternals(manager).sessions.set(session.id, session);
+    const socket = new FakeWebSocket();
+    const longCommand = `${"x".repeat(100)}\n`;
+    const bracketedPrompt = "\x1b[200~review this diff\x1b[201~";
+
+    manager.attachWebSocket(session.id, socket.asTerminalSocket());
+    socket.emit(
+      "message",
+      JSON.stringify({ type: "input", data: longCommand }),
+    );
+    socket.emit(
+      "message",
+      JSON.stringify({ type: "input", data: bracketedPrompt }),
+    );
+
+    assert.deepStrictEqual(writes, [longCommand, bracketedPrompt]);
+    assert.deepStrictEqual(
+      events.map((event) => event.eventKind),
+      ["terminal.send", "terminal.send", "prompt.send"],
+    );
   });
 });

@@ -21,6 +21,11 @@ export interface ValidatedLocalPath {
   purpose: LocalPathPurpose;
 }
 
+type LocalStatePathPurpose = Extract<
+  LocalPathPurpose,
+  "write-local-state" | "upload"
+>;
+
 export class LocalPathValidationError extends Error {
   readonly validationClass: LocalPathValidationClass;
   readonly purpose: LocalPathPurpose | "state-path";
@@ -169,15 +174,19 @@ function assertExistingComponentsStayInside(
   }
 }
 
-export function resolveLocalStatePath(
-  projectPath: string,
+function assertLocalStatePathPurpose(
+  project: ValidatedLocalPath,
+): asserts project is ValidatedLocalPath & { purpose: LocalStatePathPurpose } {
+  if (project.purpose !== "write-local-state" && project.purpose !== "upload") {
+    throw new LocalPathValidationError("state-path", "state-path-escape");
+  }
+}
+
+export function resolveValidatedLocalStatePath(
+  project: ValidatedLocalPath,
   relativePath: string,
-  purpose: Extract<
-    LocalPathPurpose,
-    "write-local-state" | "upload"
-  > = "write-local-state",
 ): string {
-  const project = validateLocalPath(projectPath, purpose);
+  assertLocalStatePathPurpose(project);
   const stateRoot = resolve(project.path, ".goat-flow");
   const candidate = resolve(stateRoot, relativePath);
   if (!isPathWithin(stateRoot, candidate)) {
@@ -188,6 +197,17 @@ export function resolveLocalStatePath(
     existingPathComponents(project.path, candidate),
   );
   return candidate;
+}
+
+export function resolveLocalStatePath(
+  projectPath: string,
+  relativePath: string,
+  purpose: LocalStatePathPurpose = "write-local-state",
+): string {
+  return resolveValidatedLocalStatePath(
+    validateLocalPath(projectPath, purpose),
+    relativePath,
+  );
 }
 
 export function validateProjectPath(projectPath: string): string {

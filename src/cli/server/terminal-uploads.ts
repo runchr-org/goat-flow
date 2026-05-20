@@ -9,7 +9,7 @@ import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   isPathWithin,
-  resolveLocalStatePath,
+  resolveValidatedLocalStatePath,
   validateLocalPath,
 } from "./local-paths.js";
 
@@ -114,10 +114,9 @@ export function uploadDirForSession(
   const target = validateLocalPath(targetPath, "upload");
   const relPath = `.goat-flow/logs/uploads/${sessionId}`;
   return {
-    absPath: resolveLocalStatePath(
-      target.path,
+    absPath: resolveValidatedLocalStatePath(
+      target,
       `logs/uploads/${sessionId}`,
-      "upload",
     ),
     relPath,
     realRootPath: target.realPath,

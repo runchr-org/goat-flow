@@ -278,6 +278,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
       misplacedPaths: [],
     },
     localInstructionsLineCount: 0,
+    learningLoopEntries: [],
   };
 }
 

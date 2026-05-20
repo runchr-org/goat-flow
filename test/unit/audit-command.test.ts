@@ -56,11 +56,6 @@ const CODEX_EXACT_ENV_DENY_ENTRIES = [
   '".env.staging" = "none"',
   '".envrc" = "none"',
 ];
-const CODEX_EXACT_CREDENTIAL_DENY_ENTRIES = [
-  '"credentials" = "none"',
-  '".npmrc" = "none"',
-  '".pypirc" = "none"',
-];
 
 function codexWorkspaceRootsTable(
   entries = CODEX_WORKSPACE_ROOT_ENTRIES,
