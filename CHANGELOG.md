@@ -6,6 +6,10 @@
 
 - **GitHub CLI read-only policy** - Deny hooks now block write-capable `gh` commands, including issue/PR comments, releases, workflow runs, repo edits, secrets/variables, and `gh api` write methods or body-field default POSTs, while preserving read-only discovery such as issue/PR views, checks, diffs, search, and explicit `gh api --method GET`. ADR-028 records the durable default that agents may read GitHub through `gh` but must not write to GitHub through `gh`.
 
+### Dashboard workspace
+
+- **Terminal awaiting-input detection for Claude TUI and OSC titles** - Dashboard terminal output parsing now normalises cursor-horizontal-absolute (`ESC[<n>G`) sequences to a separator and strips OSC envelopes before scanning, so Claude Code's column-laid `Esc to cancel · Tab to amend` footer and numbered-choice prompts no longer collapse into joined words that defeat word-boundary regexes. Awaiting-input also fires when codex/gemini broadcast `Action Required` or `[ ! ]` through the terminal title (OSC 0/1/2), and the numbered-choice marker class widens from `[›>]` to `[›>❯▶▸→]` so Claude's `❯` selection cursor is recognised. Regression fixtures pin the raw byte patterns captured from each runner.
+
 ## v1.7.0 - 2026-05-20
 
 Harness audit enrichment, dashboard Plans workspace, learning-loop bounding, and release-hardening fixes.

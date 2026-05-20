@@ -182,20 +182,22 @@ function dashboardSessionTitle(
 
 /** Strip common terminal control codes before scanning output text. */
 function dashboardPlainTerminalText(text: string): string {
-  return text
-    // OSC (title / hyperlink / progress): ESC ] ... BEL or ESC ] ... ESC \.
-    // Title text is captured separately via dashboardTerminalTitlesFromOutput.
-    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
-    .replace(/\x1b\[(\d+)C/g, (_sequence, count: string) =>
-      " ".repeat(Math.min(Number.parseInt(count, 10), 240)),
-    )
-    .replace(/\x1b\[C/g, " ")
-    // CHA (cursor horizontal absolute). Replace with a single space so
-    // column-laid words (Claude Code's "Esc to cancel · Tab to amend" footer
-    // and numbered choices) keep a token boundary instead of collapsing.
-    .replace(/\x1b\[\d*G/g, " ")
-    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
-    .replace(/\r/g, "\n");
+  return (
+    text
+      // OSC (title / hyperlink / progress): ESC ] ... BEL or ESC ] ... ESC \.
+      // Title text is captured separately via dashboardTerminalTitlesFromOutput.
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
+      .replace(/\x1b\[(\d+)C/g, (_sequence, count: string) =>
+        " ".repeat(Math.min(Number.parseInt(count, 10), 240)),
+      )
+      .replace(/\x1b\[C/g, " ")
+      // CHA (cursor horizontal absolute). Replace with a single space so
+      // column-laid words (Claude Code's "Esc to cancel · Tab to amend" footer
+      // and numbered choices) keep a token boundary instead of collapsing.
+      .replace(/\x1b\[\d*G/g, " ")
+      .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+      .replace(/\r/g, "\n")
+  );
 }
 
 /** Extract OSC 0/1/2 title payloads from raw terminal output. */
@@ -235,7 +237,7 @@ function dashboardLastCommandPermissionPromptIndex(plain: string): number {
   ];
   for (const pattern of patterns) {
     for (const match of plain.matchAll(pattern)) {
-      lastIndex = Math.max(lastIndex, match.index ?? -1);
+      lastIndex = Math.max(lastIndex, match.index);
     }
   }
   return lastIndex;
@@ -1788,7 +1790,7 @@ function dashboardConnectTerminal(
         const previousAwaiting =
           reactive?.awaitingInput === true ||
           session.awaitingInput === true ||
-          refs?.awaitingInputTimer !== undefined;
+          refs.awaitingInputTimer !== undefined;
         const tail = (previousTail + msg.data).slice(-5000);
         const awaitingInput = dashboardNextAwaitingInputState(
           previousAwaiting,
@@ -1820,7 +1822,7 @@ function dashboardConnectTerminal(
           );
         }
         dashboardHandlePasteSubmitOutput(ctx, sessionId, msg.data);
-        if (refs?.launchPrompt)
+        if (refs.launchPrompt)
           dashboardHandleLaunchPromptOutput(ctx, sessionId);
         if (awaitingInput) {
           if (

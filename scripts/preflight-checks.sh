@@ -1379,15 +1379,20 @@ if [[ -f tsconfig.json ]]; then
         lint_errors=$(echo "$lint_output" | grep -Ec '^[[:space:]]*[0-9]+:[0-9]+[[:space:]]+error[[:space:]]' || true)
         lint_warnings=$(echo "$lint_output" | grep -Ec '^[[:space:]]*[0-9]+:[0-9]+[[:space:]]+warning[[:space:]]' || true)
         if [[ "$lint_exit" -eq 0 ]]; then
-            pass "ESLint ($lint_warnings warnings)"
+            if [[ "$lint_warnings" -gt 0 ]]; then
+                warn "ESLint (0 errors, $lint_warnings warnings) - run npx eslint ${lint_targets[*]}"
+                echo "$lint_output" | sed -n '1,20p' | details_pipe
+                if [[ "$lint_warnings" -gt 1 ]]; then
+                    warnings=$((warnings + lint_warnings - 1))
+                fi
+            else
+                pass "ESLint (0 warnings)"
+            fi
         elif [[ "$lint_errors" -gt 0 ]]; then
             fail "ESLint ($lint_errors errors, $lint_warnings warnings) - run npx eslint ${lint_targets[*]}"
+            echo "$lint_output" | sed -n '1,20p' | details_pipe
         else
             pass "ESLint (0 errors, $lint_warnings warnings)"
-        fi
-        # Count ESLint warnings in the preflight total
-        if [[ "$lint_warnings" -gt 0 ]]; then
-            warnings=$((warnings + lint_warnings))
         fi
     else
         skip "ESLint (not configured)"

@@ -2153,8 +2153,7 @@ describe("dashboard terminal launch flow", () => {
       "Running tool…\n\x1b]0;[ ! ] Action Required | goat-flow\x07";
     const geminiBell =
       "Waiting on user…\n\x1b]0;✋  Action Required (goat-flow)\x07";
-    const explicitAwaiting =
-      "Idle\n\x1b]0;awaiting confirmation — copilot\x07";
+    const explicitAwaiting = "Idle\n\x1b]0;awaiting confirmation — copilot\x07";
     assert.equal(helpers.dashboardOutputLooksAwaitingInput(codexBell), true);
     assert.equal(helpers.dashboardOutputLooksAwaitingInput(geminiBell), true);
     assert.equal(
