@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Guardrails
+
+- **GitHub CLI read-only policy** - Deny hooks now block write-capable `gh` commands, including issue/PR comments, releases, workflow runs, repo edits, secrets/variables, and `gh api` write methods or body-field default POSTs, while preserving read-only discovery such as issue/PR views, checks, diffs, search, and explicit `gh api --method GET`. ADR-028 records the durable default that agents may read GitHub through `gh` but must not write to GitHub through `gh`.
+
 ## v1.7.0 - 2026-05-20
 
 Harness audit enrichment, dashboard Plans workspace, learning-loop bounding, and release-hardening fixes.

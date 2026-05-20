@@ -25,6 +25,7 @@ The shipped template is intended to block or prompt on the common high-risk comm
 
 - unscoped `rm -rf`
 - all git push (ADR-025)
+- GitHub writes via `gh`, including issue/PR comments, releases, workflow runs, secrets/variables, and `gh api` write methods
 - `chmod 777`
 - pipe-to-shell and pipe-to-interpreter patterns like `curl | bash`
 - direct literal `.env` / `.env.*` access, except read-only `.env.example` inspection
