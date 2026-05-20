@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-05-20
+last_reviewed: 2026-05-21
 ---
 
 **Last independent review:** 2026-05-04 - The five active entries present at review time were checked against current anchors and hook self-tests. Targeted `rg` checks resolved every cited semantic anchor; workflow, Claude, GitHub, Codex, and Gemini deny-hook self-tests each returned `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe was blocked by the active PreToolUse guard before script execution, so this review relies on self-test coverage plus live harness blocking for that command shape. Later entries are covered by their own evidence blocks until the next independent review.
@@ -111,6 +111,27 @@ last_reviewed: 2026-05-20
 2. Verify Codex config changes with a TTY startup smoke (`codex` under a short timeout) as well as `codex doctor`; non-interactive commands can miss TUI startup warnings.
 3. Keep `.codex/config.toml`, `workflow/hooks/agent-config/codex.toml`, and `src/cli/facts/agent/settings.ts` in the same patch whenever Codex permission grammar changes.
 4. Treat Codex permission-profile secret coverage as a loadable set, not a future-file deny list. Use trailing `/**` subtree denies in the base template, and add exact root-file denies only when the file exists in the checkout.
+
+---
+
+## Footgun: Codex config preservation can leave old permission profiles behind
+
+**Status:** active | **Created:** 2026-05-21 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A normal upgrade with `goat-flow install . --agent codex` refreshes skills and hook scripts but preserves an existing `.codex/config.toml`. If that existing file predates the Codex permission-profile template, setup and agent checks can pass while `audit --harness` still reports incomplete direct literal secret-path blocking for Codex. The user sees "0 audit checks failed" from the setup prompt unless they run harness mode.
+
+**Why it happens:** The installer intentionally skips existing settings to avoid clobbering local agent config. For Codex, `.codex/config.toml` is both a settings file and the provider-native filesystem deny surface, while hook registration lives separately in `.codex/hooks.json`. Preserving the file is safe for local customizations but does not migrate `default_permissions = "goat-flow"` or the `[permissions.goat-flow.filesystem]` profile.
+
+**Evidence:**
+- `workflow/install-goat-flow.sh` (search: `Settings file was preserved`) - existing settings are skipped unless `--force`.
+- `workflow/hooks/agent-config/codex.toml` (search: `default_permissions = "goat-flow"`) - the 1.7.0 template carries the required permission-profile surface.
+- `src/cli/audit/harness/check-constraints.ts` (search: `direct literal secret-path blocking incomplete`) - harness detects the missing combined file-read and Bash-hook coverage.
+- 2026-05-21 downstream upgrade: after normal Codex install, `audit --agent codex --harness` still failed Constraints until exact existing root env files were added to `.codex/config.toml` alongside the template profile.
+
+**Prevention:**
+1. After Codex upgrades, run `goat-flow audit . --agent codex --harness`, not only the default setup audit.
+2. If Codex settings were preserved, compare `.codex/config.toml` with `workflow/hooks/agent-config/codex.toml` and add the permission profile plus exact denies only for sensitive root files that exist in the checkout.
+3. Improve the installer or setup prompt to distinguish "hook registration" in `.codex/hooks.json` from "filesystem deny profile" in `.codex/config.toml` when settings are preserved.
 
 ---
 

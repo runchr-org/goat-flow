@@ -392,6 +392,130 @@ console.log("migrated");
 NODE
 }
 
+migrate_codex_filesystem_permissions() {
+  local path="$1"
+  node - "$path" <<'NODE'
+const fs = require("node:fs");
+
+const path = process.argv[2];
+const content = fs.readFileSync(path, "utf8");
+const eol = content.includes("\r\n") ? "\r\n" : "\n";
+const hadFinalNewline = /\r?\n$/u.test(content);
+const lines = content.split(/\r?\n/u);
+if (hadFinalNewline) lines.pop();
+
+const filesystemSectionPattern =
+  /^\s*\[\s*permissions\.goat-flow\.filesystem(?:\..+)?\s*\]\s*$/u;
+const anySectionPattern = /^\s*\[[^\]]+\]\s*$/u;
+const invalidNoneEntryPattern =
+  /^\s*"(?:[^"]*\*[^"/]*\.[A-Za-z0-9_*-]+|[^"]*\*\*[^"/]*|[^"/]*\*[^"/]*)"\s*=\s*"none"\s*(?:#.*)?$/u;
+
+let firstHit = -1;
+let lastHit = -1;
+let hasInvalidEntry = false;
+let usesLegacyAnchor = false;
+for (let i = 0; i < lines.length; i += 1) {
+  if (filesystemSectionPattern.test(lines[i])) {
+    if (firstHit === -1) firstHit = i;
+    lastHit = i;
+    if (/:project_roots/u.test(lines[i])) usesLegacyAnchor = true;
+  }
+}
+if (firstHit === -1) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+let removeEnd = lastHit + 1;
+while (removeEnd < lines.length && !anySectionPattern.test(lines[removeEnd])) {
+  if (invalidNoneEntryPattern.test(lines[removeEnd])) hasInvalidEntry = true;
+  removeEnd += 1;
+}
+
+if (!hasInvalidEntry && !usesLegacyAnchor) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+const canonicalBlock = [
+  "[permissions.goat-flow.filesystem]",
+  "glob_scan_max_depth = 3",
+  '# Codex 0.131 accepts exact paths and trailing "/**" subtrees here.',
+  "# Exact entries must point at files that exist in the target checkout; absent",
+  "# exact paths can make Codex fail before shell startup. Filename globs such as",
+  '# "*.key" are covered by .codex/hooks/deny-dangerous.sh.',
+  '":workspace_roots" = { "." = "write", "secrets/**" = "none", ".ssh/**" = "none", ".aws/**" = "none", ".docker/**" = "none", ".gnupg/**" = "none", ".kube/**" = "none" }',
+];
+
+const before = lines.slice(0, firstHit);
+const after = lines.slice(removeEnd);
+while (before.length && before[before.length - 1].trim() === "") before.pop();
+
+const rebuilt = [...before];
+if (rebuilt.length > 0) rebuilt.push("");
+rebuilt.push(...canonicalBlock);
+
+let trailingStart = 0;
+while (trailingStart < after.length && after[trailingStart].trim() === "")
+  trailingStart += 1;
+if (trailingStart < after.length) {
+  rebuilt.push("");
+  rebuilt.push(...after.slice(trailingStart));
+}
+
+fs.writeFileSync(path, rebuilt.join(eol) + (hadFinalNewline ? eol : ""));
+console.log("migrated");
+NODE
+}
+
+validate_codex_settings_after_install() {
+  local path="$1"
+  node - "$path" <<'NODE'
+const fs = require("node:fs");
+const path = process.argv[2];
+if (!fs.existsSync(path)) {
+  console.log("ok");
+  process.exit(0);
+}
+const content = fs.readFileSync(path, "utf8");
+const problems = new Set();
+
+function isInvalidNoneKey(key) {
+  if (!key.includes("*")) return false;
+  return !key.endsWith("/**");
+}
+
+const sectionEntryPattern =
+  /^\s*"([^"]+)"\s*=\s*"none"\s*(?:#.*)?$/gmu;
+for (const match of content.matchAll(sectionEntryPattern)) {
+  if (isInvalidNoneKey(match[1])) {
+    problems.add(`section entry "${match[1]}" with access="none"`);
+  }
+}
+
+const inlineTablePattern = /:workspace_roots"\s*=\s*\{([^}]*)\}/gu;
+for (const match of content.matchAll(inlineTablePattern)) {
+  const body = match[1];
+  const entryPattern = /"([^"]+)"\s*=\s*"none"/gu;
+  for (const entry of body.matchAll(entryPattern)) {
+    if (isInvalidNoneKey(entry[1])) {
+      problems.add(`inline entry "${entry[1]}" with access="none"`);
+    }
+  }
+}
+
+if (/:project_roots/.test(content)) {
+  problems.add("legacy :project_roots anchor still present");
+}
+
+if (problems.size > 0) {
+  console.log("invalid:" + [...problems].join("; "));
+  process.exit(0);
+}
+console.log("ok");
+NODE
+}
+
 echo "goat-flow install: $(basename "$PROJECT") (agent: $AGENT)"
 echo ""
 
@@ -555,9 +679,19 @@ echo "Settings:"
 SETTINGS_SKIPPED=false
 if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
   if [[ -f "$SETTINGS_DST" ]] && ! $FORCE; then
-    if [[ "$AGENT" == "codex" ]] && [[ "$(migrate_codex_hooks_feature_flag "$SETTINGS_DST")" == "migrated" ]]; then
+    SETTINGS_MIGRATIONS=()
+    if [[ "$AGENT" == "codex" ]]; then
+      if [[ "$(migrate_codex_hooks_feature_flag "$SETTINGS_DST")" == "migrated" ]]; then
+        SETTINGS_MIGRATIONS+=("deprecated hooks flag")
+      fi
+      if [[ "$(migrate_codex_filesystem_permissions "$SETTINGS_DST")" == "migrated" ]]; then
+        SETTINGS_MIGRATIONS+=("invalid filesystem permissions")
+      fi
+    fi
+    if [[ ${#SETTINGS_MIGRATIONS[@]} -gt 0 ]]; then
       COPIED=$((COPIED + 1))
-      echo "  ✓ $SETTINGS_DST (migrated deprecated hooks flag)"
+      SETTINGS_NOTE="$(IFS=', '; echo "${SETTINGS_MIGRATIONS[*]}")"
+      echo "  ✓ $SETTINGS_DST (migrated: $SETTINGS_NOTE)"
     else
       SETTINGS_SKIPPED=true
       SKIPPED=$((SKIPPED + 1))
@@ -568,6 +702,19 @@ if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
   fi
 else
   echo "  · no settings file for $AGENT"
+fi
+if [[ "$AGENT" == "codex" && -n "${SETTINGS_DST:-}" && -f "$SETTINGS_DST" ]]; then
+  CODEX_VALIDATION="$(validate_codex_settings_after_install "$SETTINGS_DST")"
+  if [[ "$CODEX_VALIDATION" != "ok" ]]; then
+    echo ""
+    echo "ERROR: $SETTINGS_DST still has invalid Codex permission entries:" >&2
+    echo "  ${CODEX_VALIDATION#invalid:}" >&2
+    echo "Codex will reject this config at startup. Re-run with --force to" >&2
+    echo "refresh from the canonical template, or edit the file manually so" >&2
+    echo "every \"none\" entry under :workspace_roots is either an exact path" >&2
+    echo "or a trailing \"/**\" subtree." >&2
+    exit 1
+  fi
 fi
 echo ""
 

@@ -408,6 +408,112 @@ function isCodexExactWorkspaceRootPath(pattern: string): boolean {
   return pattern !== "." && !pattern.includes("*") && !pattern.endsWith("/**");
 }
 
+function isCodexInvalidNoneGlob(pattern: string): boolean {
+  if (!pattern.includes("*")) return false;
+  return !pattern.endsWith("/**");
+}
+
+function collectCodexFilesystemFindings(
+  parsed: unknown,
+  profileName: string,
+): { invalidGlobs: string[]; legacyAnchors: string[] } {
+  const invalidGlobs: string[] = [];
+  const legacyAnchors: string[] = [];
+  if (!parsed || typeof parsed !== "object") {
+    return { invalidGlobs, legacyAnchors };
+  }
+  const filesystemPrefix = `permissions.${profileName}.filesystem.`;
+  const legacyAnchor = `${filesystemPrefix}:project_roots`;
+  for (const [key, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
+    if (!key.startsWith(filesystemPrefix)) continue;
+    if (key === legacyAnchor || key.startsWith(`${legacyAnchor}.`)) {
+      legacyAnchors.push(":project_roots");
+    }
+    if (typeof value === "string") {
+      const isInlineRoot =
+        key === `${filesystemPrefix}:workspace_roots` ||
+        key === legacyAnchor;
+      if (isInlineRoot) {
+        for (const [pattern, mode] of parseTomlInlineStringTableForKey(value)) {
+          if (mode === "none" && isCodexInvalidNoneGlob(pattern)) {
+            invalidGlobs.push(pattern);
+          }
+        }
+        continue;
+      }
+      const expandedRootPrefix = `${filesystemPrefix}:workspace_roots.`;
+      const legacyExpandedRootPrefix = `${legacyAnchor}.`;
+      let pattern: string | null = null;
+      if (key.startsWith(expandedRootPrefix)) {
+        pattern = key.slice(expandedRootPrefix.length);
+      } else if (key.startsWith(legacyExpandedRootPrefix)) {
+        pattern = key.slice(legacyExpandedRootPrefix.length);
+      }
+      if (
+        pattern !== null &&
+        value === "none" &&
+        isCodexInvalidNoneGlob(pattern)
+      ) {
+        invalidGlobs.push(pattern);
+      }
+    }
+  }
+  return { invalidGlobs, legacyAnchors };
+}
+
+function parseTomlInlineStringTableForKey(
+  rawValue: string,
+): Array<[string, string]> {
+  const value = rawValue.trim();
+  if (!value.startsWith("{") || !value.endsWith("}")) return [];
+  const entries: Array<[string, string]> = [];
+  const entryPattern = /"((?:\\.|[^"\\])*)"\s*=\s*"((?:\\.|[^"\\])*)"/gu;
+  for (const match of value.matchAll(entryPattern)) {
+    const [, key, mode] = match;
+    if (key && mode) entries.push([key, mode]);
+  }
+  return entries;
+}
+
+function checkCodexWorkspaceRootInvalidGlobs(
+  ctx: AuditContext,
+): AuditFailure | null {
+  for (const af of ctx.agents) {
+    if (af.agent.id !== "codex") continue;
+    const settings = settingsObject(af.settings.parsed);
+    const defaultPermissions = settings?.default_permissions;
+    if (typeof defaultPermissions !== "string" || defaultPermissions === "") {
+      continue;
+    }
+    const { invalidGlobs, legacyAnchors } = collectCodexFilesystemFindings(
+      af.settings.parsed,
+      defaultPermissions,
+    );
+    if (invalidGlobs.length === 0 && legacyAnchors.length === 0) continue;
+    const messageParts: string[] = [];
+    if (invalidGlobs.length > 0) {
+      messageParts.push(
+        `Codex permission profile uses filename-glob patterns with "none" access that Codex 0.131+ rejects: ${uniquePaths(invalidGlobs).join(", ")}`,
+      );
+    }
+    if (legacyAnchors.length > 0) {
+      messageParts.push(
+        `Codex permission profile uses the legacy ":project_roots" anchor (Codex 0.131+ uses ":workspace_roots")`,
+      );
+    }
+    return {
+      check: "Agent settings",
+      message: `${messageParts.join("; ")}. Codex requires exact paths or trailing "/**" subtree patterns for "none" access.`,
+      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      howToFix:
+        "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/deny-dangerous.sh.",
+    };
+  }
+  return null;
+}
+
 function checkCodexWorkspaceRootExactPaths(
   ctx: AuditContext,
 ): AuditFailure | null {
@@ -466,6 +572,7 @@ const agentSettings: BuildCheck = {
     return (
       checkCodexDeprecatedHooksFlag(ctx) ??
       checkCodexHooksEnabled(ctx) ??
+      checkCodexWorkspaceRootInvalidGlobs(ctx) ??
       checkCodexWorkspaceRootExactPaths(ctx)
     );
   },

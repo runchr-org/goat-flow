@@ -131,6 +131,8 @@ type HelperContext = {
     text: string,
     runner?: string,
   ): boolean;
+  dashboardExtractRunnerStartupError(text: string): string | null;
+  dashboardRunnerStartupFailureMessage(text: string): string;
   dashboardNextAwaitingInputState(
     previousAwaiting: boolean,
     previousTail: string,
@@ -224,6 +226,8 @@ globalThis.__helpers = {
   dashboardOutputLooksAwaitingInput,
   dashboardOutputLooksReadyForLaunchPrompt,
   dashboardOutputLooksRunnerStartupFailure,
+  dashboardExtractRunnerStartupError,
+  dashboardRunnerStartupFailureMessage,
   dashboardNextAwaitingInputState,
   dashboardScheduleLaunchPrompt,
   dashboardHandleLaunchPromptOutput,
@@ -725,6 +729,70 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
+  it("submits single-line Claude pastes immediately without waiting for the paste-text marker", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: {
+            readyState: 1,
+            send(payload: string): void {
+              sent.push(payload);
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "goat-flow setup . --agent claude",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    assert.deepStrictEqual(JSON.parse(sent[0] ?? "{}"), {
+      type: "input",
+      data: "\x1b[200~goat-flow setup . --agent claude\x1b[201~",
+    });
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+    assert.equal(
+      ctx._terminalRefs["session-upload"]?.pasteSubmitTimer,
+      undefined,
+    );
+    assert.ok(!ctx._terminalRefs["session-upload"]?.pasteSubmitAwaitingCommit);
+    assert.equal(timers.pending(), 0);
+  });
+
   it("normalizes paste bodies before wrapping them in bracketed paste markers", async () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -987,7 +1055,7 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(timers.pending(), 0);
   });
 
-  it("submits Claude pasted-text markers even if pending state was cleared", async () => {
+  it("ignores Claude paste markers when no submit is pending", async () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
     );
@@ -1029,10 +1097,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +2 lines]",
     );
 
-    assert.deepStrictEqual(JSON.parse(sent[0] ?? "{}"), {
-      type: "input",
-      data: "\r",
-    });
+    assert.equal(sent.length, 0);
   });
 
   it("waits for Claude pasted-text marker to settle before submitting multiline paste", async () => {
@@ -2502,8 +2567,51 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(session.loadingPhase, "error");
     assert.equal(
       session.loadingError,
+      "Runner failed before prompt delivery. Check the terminal output above. Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+    );
+  });
+
+  it("extracts the Codex config-error detail from the runner output tail", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const tail = [
+      "OpenAI Codex v0.131.0",
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+      "$ ",
+    ].join("\n");
+
+    assert.equal(
+      helpers.dashboardExtractRunnerStartupError(tail),
+      "Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+    );
+    assert.equal(
+      helpers.dashboardRunnerStartupFailureMessage(tail),
+      "Runner failed before prompt delivery. Check the terminal output above. Error loading configuration: filesystem glob path `**/*.key` only supports `none` access; use an exact path or trailing `/**` for `none` subtree access",
+    );
+  });
+
+  it("falls back to the generic runner-startup message when no error pattern is captured", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    assert.equal(helpers.dashboardExtractRunnerStartupError("$ "), null);
+    assert.equal(
+      helpers.dashboardRunnerStartupFailureMessage("$ "),
       "Runner failed before prompt delivery. Check the terminal output above.",
     );
+  });
+
+  it("truncates very long captured runner-startup errors to keep the banner readable", () => {
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const longDetail =
+      "Error loading configuration: " + "x".repeat(500);
+    const detail = helpers.dashboardExtractRunnerStartupError(longDetail);
+    assert.ok(detail !== null);
+    assert.ok(detail!.length <= 303);
+    assert.ok(detail!.endsWith("..."));
   });
 
   it("detects the compact Claude composer footer as runner readiness", () => {

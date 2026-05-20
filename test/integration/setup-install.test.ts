@@ -315,7 +315,80 @@ describe("codex config migration", () => {
     assert.match(config, /approval_policy = "on-request"/);
     assert.match(config, /\[features\]\nhooks = true\n/);
     assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
-    assert.match(result.stdout, /migrated deprecated hooks flag/);
+    assert.match(result.stdout, /migrated:.*deprecated hooks flag/);
+  });
+
+  it("migrates invalid filesystem permission globs in place", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      [
+        'model = "gpt-5"',
+        'default_permissions = "goat-flow"',
+        "",
+        "[features]",
+        "hooks = true",
+        "",
+        "[permissions.goat-flow.filesystem]",
+        "glob_scan_max_depth = 3",
+        "",
+        '[permissions.goat-flow.filesystem.":workspace_roots"]',
+        '"." = "write"',
+        '"**/*.key" = "none"',
+        '"*.pem" = "none"',
+        '"secrets/**" = "none"',
+        "",
+        "[other]",
+        'preserved = "yes"',
+        "",
+      ].join("\n"),
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.doesNotMatch(config, /"\*\*\/\*\.key"/);
+    assert.doesNotMatch(config, /"\*\.pem"/);
+    assert.match(config, /":workspace_roots"\s*=\s*\{[^}]*"secrets\/\*\*"/);
+    assert.match(config, /model = "gpt-5"/);
+    assert.match(config, /\[other\]\s*\npreserved = "yes"/);
+    assert.match(
+      result.stdout,
+      /migrated:.*invalid filesystem permissions/,
+    );
+  });
+
+  it("migrates the legacy :project_roots anchor to :workspace_roots", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      [
+        'default_permissions = "goat-flow"',
+        "",
+        "[features]",
+        "hooks = true",
+        "",
+        "[permissions.goat-flow.filesystem]",
+        "glob_scan_max_depth = 3",
+        "",
+        '[permissions.goat-flow.filesystem.":project_roots"]',
+        '"." = "write"',
+        '"secrets/**" = "none"',
+        "",
+      ].join("\n"),
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.doesNotMatch(config, /:project_roots/);
+    assert.match(config, /":workspace_roots"\s*=\s*\{/);
   });
 
   it("removes deprecated codex_hooks when hooks is already present", () => {

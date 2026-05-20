@@ -22,7 +22,7 @@ What do you want to do?
 **Install locally (optional)**
 
 ```bash
-npm install --save-dev @blundergoat/goat-flow    # npm
+npm install --save-dev @blundergoat/goat-flow 
 ```
 
 then run this for the dashboard:

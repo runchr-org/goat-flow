@@ -344,6 +344,37 @@ function dashboardOutputLooksRunnerStartupFailure(
   return /\bfailed to load Codex config\b/i.test(tail);
 }
 
+/**
+ * Extract a one-line summary of the runner startup error captured in `text`
+ * so we can attach the real cause to the loading-overlay banner instead of
+ * the bare generic message. Returns the trimmed first line of the matched
+ * error, or null if no recognised error pattern is present.
+ */
+function dashboardExtractRunnerStartupError(text: string): string | null {
+  const tail = dashboardPlainTerminalText(text).slice(-5000);
+  const patterns: RegExp[] = [
+    /Error loading configuration:[^\n]+/i,
+    /failed to load Codex config[^\n]*/i,
+  ];
+  for (const pattern of patterns) {
+    const match = tail.match(pattern);
+    if (match) {
+      const detail = match[0].trim();
+      const truncated = detail.length > 300 ? `${detail.slice(0, 300)}...` : detail;
+      return truncated;
+    }
+  }
+  return null;
+}
+
+/** Compose the runner-startup error banner: generic prefix + captured detail. */
+function dashboardRunnerStartupFailureMessage(text: string): string {
+  const detail = dashboardExtractRunnerStartupError(text);
+  return detail
+    ? `${RUNNER_STARTUP_FAILURE_MESSAGE} ${detail}`
+    : RUNNER_STARTUP_FAILURE_MESSAGE;
+}
+
 /** Heuristic for Claude Code committing a long bracketed paste into the composer. */
 function dashboardOutputLooksCommittedPaste(text: string): boolean {
   const plain = dashboardPlainTerminalText(text);
@@ -745,6 +776,11 @@ function dashboardHandlePasteSubmitOutput(
   if (committedPaste) {
     refs.pasteSubmitAwaitingCommit = false;
     refs.pasteSubmitFallbackSubmitted = false;
+    // A "[Pasted text]" marker echoed back when nothing is awaiting submit
+    // means the paste was already submitted (e.g. immediate-submit path for
+    // single-line pastes) or originated outside the dashboard. Don't fire a
+    // spurious extra Enter.
+    if (!hasPendingPaste) return;
     if (target?.runner === "claude" || target?.runner === "gemini") {
       const submitted = dashboardSubmitPendingPaste(ctx, sessionId, {
         retryIfStillCommitted: true,
@@ -833,8 +869,14 @@ function dashboardSendToTerminalSession(
   // asynchronously, so submit on its pasted-text echo or fall back after a short
   // bounded delay for CLIs that do not echo that state.
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~";
+  // Claude/Gemini only compress MULTI-LINE pastes into the "[Pasted text]"
+  // marker we detect to submit fast. Single-line pastes render inline with no
+  // marker, so waiting hits the 15s fallback. Submit those immediately to
+  // match the existing single-line/non-Claude semantics.
+  const isMultiLinePaste = prepared.includes("\n");
   const delayedSubmit =
-    target.runner === "claude" || target.runner === "gemini";
+    (target.runner === "claude" || target.runner === "gemini") &&
+    isMultiLinePaste;
   dashboardSendOrQueueBracketedPaste(ctx, sessionId, {
     data: pasteData,
     delayed: delayedSubmit,
@@ -917,7 +959,7 @@ function dashboardMaybeSendLaunchPrompt(
       sessionId,
       target,
       "error",
-      RUNNER_STARTUP_FAILURE_MESSAGE,
+      dashboardRunnerStartupFailureMessage(outputTail),
     );
     dashboardClearLaunchPrompt(ctx, sessionId);
     return false;
@@ -1810,7 +1852,7 @@ function dashboardConnectTerminal(
             sessionId,
             session,
             "error",
-            RUNNER_STARTUP_FAILURE_MESSAGE,
+            dashboardRunnerStartupFailureMessage(tail),
           );
         } else {
           dashboardMarkTerminalLoadingReady(
