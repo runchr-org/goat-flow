@@ -22,6 +22,7 @@ For shared meta-references composed into every skill (preamble, conventions), se
 | [`browser-use.md`](./browser-use.md) | One-off browser observation: load a URL, screenshot, click, inspect DOM, capture state mid-investigation | `browser-use` CLI, typically at `~/.local/bin/browser-use` |
 | [`page-capture.md`](./page-capture.md) | Batch capture: visit N known pages, screenshot each, emit one MD record per page, for documentation, before/after evidence, or audit snapshots | Playwright (MCP / Node / Python tier), or `browser-use` CLI as a downgrade |
 | [`skill-quality-testing.md`](./skill-quality-testing.md) | Authoring or hardening a goat-flow skill (TDD-on-skills methodology). Load first when creating/editing a skill; routes into `skill-quality-testing/` topical files for the relevant phase | n/a (skill-authoring methodology) |
+| [`observability.md`](./observability.md) | Instrumenting code with logs, metrics, span events, or trace context: severity, structured fields, naming, cardinality budget, sensitive-data rules, and the log-vs-metric decision | n/a (instrumentation discipline) |
 
 ## Adding a new playbook
 
