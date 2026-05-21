@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-05-19
+last_reviewed: 2026-05-21
 ---
 
 ## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
@@ -54,6 +54,21 @@ last_reviewed: 2026-05-19
 - `src/cli/audit/check-drift.ts` (search: `workflow/skills/reference/skill-preamble.md`) also checks shared-reference template/install parity through the audit path.
 
 **Prevention:** When changing `skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`, or topical files under `skill-quality-testing/`, edit the workflow template and installed copy together. Re-run `bash scripts/preflight-checks.sh` or at minimum `node --import tsx src/cli/cli.ts audit . --check-drift --format json` before treating the change as complete.
+
+## Footgun: Skill reference-pack merges can leave stale installed files behind
+
+**Status:** active | **Created:** 2026-05-21 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A target project upgraded to the current goat-flow release has current `SKILL.md` files and current manifest-listed references, but old per-skill Markdown reference files remain beside them. Agents that grep the `references/` directory can read superseded guidance with old `goat-flow-reference-version` frontmatter even though setup and agent-skill audit checks pass.
+
+**Why it happens:** Skill installation overwrites files listed by `workflow/manifest.json` `skills.references`, but a reference merge or rename removes files from the manifest. A copy-only upgrade does not delete files that are no longer listed, so old files survive unless the installer or audit explicitly treats unlisted references as stale.
+
+**Evidence:**
+- `workflow/install-goat-flow.sh` (search: `prune_unlisted_skill_references`) now removes unlisted Markdown files from canonical skill `references/` directories before copying current templates.
+- `src/cli/audit/check-agent-setup.ts` (search: `checkUnexpectedSkillReferences`) fails the `agent-skills` check when installed goat skill references are not listed in the manifest.
+- Downstream gruff-php upgrade on 2026-05-21 left `auth-authz.md`, `cicd-and-agent-surfaces.md`, `dependency-and-supply-chain.md`, and `secrets-and-data-exposure.md` under `.claude/skills/goat-security/references/` after those files were merged into the v1.7.0 `identity-and-data.md` and `supply-chain-and-cicd.md` reference set.
+
+**Prevention:** After any per-skill reference merge, rename, or deletion, update `workflow/manifest.json` `skills.references`, run an installer round-trip test that starts with a stale reference file, and run `node --import tsx src/cli/cli.ts audit <target> --agent <id>` against a target containing the stale file to prove audit fails before reinstall and passes after reinstall.
 
 ## Footgun: Weak retrieval cues cause learning-loop misses
 

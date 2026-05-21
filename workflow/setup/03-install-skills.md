@@ -26,7 +26,7 @@ Each SKILL.md MUST include:
 
 **Exception:** The dispatcher (`goat/SKILL.md`) uses `How It Works` instead of `When to Use` and has no Output Format section. The validator accepts this.
 
-**IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Copy `SKILL.md` plus any `references/*.md` files listed under that skill. Skills are the same for every project - project-specific context comes from the instruction file, `.goat-flow/footguns/`, `.goat-flow/lessons/`, and any optional local instruction files the project already has. Cutting or rewriting skill content causes more damage than generic examples ever will.
+**IMPORTANT: Install skills VERBATIM from the templates. Do NOT adapt, compress, rewrite, or remove any sections.** Copy `SKILL.md` plus any `references/*.md` files listed under that skill, and delete any stale Markdown files in that skill's `references/` directory that are no longer listed in `workflow/manifest.json` `skills.references`. Skills are the same for every project - project-specific context comes from the instruction file, `.goat-flow/footguns/`, `.goat-flow/lessons/`, and any optional local instruction files the project already has. Cutting or rewriting skill content causes more damage than generic examples ever will.
 
 ## Shared meta references
 
@@ -73,12 +73,17 @@ Do NOT delete non-goat-prefixed skills (e.g., `audit/`, `review/`, `migration-de
 
 After installing, verify each SKILL.md frontmatter has the correct `goat-flow-skill-version` key. Compare against the version in any `workflow/skills/` template frontmatter. Mismatched versions will cause the auditor to flag them.
 
+## Reference pack pruning
+
+The installer prunes stale per-skill Markdown reference files automatically before copying the current manifest-listed files. For manual setup or recovery, compare each installed goat skill's `references/*.md` files against `workflow/manifest.json` `skills.references`; delete installed Markdown references that are not listed. This is required for upgrades where references were merged or renamed between releases.
+
 ---
 
 **Verification gate:**
 - [ ] All 7 skill files exist in the agent's skills directory
 - [ ] goat/SKILL.md (dispatcher) exists
 - [ ] All 7 skills have matching `goat-flow-skill-version` tags
+- [ ] No installed goat skill has unlisted stale `references/*.md` files
 - [ ] `.goat-flow/skill-reference/README.md` exists
 - [ ] `.goat-flow/skill-reference/skill-preamble.md` exists
 - [ ] `.goat-flow/skill-reference/skill-conventions.md` exists

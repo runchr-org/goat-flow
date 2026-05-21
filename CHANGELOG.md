@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.7.1 - 2026-05-21
+
+Upgrade cleanup patch for stale skill reference files.
+
+- **Stale reference pruning** - `goat-flow install` now removes manifest-unlisted Markdown files from installed per-skill `references/` directories before copying current templates, preventing merged or renamed reference packs from leaving old guidance behind.
+- **Audit detection** - Agent setup audit now fails `agent-skills` when installed goat skill references are not listed in `workflow/manifest.json`, with remediation pointing back to `goat-flow install . --agent <id>`.
+- **Setup guidance and regression coverage** - Setup and final-verification docs now require reference-pack pruning checks, with installer and audit tests covering the stale `goat-security` v1.6.0-to-v1.7.0 reference merge case.
 
 ## v1.7.0 - 2026-05-20
 

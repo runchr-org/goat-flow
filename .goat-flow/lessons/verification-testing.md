@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-20
+last_reviewed: 2026-05-21
 ---
 
 ## Lesson: Cache-behaviour tests need observable contracts
@@ -37,7 +37,7 @@ last_reviewed: 2026-05-20
 
 **Root cause:** The unit tests modeled ideal timer order, not the real terminal output order from Claude Code inside xterm/WebSocket. I treated "timer sent Enter in a fake clock" as equivalent to "Claude accepted the prompt" before running the original browser reproduction.
 
-**Fix:** Keep a browser-use reproduction in the proof loop for terminal launch changes: click the real dashboard button, verify the prompt advances past `[Pasted text...]`, and then clean up the terminal session. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), `test/unit/dashboard-terminal-launch.test.ts` (search: `submits Claude pasted-text markers even if pending state was cleared`).
+**Fix:** Keep a browser-use reproduction in the proof loop for terminal launch changes: click the real dashboard button, verify the prompt advances past `[Pasted text...]`, and then clean up the terminal session. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), `test/unit/dashboard-terminal-launch.test.ts` (search: `submits delayed Claude paste when the paste echo arrives after fallback`).
 
 **Prevention:** For terminal automation, unit tests must cover lost/late paste state, but the Definition of Done still requires live browser evidence against the runner that originally failed. Do not close on fake timers alone when xterm, WebSocket, or agent composer behavior is involved.
 

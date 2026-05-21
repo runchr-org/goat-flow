@@ -193,6 +193,7 @@ fi
 
 COPIED=0
 SKIPPED=0
+REMOVED=0
 
 copy_file() {
   local src="$1" dst="$2"
@@ -215,6 +216,62 @@ copy_if_missing() {
     return
   fi
   copy_file "$src" "$dst"
+}
+
+prune_unlisted_skill_references() {
+  local skill="$1" skill_dst="$2"
+  local references_dir="$skill_dst/references"
+  [[ -d "$references_dir" ]] || return 0
+
+  readarray -t stale_references < <(
+    node - "$skill_dst" "$references_dir" "${@:3}" <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const skillDir = process.argv[2];
+const referencesDir = process.argv[3];
+const expected = new Set(
+  process.argv
+    .slice(4)
+    .filter((file) => file.startsWith("references/"))
+    .map((file) => file.replace(/\\/g, "/")),
+);
+
+function walk(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walk(fullPath);
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+
+    const relativePath = path
+      .relative(skillDir, fullPath)
+      .replace(/\\/g, "/");
+    if (!expected.has(relativePath)) {
+      console.log(relativePath);
+    }
+  }
+}
+
+walk(referencesDir);
+NODE
+  )
+
+  for stale_reference in "${stale_references[@]}"; do
+    [[ -n "$stale_reference" ]] || continue
+    case "$stale_reference" in
+      references/*.md) ;;
+      *)
+        echo "ERROR: refusing to prune unexpected path shape: $stale_reference" >&2
+        exit 1
+        ;;
+    esac
+    rm -f "$skill_dst/$stale_reference"
+    REMOVED=$((REMOVED + 1))
+    echo "  ✗ $skill_dst/$stale_reference (removed stale reference)"
+  done
 }
 
 touch_anchor() {
@@ -627,10 +684,12 @@ for skill in "${SKILL_NAMES[@]}"; do
     echo "  ✗ $skill (template dir not found: $skill_dir)"
     continue
   fi
+  readarray -t skill_files < <(manifest_eval skill-files "$skill")
+  prune_unlisted_skill_references "$skill" "$SKILLS_DIR/$skill" "${skill_files[@]}"
   while IFS= read -r relative_file; do
     [[ -n "$relative_file" ]] || continue
     copy_file "$skill_dir/$relative_file" "$SKILLS_DIR/$skill/$relative_file"
-  done < <(manifest_eval skill-files "$skill")
+  done < <(printf '%s\n' "${skill_files[@]}")
 done
 echo ""
 
@@ -790,7 +849,7 @@ echo ""
 # Summary
 # ==========================================================================
 echo "─────────────────────────────────────────"
-echo "DONE: $COPIED files installed, $SKIPPED skipped"
+echo "DONE: $COPIED files installed, $SKIPPED skipped, $REMOVED stale removed"
 echo ""
 
 # Warn when deny hook is installed but settings file was skipped (hook may not be registered)

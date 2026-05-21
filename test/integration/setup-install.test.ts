@@ -117,6 +117,53 @@ describe("setup --apply installer", () => {
     );
   });
 
+  it("prunes stale per-skill reference files during upgrades", () => {
+    const root = makeTempProject();
+    const firstInstall = runInstaller(root, "--agent", "claude");
+    assert.equal(
+      firstInstall.status,
+      0,
+      firstInstall.stderr || firstInstall.stdout,
+    );
+
+    const staleReference = join(
+      root,
+      ".claude",
+      "skills",
+      "goat-security",
+      "references",
+      "auth-authz.md",
+    );
+    writeFileSync(
+      staleReference,
+      '---\ngoat-flow-reference-version: "1.6.0"\n---\n# Old auth reference\n',
+    );
+
+    const secondInstall = runInstaller(root, "--agent", "claude");
+    assert.equal(
+      secondInstall.status,
+      0,
+      secondInstall.stderr || secondInstall.stdout,
+    );
+
+    assert.equal(existsSync(staleReference), false);
+    assert.equal(
+      existsSync(
+        join(
+          root,
+          ".claude",
+          "skills",
+          "goat-security",
+          "references",
+          "identity-and-data.md",
+        ),
+      ),
+      true,
+    );
+    assert.match(secondInstall.stdout, /removed stale reference/);
+    assert.match(secondInstall.stdout, /1 stale removed/);
+  });
+
   it("removes an existing agents allowlist from config.yaml", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");
@@ -355,10 +402,7 @@ describe("codex config migration", () => {
     assert.match(config, /":workspace_roots"\s*=\s*\{[^}]*"secrets\/\*\*"/);
     assert.match(config, /model = "gpt-5"/);
     assert.match(config, /\[other\]\s*\npreserved = "yes"/);
-    assert.match(
-      result.stdout,
-      /migrated:.*invalid filesystem permissions/,
-    );
+    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
   });
 
   it("migrates the legacy :project_roots anchor to :workspace_roots", () => {

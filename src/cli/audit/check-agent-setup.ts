@@ -266,6 +266,51 @@ function checkCanonicalSkills(ctx: AuditContext): AuditFailure | null {
   };
 }
 
+function expectedReferenceFiles(ctx: AuditContext, skill: string): Set<string> {
+  const references = ctx.structure.skills.references ?? {};
+  const referenceFiles = Array.isArray(references[skill])
+    ? references[skill].filter(
+        (file): file is string =>
+          typeof file === "string" && file.startsWith("references/"),
+      )
+    : [];
+  return new Set(referenceFiles);
+}
+
+function checkUnexpectedSkillReferences(
+  ctx: AuditContext,
+): AuditFailure | null {
+  const unexpected: string[] = [];
+
+  for (const af of ctx.agents) {
+    for (const skill of ctx.structure.skills.canonical) {
+      const skillRoot = `${af.agent.skillsDir}/${skill}`;
+      const referencesDir = `${skillRoot}/references`;
+      if (!ctx.fs.exists(referencesDir)) continue;
+
+      const expected = expectedReferenceFiles(ctx, skill);
+      for (const path of ctx.fs.glob(`${referencesDir}/**/*.md`)) {
+        const prefix = `${skillRoot}/`;
+        const relativeFile = path.startsWith(prefix)
+          ? path.slice(prefix.length)
+          : path;
+        if (!expected.has(relativeFile)) {
+          unexpected.push(`${af.agent.id}:${skill}:${relativeFile}`);
+        }
+      }
+    }
+  }
+
+  if (unexpected.length === 0) return null;
+  return {
+    check: "Agent skills",
+    message: `Unexpected stale skill reference files found: ${unexpected.join(", ")}`,
+    evidence: unexpected[0],
+    howToFix:
+      "Run `goat-flow install . --agent <id>` for the affected agent. The installer prunes manifest-unlisted skill reference files during upgrades.",
+  };
+}
+
 /** Check whether installed skills declare the current GOAT Flow version. */
 function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
   const noVersion: string[] = [];
@@ -343,6 +388,7 @@ const agentSkills: BuildCheck = {
     if (blocked) return blocked;
     return (
       checkCanonicalSkills(ctx) ??
+      checkUnexpectedSkillReferences(ctx) ??
       checkSkillVersions(ctx) ??
       checkDeprecatedSkills(ctx)
     );
@@ -413,6 +459,63 @@ function isCodexInvalidNoneGlob(pattern: string): boolean {
   return !pattern.endsWith("/**");
 }
 
+function collectInvalidCodexInlineGlobs(
+  rawValue: string,
+  invalidGlobs: string[],
+): void {
+  for (const [pattern, mode] of parseTomlInlineStringTableForKey(rawValue)) {
+    if (mode === "none" && isCodexInvalidNoneGlob(pattern)) {
+      invalidGlobs.push(pattern);
+    }
+  }
+}
+
+function codexFilesystemPatternFromKey(
+  key: string,
+  expandedRootPrefix: string,
+  legacyExpandedRootPrefix: string,
+): string | null {
+  if (key.startsWith(expandedRootPrefix)) {
+    return key.slice(expandedRootPrefix.length);
+  }
+  if (key.startsWith(legacyExpandedRootPrefix)) {
+    return key.slice(legacyExpandedRootPrefix.length);
+  }
+  return null;
+}
+
+function collectCodexFilesystemEntryFindings(
+  key: string,
+  value: unknown,
+  filesystemPrefix: string,
+  legacyAnchor: string,
+  invalidGlobs: string[],
+  legacyAnchors: string[],
+): void {
+  if (!key.startsWith(filesystemPrefix)) return;
+  if (key === legacyAnchor || key.startsWith(`${legacyAnchor}.`)) {
+    legacyAnchors.push(":project_roots");
+  }
+  if (typeof value !== "string") return;
+
+  const isInlineRoot =
+    key === `${filesystemPrefix}:workspace_roots` || key === legacyAnchor;
+  if (isInlineRoot) {
+    collectInvalidCodexInlineGlobs(value, invalidGlobs);
+    return;
+  }
+
+  const pattern = codexFilesystemPatternFromKey(
+    key,
+    `${filesystemPrefix}:workspace_roots.`,
+    `${legacyAnchor}.`,
+  );
+  if (pattern === null || value !== "none") return;
+  if (isCodexInvalidNoneGlob(pattern)) {
+    invalidGlobs.push(pattern);
+  }
+}
+
 function collectCodexFilesystemFindings(
   parsed: unknown,
   profileName: string,
@@ -427,38 +530,14 @@ function collectCodexFilesystemFindings(
   for (const [key, value] of Object.entries(
     parsed as Record<string, unknown>,
   )) {
-    if (!key.startsWith(filesystemPrefix)) continue;
-    if (key === legacyAnchor || key.startsWith(`${legacyAnchor}.`)) {
-      legacyAnchors.push(":project_roots");
-    }
-    if (typeof value === "string") {
-      const isInlineRoot =
-        key === `${filesystemPrefix}:workspace_roots` ||
-        key === legacyAnchor;
-      if (isInlineRoot) {
-        for (const [pattern, mode] of parseTomlInlineStringTableForKey(value)) {
-          if (mode === "none" && isCodexInvalidNoneGlob(pattern)) {
-            invalidGlobs.push(pattern);
-          }
-        }
-        continue;
-      }
-      const expandedRootPrefix = `${filesystemPrefix}:workspace_roots.`;
-      const legacyExpandedRootPrefix = `${legacyAnchor}.`;
-      let pattern: string | null = null;
-      if (key.startsWith(expandedRootPrefix)) {
-        pattern = key.slice(expandedRootPrefix.length);
-      } else if (key.startsWith(legacyExpandedRootPrefix)) {
-        pattern = key.slice(legacyExpandedRootPrefix.length);
-      }
-      if (
-        pattern !== null &&
-        value === "none" &&
-        isCodexInvalidNoneGlob(pattern)
-      ) {
-        invalidGlobs.push(pattern);
-      }
-    }
+    collectCodexFilesystemEntryFindings(
+      key,
+      value,
+      filesystemPrefix,
+      legacyAnchor,
+      invalidGlobs,
+      legacyAnchors,
+    );
   }
   return { invalidGlobs, legacyAnchors };
 }
@@ -477,6 +556,24 @@ function parseTomlInlineStringTableForKey(
   return entries;
 }
 
+function formatCodexWorkspaceRootInvalidGlobMessage(
+  invalidGlobs: string[],
+  legacyAnchors: string[],
+): string {
+  const messageParts: string[] = [];
+  if (invalidGlobs.length > 0) {
+    messageParts.push(
+      `Codex permission profile uses filename-glob patterns with "none" access that Codex 0.131+ rejects: ${uniquePaths(invalidGlobs).join(", ")}`,
+    );
+  }
+  if (legacyAnchors.length > 0) {
+    messageParts.push(
+      `Codex permission profile uses the legacy ":project_roots" anchor (Codex 0.131+ uses ":workspace_roots")`,
+    );
+  }
+  return `${messageParts.join("; ")}. Codex requires exact paths or trailing "/**" subtree patterns for "none" access.`;
+}
+
 function checkCodexWorkspaceRootInvalidGlobs(
   ctx: AuditContext,
 ): AuditFailure | null {
@@ -492,20 +589,12 @@ function checkCodexWorkspaceRootInvalidGlobs(
       defaultPermissions,
     );
     if (invalidGlobs.length === 0 && legacyAnchors.length === 0) continue;
-    const messageParts: string[] = [];
-    if (invalidGlobs.length > 0) {
-      messageParts.push(
-        `Codex permission profile uses filename-glob patterns with "none" access that Codex 0.131+ rejects: ${uniquePaths(invalidGlobs).join(", ")}`,
-      );
-    }
-    if (legacyAnchors.length > 0) {
-      messageParts.push(
-        `Codex permission profile uses the legacy ":project_roots" anchor (Codex 0.131+ uses ":workspace_roots")`,
-      );
-    }
     return {
       check: "Agent settings",
-      message: `${messageParts.join("; ")}. Codex requires exact paths or trailing "/**" subtree patterns for "none" access.`,
+      message: formatCodexWorkspaceRootInvalidGlobMessage(
+        invalidGlobs,
+        legacyAnchors,
+      ),
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
         "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/deny-dangerous.sh.",
