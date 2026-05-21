@@ -2571,6 +2571,238 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
+  it("keeps the badge on across unknown chunks while the prompt is in the visible tail", () => {
+    // M00 round-4 rearchitecture: the message handler now defers to the
+    // merged tail rather than the per-chunk classifier. ANY chunk (spinner,
+    // OSC update, mode toggle, future runner glyph) that doesn't itself look
+    // awaiting will NOT clear the badge as long as the prompt is still in
+    // the last AWAITING_INPUT_TAIL_VISIBLE_RANGE chars of the tail. This is
+    // the defensive design that ends the per-runner glyph whack-a-mole.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const session = {
+      id: "session-defensive",
+      runner: "claude" as const,
+      promptLabel: "Defensive test",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-defensive",
+      sessions: [session],
+      _terminalRefs: { "session-defensive": {} },
+    });
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-defensive",
+      "/ws/terminal/session-defensive",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+
+    // 1. Prompt chunk arrives. Heuristic fires → reveal timer scheduled.
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data:
+          "Do you want to proceed?\n❯ 1. Yes\n  2. No\n\n" +
+          "Esc to cancel · Tab to amend · ctrl+e to explain",
+      }),
+    });
+    assert.equal(session.awaitingInput, false, "badge waits for reveal delay");
+
+    // 2. Send 8 chunks of UNKNOWN glyph nobody added to the classifier yet.
+    //    These are non-empty (chunkHasText=true), don't match any positive
+    //    pattern, and aren't in the spinner-glyph class. Old behavior:
+    //    every one of these would call dashboardClearAwaitingInputTimer.
+    //    New behavior: tail still has prompt in last 1500 chars, so no clear.
+    for (let i = 0; i < 8; i += 1) {
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: "output",
+          // A made-up "future" runner spinner glyph not in our class.
+          data: "\r\x1b[2m⚡\x1b[0m",
+        }),
+      });
+    }
+
+    // 3. Tick past the 1200ms reveal delay. The timer survived.
+    timers.tick(1500);
+    assert.equal(
+      session.awaitingInput,
+      true,
+      "badge fires after reveal delay despite unknown glyph chunks",
+    );
+
+    // 4. More unknown chunks after badge is showing. State must persist.
+    for (let i = 0; i < 4; i += 1) {
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: "output",
+          data: "\r\x1b[2m⚡\x1b[0m",
+        }),
+      });
+    }
+    assert.equal(
+      session.awaitingInput,
+      true,
+      "badge stays on through more unknown chunks",
+    );
+  });
+
+  it("keeps the badge on across unknown chunks for ANSI-heavy prompt tails", () => {
+    // Gemini/Copilot captured prompts contain enough ANSI and box drawing
+    // bytes that raw tail.slice(-1500) can miss the visible prompt. R4's
+    // visible-tail fallback must slice the normalized plain text instead.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const session = {
+      id: "session-ansi-heavy",
+      runner: "gemini" as const,
+      promptLabel: "ANSI-heavy test",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-ansi-heavy",
+      sessions: [session],
+      _terminalRefs: { "session-ansi-heavy": {} },
+    });
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-ansi-heavy",
+      "/ws/terminal/session-ansi-heavy",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data: loadFixture("gemini-startup.txt"),
+      }),
+    });
+    assert.equal(session.awaitingInput, false, "badge waits for reveal delay");
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data: "\r\x1b[2m⚡\x1b[0m",
+      }),
+    });
+    timers.tick(1500);
+    assert.equal(
+      session.awaitingInput,
+      true,
+      "badge fires when the normalized visible tail still shows the prompt",
+    );
+  });
+
+  it("clears the badge once runner output pushes the prompt out of the visible tail", () => {
+    // The flip side of the rearchitecture: when the prompt is NO LONGER in
+    // the last 1500 chars of the tail (because the runner emitted significant
+    // new output), the badge does clear. Verifies we haven't traded flicker
+    // for stuck-on.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const session = {
+      id: "session-clear",
+      runner: "claude" as const,
+      promptLabel: "Clear test",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-clear",
+      sessions: [session],
+      _terminalRefs: { "session-clear": {} },
+    });
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-clear",
+      "/ws/terminal/session-clear",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+    // Prompt + reveal.
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data:
+          "Do you want to proceed?\n❯ 1. Yes\n  2. No\n\n" +
+          "Esc to cancel · Tab to amend · ctrl+e to explain",
+      }),
+    });
+    timers.tick(1500);
+    assert.equal(session.awaitingInput, true);
+
+    // User answers; runner emits a LARGE block of new output (tool result)
+    // that pushes the prompt out of the last 1500 chars of the tail.
+    const bigOutput = "Tool output line " + "x".repeat(1700);
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "output", data: bigOutput }),
+    });
+    assert.equal(
+      session.awaitingInput,
+      false,
+      "badge clears once prompt is no longer in the last 1500 chars of tail",
+    );
+  });
+
   it("keeps awaiting state across Codex's lone-bullet spinner frame (◦ U+25E6)", () => {
     // Round-3 live trace (2026-05-21): after the round-2 fix Claude was stable
     // but Codex still flickered. Codex's idle-spinner glyph is `◦` (U+25E6

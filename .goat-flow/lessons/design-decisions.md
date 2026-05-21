@@ -1,6 +1,6 @@
 ---
 category: design-decisions
-last_reviewed: 2026-05-18
+last_reviewed: 2026-05-22
 ---
 
 ## Lesson: Doer-verifier is theater in single-agent context
@@ -113,3 +113,22 @@ The `ddt-layer/` directory shipped per-language static analysis instructions (ph
 **Decision:** Removed `ddt-layer/` entirely (ADR-027). goat-plan now says "language-appropriate static analysis" and lets the agent detect the toolchain from project structure. Projects that need specific instructions put them in their own instruction file.
 
 **Prevention:** Before adding a reference pack to goat-flow, ask: "does this content vary by target project?" If yes, it belongs in the target project's configuration, not in the framework.
+
+## Lesson: Three rounds of the same fix shape means rearchitect, not patch
+**Created:** 2026-05-22
+
+M00 (Workspace terminal waiting status) shipped the same fix shape three times before the user said "maybe we should just delete that status, it looks like its not possible to have it":
+
+- Round 1: parser strips CUP/HVP and box-drawing; trust phrases added; `●` added to numbered-choices bullet class. Closed-loop tested against 5 captured fixtures, all passing.
+- Round 2: live failure → traced to Claude's `●` idle-spinner frame falling through every classifier → extended `dashboardOutputLooksTransientStatusRedraw` with a lone-glyph branch.
+- Round 3: Codex still flickered → traced to `◦` (U+25E6 WHITE BULLET) — a different glyph not in the round-2 class. Extended the class again, plus added braille range and circular variants.
+
+Each round was a "real" fix grounded in browser-extension Claude's live console instrumentation, with passing tests on captured bytes. Yet the user kept seeing the bug because the chunk-level classifier was a hard gate on a non-enumerable input space — every future runner version invents new glyphs.
+
+**Root cause:** The state machine made per-chunk classification authoritative. Any chunk not in the recognized set cleared the badge, so the heuristic had to perfectly enumerate every transient redraw pattern of every runner. That set is unbounded by design.
+
+**Why it matters:** The first two rounds passed every test and looked like progress. The whack-a-mole shape was only visible if you stepped back and asked "why does this keep needing the same fix?" The fourth round (rearchitecture — make the merged tail the source of truth, treat unknown chunks as no-ops as long as the prompt is still visible) fixed it in one place and is structurally immune to new glyphs.
+
+**Prevention:** When the same fix shape appears 3+ times in a session, treat it as a design smell, not a missing case. Stop and ask: "is the structure of the fix admitting an unbounded input space?" If yes, the next iteration must change the architecture, not extend the enumeration. State this hypothesis to the user before the third patch attempt so they can choose between "one more patch" and "rearchitect" instead of being surprised by a fourth round.
+
+**Trigger:** Same-shape patch (extend a regex class, add a phrase to an allowlist, special-case another runner) appearing in two consecutive rounds of fix-and-retest on the same milestone.
