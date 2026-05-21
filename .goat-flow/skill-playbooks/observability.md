@@ -3,9 +3,9 @@ goat-flow-reference-version: "1.7.0"
 ---
 # Observability
 
-Use this when instrumenting application code with logs, metrics, span events, or trace context — i.e. adding signals that humans and dashboards will consume to answer *what happened, where, and why does it matter?*. Covers severity discipline, structured fields, naming, cardinality budget, sensitive-data rules, and the log-vs-metric-vs-span-event decision.
+Use this when instrumenting application code with logs, metrics, span events, or trace context - i.e. adding signals that humans and dashboards will consume to answer *what happened, where, and why does it matter?*. Covers severity discipline, structured fields, naming, cardinality budget, sensitive-data rules, and the log-vs-metric-vs-span-event decision.
 
-This playbook is OpenTelemetry-shaped — instrument kinds, severity numbers, semantic attribute names, and trace correlation rules all follow the OTel data model — but the discipline applies to any backend that ingests structured logs and metrics.
+This playbook is OpenTelemetry-shaped - instrument kinds, severity numbers, semantic attribute names, and trace correlation rules all follow the OTel data model - but the discipline applies to any backend that ingests structured logs and metrics.
 
 ## Availability Check
 
@@ -22,10 +22,10 @@ No CLI check applies; correctness is verified at review time using the **Verific
 
 | Concern | In this playbook | Lives elsewhere |
 |---|---|---|
-| What to emit, at what severity, with what fields | yes | — |
-| Metric and attribute naming, units, cardinality | yes | — |
-| Log vs metric vs span event vs trace decision | yes | — |
-| Distributed trace context propagation (W3C traceparent, baggage) | brief — see "Trace correlation" | OTel SDK + transport docs |
+| What to emit, at what severity, with what fields | yes | - |
+| Metric and attribute naming, units, cardinality | yes | - |
+| Log vs metric vs span event vs trace decision | yes | - |
+| Distributed trace context propagation (W3C traceparent, baggage) | brief - see "Trace correlation" | OTel SDK + transport docs |
 | Sampling policy (head, tail, ratio) | no | OTel sampler docs + service-level decision |
 | Backend storage, retention, alert routing | no | operations runbook |
 | Profiling (CPU, memory, allocations) | no | profiler tooling for the runtime |
@@ -79,7 +79,7 @@ The reader is often an on-call engineer at 3am with no project context. Include 
 
 ## Severity Contract
 
-Severity is a filtering contract — downstream alert rules, dashboard panels, and on-call paging depend on it. Pick deliberately, not by feel.
+Severity is a filtering contract - downstream alert rules, dashboard panels, and on-call paging depend on it. Pick deliberately, not by feel.
 
 | Level | OTel severity | Use for | Do not use for |
 |---|---|---|---|
@@ -92,7 +92,7 @@ Severity is a filtering contract — downstream alert rules, dashboard panels, a
 
 Two failure modes to watch for:
 
-- **Over-logging at INFO and ERROR.** If a log always fires and always reads the same, it carries no information — remove it or move it to DEBUG behind a flag.
+- **Over-logging at INFO and ERROR.** If a log always fires and always reads the same, it carries no information - remove it or move it to DEBUG behind a flag.
 - **Under-logging at WARN.** Warnings are the early signal: degraded behaviour that hasn't yet failed. A service that emits only INFO and ERROR is blind to drift.
 
 ## Log vs Metric vs Span Event
@@ -133,13 +133,14 @@ The log answers "why did *this* payment fail"; the counter answers "what is the 
 
 Structure: `<namespace>.<domain>.<subject>.<measurement>`
 
-Examples: `svc.payment.failures`, `svc.credit.usage.count`, `svc.api.requests.duration`, `svc.messenger.queue.depth`.
+Examples using the generic `svc.` namespace: `svc.payment.failures`, `svc.credit.usage.count`, `svc.api.requests.duration`, `svc.messenger.queue.depth`.
 
 Rules:
 
 - Lowercase, dot-separated. No hyphens, no internal underscores in path segments.
-- A short leading namespace (`svc.`, your service or org prefix) separates your metrics from infrastructure and third-party signals.
-- **Encode variable dimensions as labels, not in the name.** `svc.payment.failures` with `gateway=stripe` — never `svc.payment.stripe.failures`.
+- The leading namespace marks metrics as application-owned. Use `svc.` as a generic default, or replace it with your service or org prefix (for example, `billing.` or `acme.`) so app-owned metrics do not collide with infrastructure or third-party signals.
+- When working in a target project, check `.goat-flow/patterns/observability.md` if it exists; it may define project-specific namespaces, metric prefixes, or label conventions that override the generic examples here.
+- **Encode variable dimensions as labels, not in the name.** `svc.payment.failures` with `gateway=stripe` - never `svc.payment.stripe.failures`.
 
 ### Instrument type and suffix
 
@@ -152,7 +153,7 @@ Rules:
 
 ### Units
 
-Always declare the unit on the instrument (`ms`, `s`, `By`, `{requests}`, `{threads}`). Use UCUM where possible — it is what the OTel spec assumes. Unit mismatches between dashboards and instruments are the most common silent-misread bug; declare once, never assume.
+Always declare the unit on the instrument (`ms`, `s`, `By`, `{requests}`, `{threads}`). Use UCUM where possible - it is what the OTel spec assumes. Unit mismatches between dashboards and instruments are the most common silent-misread bug; declare once, never assume.
 
 ### Attribute and label names
 
@@ -162,7 +163,7 @@ Always declare the unit on the instrument (`ms`, `s`, `By`, `{requests}`, `{thre
 | Log attributes | `lowercase_snake_case`; prefer OTel semantic names | `exception.type`, `exception.message`, `http.response.status_code` |
 | Custom resource or span attributes | `<namespace>.<name>` | `svc.region`, `svc.tenant_id`, `svc.cluster_id` |
 
-Prefer OTel semantic conventions (`http.*`, `db.*`, `messaging.*`, `exception.*`, `service.*`) over ad-hoc names — backends, integrations, and other readers already know what they mean.
+Prefer OTel semantic conventions (`http.*`, `db.*`, `messaging.*`, `exception.*`, `service.*`) over ad-hoc names - backends, integrations, and other readers already know what they mean.
 
 ## Cardinality Budget
 
@@ -172,7 +173,7 @@ Rules of thumb, in order:
 
 1. **Hand-enumeration test.** If you cannot list the possible values for a label on a napkin, it is too high-cardinality for a metric label. Move it to a log or span attribute.
 2. **Bounded enumerations only.** Acceptable labels look like `gateway` (3–10 values), `outcome` (`ok` / `failed` / `degraded`), `reason` (a known list), `http_method`, status class. Yes.
-3. **Identifiers, free text, timestamps.** Request ID, user ID, full error message, query string, IP address — **never** as a metric label. These belong on the log record.
+3. **Identifiers, free text, timestamps.** Request ID, user ID, full error message, query string, IP address - **never** as a metric label. These belong on the log record.
 4. **When you need both granularities,** keep the metric label bounded (`error_type=gateway_timeout`) and put the specific identifier on the log (`error.message`, `request.id`). Connect them via `trace_id`.
 
 Anti-pattern:
@@ -206,10 +207,10 @@ Logs, traces, and metrics routinely become evidence in incidents, audits, and se
 | Payment instruments (PAN, CVV, full card) | Never | Last 4 digits, tokenised reference |
 | PII fields without an approved storage path | No | Internal opaque ID |
 | Free-text user input | No (likely to embed PII) | Length, hash, or a classified type field |
-| Internal IDs (account, tenant, user, request) | Yes, within policy | — |
-| Operation names, route shapes, status codes, durations | Yes | — |
+| Internal IDs (account, tenant, user, request) | Yes, within policy | - |
+| Operation names, route shapes, status codes, durations | Yes | - |
 
-Redact at the boundary where the value is first introduced. Trusting every downstream caller to redact is how leaks happen. Where you can, shape the field so only a sanitised value fits — `auth_method` accepting an enum, not a credential — so the type system enforces what discipline cannot.
+Redact at the boundary where the value is first introduced. Trusting every downstream caller to redact is how leaks happen. Where you can, shape the field so only a sanitised value fits - `auth_method` accepting an enum, not a credential - so the type system enforces what discipline cannot.
 
 ## Anti-Patterns
 
@@ -230,7 +231,7 @@ Before claiming new instrumentation is done, demonstrate it does what the reader
 
 1. **Logs:** find the new log in the backend by message and one expected attribute. Confirm `trace_id` is present, or note explicitly that the call site has no active span and why.
 2. **Metrics:** confirm the metric appears with the expected label set and unit. Increment it in a test run and watch the value move. For histograms, verify bucket boundaries cover the expected range.
-3. **Cardinality:** for each new label, list the possible values. If the list is open-ended, the design is wrong — fix before merging.
+3. **Cardinality:** for each new label, list the possible values. If the list is open-ended, the design is wrong - fix before merging.
 4. **Consumer named:** state the dashboard panel, alert rule, or runbook step this signal exists to serve. If you cannot name one, reconsider whether it should exist.
 5. **Sensitive-data grep:** before merging, grep the diff for any field name in the sensitive-data table. Catching this in review beats catching it in a compliance audit.
 
@@ -238,7 +239,7 @@ Verification is the difference between "I added a log" and "I added a useful log
 
 ## Related References
 
-- `.goat-flow/skill-reference/skill-preamble.md` — Proof Gate and OBSERVED / INFERRED tagging discipline applied when this playbook directs you to verify instrumentation.
-- `.goat-flow/skill-reference/skill-conventions.md` — footgun and lesson entry shapes for recording recurring instrumentation traps with file evidence.
-- OTel Semantic Conventions (upstream spec) — authoritative names for `http.*`, `db.*`, `messaging.*`, `exception.*`, `service.*` attributes.
-- OTel data model documentation — severity numbers, instrument kinds, log record shape, span event shape.
+- `.goat-flow/skill-reference/skill-preamble.md` - Proof Gate and OBSERVED / INFERRED tagging discipline applied when this playbook directs you to verify instrumentation.
+- `.goat-flow/skill-reference/skill-conventions.md` - footgun and lesson entry shapes for recording recurring instrumentation traps with file evidence.
+- OTel Semantic Conventions (upstream spec) - authoritative names for `http.*`, `db.*`, `messaging.*`, `exception.*`, `service.*` attributes.
+- OTel data model documentation - severity numbers, instrument kinds, log record shape, span event shape.
