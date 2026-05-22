@@ -16,15 +16,6 @@ const TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS = 2500;
 const TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS = 300;
 const TERMINAL_PASTE_SUBMIT_MAX_RETRIES = 5;
 const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200;
-/**
- * How many trailing plain-text chars of `outputTail` we look at to decide
- * whether the runner is still parked on the prompt. The rearchitecture trusts
- * the merged tail over the per-chunk classifier: as long as the prompt is
- * still in the visible window (~1500 chars), unknown spinner / redraw chunks
- * cannot kill the badge. When the user answers, runner output accumulates and
- * naturally pushes the prompt out of this window, clearing the badge.
- */
-const AWAITING_INPUT_TAIL_VISIBLE_RANGE = 1500;
 const TERMINAL_LOADING_SLOW_HINT_MS = 3000;
 const TERMINAL_LOADING_RETRY_MS = 10000;
 // Coalesce bursty launch/route refreshes without delaying user-visible state.
@@ -1929,27 +1920,27 @@ function dashboardConnectTerminal(
           } else {
             dashboardScheduleAwaitingInputReveal(ctx, sessionId, session);
           }
-        } else if (
-          !dashboardOutputLooksAwaitingInput(
-            dashboardPlainTerminalText(tail).slice(
-              -AWAITING_INPUT_TAIL_VISIBLE_RANGE,
-            ),
-          )
-        ) {
-          // The chunk classifier said "not awaiting", AND the merged tail no
-          // longer shows the prompt at its visible end. Three rounds of fixes
-          // chasing per-runner spinner glyphs (●, ◦, braille) proved the
-          // chunk-level signal is too fragile to be a hard gate on its own —
-          // every new runner version invents a new glyph. The tail check is
-          // the safety net: keep the badge / pending timer alive as long as
-          // the prompt is still the LAST visible thing on screen. The badge
-          // clears naturally when the user answers and runner output pushes
-          // the prompt out of the visible window.
-          dashboardClearAwaitingInputTimer(ctx, sessionId);
-          dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
-            target.awaitingInput = false;
-          });
         }
+        // Round-6 design: the awaitingInput badge is NEVER cleared by output
+        // chunks. Five rounds of trying to classify chunks (glyph allowlists,
+        // tail-end heuristics, OSC-title preservation) failed because runners
+        // emit continuous spinner / redraw cycles that vary by version and
+        // accumulate over time, pushing the prompt content out of any bounded
+        // tail window. The badge is now cleared only by signals that
+        // unambiguously mean "user moved on":
+        //   1. `term.onData` — user typed in the dashboard xterm (line ~2078)
+        //   2. `dashboardSendToTerminalSession` — programmatic input from a
+        //      preset launch (line ~943)
+        //   3. Session lifecycle (exit, terminal-ending error, refresh proves
+        //      gone, detach-as-end) — multiple paths in this handler
+        // If the runner is answered out-of-band (e.g. via Claude's remote
+        // control), the badge stays on until session exit. That trade-off is
+        // explicit and acceptable: a stuck badge after out-of-band answer is
+        // far less harmful than a badge that never fires at all, which was
+        // the bug we shipped five rounds trying to fix. See
+        // .goat-flow/lessons/design-decisions.md (search: `Three rounds of
+        // the same fix shape`) and .goat-flow/patterns/architecture.md
+        // (search: `Asymmetric trust — set state from output`).
         term.write(msg.data);
       } else if (type === "exit") {
         dashboardClearAwaitingInputTimer(ctx, sessionId);

@@ -2571,13 +2571,15 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
-  it("keeps the badge on across unknown chunks while the prompt is in the visible tail", () => {
-    // M00 round-4 rearchitecture: the message handler now defers to the
-    // merged tail rather than the per-chunk classifier. ANY chunk (spinner,
-    // OSC update, mode toggle, future runner glyph) that doesn't itself look
-    // awaiting will NOT clear the badge as long as the prompt is still in
-    // the last AWAITING_INPUT_TAIL_VISIBLE_RANGE chars of the tail. This is
-    // the defensive design that ends the per-runner glyph whack-a-mole.
+  it("keeps the badge on across unknown chunks while the session is awaiting", () => {
+    // M00 round-6 contract: output chunks NEVER clear the badge. Spinner
+    // glyphs, OSC updates, mode toggles, future runner glyphs are all
+    // benign — only user input (term.onData / sendToTerminalSession) or
+    // session lifecycle (exit / terminating error) clears the awaiting
+    // state. Rounds 1-5 tried five different chunk-classification or
+    // tail-window strategies, each defeated by runner output we hadn't
+    // anticipated; round 6 stops trying to read chunks for "user moved
+    // on" and trusts user input as the only authoritative signal.
     const { globals, sockets } = makeBrowserTerminalGlobals();
     const timers = createFakeTimers();
     const helpers = loadHelpers(
@@ -2671,7 +2673,9 @@ describe("dashboard terminal launch flow", () => {
   it("keeps the badge on across unknown chunks for ANSI-heavy prompt tails", () => {
     // Gemini/Copilot captured prompts contain enough ANSI and box drawing
     // bytes that raw tail.slice(-1500) can miss the visible prompt. R4's
-    // visible-tail fallback must slice the normalized plain text instead.
+    // visible-tail check uses a 3000-byte raw slice (~1500 plain chars
+    // post-stripping for ANSI-heavy runners) so both body content AND OSC
+    // titles survive into the matcher.
     const { globals, sockets } = makeBrowserTerminalGlobals();
     const timers = createFakeTimers();
     const helpers = loadHelpers(
@@ -2734,11 +2738,16 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
-  it("clears the badge once runner output pushes the prompt out of the visible tail", () => {
-    // The flip side of the rearchitecture: when the prompt is NO LONGER in
-    // the last 1500 chars of the tail (because the runner emitted significant
-    // new output), the badge does clear. Verifies we haven't traded flicker
-    // for stuck-on.
+  it("keeps the badge on for Codex's sustained-CUP idle state held by OSC title alone", () => {
+    // Round-5 finding (browser-extension live trace): in a long-running Codex
+    // session in steady-state waiting, CUP positioning escapes fill the tail
+    // so the visible plain-text content is ~100 chars — the question phrase
+    // and numbered choices are NOT in the window. The signal that holds the
+    // badge is Codex's window-title broadcast `[ ! ] Action Required`. The
+    // R4 tail check MUST pass raw bytes so the OSC title is extracted by
+    // `dashboardTerminalTitlesFromOutput` before normalization. A
+    // normalize-first slice would strip the OSC entirely and clear the badge
+    // on the next spinner chunk.
     const { globals, sockets } = makeBrowserTerminalGlobals();
     const timers = createFakeTimers();
     const helpers = loadHelpers(
@@ -2747,9 +2756,9 @@ describe("dashboard terminal launch flow", () => {
       globals,
     );
     const session = {
-      id: "session-clear",
-      runner: "claude" as const,
-      promptLabel: "Clear test",
+      id: "session-codex-sustained",
+      runner: "codex" as const,
+      promptLabel: "Codex sustained CUP test",
       projectPath: "/tmp/example",
       cwd: "/tmp/example",
       targetPath: "/tmp/example",
@@ -2766,19 +2775,100 @@ describe("dashboard terminal launch flow", () => {
       presetId: null,
     };
     const ctx = makeContext({
-      activeSessionId: "session-clear",
+      activeSessionId: "session-codex-sustained",
       sessions: [session],
-      _terminalRefs: { "session-clear": {} },
+      _terminalRefs: { "session-codex-sustained": {} },
     });
     helpers.dashboardConnectTerminal(
       ctx,
-      "session-clear",
-      "/ws/terminal/session-clear",
+      "session-codex-sustained",
+      "/ws/terminal/session-codex-sustained",
     );
     const socket = sockets[0];
     assert.ok(socket);
     socket.onopen?.();
-    // Prompt + reveal.
+
+    // Sustained CUP redraw (~4400 bytes of cursor positioning) wrapping an
+    // OSC title broadcast that signals attention.
+    const cupNoise = Array(400)
+      .fill("\x1b[5;1H\x1b[2K \x1b[6;1H\x1b[2K ")
+      .join("");
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data:
+          cupNoise.slice(0, 2200) +
+          "\x1b]0;[ ! ] Action Required | goat-flow\x07" +
+          cupNoise.slice(0, 2200),
+      }),
+    });
+    timers.tick(1500);
+    assert.equal(
+      session.awaitingInput,
+      true,
+      "Codex badge fires via OSC title even when plain-text content is mostly empty",
+    );
+
+    // Next chunk is an unknown spinner glyph - badge must stay on because
+    // the OSC title is still in the raw tail window.
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "output", data: "\r\x1b[2m⚡\x1b[0m" }),
+    });
+    assert.equal(
+      session.awaitingInput,
+      true,
+      "Codex badge survives unknown spinner chunk because OSC title is still in raw tail",
+    );
+  });
+
+  it("badge persists across arbitrary output volume — only user input clears", () => {
+    // Round-6 contract: output chunks can NEVER clear the awaiting badge.
+    // Five rounds of trying to classify chunks (glyph allowlists, tail-end
+    // heuristics, OSC-title preservation) failed because runners emit
+    // continuous spinner/redraw cycles that vary by version and accumulate
+    // over time, eventually pushing the prompt out of any bounded tail
+    // window. The badge is now cleared only by signals that unambiguously
+    // mean "user moved on": term.onData, sendToTerminalSession, lifecycle.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const session = {
+      id: "session-persist",
+      runner: "claude" as const,
+      promptLabel: "Persistence test",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-persist",
+      sessions: [session],
+      _terminalRefs: { "session-persist": {} },
+    });
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-persist",
+      "/ws/terminal/session-persist",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+    // Prompt arrives and the reveal timer fires.
     socket.onmessage?.({
       data: JSON.stringify({
         type: "output",
@@ -2790,16 +2880,246 @@ describe("dashboard terminal launch flow", () => {
     timers.tick(1500);
     assert.equal(session.awaitingInput, true);
 
-    // User answers; runner emits a LARGE block of new output (tool result)
-    // that pushes the prompt out of the last 1500 chars of the tail.
-    const bigOutput = "Tool output line " + "x".repeat(1700);
+    // A LARGE block of output arrives — under the round-6 contract this
+    // must NOT clear the badge. Pre-round-6, this output would push the
+    // prompt out of the visible tail window and the badge would clear.
+    const bigOutput = "Tool output line " + "x".repeat(8000);
     socket.onmessage?.({
       data: JSON.stringify({ type: "output", data: bigOutput }),
     });
     assert.equal(
       session.awaitingInput,
+      true,
+      "badge must persist across large output — only user input or lifecycle clears",
+    );
+
+    // Many spinner cycles accumulate.
+    const spinnerOn =
+      "\r\x1b[25A\x1b[38;5;246m●\x1b[39m\r" +
+      "\r\n".repeat(25) +
+      "\x1b[1C\x1b[4A\x1b[1D\x1b[4B";
+    for (let i = 0; i < 100; i += 1) {
+      socket.onmessage?.({
+        data: JSON.stringify({ type: "output", data: spinnerOn }),
+      });
+    }
+    assert.equal(
+      session.awaitingInput,
+      true,
+      "badge survives 100 spinner cycles (~9000 accumulated bytes)",
+    );
+  });
+
+  it("badge clears when the user types in the dashboard xterm (term.onData)", () => {
+    // The round-6 contract: the AUTHORITATIVE clear signal is user input.
+    // term.onData fires for any keystroke routed through the xterm widget.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const session = {
+      id: "session-userinput",
+      runner: "claude" as const,
+      promptLabel: "User-input test",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-userinput",
+      sessions: [session],
+      _terminalRefs: { "session-userinput": {} },
+    });
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-userinput",
+      "/ws/terminal/session-userinput",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data:
+          "Do you want to proceed?\n❯ 1. Yes\n  2. No\n\n" +
+          "Esc to cancel · Tab to amend · ctrl+e to explain",
+      }),
+    });
+    timers.tick(1500);
+    assert.equal(session.awaitingInput, true);
+
+    // User answers via xterm. dashboardSendToTerminalSession is the dashboard
+    // path that simulates the same effect as term.onData — both clear the
+    // badge by directly mutating session.awaitingInput.
+    const sent = helpers.dashboardSendToTerminalSession(
+      ctx,
+      "session-userinput",
+      "1",
+      { adapt: false },
+    );
+    assert.equal(sent, true);
+    assert.equal(
+      session.awaitingInput,
       false,
-      "badge clears once prompt is no longer in the last 1500 chars of tail",
+      "badge clears immediately when user input is sent through the dashboard",
+    );
+  });
+
+  it("clearing one session's badge does not affect another session", () => {
+    // Multi-session independence: each LocalSession.awaitingInput is a
+    // per-session field, mutations target a specific session id, and clears
+    // from one session's input must NOT touch any other session's state.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    function makeAwaitingSession(id: string, runner: "claude" | "codex") {
+      return {
+        id,
+        runner,
+        promptLabel: `${id} test`,
+        projectPath: "/tmp/example",
+        cwd: "/tmp/example",
+        targetPath: "/tmp/example",
+        startTime: Date.now(),
+        lastInputTime: Date.now(),
+        connected: false,
+        ended: false,
+        awaitingInput: false,
+        outputTail: "",
+        loadingPhase: "ready",
+        loadingShowSlowHint: false,
+        loadingShowRetry: false,
+        age: "",
+        presetId: null,
+      };
+    }
+    const sA = makeAwaitingSession("multi-a", "claude");
+    const sB = makeAwaitingSession("multi-b", "codex");
+    const sC = makeAwaitingSession("multi-c", "claude");
+    const ctx = makeContext({
+      activeSessionId: "multi-a",
+      sessions: [sA, sB, sC],
+      _terminalRefs: {
+        "multi-a": {},
+        "multi-b": {},
+        "multi-c": {},
+      },
+    });
+    for (const id of ["multi-a", "multi-b", "multi-c"]) {
+      helpers.dashboardConnectTerminal(ctx, id, `/ws/terminal/${id}`);
+    }
+    const [skA, skB, skC] = sockets;
+    [skA, skB, skC].forEach((s) => s?.onopen?.());
+
+    // Each session receives a prompt and the reveal fires.
+    for (const sock of [skA, skB, skC]) {
+      sock?.onmessage?.({
+        data: JSON.stringify({
+          type: "output",
+          data:
+            "Do you want to proceed?\n❯ 1. Yes\n  2. No\n\n" +
+            "Esc to cancel · Tab to amend · ctrl+e to explain",
+        }),
+      });
+    }
+    timers.tick(1500);
+    assert.equal(sA.awaitingInput, true, "A fires");
+    assert.equal(sB.awaitingInput, true, "B fires");
+    assert.equal(sC.awaitingInput, true, "C fires");
+
+    // Clear only session B's badge by sending input there.
+    const ok = helpers.dashboardSendToTerminalSession(ctx, "multi-b", "1", {
+      adapt: false,
+    });
+    assert.equal(ok, true);
+    assert.equal(sB.awaitingInput, false, "B cleared by its own input");
+    assert.equal(sA.awaitingInput, true, "A unaffected by B's input");
+    assert.equal(sC.awaitingInput, true, "C unaffected by B's input");
+  });
+
+  it("session exit message clears the awaitingInput badge", () => {
+    // Lifecycle path: when the PTY exits (runner died, user closed it), the
+    // badge must clear via the exit-message branch even if no user input
+    // arrived first. Pins one of the three input-side clear paths from R6.
+    const { globals, sockets } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const session = {
+      id: "session-exit",
+      runner: "claude" as const,
+      promptLabel: "Exit test",
+      projectPath: "/tmp/example",
+      cwd: "/tmp/example",
+      targetPath: "/tmp/example",
+      startTime: Date.now(),
+      lastInputTime: Date.now(),
+      connected: false,
+      ended: false,
+      awaitingInput: false,
+      outputTail: "",
+      loadingPhase: "ready",
+      loadingShowSlowHint: false,
+      loadingShowRetry: false,
+      age: "",
+      presetId: null,
+    };
+    const ctx = makeContext({
+      activeSessionId: "session-exit",
+      sessions: [session],
+      _terminalRefs: { "session-exit": {} },
+    });
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-exit",
+      "/ws/terminal/session-exit",
+    );
+    const socket = sockets[0];
+    assert.ok(socket);
+    socket.onopen?.();
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "output",
+        data:
+          "Do you want to proceed?\n❯ 1. Yes\n  2. No\n\n" +
+          "Esc to cancel · Tab to amend · ctrl+e to explain",
+      }),
+    });
+    timers.tick(1500);
+    assert.equal(session.awaitingInput, true);
+
+    // PTY exits before user answers — lifecycle MUST clear the badge,
+    // otherwise terminated sessions would render as "Waiting" forever.
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "exit", code: 0, signal: null }),
+    });
+    assert.equal(session.ended, true, "exit message marks session ended");
+    assert.equal(
+      session.awaitingInput,
+      false,
+      "exit message clears awaitingInput badge",
     );
   });
 
