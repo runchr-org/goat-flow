@@ -1295,7 +1295,7 @@ describe("classification", () => {
       report.tips.map((tip) => tip.message).join("\n"),
     );
     const serialized = JSON.stringify(report);
-    assert.doesNotMatch(serialized, /halaxy|deploy\.halaxy|bbbbbb99/i);
+    assert.doesNotMatch(serialized, /example-tenant|deploy\.example|cafebabe/i);
     assert.doesNotMatch(serialized, /\.goat-flow\/tasks\//);
   });
 

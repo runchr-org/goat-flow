@@ -467,26 +467,31 @@ const anySectionPattern = /^\s*\[[^\]]+\]\s*$/u;
 const invalidNoneEntryPattern =
   /^\s*"(?:[^"]*\*[^"/]*\.[A-Za-z0-9_*-]+|[^"]*\*\*[^"/]*|[^"/]*\*[^"/]*)"\s*=\s*"none"\s*(?:#.*)?$/u;
 
-let firstHit = -1;
-let lastHit = -1;
-let hasInvalidEntry = false;
-let usesLegacyAnchor = false;
-for (let i = 0; i < lines.length; i += 1) {
+const regions = [];
+let i = 0;
+while (i < lines.length) {
   if (filesystemSectionPattern.test(lines[i])) {
-    if (firstHit === -1) firstHit = i;
-    lastHit = i;
-    if (/:project_roots/u.test(lines[i])) usesLegacyAnchor = true;
+    const start = i;
+    i += 1;
+    while (i < lines.length && !anySectionPattern.test(lines[i])) i += 1;
+    regions.push({ start, end: i });
+  } else {
+    i += 1;
   }
 }
-if (firstHit === -1) {
+
+if (regions.length === 0) {
   console.log("unchanged");
   process.exit(0);
 }
 
-let removeEnd = lastHit + 1;
-while (removeEnd < lines.length && !anySectionPattern.test(lines[removeEnd])) {
-  if (invalidNoneEntryPattern.test(lines[removeEnd])) hasInvalidEntry = true;
-  removeEnd += 1;
+let hasInvalidEntry = false;
+let usesLegacyAnchor = false;
+for (const region of regions) {
+  for (let j = region.start; j < region.end; j += 1) {
+    if (/:project_roots/u.test(lines[j])) usesLegacyAnchor = true;
+    if (invalidNoneEntryPattern.test(lines[j])) hasInvalidEntry = true;
+  }
 }
 
 if (!hasInvalidEntry && !usesLegacyAnchor) {
@@ -504,17 +509,26 @@ const canonicalBlock = [
   '":workspace_roots" = { "." = "write", "secrets/**" = "none", ".ssh/**" = "none", ".aws/**" = "none", ".docker/**" = "none", ".gnupg/**" = "none", ".kube/**" = "none" }',
 ];
 
-const before = lines.slice(0, firstHit);
-const after = lines.slice(removeEnd);
+const inRegion = new Array(lines.length).fill(false);
+for (const region of regions) {
+  for (let j = region.start; j < region.end; j += 1) inRegion[j] = true;
+}
+
+const firstRegionStart = regions[0].start;
+const before = lines.slice(0, firstRegionStart);
+const after = [];
+for (let j = firstRegionStart; j < lines.length; j += 1) {
+  if (!inRegion[j]) after.push(lines[j]);
+}
+
 while (before.length && before[before.length - 1].trim() === "") before.pop();
+let trailingStart = 0;
+while (trailingStart < after.length && after[trailingStart].trim() === "")
+  trailingStart += 1;
 
 const rebuilt = [...before];
 if (rebuilt.length > 0) rebuilt.push("");
 rebuilt.push(...canonicalBlock);
-
-let trailingStart = 0;
-while (trailingStart < after.length && after[trailingStart].trim() === "")
-  trailingStart += 1;
 if (trailingStart < after.length) {
   rebuilt.push("");
   rebuilt.push(...after.slice(trailingStart));
@@ -700,18 +714,19 @@ echo ""
 if $CLEAN_DEPRECATED || $FORCE; then
   readarray -t STALE_NAMES < <(manifest_eval stale-skills)
   if [[ ${#STALE_NAMES[@]} -gt 0 ]]; then
-    REMOVED=0
+    DEPRECATED_REMOVED=0
     echo "Deprecated skill cleanup:"
     for stale in "${STALE_NAMES[@]}"; do
       [[ -n "$stale" ]] || continue
       stale_path="$SKILLS_DIR/$stale"
       if [[ -d "$stale_path" ]]; then
         rm -rf "$stale_path"
+        DEPRECATED_REMOVED=$((DEPRECATED_REMOVED + 1))
         REMOVED=$((REMOVED + 1))
         echo "  ✗ $stale_path (removed)"
       fi
     done
-    if [[ $REMOVED -eq 0 ]]; then
+    if [[ $DEPRECATED_REMOVED -eq 0 ]]; then
       echo "  · no deprecated skills found"
     fi
     echo ""

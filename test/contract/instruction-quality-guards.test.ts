@@ -184,52 +184,6 @@ describe("encyclopedia guard", () => {
   });
 });
 
-describe("downstream-content guard", () => {
-  const patterns =
-    /healthkit|Halaxy|PracGroup|LinkPaG|\/home\/hxdev\/|\/home\/devgoat\/projects\/healthkit/i;
-
-  it("matches downstream project names", () => {
-    assert.ok(patterns.test("Use healthkit conventions"));
-    assert.ok(patterns.test("Halaxy API"));
-    assert.ok(patterns.test("/home/hxdev/projects/foo"));
-  });
-
-  it("live instruction files have no downstream hits", () => {
-    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
-    for (const agent of Object.values(manifest.agents) as Array<{
-      instruction_file: string;
-    }>) {
-      const content = readFileSync(
-        resolve(PROJECT_ROOT, agent.instruction_file),
-        "utf-8",
-      );
-      assert.ok(
-        !patterns.test(content),
-        `${agent.instruction_file} contains downstream project content`,
-      );
-    }
-  });
-
-  it("live setup templates have no downstream hits", () => {
-    const templates = [
-      "workflow/setup/reference/execution-loop.md",
-      "workflow/setup/02-instruction-file.md",
-      "workflow/setup/agents/claude.md",
-      "workflow/setup/agents/codex.md",
-      "workflow/setup/agents/copilot.md",
-      "workflow/setup/agents/gemini.md",
-    ];
-    for (const t of templates) {
-      const path = resolve(PROJECT_ROOT, t);
-      const content = readFileSync(path, "utf-8");
-      assert.ok(
-        !patterns.test(content),
-        `${t} contains downstream project content`,
-      );
-    }
-  });
-});
-
 describe("Router Table path parity", () => {
   function extractRouterPaths(content: string): Set<string> {
     const lines = content.split(/\r?\n/);

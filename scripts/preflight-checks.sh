@@ -1329,31 +1329,6 @@ if $enc_ok; then
     pass "No encyclopedia content in instruction files"
 fi
 
-# Downstream-content guard (fail — upstream surfaces must not contain project-specific names)
-downstream_patterns="healthkit|Halaxy|PracGroup|LinkPaG|/home/hxdev/|/home/devgoat/projects/healthkit"
-downstream_surfaces=(
-    "${agent_files[@]}"
-    workflow/setup/agents/claude.md workflow/setup/agents/codex.md
-    workflow/setup/agents/copilot.md workflow/setup/agents/gemini.md
-    workflow/setup/reference/execution-loop.md
-    workflow/setup/02-instruction-file.md
-)
-ds_ok=true
-for f in "${downstream_surfaces[@]}"; do
-    if [[ -f "$f" ]]; then
-        ds_hits=$(grep -inE "$downstream_patterns" "$f" || true)
-        if [[ -n "$ds_hits" ]]; then
-            while IFS= read -r hit; do
-                fail "Downstream project content in $f: $(echo "$hit" | head -c 120)"
-                ds_ok=false
-            done <<< "$ds_hits"
-        fi
-    fi
-done
-if $ds_ok; then
-    pass "No downstream project content in upstream surfaces"
-fi
-
 # ── TypeScript ───────────────────────────────────────────────────────
 if [[ -f tsconfig.json ]]; then
     section "TypeScript"

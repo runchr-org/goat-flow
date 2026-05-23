@@ -13,4 +13,4 @@
 
 Milestone files here coordinate the current work - they are not long-term artifacts and are not expected to survive the session.
 
-See `goat-plan` SKILL.md for milestone file conventions. For active cross-train ordering, use `RELEASE-TRAINS.md`.
+See `goat-plan` SKILL.md for milestone file conventions.

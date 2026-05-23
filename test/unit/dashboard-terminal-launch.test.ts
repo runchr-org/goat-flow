@@ -2365,10 +2365,9 @@ describe("dashboard terminal launch flow", () => {
   });
 
   // Per-runner fixture-driven tests. Each fixture is captured under node-pty
-  // from the live runner; see .goat-flow/scratchpad/capture-*.mjs and the
-  // M00-workspace-terminal-waiting-status milestone for capture procedure.
-  // Positive fixtures pin the prompts the heuristic must catch; negative
-  // fixtures pin the running-state output the heuristic must NOT false-fire on.
+  // from the live runner. Positive fixtures pin the prompts the heuristic must
+  // catch; negative fixtures pin the running-state output the heuristic must
+  // NOT false-fire on.
   const AWAITING_FIXTURE_DIR = resolve(
     PROJECT_ROOT,
     "test",

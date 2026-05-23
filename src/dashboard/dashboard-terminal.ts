@@ -1928,10 +1928,13 @@ function dashboardConnectTerminal(
         // accumulate over time, pushing the prompt content out of any bounded
         // tail window. The badge is now cleared only by signals that
         // unambiguously mean "user moved on":
-        //   1. `term.onData` — user typed in the dashboard xterm (line ~2078)
-        //   2. `dashboardSendToTerminalSession` — programmatic input from a
+        //   1. `term.onData` — user typed in the dashboard xterm
+        //   2. Ctrl+V paste from `attachCustomKeyEventHandler` — clipboard
+        //      input goes straight to the WebSocket and bypasses `term.onData`,
+        //      so it shares `markUserInputSent()` with the keystroke path
+        //   3. `dashboardSendToTerminalSession` — programmatic input from a
         //      preset launch (line ~943)
-        //   3. Session lifecycle (exit, terminal-ending error, refresh proves
+        //   4. Session lifecycle (exit, terminal-ending error, refresh proves
         //      gone, detach-as-end) — multiple paths in this handler
         // If the runner is answered out-of-band (e.g. via Claude's remote
         // control), the badge stays on until session exit. That trade-off is
@@ -2025,14 +2028,25 @@ function dashboardConnectTerminal(
       target.connected = false;
     });
   };
+  const markUserInputSent = (): void => {
+    const lastInputTime = Date.now();
+    dashboardClearAwaitingInputTimer(ctx, sessionId);
+    dashboardClearPasteSubmitState(ctx, sessionId);
+    dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
+      target.lastInputTime = lastInputTime;
+      target.awaitingInput = false;
+    });
+  };
   term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
     if (e.type === "keydown" && e.ctrlKey && e.key === "v") {
       e.preventDefault();
       navigator.clipboard
         .readText()
         .then((text) => {
-          if (text && ws.readyState === WebSocket.OPEN)
+          if (text && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: "input", data: text }));
+            markUserInputSent();
+          }
         })
         .catch(() => {});
       return false;
@@ -2051,13 +2065,7 @@ function dashboardConnectTerminal(
   term.onData((data: string) => {
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: "input", data }));
-    const lastInputTime = Date.now();
-    dashboardClearAwaitingInputTimer(ctx, sessionId);
-    dashboardClearPasteSubmitState(ctx, sessionId);
-    dashboardMutateLocalSession(ctx, sessionId, session, (target) => {
-      target.lastInputTime = lastInputTime;
-      target.awaitingInput = false;
-    });
+    markUserInputSent();
   });
   term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
     if (ws.readyState === WebSocket.OPEN)

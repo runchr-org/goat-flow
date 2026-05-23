@@ -3418,7 +3418,7 @@ describe("harness signal honesty", () => {
   it("doc path extraction ignores npm scopes and home paths but keeps repo paths", () => {
     assert.deepEqual(
       extractBacktickPaths(
-        "`@halaxy/theme` `@vendia/serverless-express` `~/.local/bin` `HL7/FHIR` `.goat-flow/code-map.md` `docs/missing.md` `README.md:1`",
+        "`@acme/theme` `@vendia/serverless-express` `~/.local/bin` `HL7/FHIR` `.goat-flow/code-map.md` `docs/missing.md` `README.md:1`",
       ),
       [".goat-flow/code-map.md", "docs/missing.md", "README.md:1"],
     );
@@ -3438,7 +3438,7 @@ describe("harness signal honesty", () => {
                 "",
                 "| Term | Canonical File |",
                 "|------|----------------|",
-                "| Theme package | `@halaxy/theme` |",
+                "| Theme package | `@acme/theme` |",
                 "| FHIR shorthand | `HL7/FHIR` |",
                 "| OAuth matcher | `src/Security/OAuthRequestMatcher.php` |",
                 "| Missing owner | `missing/path.md` |",
