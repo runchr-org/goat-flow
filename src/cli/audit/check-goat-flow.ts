@@ -506,7 +506,7 @@ const instructionFileSkillReferencePointer: BuildCheck = {
       message: `Instruction file(s) missing skill-playbooks READ rule or Router Table pointer: ${missingRequirements.join(", ")}`,
       evidence: missingRequirements[0]?.replace(/\s+\(.+\)$/, ""),
       howToFix:
-        'Append to the existing READ step: "Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-playbooks/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc\'s "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool"." Add a Router Table row for tool playbooks: | Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-quality-testing) | `.goat-flow/skill-playbooks/` - read BEFORE declaring a tool unavailable |.',
+        'Append to the existing READ step: "Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-playbooks/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc\'s "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool"." Add a Router Table row for tool playbooks: | Skill playbooks (tools) | `.goat-flow/skill-playbooks/` (README.md index; read BEFORE declaring a tool unavailable) |.',
     };
   },
 };

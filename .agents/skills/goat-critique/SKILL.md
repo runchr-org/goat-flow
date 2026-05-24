@@ -67,7 +67,7 @@ All three perspectives must appear in every critique from Agents A and B. The te
 
 | Agent | Reads | Does NOT read |
 |---|---|---|
-| A (Risk) | artifact + architecture.md + footguns + lessons + rubric | git history, config.yaml |
+| A (Risk) | artifact + architecture.md + targeted grep-first footgun/lesson hits + rubric | git history, config.yaml |
 | B (Alternatives) | artifact + architecture.md + `git log --oneline -20` + config.yaml + rubric | footguns, lessons |
 | C (Fresh Eyes) | artifact + rubric ONLY | everything else (isolation enforced) |
 

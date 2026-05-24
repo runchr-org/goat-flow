@@ -1,6 +1,18 @@
 ---
 category: verification
-last_reviewed: 2026-05-17
+last_reviewed: 2026-05-24
+---
+
+## Lesson: Content validators can require explicit inventories despite README pointers
+
+**Status:** active | **Created:** 2026-05-24
+
+**What happened:** While implementing M07, I changed `.goat-flow/architecture.md` to point at `.goat-flow/skill-playbooks/README.md` instead of explicitly listing every top-level playbook. The targeted audit then failed with `skill-playbook-inventory-drift`, because `src/cli/audit/check-factual-claims.ts` (search: `driftSkillPlaybookInventory`) checks whether `.goat-flow/architecture.md` and `.goat-flow/code-map.md` include each live top-level `.goat-flow/skill-playbooks/*.md` filename.
+
+**Root cause:** I optimized for low-drift prose without reading the live content validator that owns this inventory contract. The README pointer was human-useful but did not satisfy the machine-readable cross-doc check.
+
+**Prevention:** Before replacing an explicit inventory with an index pointer in architecture or code-map docs, grep the content-quality/factual-claims checks for that inventory surface. If a validator checks direct filename inclusion, keep the explicit names and update the source-of-truth prose instead of relying on an indirect README pointer.
+
 ---
 
 ## Lesson: Header-only edits leave bodies contradicting the new scope

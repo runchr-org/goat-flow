@@ -7,40 +7,40 @@ goat-flow-reference-version: "1.8.0"
 
 ## Rubric Context Maps
 
-Each rubric has a context map that Step 0 reads and passes to sub-agent spawn directives. Agent C's isolation enforcement (Phase 2 step 1 grep check) is unchanged regardless of context map. Generic fallback uses the default split.
+Each rubric has a context map that Step 0 reads and passes to sub-agent spawn directives. Footgun/lesson entries mean targeted grep-first hits from those buckets, not whole-directory reads. Agent C's isolation enforcement (Phase 2 step 1 grep check) is unchanged regardless of context map. Generic fallback uses the default split.
 
 ### Plan
-- **A:** footguns, lessons, `.goat-flow/decisions/`
+- **A:** targeted grep-first footgun/lesson hits, `.goat-flow/decisions/`
 - **B:** `.goat-flow/tasks/.active`, `git log --oneline -20`, milestone logs
 - **C:** [] (isolation enforced)
 
 ### Security assessment
-- **A:** footguns, lessons, threat-model docs, `.goat-flow/decisions/`
+- **A:** targeted grep-first footgun/lesson hits, threat-model docs, `.goat-flow/decisions/`
 - **B:** `git log --oneline -20`, config.yaml, dependency manifests
 - **C:** [] (isolation enforced)
 
 ### Debug hypotheses
-- **A:** footguns, lessons, `.goat-flow/logs/sessions/`
+- **A:** targeted grep-first footgun/lesson hits, `.goat-flow/logs/sessions/`
 - **B:** `git log --oneline -20`, config.yaml, test output
 - **C:** [] (isolation enforced)
 
 ### Review findings
-- **A:** footguns, lessons, `.goat-flow/decisions/`
+- **A:** targeted grep-first footgun/lesson hits, `.goat-flow/decisions/`
 - **B:** `git log --oneline -20`, config.yaml, CI logs
 - **C:** [] (isolation enforced)
 
 ### Test strategy
-- **A:** footguns, lessons, `.goat-flow/decisions/`
+- **A:** targeted grep-first footgun/lesson hits, `.goat-flow/decisions/`
 - **B:** `git log --oneline -20`, config.yaml, test manifests
 - **C:** [] (isolation enforced)
 
 ### Architecture/refactor
-- **A:** footguns, lessons, `.goat-flow/decisions/`, dependency maps
+- **A:** targeted grep-first footgun/lesson hits, `.goat-flow/decisions/`, dependency maps
 - **B:** `git log --oneline -20`, config.yaml, module boundaries
 - **C:** [] (isolation enforced)
 
 ### Generic (fallback)
-- **A:** footguns, lessons
+- **A:** targeted grep-first footgun/lesson hits
 - **B:** `git log --oneline -20`, config.yaml
 - **C:** [] (isolation enforced)
 
