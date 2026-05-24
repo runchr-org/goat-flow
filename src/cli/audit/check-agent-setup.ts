@@ -671,6 +671,11 @@ const agentSettings: BuildCheck = {
 
 function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
+    // Capability-limited agents (e.g. Antigravity at v1.0.1) have no documented
+    // deny mechanism upstream. The manifest records this as
+    // `denyMechanism: null`; skip the check rather than producing a permanent
+    // audit failure that downstream projects cannot fix.
+    if (af.agent.denyMechanism === null) continue;
     if (!af.hooks.denyExists && !af.hooks.denyIsConfigBased) {
       return {
         check: "Agent deny mechanism",
@@ -721,6 +726,8 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
 /** Check whether each agent has deny patterns registered somewhere. */
 function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
+    // Skip capability-limited agents (no documented deny mechanism upstream).
+    if (af.agent.denyMechanism === null) continue;
     if (!af.settings.hasDenyPatterns && !af.hooks.denyExists) {
       return {
         check: "Agent deny mechanism",

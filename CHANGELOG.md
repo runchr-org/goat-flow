@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.8.0 - 2026-05-24
+
+Antigravity replaces Gemini CLI as the third actively-supported agent. Hard-replace migration — `--agent gemini` is no longer a recognised value.
+
+- **Antigravity is the new third supported runner** - manifest-backed registry now lists Claude Code, Codex, Antigravity, and Copilot. Antigravity uses the `agy` binary, shares `AGENTS.md` and `.agents/skills/` with Codex (community standard), and is launched from the dashboard Workspace runner switcher.
+- **OAuth persistence verified live** - `agy 1.0.1` upstream fix for OAuth token persistence and authentication hangs is confirmed working on a fresh shell (same login session). Dashboard sessions reach the Antigravity composer without a re-auth flow when tokens are already persisted; logout/login and reboot persistence horizons are not yet measured.
+- **Capability-limited deny mechanism** - Antigravity at v1.0.1 does not document a repo-local hooks directory or ignore-file convention. goat-flow ships Antigravity without a deny hook (manifest profile records hook fields as `null`); audit checks skip the deny-mechanism step for this agent. Sandbox/approval continues to use `agy`'s `--sandbox` flag and `proceed-in-sandbox` permission mode.
+- **`--agent gemini` removed** - the gemini runtime profile, setup guide, installer scripts, dashboard CSS class, and `geminiignore` audit field are deleted. Existing scripts that pass `--agent gemini` now get `Invalid agent: gemini. Use: claude, codex, antigravity, copilot` and a non-zero exit code. Users with `.gemini/skills/` can migrate to Antigravity with the upstream helper `agy plugin import gemini`.
+- **Dashboard composer-ready detection** - terminal launch waits for Antigravity's real composer-ready signature (`Antigravity CLI <version>` identity row + `? for shortcuts` composer hint), backed by a real captured PTY fixture (`test/unit/__fixtures__/awaiting-input/antigravity-startup.txt`) and three regression tests. Paste-marker behavior shares the Claude code path since `agy 1.0.1` uses the same `[Pasted text #X +Y lines]` placeholder.
+- **Docs and site copy realigned** - README, package.json, `docs/audit-and-quality.md`, `docs/deny-dangerous.md`, `docs/skills.md`, `docs/audit-checks.md`, `docs/harness-audit.md`, `docs/coding-standards/frontend.md`, dashboard About page, and both landing/harness-engineering site pages now name Antigravity instead of Gemini CLI in active support claims.
+- **Historical artefacts preserved** - `CHANGELOG.md`, `workflow/manifest-snapshots/v1.1.0.json`–`v1.7.0.json`, and the `gemini-startup.txt`/`gemini-running.txt` PTY captures (used by runner-agnostic awaiting-input parser tests) remain untouched.
+
 ## v1.7.1 - 2026-05-21
 
 Upgrade cleanup patch for stale skill reference files.

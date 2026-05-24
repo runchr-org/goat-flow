@@ -47,7 +47,6 @@ const STATIC_QUALITY_TARGETS = [
   // Hot-path instruction files
   "CLAUDE.md",
   "AGENTS.md",
-  "GEMINI.md",
   ".github/copilot-instructions.md",
   // Canonical docs
   ".goat-flow/architecture.md",
@@ -81,7 +80,7 @@ const STATIC_QUALITY_TARGETS = [
   "workflow/setup/06-final-verification.md",
   "workflow/setup/agents/claude.md",
   "workflow/setup/agents/codex.md",
-  "workflow/setup/agents/gemini.md",
+  "workflow/setup/agents/antigravity.md",
   "workflow/setup/agents/copilot.md",
   "workflow/setup/reference/ADR-000-template.md",
   "workflow/setup/reference/execution-loop.md",
@@ -208,9 +207,9 @@ const NON_ACTIONABLE: PatternRule[] = [
  * Legacy v1.0 six-step Execution Loop drift (M19-9a). Matches only the
  * arrow-sequence declaration, not incidental historical prose mentioning
  * CLASSIFY or LOG. All four reviewed v1.2 consumer projects (ambient-scribe,
- * sus-form-detector, blundergoat-platform, rampart) shipped AGENTS.md /
- * GEMINI.md with the legacy six-step loop while CLAUDE.md + skill-preamble.md
- * used the v1.2 four-step. See `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md`
+ * sus-form-detector, blundergoat-platform, rampart) shipped AGENTS.md with
+ * the legacy six-step loop while CLAUDE.md + skill-preamble.md used the v1.2
+ * four-step. See `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md`
  * slice M19-9a.
  */
 const LEGACY_EXECUTION_LOOP: PatternRule[] = [

@@ -39,7 +39,14 @@ export type ManifestDenyMechanism =
   | { type: "deny-script"; path: string }
   | { type: "both"; settings_path: string; script_path: string };
 
-/** The manifest-backed framework-support record for one agent runtime. */
+/** The manifest-backed framework-support record for one agent runtime.
+ *
+ *  `deny_mechanism` and `hook_events` are optional to model capability-limited
+ *  agents whose upstream CLI exists but does not yet document a hooks directory
+ *  or hook-event names (e.g. Antigravity at v1.0.1). Goat-flow ships such agents
+ *  without deny-hook wiring; enforcement/audit code must guard for the null
+ *  case. See `.goat-flow/tasks/1.8.0/M02-antigravity-runtime-and-login-proof.md`
+ *  for the kill criterion that produced this contract. */
 export interface AgentProfile {
   name: string;
   instruction_file: string;
@@ -49,9 +56,9 @@ export interface AgentProfile {
   settings?: string;
   hook_config_file?: string;
   deny_hook?: string;
-  deny_mechanism: ManifestDenyMechanism;
+  deny_mechanism?: ManifestDenyMechanism;
   local_pattern: string;
-  hook_events: ManifestHookEvents;
+  hook_events?: ManifestHookEvents;
   hooks?: string[];
 }
 

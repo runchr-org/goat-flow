@@ -25,7 +25,7 @@ type EnforcementCapabilitySource =
 /** Dashboard-local runner union. Keep this aligned with `src/cli/types.ts`.
  *  Importing CLI types here causes the dashboard build to emit `src/cli/types.js`
  *  back into the source tree, which then poisons lint/format/drift gates. */
-type RunnerId = "claude" | "codex" | "gemini" | "copilot";
+type RunnerId = "claude" | "codex" | "antigravity" | "copilot";
 type PromptInvocationStyle = "slash" | "dollar";
 type SkillSource = "installed" | "agent-mirror" | "github-mirror";
 type SessionStatus = "starting" | "active" | "terminated";

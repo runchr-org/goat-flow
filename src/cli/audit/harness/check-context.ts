@@ -95,7 +95,6 @@ const instructionLineCount: HarnessCheck = {
     "docs/harness-audit.md",
     "CLAUDE.md",
     "AGENTS.md",
-    "GEMINI.md",
     ".github/copilot-instructions.md",
   ]),
   /** Run the Instruction file size check. */
@@ -158,7 +157,6 @@ const executionLoopPresent: HarnessCheck = {
     "docs/harness-audit.md",
     "CLAUDE.md",
     "AGENTS.md",
-    "GEMINI.md",
     ".github/copilot-instructions.md",
   ]),
   /** Run the Execution loop present check. */
@@ -404,7 +402,6 @@ const instructionSectionsPresent: HarnessCheck = {
     "src/cli/prompt/compose-quality.ts",
     "CLAUDE.md",
     "AGENTS.md",
-    "GEMINI.md",
     ".github/copilot-instructions.md",
   ]),
   /** Run the Instruction file required sections check. */
@@ -414,7 +411,6 @@ const instructionSectionsPresent: HarnessCheck = {
     const fixes: string[] = [];
     const sections: NonNullable<HarnessCheckDetails["sections"]> = [];
     let anyFail = false;
-
     const requiredSections = getRequiredInstructionSections();
     const required = requiredSections.map((s) => s.label);
     for (const af of ctx.agents) {
@@ -477,7 +473,6 @@ const boundaryGuidancePresentCheck: HarnessCheck = {
     ".goat-flow/lessons/auditor-and-rubric.md",
     "CLAUDE.md",
     "AGENTS.md",
-    "GEMINI.md",
     ".github/copilot-instructions.md",
   ]),
   /** Run the Workspace boundary guidance present check. */

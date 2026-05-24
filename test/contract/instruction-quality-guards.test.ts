@@ -16,7 +16,7 @@ const SETUP_AGENT_GUIDES = [
   "workflow/setup/agents/claude.md",
   "workflow/setup/agents/codex.md",
   "workflow/setup/agents/copilot.md",
-  "workflow/setup/agents/gemini.md",
+  "workflow/setup/agents/antigravity.md",
 ];
 const CANONICAL_SETUP_SECTIONS = [
   "Truth Order",
@@ -200,7 +200,7 @@ describe("Router Table path parity", () => {
         const raw = m[1];
         const wasDir = raw.endsWith("/");
         const p = raw.replace(/\/+$/, "");
-        if (/^\.(claude|github|agents|codex|gemini)\//.test(p)) continue;
+        if (/^\.(claude|github|agents|codex)\//.test(p)) continue;
         if (
           p.includes("/") ||
           p.endsWith(".md") ||

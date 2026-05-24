@@ -420,7 +420,7 @@ describe("runFactualClaimChecks", () => {
   it("flags stale dashboard session-cap claims", () => {
     const fs = stubFSFromFiles({
       "docs/dashboard.md":
-        "- Supports Claude, Codex, and Gemini runners\n- Sessions rail: up to 3\n",
+        "- Supports Claude, Codex, and Antigravity runners\n- Sessions rail: up to 3\n",
       "src/cli/server/terminal.ts": "const MAX_SESSIONS = 7;\n",
     });
     const { findings } = runFactualClaimChecks(stubCtx(fs));
@@ -453,7 +453,7 @@ describe("runFactualClaimChecks", () => {
   it("flags stale dashboard version references", () => {
     const fs = stubFSFromFiles({
       "docs/dashboard.md":
-        "- Supports Claude, Codex, Gemini, and Copilot runners in v1.2.0\n",
+        "- Supports Claude, Codex, Antigravity, and Copilot runners in v1.2.0\n",
     });
     const { findings } = runFactualClaimChecks(stubCtx(fs));
     assert.ok(
@@ -464,7 +464,7 @@ describe("runFactualClaimChecks", () => {
   it("does not flag the current dashboard runner list with natural-language commas", () => {
     const fs = stubFSFromFiles({
       "docs/dashboard.md":
-        "- Supports Claude, Codex, Gemini, and Copilot runners\n- Sessions rail: up to 7\n",
+        "- Supports Claude, Codex, Antigravity, and Copilot runners\n- Sessions rail: up to 7\n",
       "src/cli/server/terminal.ts": "const MAX_SESSIONS = 7;\n",
     });
     const { findings } = runFactualClaimChecks(stubCtx(fs));

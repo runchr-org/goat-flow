@@ -246,7 +246,6 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
     ignoreFiles: {
       copilotignore: false,
       cursorignore: false,
-      geminiignore: false,
     },
     gitignore: { exists: true, hasRequiredEntries: true },
     preflightScript: { exists: false },

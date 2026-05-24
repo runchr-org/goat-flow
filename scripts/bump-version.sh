@@ -11,7 +11,7 @@
 #
 # Updated files:
 #   - package.json + package-lock.json (via npm version --no-git-tag-version)
-#   - Instruction file headers (CLAUDE.md, AGENTS.md, GEMINI.md, .github/copilot-instructions.md)
+#   - Instruction file headers (CLAUDE.md, AGENTS.md, .github/copilot-instructions.md)
 #   - .goat-flow/config.yaml version field
 #   - workflow/manifest.json
 #   - workflow/skills/*/SKILL.md frontmatter (7 templates)
@@ -76,7 +76,7 @@ update_file() {
 # ── Source files (version string replacement) ──────────────────────────
 
 # Instruction file headers
-for ifile in CLAUDE.md AGENTS.md GEMINI.md .github/copilot-instructions.md; do
+for ifile in CLAUDE.md AGENTS.md .github/copilot-instructions.md; do
   update_file "$ifile"
 done
 

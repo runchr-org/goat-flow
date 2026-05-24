@@ -11,27 +11,27 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 
 ## Agent Event Name Mapping
 
-| Purpose | Claude Code | Gemini CLI | Codex CLI | Copilot CLI |
-|---------|-------------|------------|-----------|-------------|
-| Block before tool runs | PreToolUse | BeforeTool | PreToolUse in `.codex/hooks.json` with the shipped deny hook matched to `Bash` | `preToolUse` in `.github/hooks/hooks.json` with the shipped deny hook |
-| Permission deny list | `.claude/settings.json` deny patterns | `.gemini/settings.json` deny patterns | Filesystem permission profile in `.codex/config.toml`; command denies in the Bash hook | Script-only deny hook; no provider-native file-read/file-write deny layer is claimed |
-| Config format | JSON | JSON | TOML + JSON | JSON |
+| Purpose | Claude Code | Codex CLI | Antigravity | Copilot CLI |
+|---------|-------------|-----------|-------------|-------------|
+| Block before tool runs | PreToolUse | PreToolUse in `.codex/hooks.json` with the shipped deny hook matched to `Bash` | Not yet wired - upstream hooks directory undocumented at `agy` 1.0.1 (capability-limited; see `.goat-flow/tasks/1.8.0/M02-antigravity-runtime-and-login-proof.md`) | `preToolUse` in `.github/hooks/hooks.json` with the shipped deny hook |
+| Permission deny list | `.claude/settings.json` deny patterns | Filesystem permission profile in `.codex/config.toml`; command denies in the Bash hook | None wired - sandbox/approval lives in user-level `~/.config/antigravity/config.toml`, not a repo-local file | Script-only deny hook; no provider-native file-read/file-write deny layer is claimed |
+| Config format | JSON | TOML + JSON | n/a | JSON |
 
 ## Setup
 
 1. Copy the required hook files to your agent's hooks directory: `deny-dangerous.sh` and `deny-dangerous.self-test.sh`.
 2. Copy the matching agent-config template(s) for your runtime:
    - Claude: `agent-config/claude.json` -> `.claude/settings.json`
-   - Gemini: `agent-config/gemini.json` -> `.gemini/settings.json`
    - Codex: `agent-config/codex.toml` -> `.codex/config.toml` and `agent-config/codex-hooks.json` -> `.codex/hooks.json`
    - Copilot: `agent-config/copilot-hooks.json` -> `.github/hooks/hooks.json`
+   - Antigravity: no template - hook wiring deferred until upstream documents a hooks directory.
 3. goat-flow core ships only the deny hook. Post-turn validation hooks are a project-specific concern - see the note below.
 
 All hook paths use `$(git rev-parse --show-toplevel)` so they work regardless of the agent's working directory.
 
 ## Post-Turn Linting (project-specific, not shipped)
 
-goat-flow does not ship a post-turn lint hook. Every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Claude `Stop`, Gemini `AfterAgent`, or Codex `Stop` event and register it in that agent's settings file.
+goat-flow does not ship a post-turn lint hook. Every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Claude `Stop` or Codex `Stop` event and register it in that agent's settings file. Antigravity's hook event names are not yet documented upstream.
 
 ## Codex Permissions
 

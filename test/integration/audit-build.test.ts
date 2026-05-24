@@ -99,9 +99,9 @@ function makeSkillReferenceCtx(options: {
           instruction_file: "AGENTS.md",
           skills_dir: ".agents/skills",
         },
-        gemini: {
-          instruction_file: "GEMINI.md",
-          skills_dir: ".gemini/skills",
+        antigravity: {
+          instruction_file: "AGENTS.md",
+          skills_dir: ".agents/skills",
         },
         copilot: {
           instruction_file: ".github/copilot-instructions.md",

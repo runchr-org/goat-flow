@@ -1169,7 +1169,7 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(timers.pending(), 0);
   });
 
-  it("submits Gemini multiline pasted terminal text after the pasted-text marker", async () => {
+  it("submits Antigravity multiline pasted terminal text after the pasted-text marker", async () => {
     const timers = createFakeTimers();
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1181,7 +1181,7 @@ describe("dashboard terminal launch flow", () => {
       sessions: [
         {
           id: "session-upload",
-          runner: "gemini",
+          runner: "antigravity",
           promptLabel: "Upload target",
           projectPath: "/tmp/example",
           cwd: "/tmp/example",
@@ -1703,7 +1703,7 @@ describe("dashboard terminal launch flow", () => {
     };
     const loading = {
       id: "session-loading",
-      runner: "gemini",
+      runner: "antigravity",
       promptLabel: "Loading session",
       loadingPhase: "loading",
       ended: false,
@@ -2684,7 +2684,7 @@ describe("dashboard terminal launch flow", () => {
     );
     const session = {
       id: "session-ansi-heavy",
-      runner: "gemini" as const,
+      runner: "antigravity" as const,
       promptLabel: "ANSI-heavy test",
       projectPath: "/tmp/example",
       cwd: "/tmp/example",
@@ -3231,7 +3231,11 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
-  it("detects Gemini readiness only after the Gemini composer appears", () => {
+  it("detects Antigravity readiness only after the composer appears", () => {
+    // Verified live against `agy` 1.0.1 (2026-05-24 browser-use smoke):
+    // - Pre-composer auth output (no `Antigravity CLI <version>` identity row
+    //   yet OR no `? for shortcuts` hint) must not fire readiness.
+    // - The full composer-ready signature (identity row + composer hint) must.
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
     );
@@ -3239,27 +3243,78 @@ describe("dashboard terminal launch flow", () => {
     assert.equal(
       helpers.dashboardOutputLooksReadyForLaunchPrompt(
         [
-          "Gemini CLI v0.41.2",
-          "Signed in with Google",
-          "/auth",
-          "Plan: Gemini Code Assist in Google One AI Pro",
-          "? for shortcuts",
+          "Welcome to the Antigravity CLI. You are currently not signed in.",
+          "Signing in...",
         ].join("\n"),
-        "gemini",
+        "antigravity",
       ),
       false,
     );
     assert.equal(
       helpers.dashboardOutputLooksReadyForLaunchPrompt(
         [
-          "Gemini CLI v0.41.2",
-          "Signed in with Google",
-          "Type your message or @path/to/file",
-          "workspace (/directory) branch sandbox /model quota",
+          "Antigravity CLI 1.0.1",
+          "thatmatthansen@gmail.com (Google AI Pro)",
+          "Gemini 3.5 Flash (High)",
+          "~/projects/goat-flow",
+          "────────────────────────────────────────",
+          ">",
+          "────────────────────────────────────────",
+          "? for shortcuts            Gemini 3.5 Flash (High)",
         ].join("\n"),
-        "gemini",
+        "antigravity",
       ),
       true,
+    );
+  });
+
+  it("detects Antigravity readiness from a real captured `agy` startup", () => {
+    // Fixture captured 2026-05-24 by spawning `agy` through node-pty (see
+    // scripts/capture-agy.mjs in the M04 milestone log). The raw bytes include
+    // ANSI escapes, the Antigravity logo, "Antigravity CLI 1.0.1" identity
+    // row, and the `? for shortcuts` composer hint - exactly the two anchors
+    // the readiness regex relies on.
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const bytes = loadFixture("antigravity-startup.txt");
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(bytes, "antigravity"),
+      true,
+    );
+  });
+
+  it("does NOT fire Antigravity readiness on running output from another runner", () => {
+    // Negative regression: the Antigravity-specific readiness regex must not
+    // match a runner-busy capture from a different runner (Gemini fixture
+    // retained for parser regression coverage). The `Antigravity CLI` anchor
+    // is unique to `agy`, so cross-runner captures cannot trigger.
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const bytes = loadFixture("gemini-running.txt");
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(bytes, "antigravity"),
+      false,
+    );
+  });
+
+  it("does NOT fire Antigravity readiness on pre-composer auth output", () => {
+    // The "signing in" spinner state must not be treated as ready - the
+    // `Antigravity CLI <version>` identity row only appears AFTER auth.
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+    );
+    const preComposer = [
+      "Welcome to the Antigravity CLI. You are currently not signed in.",
+      "Signing in...",
+    ].join("\n");
+    assert.equal(
+      helpers.dashboardOutputLooksReadyForLaunchPrompt(
+        preComposer,
+        "antigravity",
+      ),
+      false,
     );
   });
 
@@ -3299,7 +3354,7 @@ describe("dashboard terminal launch flow", () => {
     );
   });
 
-  it("keeps Gemini launch prompts queued through auth output until the composer is ready", () => {
+  it("keeps Antigravity launch prompts queued through auth output until the composer is ready", () => {
     const timers = createFakeTimers();
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -3307,7 +3362,7 @@ describe("dashboard terminal launch flow", () => {
     );
     const ctx = makeLaunchPromptContext();
     const session = ctx.sessions[0] as Record<string, unknown>;
-    session.runner = "gemini";
+    session.runner = "antigravity";
 
     helpers.dashboardScheduleLaunchPrompt(
       ctx,
@@ -3323,11 +3378,8 @@ describe("dashboard terminal launch flow", () => {
     );
 
     session.outputTail = [
-      "Gemini CLI v0.41.2",
-      "Signed in with Google",
-      "/auth",
-      "Plan: Gemini Code Assist in Google One AI Pro",
-      "? for shortcuts",
+      "Welcome to the Antigravity CLI. You are currently not signed in.",
+      "Signing in...",
     ].join("\n");
     helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
     timers.tick(2500);
@@ -3338,7 +3390,7 @@ describe("dashboard terminal launch flow", () => {
       "run prompt\nsecond line",
     );
 
-    session.outputTail = `${session.outputTail}\nType your message or @path/to/file`;
+    session.outputTail = `${session.outputTail}\nAntigravity CLI 1.0.1\nthatmatthansen@gmail.com\n? for shortcuts`;
     helpers.dashboardHandleLaunchPromptOutput(ctx, "launch-session");
 
     assert.deepStrictEqual(JSON.parse(ctx.sent[0] ?? "{}"), {

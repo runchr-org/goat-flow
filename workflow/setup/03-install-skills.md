@@ -62,11 +62,11 @@ Both greps must return matches. If either is missing, the installer either did n
 
 ## Clean stale cross-agent skills
 
-After installing canonical skills for the current agent, check other agents' skill directories for stale goat-flow skill names. For Claude: check `.agents/skills/`, `.github/skills/`. For Codex: check `.claude/skills/`, `.github/skills/`. For Gemini: check `.claude/skills/`, `.github/skills/`. For Copilot: check `.claude/skills/`, `.agents/skills/`. Do NOT check the current agent's own skill directory here - that was handled during installation above. Stale names to look for (manifest `skills.stale_names`):
+After installing canonical skills for the current agent, check other agents' skill directories for stale goat-flow skill names. For Claude: check `.agents/skills/`, `.github/skills/`. For Codex: check `.claude/skills/`, `.github/skills/`. For Antigravity: check `.claude/skills/`, `.github/skills/`. For Copilot: check `.claude/skills/`, `.agents/skills/`. Do NOT check the current agent's own skill directory here - that was handled during installation above. Stale names to look for (manifest `skills.stale_names`):
 
 `goat-audit`, `goat-investigate`, `goat-onboard`, `goat-reflect`, `goat-resume`, `goat-preflight`, `goat-research`, `goat-simplify`, `goat-refactor`, `goat-context`, `goat-sbao`, `goat-test`
 
-Delete any stale directories found. Then check the corresponding agent instruction file (`AGENTS.md`, `GEMINI.md`, `CLAUDE.md`) for references to deleted skills - remove or update those references.
+Delete any stale directories found. Then check the corresponding agent instruction file (`AGENTS.md`, `CLAUDE.md`) for references to deleted skills - remove or update those references.
 
 Do NOT delete non-goat-prefixed skills (e.g., `audit/`, `review/`, `migration-debug/`) - those are the project's custom skills.
 

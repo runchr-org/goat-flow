@@ -7,7 +7,7 @@ The exact mechanism depends on the agent runtime.
 
 | Surface | Path | Used by | Role |
 |---------|------|---------|------|
-| Shared hook template | `workflow/hooks/deny-dangerous.sh` + `workflow/hooks/deny-dangerous.self-test.sh` | Claude, Codex, Gemini, Copilot | Runtime shell hook plus sourced self-test corpus. Blocks dangerous Bash tool calls before execution |
+| Shared hook template | `workflow/hooks/deny-dangerous.sh` + `workflow/hooks/deny-dangerous.self-test.sh` | Claude, Codex, Copilot | Runtime shell hook plus sourced self-test corpus. Blocks dangerous Bash tool calls before execution. Antigravity is capability-limited at v1.0.1 — no hook directory documented upstream — so it does not ship a deny hook in goat-flow v1.8.0 |
 | Local validation helper | `scripts/deny-dangerous.sh` + `scripts/deny-dangerous.self-test.sh` | Repo maintenance | Checks whether a command string would be allowed or blocked; does not intercept runtime execution |
 
 ## Agent mapping
@@ -15,7 +15,7 @@ The exact mechanism depends on the agent runtime.
 | Agent | Runtime mechanism | Primary location |
 |-------|-------------------|------------------|
 | Claude Code | `PreToolUse` shell hook plus settings deny patterns | `.claude/hooks/deny-dangerous.sh`, `.claude/settings.json` |
-| Gemini CLI | `BeforeTool` shell hook plus `.geminiignore` and settings deny patterns | `.gemini/hooks/deny-dangerous.sh`, `.geminiignore`, `.gemini/settings.json` |
+| Antigravity | Capability-limited at v1.0.1 — no hook directory or ignore-file convention documented upstream. Manifest profile records hook fields as `null`; audit checks skip the deny-mechanism step for this agent. Sandbox/approval lives in user-level `~/.config/antigravity/config.toml` rather than a repo-local file | _none_ (revisit when `agy` documents a hooks path) |
 | Codex | `PreToolUse` shell hook plus config TOML permission profile | `.codex/hooks/deny-dangerous.sh`, `.codex/hooks.json`, `.codex/config.toml` |
 | Copilot CLI | `preToolUse` hook registered in `.github/hooks/hooks.json` | `.github/hooks/deny-dangerous.sh`, `.github/hooks/hooks.json` |
 
@@ -40,7 +40,7 @@ The shipped template is intended to block or prompt on the common high-risk comm
 These files are command guards, not general ignore files.
 
 - Claude sensitive-file exclusion is primarily `permissions.deny` in `.claude/settings.json`, with a `Read(.env.example)` allowlist for non-secret examples.
-- Gemini sensitive-file exclusion is primarily `.geminiignore`, with settings and hooks as defense in depth; `.env.example` is explicitly unignored for read-only inspection.
+- Antigravity has no repo-local sensitive-file exclusion documented upstream at v1.0.1; sandbox/approval is controlled via the `--sandbox` flag and `proceed-in-sandbox` permission mode (configured in user-level `~/.config/antigravity/config.toml`).
 - Codex has no Claude-compatible `settings.json` permission syntax. Sensitive project-file exclusions use `.codex/config.toml` permission profiles; trailing `/**` subtree denies are safe in the base template, while exact-path rules are added only for files that exist in the checkout. The Bash-matched deny hook in `.codex/hooks/deny-dangerous.sh` remains the command guard and allows read-only `.env.example` inspection.
 - Copilot uses `.copilotignore` for context exclusion and `.github/hooks/deny-dangerous.sh` for runtime command blocking.
 
@@ -72,6 +72,6 @@ If this doc drifts, prefer the live templates and agent setup docs:
 - `workflow/hooks/deny-dangerous.self-test.sh`
 - `workflow/hooks/README.md`
 - `workflow/setup/agents/claude.md`
-- `workflow/setup/agents/gemini.md`
+- `workflow/setup/agents/antigravity.md`
 - `workflow/setup/agents/codex.md`
 - `workflow/setup/agents/copilot.md`

@@ -122,7 +122,7 @@ function byId(
 
 describe("agent enforcement capability matrix", () => {
   it("derives fact-backed statuses for all supported agents", () => {
-    for (const agent of [PROFILES.claude, PROFILES.codex, PROFILES.gemini]) {
+    for (const agent of [PROFILES.claude, PROFILES.codex]) {
       const matrix = buildAgentEnforcementCapability(facts(agent), {
         agentScope: agentScope("pass"),
         denyMechanismEvidenceLevel: "full",
@@ -192,7 +192,7 @@ describe("agent enforcement capability matrix", () => {
   });
 
   it("downgrades self-test proof when dashboard summary evidence skips runtime checks", () => {
-    const matrix = buildAgentEnforcementCapability(facts(PROFILES.gemini), {
+    const matrix = buildAgentEnforcementCapability(facts(PROFILES.claude), {
       agentScope: agentScope("pass"),
       denyMechanismEvidenceLevel: "present-only",
     });

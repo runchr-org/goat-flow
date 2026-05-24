@@ -62,7 +62,7 @@ const CHECK_TO_STEP: Record<string, string> = {
 const SETUP_FILES: Record<AgentId, string> = {
   claude: "workflow/setup/agents/claude.md",
   codex: "workflow/setup/agents/codex.md",
-  gemini: "workflow/setup/agents/gemini.md",
+  antigravity: "workflow/setup/agents/antigravity.md",
   copilot: "workflow/setup/agents/copilot.md",
 };
 

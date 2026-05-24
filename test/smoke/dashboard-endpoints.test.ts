@@ -279,8 +279,8 @@ describe("terminal exports", () => {
 
   it("injects POSIX launch prompts through PTY input instead of runner flags", () => {
     const spec = buildTerminalSpawnSpec(
-      "gemini",
-      "/usr/local/bin/gemini",
+      "antigravity",
+      "/usr/local/bin/agy",
       "audit target",
       { SHELL: "/bin/bash" },
       "darwin",

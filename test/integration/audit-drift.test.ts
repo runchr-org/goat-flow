@@ -197,12 +197,7 @@ function writeHookFixtures(root: string): void {
     join(root, "workflow", "hooks", "agent-config", "copilot-hooks.json"),
     COPILOT_HOOK_CONFIG_STUB,
   );
-  for (const hooksDir of [
-    ".claude/hooks",
-    ".codex/hooks",
-    ".gemini/hooks",
-    ".github/hooks",
-  ]) {
+  for (const hooksDir of [".claude/hooks", ".codex/hooks", ".github/hooks"]) {
     mkdirSync(join(root, hooksDir), { recursive: true });
     writeFileSync(join(root, hooksDir, "deny-dangerous.sh"), HOOK_STUB);
     writeFileSync(
@@ -478,7 +473,7 @@ describe("checkDrift: hook templates", () => {
     const root = setupFixture();
     try {
       writeHookFixtures(root);
-      rmSync(join(root, ".gemini", "hooks", "deny-dangerous.sh"), {
+      rmSync(join(root, ".codex", "hooks", "deny-dangerous.sh"), {
         force: true,
       });
       const report = checkDrift({
@@ -491,9 +486,9 @@ describe("checkDrift: hook templates", () => {
         report.findings.some(
           (finding) =>
             finding.kind === "missing" &&
-            finding.path === ".gemini/hooks/deny-dangerous.sh",
+            finding.path === ".codex/hooks/deny-dangerous.sh",
         ),
-        `expected missing .gemini hook finding, findings=${JSON.stringify(report.findings)}`,
+        `expected missing .codex hook finding, findings=${JSON.stringify(report.findings)}`,
       );
     } finally {
       rmSync(root, { recursive: true, force: true });

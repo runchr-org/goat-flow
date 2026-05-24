@@ -201,7 +201,7 @@ function normalizeHookPath(candidate: string): string | null {
   let path = candidate.trim();
   if (!path) return null;
   path = path.replace(/^['"`]|['"`]$/g, "");
-  // Common Claude/Gemini pattern: bash "$(git rev-parse --show-toplevel)/.../script.sh"
+  // Common pattern across hook-supporting agents: bash "$(git rev-parse --show-toplevel)/.../script.sh"
   const substitutionMatch = path.match(/\$\([^)]*\)\/(.*\.sh)$/);
   if (substitutionMatch && substitutionMatch[1]) {
     path = substitutionMatch[1];
@@ -349,6 +349,9 @@ function buildHookRegistration(
     };
   }
 
+  if (!agent.hookEvents) {
+    return { postTurnRegistered: false, postTurnRegisteredPath: null };
+  }
   const postTurn = normalizeEventConfig(hooks, agent.hookEvents.postTurn);
   return {
     postTurnRegistered: postTurn.registered,
@@ -366,6 +369,9 @@ function buildDenyRegistration(
     return { denyIsRegistered: false, denyRegisteredPath: null };
   }
 
+  if (!agent.hookEvents) {
+    return { denyIsRegistered: false, denyRegisteredPath: null };
+  }
   const preTool = normalizeEventConfig(hooks, agent.hookEvents.preTool);
   return {
     denyIsRegistered: preTool.registered,
@@ -384,10 +390,10 @@ function resolveDenyHookPath(
   if (agent.hooksDir && fs.exists(`${agent.hooksDir}/deny-dangerous.sh`)) {
     return `${agent.hooksDir}/deny-dangerous.sh`;
   }
-  if (agent.denyMechanism.type === "deny-script") {
+  if (agent.denyMechanism?.type === "deny-script") {
     return agent.denyMechanism.path;
   }
-  if (agent.denyMechanism.type === "both") {
+  if (agent.denyMechanism?.type === "both") {
     return agent.denyMechanism.scriptPath;
   }
   return null;

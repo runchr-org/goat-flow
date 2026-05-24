@@ -163,7 +163,7 @@ If none detected, emit "No drift detected against M[NN]" so the reader knows the
 
 Triggers when ANY of: (1) user opts in at Step 0, (2) Review Integrity would be `coverage-degraded` or `high-inference`, (3) any `[MUST:needs-decision]` finding exists, (4) any INTENT-MISMATCH finding exists.
 
-**Method:** Use an authenticated external refuter runtime, not the host model. Default host map: Claude -> `codex exec`; Codex/Copilot/Gemini -> `claude -p` unless a verified stronger opposite runtime is documented. Pass FINDINGS LIST, not the diff. Template: `references/refuter-spec.md`.
+**Method:** Use an authenticated external refuter runtime, not the host model. Default host map: Claude -> `codex exec`; Codex/Copilot/Antigravity -> `claude -p` unless a verified stronger opposite runtime is documented. Pass FINDINGS LIST, not the diff. Template: `references/refuter-spec.md`.
 
 **Synthesis:** REFUTER-CONFIRMED findings get `[CONFIRMED-CROSS-MODEL]` upgrade. REFUTER-REFUTED move to `## Refuted by Refuter` with reasoning preserved verbatim. REFUTER-UNRESOLVED keep original severity; add `cross-model-unresolved` to Review Integrity. Refuter leads do not become findings unless host verifies via Pass 2 rules.
 

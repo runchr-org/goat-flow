@@ -48,7 +48,7 @@ function isNonRepoPathToken(path: string): boolean {
 /** Return true when a token has the shape of a repo-relative path. */
 function looksRepoRelativePath(path: string): boolean {
   return (
-    /^(?:\.|src\/|app\/|apps\/|lib\/|libs\/|docs\/|test\/|tests\/|scripts\/|workflow\/|config\/|packages\/|web-components\/|\.github\/|\.goat-flow\/|\.claude\/|\.codex\/|\.agents\/|\.gemini\/)/i.test(
+    /^(?:\.|src\/|app\/|apps\/|lib\/|libs\/|docs\/|test\/|tests\/|scripts\/|workflow\/|config\/|packages\/|web-components\/|\.github\/|\.goat-flow\/|\.claude\/|\.codex\/|\.agents\/)/i.test(
       path,
     ) || /\/[^/]+\.[a-z0-9]+$/i.test(path)
   );

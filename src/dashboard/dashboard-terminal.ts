@@ -358,8 +358,17 @@ function dashboardOutputLooksReadyForLaunchPrompt(
 ): boolean {
   const tail = dashboardPlainTerminalText(text).slice(-5000);
   if (dashboardOutputLooksRunnerStartupFailure(tail, runner)) return false;
-  const geminiReady = /\bType your message or @path\/to\/file\b/i.test(tail);
-  if (runner === "gemini") return geminiReady;
+  // Antigravity composer-ready signal verified live against `agy` 1.0.1
+  // (2026-05-24 browser-use smoke against dashboard PTY). Two anchors:
+  //   1. "Antigravity CLI <version>" — identity line present from launch.
+  //   2. "? for shortcuts" — composer hint shown only after the box border
+  //      and model row are drawn.
+  // Combined the two patterns are uniquely Antigravity and don't collide with
+  // Claude's `/effort`-keyed composer.
+  const antigravityReady =
+    /Antigravity CLI [0-9]/i.test(tail) &&
+    /\?[\s\S]{0,80}for[\s\S]{0,80}shortcuts\b/i.test(tail);
+  if (runner === "antigravity") return antigravityReady;
   const claudeReady =
     /\/remote-control is active\b/i.test(tail) &&
     /(^|\n)\s*❯\s*(?:\n|$)/u.test(tail);
@@ -805,7 +814,7 @@ function dashboardHandlePasteSubmitOutput(
   const refs = ctx._terminalRefs[sessionId];
   const target = ctx.sessions.find((session) => session.id === sessionId);
   const runnerUsesPasteMarker =
-    target?.runner === "claude" || target?.runner === "gemini";
+    target?.runner === "claude" || target?.runner === "antigravity";
   const hasPendingPaste =
     refs?.pasteSubmitTimer !== undefined ||
     refs?.pasteSubmitAwaitingCommit === true;
@@ -823,7 +832,7 @@ function dashboardHandlePasteSubmitOutput(
     // single-line pastes) or originated outside the dashboard. Don't fire a
     // spurious extra Enter.
     if (!hasPendingPaste) return;
-    if (target?.runner === "claude" || target?.runner === "gemini") {
+    if (target?.runner === "claude" || target?.runner === "antigravity") {
       const submitted = dashboardSubmitPendingPaste(ctx, sessionId, {
         retryIfStillCommitted: true,
       });
@@ -911,13 +920,14 @@ function dashboardSendToTerminalSession(
   // asynchronously, so submit on its pasted-text echo or fall back after a short
   // bounded delay for CLIs that do not echo that state.
   const pasteData = "\x1b[200~" + prepared + "\x1b[201~";
-  // Claude/Gemini only compress MULTI-LINE pastes into the "[Pasted text]"
+  // Claude/Antigravity only compress MULTI-LINE pastes into the "[Pasted text]"
   // marker we detect to submit fast. Single-line pastes render inline with no
   // marker, so waiting hits the 15s fallback. Submit those immediately to
-  // match the existing single-line/non-Claude semantics.
+  // match the existing single-line/non-Claude semantics. M04 must verify this
+  // assumption against captured `agy` PTY output.
   const isMultiLinePaste = prepared.includes("\n");
   const delayedSubmit =
-    (target.runner === "claude" || target.runner === "gemini") &&
+    (target.runner === "claude" || target.runner === "antigravity") &&
     isMultiLinePaste;
   dashboardSendOrQueueBracketedPaste(ctx, sessionId, {
     data: pasteData,
@@ -1010,7 +1020,7 @@ function dashboardMaybeSendLaunchPrompt(
     outputTail,
     target.runner,
   );
-  if (!ready && (!force || target.runner === "gemini")) {
+  if (!ready && (!force || target.runner === "antigravity")) {
     return false;
   }
   refs.launchPrompt = undefined;

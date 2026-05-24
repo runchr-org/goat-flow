@@ -35,8 +35,8 @@ const STRUCTURE = {
       instruction_file: INSTRUCTION_FILES.codex,
       skills_dir: ".agents/skills/",
     },
-    gemini: {
-      instruction_file: INSTRUCTION_FILES.gemini,
+    antigravity: {
+      instruction_file: INSTRUCTION_FILES.antigravity,
       skills_dir: ".agents/skills/",
     },
     copilot: {
@@ -51,7 +51,7 @@ function completeFiles(): Record<string, string> {
     [RATIONALISATIONS_PATH]: RATIONALISATIONS_PREAMBLE,
     [INSTRUCTION_FILES.claude]: completeInstruction("CLAUDE.md"),
     [INSTRUCTION_FILES.codex]: completeInstruction("AGENTS.md"),
-    [INSTRUCTION_FILES.gemini]: completeInstruction("GEMINI.md"),
+    [INSTRUCTION_FILES.antigravity]: completeInstruction("AGENTS.md"),
     [INSTRUCTION_FILES.copilot]: completeInstruction("copilot-instructions.md"),
   };
 }

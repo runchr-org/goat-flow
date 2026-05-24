@@ -953,14 +953,14 @@ describe("dashboard /api/audit", () => {
       );
       assert.match(
         JSON.stringify(aggregateAgent),
-        /Supported agent instruction files missing: codex \(AGENTS\.md\), gemini \(GEMINI\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
+        /Supported agent instruction files missing: codex \(AGENTS\.md\), antigravity \(AGENTS\.md\), copilot \(\.github\/copilot-instructions\.md\)/,
       );
 
       const agentScores = report.agentScores as unknown[];
       const scoreIds = agentScores.map((score, index) =>
         String(expectRecord(score, `Supported-agent score[${index}]`).id),
       );
-      assert.deepEqual(scoreIds, ["claude", "codex", "gemini", "copilot"]);
+      assert.deepEqual(scoreIds, ["claude", "codex", "antigravity", "copilot"]);
 
       const scoresById = new Map<string, Record<string, unknown>>();
       for (const score of agentScores) {
@@ -968,7 +968,7 @@ describe("dashboard /api/audit", () => {
         scoresById.set(String(entry.id), entry);
       }
 
-      for (const id of ["claude", "codex", "gemini", "copilot"] as const) {
+      for (const id of ["claude", "codex", "antigravity", "copilot"] as const) {
         assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
       }
       const codex = expectRecord(scoresById.get("codex"), "Codex score");

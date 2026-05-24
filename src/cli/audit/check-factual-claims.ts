@@ -428,7 +428,6 @@ const REPO_PATH_PREFIXES = [
   "test/",
   ".claude/",
   ".codex/",
-  ".gemini/",
   ".agents/",
   ".github/",
 ];
@@ -489,7 +488,7 @@ function docAgentNames(): string[] {
   const docLabels: Record<string, string> = {
     claude: "Claude",
     codex: "Codex",
-    gemini: "Gemini",
+    antigravity: "Antigravity",
     copilot: "Copilot",
   };
   return Object.entries(loadManifest().agents).map(
@@ -858,7 +857,7 @@ function driftAdr020(adr020: string): ContentFinding[] {
         rule: "adr020-copilot-drift",
         path: ".goat-flow/decisions/ADR-020-add-copilot-cli.md",
         message:
-          "ADR-020 still says Copilot support is accepted while the manifest-backed runtime supports only claude/codex/gemini.",
+          "ADR-020 still says Copilot support is accepted while the manifest-backed runtime supports only claude/codex/antigravity.",
         suggestion:
           "Either defer/revert ADR-020 or implement manifest/type/runtime Copilot parity in the same change.",
       },

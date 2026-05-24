@@ -1,4 +1,4 @@
-# Agent Config - Gemini CLI
+# Agent Config - Antigravity
 
 > Canonical machine-readable source for these paths: `workflow/manifest.json`. If this doc drifts, the manifest-backed registry wins.
 
@@ -12,20 +12,22 @@
 
 ## Autonomy Tiers
 
-**Always:** Set up Gemini-owned surfaces: `GEMINI.md`, `.gemini/`, and shared `.goat-flow/`. `.agents/skills/` is shared with Codex; either setup can create/update skills there.
+**Always:** Set up Antigravity-owned surfaces: `AGENTS.md`, `.agents/skills/`, and shared `.goat-flow/`. `AGENTS.md` and `.agents/skills/` are shared with Codex; either setup can create/update them, but neither should duplicate or stomp the other's content.
 
-**Ask First:** Before touching non-Gemini surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+**Ask First:** Before touching non-Antigravity surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
-**Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md`, `AGENTS.md`, `.claude/`, or `.codex/` during Gemini setup unless the user explicitly widens scope. Do not overwrite existing instruction content.
+**Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md`, `.claude/`, or `.codex/` during Antigravity setup unless the user explicitly widens scope. Do not overwrite existing instruction content; preserve or route domain knowledge to `.goat-flow/`.
 
 ## Hard Rules
 
 - If a file exists, modify in place; do not create backup or variant files.
+- `AGENTS.md` is the Antigravity root instruction file and is shared with Codex; both agents read it.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
-- Gemini hooks use `BeforeTool` by default; do not invent other default hook events.
-- Gemini's post-turn event is `AfterAgent`, but goat-flow does not install a post-turn hook by default.
-- Create `.geminiignore` with secret patterns when setting up Gemini.
-- Ambiguous existing instruction content: preserve first, ask before deleting.
+- Antigravity uses `agy` as the terminal binary; verify version with `agy --version` (>= 1.0.1 for the OAuth persistence fix).
+- Plugin migration from other agents: `agy plugin import gemini` or `agy plugin import claude` populates Antigravity from existing setups.
+- No deny-hook mechanism is wired in v1.8.0: Antigravity's upstream hooks directory and ignore-file conventions are not yet documented, so the manifest profile records hook fields as `null`. Audit checks treat this as capability-limited. See `.goat-flow/tasks/1.8.0/M02-antigravity-runtime-and-login-proof.md`.
+- User-level config lives at `~/.config/antigravity/config.toml`; it is not a repo-local surface and is out of scope for per-project setup.
+- Sandbox/approval settings: Antigravity exposes `--sandbox` and `proceed-in-sandbox` permission modes through the binary, not via repo-local config files.
 
 ## Key Resources
 
@@ -75,7 +77,7 @@ MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 | Debug | Diagnosis with file + semantic anchor first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
 
-For Gemini setup, ACT means updating only Gemini-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project.
+For Antigravity setup, ACT means updating only Antigravity-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project. Coordinate with Codex setup if `AGENTS.md` already exists.
 
 ### VERIFY
 MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.
@@ -94,7 +96,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 
 ## Definition of Done
 
-- `GEMINI.md` exists and follows the canonical section order.
+- `AGENTS.md` exists and follows the canonical section order.
 - Essential Commands list only real target-project commands.
 - Router Table contains installed project resources only; no `workflow/setup/`, `workflow/hooks/`, or manifest paths.
 - Tool playbook pointer to `.goat-flow/skill-playbooks/` is present.
@@ -108,13 +110,13 @@ Requests to add footguns, lessons, decisions, or patterns route to the matching 
 
 | Resource | Path |
 |----------|------|
-| Instruction file | `GEMINI.md` |
+| Instruction file | `AGENTS.md` |
 | Learning loop | `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/` |
 | Skill reference (meta) | `.goat-flow/skill-reference/` |
 | Skill playbooks (tools) | `.goat-flow/skill-playbooks/` |
 | Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
 | Architecture | `.goat-flow/architecture.md` |
-| Gemini skills/config | `.agents/skills/`, `.gemini/settings.json`, `.gemini/hooks/`, `.geminiignore` when installed |
+| Antigravity skills | `.agents/skills/` (shared with Codex) |
 | Project source/docs/config | adapt to detected project paths |
 | Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
-| Peer instructions | `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` when present |
+| Peer instructions | `CLAUDE.md`, `.github/copilot-instructions.md` when present |

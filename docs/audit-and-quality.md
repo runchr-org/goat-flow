@@ -9,9 +9,9 @@ npx goat-flow audit .                              # Build correctness (pass/fai
 npx goat-flow audit . --harness                    # Include AI harness completeness checks
 npx goat-flow audit . --agent claude               # Scope to one agent
 npx goat-flow audit . --format sarif               # Export audit findings as SARIF 2.1.0
-npx goat-flow quality . --agent gemini             # Generate quality-assessment prompt for one agent
-npx goat-flow quality history --agent gemini       # Review saved trend history
-npx goat-flow quality diff --agent gemini          # Compare the latest two saved runs
+npx goat-flow quality . --agent antigravity             # Generate quality-assessment prompt for one agent
+npx goat-flow quality history --agent antigravity       # Review saved trend history
+npx goat-flow quality diff --agent antigravity          # Compare the latest two saved runs
 ```
 
 | Command | Output | Deterministic? | Gates CI? | Requires --agent? |
@@ -95,7 +95,7 @@ GOAT Flow Setup:          PASS
 
 Agent Setup:              PASS
   Toolchain:              not configured (optional)
-  Hooks:                  claude:deny installed, codex:deny installed, gemini:deny installed, copilot:deny installed
+  Hooks:                  claude:deny installed, codex:deny installed, antigravity:deny n/a (capability-limited), copilot:deny installed
 
 AI Harness Completeness:  PASS
   Context:                PASS (5/5)
@@ -111,7 +111,7 @@ Result: FAIL (Constraints)
 
 The `--check-drift` flag compares workflow skill templates against their installed copies and reports `content | missing | orphan | deprecated` findings. Any finding makes the drift scope fail, which fails the overall audit.
 
-For single-agent projects the check is opt-in via the flag. For multi-agent projects (more than one agent instruction file - CLAUDE.md, AGENTS.md, GEMINI.md, or `.github/copilot-instructions.md` - present on disk) it runs automatically without the flag. Rationale: when a single-agent migration completes, the satellite agents' skill dirs (`.agents/skills/`, `.github/skills/`, etc.) are left with pre-v1.2 skill names flagged as `deprecated`. The auto-run surfaces this so `audit` doesn't exit "pass" while the satellite agents are stale. When deprecated findings are present the renderer also emits a one-line hint to run `goat-flow install . --agent <agent>` for each stale agent.
+For single-agent projects the check is opt-in via the flag. For multi-agent projects (more than one agent instruction file - CLAUDE.md, AGENTS.md, or `.github/copilot-instructions.md` - present on disk) it runs automatically without the flag. Rationale: when a single-agent migration completes, the satellite agents' skill dirs (`.agents/skills/`, `.github/skills/`, etc.) are left with pre-v1.2 skill names flagged as `deprecated`. The auto-run surfaces this so `audit` doesn't exit "pass" while the satellite agents are stale. When deprecated findings are present the renderer also emits a one-line hint to run `goat-flow install . --agent <agent>` for each stale agent.
 
 ---
 
@@ -120,7 +120,7 @@ For single-agent projects the check is opt-in via the flag. For multi-agent proj
 Generates a structured quality-assessment prompt for a coding agent to evaluate goat-flow quality and usefulness on the current project. This is fundamentally different from `audit` - it produces a prompt, not findings.
 
 ```bash
-npx goat-flow quality . --agent gemini
+npx goat-flow quality . --agent antigravity
 ```
 
 The generated prompt asks the agent to:
@@ -144,13 +144,13 @@ CLI `quality` command request fresh audit context before composing the prompt.
 `npx goat-flow quality` composes the prompt and instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json` - a gitignored path. No separate capture step is needed; the agent owns the write, and `history` / `diff` operate on whatever the agent saved.
 
 ```bash
-npx goat-flow quality . --agent gemini             # Default: Agent Installation mode
+npx goat-flow quality . --agent antigravity             # Default: Agent Installation mode
 npx goat-flow quality . --agent claude --mode process   # GOAT Flow Process mode
 npx goat-flow quality . --agent claude --mode harness   # Harness Engineering mode
 npx goat-flow quality . --agent claude --mode skills    # Skills mode
-npx goat-flow quality history --agent gemini            # List saved reports + same-agent score deltas
+npx goat-flow quality history --agent antigravity            # List saved reports + same-agent score deltas
 npx goat-flow quality history --mode process            # Filter history to one quality mode
-npx goat-flow quality diff --agent gemini               # Derive resolved / new / persisted / stuck vs prior run
+npx goat-flow quality diff --agent antigravity               # Derive resolved / new / persisted / stuck vs prior run
 npx goat-flow quality diff --mode skills                # Compare within one mode only
 ```
 

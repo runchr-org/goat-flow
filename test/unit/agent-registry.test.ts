@@ -12,12 +12,12 @@ describe("agent registry", () => {
     assert.deepEqual(getKnownAgentIds(), [
       "claude",
       "codex",
-      "gemini",
+      "antigravity",
       "copilot",
     ]);
     assert.deepEqual(
       getAgentProfiles().map((agent) => agent.id),
-      ["claude", "codex", "gemini", "copilot"],
+      ["claude", "codex", "antigravity", "copilot"],
     );
   });
 
@@ -58,7 +58,7 @@ describe("agent registry", () => {
     assert.deepEqual(Object.keys(profiles), [
       "claude",
       "codex",
-      "gemini",
+      "antigravity",
       "copilot",
     ]);
     for (const profile of Object.values(profiles)) {

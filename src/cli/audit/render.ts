@@ -204,8 +204,9 @@ function renderTextContentFindings(
 /** Map a skill-dir path prefix to a goat-flow install --agent target.
  *  Returns null when the path doesn't match a known satellite-agent dir. */
 function pathToAgentLabel(path: string): string | null {
+  // `.agents/skills/` is shared by codex and antigravity; codex is the
+  // default install target for repair suggestions.
   if (path.startsWith(".agents/skills/")) return "codex";
-  if (path.startsWith(".gemini/skills/")) return "gemini";
   if (path.startsWith(".claude/skills/")) return "claude";
   if (path.startsWith(".github/skills/")) return "copilot";
   return null;

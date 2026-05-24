@@ -103,7 +103,7 @@ setup/
   04-architecture-code-map.md  # Architecture doc and code map creation
   05-customise-to-project.md   # Learning loop, hooks, config
   06-final-verification.md # Post-setup verification and audit gate
-  agents/                  # Agent-specific config (claude.md, codex.md, gemini.md, copilot.md)
+  agents/                  # Agent-specific config (claude.md, codex.md, antigravity.md, copilot.md)
   reference/               # execution-loop.md, coding guidelines, security refs
 
 skills/

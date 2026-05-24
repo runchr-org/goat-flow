@@ -361,7 +361,7 @@ collapsed_desc_for() {
         "TypeScript") printf 'build · lint · knip · prettier' ;;
         "Deny Policy") printf 'self-test + runtime smokes' ;;
         "ADR Enforcement") printf 'no removed patterns' ;;
-        "Agent Config Parity") printf 'claude · codex · gemini · copilot' ;;
+        "Agent Config Parity") printf 'claude · codex · antigravity · copilot' ;;
         "Skill and Reference Versions") printf 'templates + installed match version' ;;
         "Version Consistency") printf 'package.json · config.yaml' ;;
         "Skill Behavioral Contracts") printf 'goat-critique invocation' ;;
@@ -1220,7 +1220,7 @@ function extractRouterPaths(filepath) {
             const raw = m[1];
             const wasDir = raw.endsWith("/");
             const p = raw.replace(/\/+$/, "");
-            if (/^\.(claude|github|agents|codex|gemini)\//.test(p)) continue;
+            if (/^\.(claude|github|agents|codex)\//.test(p)) continue;
             if (p.includes("/") || p.endsWith(".md") || p.endsWith(".yaml") || wasDir) paths.add(p);
         }
     }
@@ -1587,7 +1587,7 @@ if [[ -f dist/cli/audit/check-goat-flow.js ]]; then
     # .goat-flow/lessons/ (narrative may include historical numbers).
     if [[ -n "$setup_count" ]]; then
         b8a3_ok=true
-        for doc in CLAUDE.md AGENTS.md GEMINI.md .goat-flow/code-map.md CONTRIBUTING.md; do
+        for doc in CLAUDE.md AGENTS.md .goat-flow/code-map.md CONTRIBUTING.md; do
             [[ -f "$doc" ]] || continue
             stale=$(grep -oE '[0-9]+ setup' "$doc" 2>/dev/null | grep -Fv "${setup_count} setup" | head -1 || true)
             if [[ -n "$stale" ]]; then

@@ -352,7 +352,6 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
         ignoreFiles: {
           copilotignore: false,
           cursorignore: false,
-          geminiignore: false,
         },
         gitignore: { exists: true, hasRequiredEntries: true },
         preflightScript: { exists: false },
@@ -868,7 +867,7 @@ describe("M03 batch fact reuse", () => {
 
     assert.deepEqual(
       facts.agents.map((agentFacts) => agentFacts.agent.id),
-      ["claude", "codex", "gemini", "copilot"],
+      ["claude", "codex", "antigravity", "copilot"],
     );
   });
 
@@ -923,7 +922,7 @@ describe("copilot install requires GitHub commit instructions", () => {
   it("agent-instruction provenance follows the selected agent", () => {
     for (const [agent, instructionFile] of [
       ["claude", "CLAUDE.md"],
-      ["gemini", "GEMINI.md"],
+      ["antigravity", "AGENTS.md"],
     ] as const) {
       const report = getRepoAudit({ agentFilter: agent, harness: false });
       const result = report.scopes.agent.checks.find(
@@ -3302,12 +3301,12 @@ describe("setup check dependency status", () => {
       await writeProjectFile(
         root,
         ".goat-flow/config.yaml",
-        `version: "${AUDIT_VERSION}"\nagents:\n  - gemini\n`,
+        `version: "${AUDIT_VERSION}"\nagents:\n  - antigravity\n`,
       );
     });
     try {
       const report = runAudit(createFS(project.root), project.root, {
-        agentFilter: "gemini",
+        agentFilter: "antigravity",
         harness: false,
       });
       const statuses = Object.fromEntries(
@@ -3346,7 +3345,7 @@ describe("setup check dependency status", () => {
       const message = instruction?.failure?.message ?? "";
       assert.match(message, /Supported agent instruction files missing/);
       assert.match(message, /codex \(AGENTS\.md\)/);
-      assert.match(message, /gemini \(GEMINI\.md\)/);
+      assert.match(message, /antigravity \(AGENTS\.md\)/);
       assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
     } finally {
       await project.cleanup();
@@ -3358,7 +3357,7 @@ describe("setup check dependency status", () => {
       await writeProjectFile(
         root,
         ".goat-flow/config.yaml",
-        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - codex\n  - gemini\n  - copilot\nskills:\n  install: all\n`,
+        `version: "${AUDIT_VERSION}"\nagents:\n  - claude\n  - codex\n  - antigravity\n  - copilot\nskills:\n  install: all\n`,
       );
       await writeProjectFile(root, "CLAUDE.md", "# CLAUDE.md\n");
     });
@@ -3375,7 +3374,7 @@ describe("setup check dependency status", () => {
       assert.equal(instruction?.status, "fail");
       assert.match(message, /Supported agent instruction files missing/);
       assert.match(message, /codex \(AGENTS\.md\)/);
-      assert.match(message, /gemini \(GEMINI\.md\)/);
+      assert.match(message, /antigravity \(AGENTS\.md\)/);
       assert.match(message, /copilot \(\.github\/copilot-instructions\.md\)/);
     } finally {
       await project.cleanup();

@@ -725,7 +725,7 @@ body {
   --workspace-agent-bg: var(--status-pass-bg);
   --workspace-agent-border: var(--status-pass-border);
 }
-.workspace-agent-gemini {
+.workspace-agent-antigravity {
   --workspace-agent-color: var(--blue-400);
   --workspace-agent-bg: color-mix(in srgb, var(--blue-400) 12%, transparent);
   --workspace-agent-border: color-mix(

@@ -103,6 +103,7 @@ function summarize(
 function hasActiveMechanicalDeny(af: AgentFacts): boolean {
   if (af.hooks.denyIsConfigBased) return true;
   if (
+    af.agent.denyMechanism &&
     af.agent.denyMechanism.type !== "deny-script" &&
     af.settings.hasDenyPatterns
   ) {
@@ -151,7 +152,7 @@ function secretFileReadCapability(af: AgentFacts): EnforcementCapability {
       ["AgentFacts.hooks.readDenyCoversSecrets"],
     );
   }
-  if (af.agent.denyMechanism.type === "deny-script") {
+  if (af.agent.denyMechanism?.type === "deny-script") {
     return capability(
       "secret-file-read",
       "limited",
@@ -216,12 +217,13 @@ function hookRegistrationCapability(af: AgentFacts): EnforcementCapability {
       ["AgentFacts.hooks.denyIsConfigBased"],
     );
   }
+  const preToolEvent = af.agent.hookEvents?.preTool ?? "pre-tool";
   if (af.hooks.denyIsRegistered) {
     return capability(
       "hook-registration",
       "hard",
       ["local-hook"],
-      `Deny hook is registered as ${af.agent.hookEvents.preTool}`,
+      `Deny hook is registered as ${preToolEvent}`,
       ["AgentFacts.hooks.denyIsRegistered"],
     );
   }
@@ -229,7 +231,7 @@ function hookRegistrationCapability(af: AgentFacts): EnforcementCapability {
     "hook-registration",
     "missing",
     ["local-hook"],
-    `Deny hook exists but is not registered as ${af.agent.hookEvents.preTool}`,
+    `Deny hook exists but is not registered as ${preToolEvent}`,
     ["AgentFacts.hooks.denyIsRegistered"],
   );
 }
@@ -298,6 +300,15 @@ function hookSelfTestCapability(
 }
 
 function providerNativeCapability(af: AgentFacts): EnforcementCapability {
+  if (af.agent.denyMechanism === null) {
+    return capability(
+      "provider-native-enforcement",
+      "missing",
+      ["manifest"],
+      "Manifest records no deny mechanism for this agent (capability-limited)",
+      ["AgentProfile.denyMechanism"],
+    );
+  }
   const mechanism = af.agent.denyMechanism.type;
   if (mechanism === "deny-script") {
     return capability(
