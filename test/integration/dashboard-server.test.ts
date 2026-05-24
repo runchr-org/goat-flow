@@ -776,6 +776,7 @@ describe("dashboard API authorization", () => {
 
   it("rejects terminal WebSocket upgrades with a missing token", async () => {
     const { WebSocket } = await import("ws");
+    let rejectedUpgrade = false;
     await new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(
         `${baseUrl.replace(/^http/u, "ws")}/ws/terminal/test`,
@@ -792,13 +793,16 @@ describe("dashboard API authorization", () => {
       });
       ws.once("error", () => {
         clearTimeout(timer);
+        rejectedUpgrade = true;
         resolve();
       });
       ws.once("close", () => {
         clearTimeout(timer);
+        rejectedUpgrade = true;
         resolve();
       });
     });
+    assert.equal(rejectedUpgrade, true);
   });
 });
 

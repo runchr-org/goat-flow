@@ -410,9 +410,7 @@ function dashboardExtractRunnerStartupError(text: string): string | null {
     const match = tail.match(pattern);
     if (match) {
       const detail = match[0].trim();
-      const truncated =
-        detail.length > 300 ? `${detail.slice(0, 300)}...` : detail;
-      return truncated;
+      return detail.length > 300 ? `${detail.slice(0, 300)}...` : detail;
     }
   }
   return null;

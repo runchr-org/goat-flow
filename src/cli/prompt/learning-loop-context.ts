@@ -182,8 +182,9 @@ function allowedEntry(
   if (
     !options.includeOversized &&
     entry.bucketSizeBytes > OVERSIZED_BUCKET_BYTES
-  )
+  ) {
     return false;
+  }
   return true;
 }
 

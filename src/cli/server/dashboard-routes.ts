@@ -1390,12 +1390,11 @@ export function createDashboardRouteHandlers(
   }
 
   function normalizeProjectRecordPaths(record: Record<string, unknown>) {
-    const paths = Array.isArray(record.paths)
+    return Array.isArray(record.paths)
       ? record.paths
           .filter((entry): entry is string => typeof entry === "string")
           .map((entry) => normalizeProjectPath(entry))
       : [];
-    return paths;
   }
 
   function readRecordString(

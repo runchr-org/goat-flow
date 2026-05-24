@@ -7,6 +7,7 @@
  */
 import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 import {
   isPathWithin,
   resolveValidatedLocalStatePath,
@@ -131,9 +132,7 @@ function buildSavedName(
   now: () => number = Date.now,
 ): string {
   const stamp = now().toString(36);
-  const random = Math.floor(Math.random() * 0x100000)
-    .toString(36)
-    .padStart(4, "0");
+  const random = randomBytes(3).toString("hex");
   return `${stamp}-${random}-${index.toString().padStart(2, "0")}-${base}${ext}`;
 }
 

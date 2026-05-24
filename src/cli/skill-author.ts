@@ -431,7 +431,7 @@ function describeArtifact(
 }
 
 function nonScaffoldOutput(candidacy: CandidacyResult): string[] {
-  const lines = [
+  return [
     `Candidacy: ${describeArtifact(candidacy.recommendedArtifact)} (confidence ${Math.round(
       candidacy.confidence * 100,
     )}%)`,
@@ -444,7 +444,6 @@ function nonScaffoldOutput(candidacy: CandidacyResult): string[] {
     "",
     "No skill or playbook will be scaffolded. Update the description or draft and re-run.",
   ];
-  return lines;
 }
 
 async function runDescriptionMode(

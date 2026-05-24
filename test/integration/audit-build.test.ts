@@ -8,12 +8,7 @@ import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 
 const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
-import {
-  makeCtx,
-  stubAgentFacts,
-  stubConfig,
-  stubFS,
-} from "../fixtures/projects/index.js";
+import { makeCtx, stubAgentFacts, stubFS } from "../fixtures/projects/index.js";
 
 const skillReferenceCheck = SETUP_CHECKS.find(
   (check) => check.id === "instruction-file-skill-reference-pointer",

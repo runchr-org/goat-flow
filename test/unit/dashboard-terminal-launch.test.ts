@@ -448,33 +448,21 @@ class FakeTerminal {
     this._addonFit = addon;
   }
 
-  open(): void {
-    return;
-  }
+  open(): void {}
 
   write(data: string): void {
     this.written.push(data);
   }
 
-  focus(): void {
-    return;
-  }
+  focus(): void {}
 
-  dispose(): void {
-    return;
-  }
+  dispose(): void {}
 
-  attachCustomKeyEventHandler(): void {
-    return;
-  }
+  attachCustomKeyEventHandler(): void {}
 
-  onData(): void {
-    return;
-  }
+  onData(): void {}
 
-  onResize(): void {
-    return;
-  }
+  onResize(): void {}
 
   hasSelection(): boolean {
     return false;
@@ -495,19 +483,13 @@ class FakeTerminal {
 }
 
 class FakeFitAddon {
-  fit(): void {
-    return;
-  }
+  fit(): void {}
 }
 
 class FakeResizeObserver {
-  observe(): void {
-    return;
-  }
+  observe(): void {}
 
-  disconnect(): void {
-    return;
-  }
+  disconnect(): void {}
 }
 
 class FakeDashboardWebSocket {
