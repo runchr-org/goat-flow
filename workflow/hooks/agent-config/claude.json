@@ -1,6 +1,9 @@
 {
   "permissions": {
-    "allow": ["Read(.env.example)", "Read(**/.env.example)"],
+    "allow": [
+      "Read(.env.example)",
+      "Read(**/.env.example)"
+    ],
     "deny": [
       "Bash(*git commit*)",
       "Bash(*git push*)",
@@ -69,7 +72,25 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-destructive-commands.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-secret-access.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-git-mutations.sh\""
           }
         ]
       }

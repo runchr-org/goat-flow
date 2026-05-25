@@ -26,10 +26,9 @@ type SkillSource = "installed" | "agent-mirror" | "github-mirror";
  * Describes an agent's file layout and enforcement mechanisms.
  * One profile per supported agent (Claude, Codex, Antigravity, Copilot).
  *
- * `denyMechanism` and `hookEvents` are nullable to model capability-limited
- * agents (e.g. Antigravity at v1.0.1) whose upstream CLI does not yet document
- * a hooks directory or hook-event names. Goat-flow ships such agents without
- * deny-hook wiring; consumers MUST guard for the null case.
+ * `denyMechanism` and `hookEvents` are nullable to model agents whose upstream
+ * runtime has no project-local hook wiring for a given capability; consumers
+ * MUST guard for the null case.
  */
 export interface AgentProfile {
   id: AgentId;
@@ -47,13 +46,13 @@ export interface AgentProfile {
   skillsDir: string;
   // Null when the agent has no hook directory
   hooksDir: string | null;
-  // Null when the agent has no documented deny mechanism (capability-limited).
+  // Null when the agent has no documented project-local deny mechanism.
   denyMechanism: DenyMechanism | null;
   // Null when the agent has no on-disk deny hook script.
   denyHookFile: string | null;
   // Glob pattern for agent-specific local instruction files
   localPattern: string;
-  // Null when the agent has no documented hook-event names (capability-limited).
+  // Null when the agent has no documented project-local hook-event names.
   hookEvents: HookEvents | null;
 }
 

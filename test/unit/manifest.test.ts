@@ -102,18 +102,23 @@ function fixtureAgent(
     hooks_dir: ".claude/hooks/",
     settings: ".claude/settings.json",
     hook_config_file: ".claude/settings.json",
-    deny_hook: ".claude/hooks/deny-dangerous.sh",
+    deny_hook: ".claude/hooks/deny-git-mutations.sh",
     deny_mechanism: {
       type: "both",
       settings_path: ".claude/settings.json",
-      script_path: ".claude/hooks/deny-dangerous.sh",
+      script_path: ".claude/hooks/deny-git-mutations.sh",
     },
     local_pattern: "*/CLAUDE.md",
     hook_events: {
       pre_tool: "PreToolUse",
       post_turn: "Stop",
     },
-    hooks: ["deny-dangerous.sh"],
+    hooks: [
+      "deny-destructive-commands.sh",
+      "deny-secret-access.sh",
+      "deny-git-mutations.sh",
+      "guardrails-self-test.sh",
+    ],
     ...overrides,
   };
 }

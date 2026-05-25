@@ -54,7 +54,7 @@ Checks are grouped by **scope**:
 - `agent-instruction` - selected agent instruction file exists; aggregate mode also detects orphaned agent artifacts whose instruction file is missing
 - `agent-skills` - selected agent has canonical skills installed with correct versions and no deprecated skill directories
 - `agent-settings` - selected agent settings/config file parses as valid JSON or TOML
-- `agent-deny-dangerous` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, installed deny hook files match the workflow templates, and the smoke deny self-test passes when the script exists
+- `agent-guardrails` - selected agent has a deny mechanism, shell-hook syntax is valid, deny patterns exist, installed deny hook files match the workflow templates, and the smoke deny self-test passes when the script exists
 
 **Agent scope:** `audit` checks every supported manifest-backed agent from `workflow/manifest.json` unless `--agent <id>` is supplied. Run `npx goat-flow manifest` to inspect the current support matrix; use `--agent <id>` to scope checks to one supported runtime.
 
@@ -95,7 +95,7 @@ GOAT Flow Setup:          PASS
 
 Agent Setup:              PASS
   Toolchain:              not configured (optional)
-  Hooks:                  claude:deny installed, codex:deny installed, antigravity:deny n/a (capability-limited), copilot:deny installed
+  Hooks:                  claude:deny installed, codex:deny installed, antigravity:deny installed, copilot:deny installed
 
 AI Harness Completeness:  PASS
   Context:                PASS (5/5)

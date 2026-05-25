@@ -239,6 +239,28 @@ interface TaskState {
   milestones: TaskMilestoneSummary[];
 }
 
+type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
+
+interface HookAgentState {
+  supported: boolean;
+  installed: boolean;
+  scriptPath: string | null;
+  configPath: string | null;
+  drift?: HookDrift;
+  reason?: string;
+}
+
+interface HookState {
+  id: string;
+  name: string;
+  description: string;
+  togglable: boolean;
+  enabled: boolean;
+  defaultEnabled: boolean;
+  requiresConfirmDialog: boolean;
+  agents: Partial<Record<RunnerId, HookAgentState>>;
+}
+
 /** Quality-assessment prompt payload returned by `/api/quality`. */
 interface QualityResult {
   command: "quality";

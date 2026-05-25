@@ -55,6 +55,11 @@ interface EvaluateBody {
   kind?: "skill" | "shared-reference";
 }
 
+/** Hook-toggle payload accepted by POST /api/hooks/:hookId/toggle. */
+interface HookToggleBody {
+  enabled: boolean;
+}
+
 const MAX_PROJECT_TITLE_LENGTH = 120; // Storage limit: dense dashboard rows cannot absorb long custom aliases.
 
 /** Build a decoder error result. */
@@ -207,6 +212,20 @@ export function decodeProjectsListBody(
       projectTitles: projectTitles.value,
     },
   };
+}
+
+/** Decode POST /api/hooks/:hookId/toggle. */
+export function decodeHookToggleBody(
+  body: string,
+): DecodeResult<HookToggleBody> {
+  const parsed = parseJson(body, "body");
+  if (!parsed.ok) return parsed;
+  const raw = parsed.value;
+  if (!isRecord(raw)) return err("body", "must be a JSON object");
+  if (typeof raw.enabled !== "boolean") {
+    return err("body.enabled", "must be a boolean");
+  }
+  return { ok: true, value: { enabled: raw.enabled } };
 }
 
 /**

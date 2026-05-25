@@ -5,6 +5,9 @@
  */
 
 type ProjectSortKey = "name" | "state" | "action" | "details";
+type HookFilter = "all" | "enabled" | "disabled" | "drift";
+type HookSection = "safety" | "git" | "quality";
+type HookTone = "danger" | "warning" | "neutral";
 
 /** Alpine.js data factory for the dashboard shell. */
 function app() {
@@ -248,6 +251,14 @@ function app() {
     tasksActivePlanSaving: null as string | null,
     tasksError: "",
     selectedTaskPlan: null as string | null,
+
+    // --- Hooks state ---
+    hooksState: [] as HookState[],
+    hooksLoading: false,
+    hooksError: "",
+    hookSavingId: null as string | null,
+    hooksFilter: "all" as HookFilter,
+    hooksSearch: "",
 
     // --- Quality state ---
     qualityAgent: defaultRunner,
@@ -878,6 +889,9 @@ function app() {
         if (v === "plans") {
           void this.loadTasks();
         }
+        if (v === "hooks") {
+          void this.loadHooks();
+        }
       });
       self.$watch("qualityAgent", () => {
         if (this.activeView === "quality") {
@@ -936,6 +950,9 @@ function app() {
           if (this.activeView === "plans") {
             this.selectedTaskPlan = null;
             void this.loadTasks();
+          }
+          if (this.activeView === "hooks") {
+            void this.loadHooks();
           }
           this.skillQualityAbortController?.abort();
           this.skillQualityAbortController = null;
@@ -1225,6 +1242,153 @@ function app() {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return "unknown";
       return date.toLocaleString();
+    },
+
+    // -- Hooks --
+    async loadHooks() {
+      this.hooksLoading = true;
+      this.hooksError = "";
+      const requestProjectPath = this.projectPath;
+      try {
+        const res = await dashboardFetch(
+          `/api/hooks?path=${encodeURIComponent(requestProjectPath)}`,
+        );
+        const payload = readRecord(await res.json(), "Hooks response");
+        const error = readErrorMessage(payload);
+        if (error) throw new Error(error);
+        if (this.projectPath !== requestProjectPath) return;
+        this.hooksState = Array.isArray(payload.hooks)
+          ? (payload.hooks as HookState[])
+          : [];
+      } catch (err) {
+        if (this.projectPath !== requestProjectPath) return;
+        this.hooksState = [];
+        this.hooksError = err instanceof Error ? err.message : String(err);
+      } finally {
+        if (this.projectPath === requestProjectPath) this.hooksLoading = false;
+      }
+    },
+    hookAgents(hook: HookState): Array<[RunnerId, HookAgentState]> {
+      return this.supportedAgents.map((agent) => [
+        agent.id,
+        hook.agents[agent.id] ?? {
+          supported: false,
+          installed: false,
+          scriptPath: null,
+          configPath: null,
+          reason: "Agent state unavailable.",
+        },
+      ]);
+    },
+    hookSectionFor(hook: HookState): HookSection {
+      if (hook.id === "deny-git-mutations") return "git";
+      if (hook.id === "gruff-on-change") return "quality";
+      return "safety";
+    },
+    hookTone(hook: HookState): HookTone {
+      const section = this.hookSectionFor(hook);
+      if (section === "git") return "warning";
+      if (section === "quality") return "neutral";
+      return "danger";
+    },
+    hookHasDrift(hook: HookState): boolean {
+      return Object.values(hook.agents).some((state) => Boolean(state?.drift));
+    },
+    hookInstalledSurfaceCount(hook: HookState): number {
+      return this.hookAgents(hook).filter(([, state]) => state.installed)
+        .length;
+    },
+    hooksEnabledCount(): number {
+      return this.hooksState.filter((hook) => hook.enabled).length;
+    },
+    hooksDriftCount(): number {
+      return this.hooksState.filter((hook) => this.hookHasDrift(hook)).length;
+    },
+    hooksInstalledSurfaceCount(): number {
+      return this.hooksState.reduce(
+        (total, hook) => total + this.hookInstalledSurfaceCount(hook),
+        0,
+      );
+    },
+    hookMatchesFilter(hook: HookState, filter: HookFilter): boolean {
+      if (filter === "enabled") return hook.enabled;
+      if (filter === "disabled") return !hook.enabled;
+      if (filter === "drift") return this.hookHasDrift(hook);
+      return true;
+    },
+    hookFilterCount(filter: HookFilter): number {
+      return this.hooksState.filter((hook) =>
+        this.hookMatchesFilter(hook, filter),
+      ).length;
+    },
+    filteredHooks(): HookState[] {
+      const query = this.hooksSearch.trim().toLowerCase();
+      return this.hooksState.filter((hook) => {
+        if (!this.hookMatchesFilter(hook, this.hooksFilter)) return false;
+        if (!query) return true;
+        return [hook.name, hook.id, hook.description].some((value) =>
+          value.toLowerCase().includes(query),
+        );
+      });
+    },
+    hooksForSection(section: HookSection): HookState[] {
+      return this.filteredHooks().filter(
+        (hook) => this.hookSectionFor(hook) === section,
+      );
+    },
+    hookSectionCount(section: HookSection): number {
+      return this.hooksForSection(section).length;
+    },
+    hookAgentStatusLabel(state: HookAgentState): string {
+      if (!state.supported) return "unavailable";
+      if (state.drift === "desired-on-actual-off") return "drift: missing";
+      if (state.drift === "desired-off-actual-on") return "drift: installed";
+      return state.installed ? "installed" : "not installed";
+    },
+    hookAgentStatusClass(state: HookAgentState): string {
+      if (!state.supported) return "gf-hook-status-muted";
+      if (state.drift) return "gf-hook-status-warn";
+      return state.installed ? "gf-hook-status-ok" : "gf-hook-status-muted";
+    },
+    async toggleHook(hook: HookState, enabled: boolean) {
+      if (!hook.togglable || this.hookSavingId) return;
+      if (!enabled && hook.requiresConfirmDialog) {
+        const confirmed = window.confirm(
+          `Disabling ${hook.name} removes the guardrail. Continue?`,
+        );
+        if (!confirmed) return;
+      }
+      this.hookSavingId = hook.id;
+      this.hooksError = "";
+      const requestProjectPath = this.projectPath;
+      try {
+        const res = await dashboardFetch(
+          `/api/hooks/${encodeURIComponent(hook.id)}/toggle?path=${encodeURIComponent(requestProjectPath)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+          },
+        );
+        const payload = readRecord(await res.json(), "Hook toggle response");
+        const error = readErrorMessage(payload);
+        if (error) throw new Error(error);
+        if (this.projectPath !== requestProjectPath) return;
+        const nextHook = payload.hook as HookState;
+        this.hooksState = this.hooksState.map((item) =>
+          item.id === nextHook.id ? nextHook : item,
+        );
+        this.showToast(`${nextHook.name} ${enabled ? "enabled" : "disabled"}`);
+      } catch (err) {
+        if (this.projectPath !== requestProjectPath) return;
+        this.hooksError = err instanceof Error ? err.message : String(err);
+        this.showToast(this.hooksError || "Hook update failed", true);
+      } finally {
+        if (this.hookSavingId === hook.id) this.hookSavingId = null;
+      }
+    },
+    async resyncHook(hook: HookState) {
+      await this.toggleHook(hook, hook.enabled);
     },
 
     // -- Setup --

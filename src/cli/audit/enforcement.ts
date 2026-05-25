@@ -255,9 +255,7 @@ function hookRegistrationCapability(
 function denyCheck(
   agentScope: AuditScope | undefined,
 ): CheckResult | undefined {
-  return agentScope?.checks.find(
-    (check) => check.id === "agent-deny-dangerous",
-  );
+  return agentScope?.checks.find((check) => check.id === "agent-guardrails");
 }
 
 function hookSelfTestCapability(
@@ -281,7 +279,7 @@ function hookSelfTestCapability(
       "limited",
       ["local-hook"],
       "Deny hook self-test was not run in this aggregate audit context",
-      ["agent-deny-dangerous"],
+      ["agent-guardrails"],
     );
   }
   if (check.status === "fail") {
@@ -291,7 +289,7 @@ function hookSelfTestCapability(
       ["local-hook"],
       check.failure?.message ??
         "Deny hook self-test or static deny check failed",
-      ["agent-deny-dangerous"],
+      ["agent-guardrails"],
     );
   }
   if (
@@ -303,7 +301,7 @@ function hookSelfTestCapability(
       "hard",
       ["runtime-self-test"],
       "Deny hook self-test and runtime-shaped payload smoke passed in this audit run",
-      ["agent-deny-dangerous"],
+      ["agent-guardrails"],
     );
   }
   return capability(
@@ -311,7 +309,7 @@ function hookSelfTestCapability(
     "limited",
     ["local-hook"],
     `Deny hook static checks passed, but runtime self-test was skipped in ${options.denyMechanismEvidenceLevel} evidence mode`,
-    ["agent-deny-dangerous"],
+    ["agent-guardrails"],
   );
 }
 
@@ -324,7 +322,7 @@ function providerNativeCapability(
       "provider-native-enforcement",
       "missing",
       ["manifest"],
-      "Manifest records no deny mechanism for this agent (capability-limited)",
+      "Manifest records no project-local deny mechanism for this agent",
       ["AgentProfile.denyMechanism"],
     );
   }

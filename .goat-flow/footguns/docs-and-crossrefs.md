@@ -1,7 +1,33 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-26
 ---
+
+## Footgun: Agent capability metadata goes stale when upstream docs add hooks
+
+**Status:** active | **Created:** 2026-05-26 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Dashboard and docs can report an agent as "not supported" for hooks while the upstream runtime now documents a project-local hook config. The 2026-05-26 Antigravity correction found stale "not wired" claims in `workflow/setup/agents/antigravity.md` (search: `.agents/hooks.json`), `workflow/hooks/README.md` (search: `secret-bearing file tools`), and `workflow/manifest.json` (search: `"antigravity"`) after official Antigravity docs documented `.agents/hooks.json` and PreToolUse hooks.
+
+**Why it happens:** Agent capability tables freeze a past product observation. Manifest fields, setup docs, dashboard state, audit logic, and changelog prose then reinforce each other, so structural checks can pass while the primary upstream docs have moved on.
+
+**Evidence:**
+- `workflow/manifest.json` (search: `"hook_config_file": ".agents/hooks.json"`) now records the corrected Antigravity hook config.
+- `src/cli/server/hooks-registry.ts` (search: `GRUFF_ANTIGRAVITY_UNSUPPORTED_REASON`) keeps the remaining limitation hook-specific instead of agent-wide.
+- `workflow/hooks/agent-config/antigravity-hooks.json` (search: `run_command|view_file`) is the new Antigravity config template.
+- `.agents/hooks.json` (search: `deny-secret-access`) is the installed mirror that proves this controlling workspace no longer treats Antigravity as hookless.
+
+**Prevention:** Before marking an agent capability "unsupported" or "capability-limited", check current primary product docs and the local binary version, then make the limitation as narrow as the evidence supports. Add hook-specific unsupported reasons when only one hook needs data the runtime does not expose. After correcting capability metadata, grep docs, changelog, footguns, manifest, audit, dashboard, templates, and installed mirrors for the old unsupported wording.
+
+## Footgun: Hook additions and renames cross runtime, dashboard, and audit surfaces
+
+**Status:** active | **Created:** 2026-05-25 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A hook script can exist and pass its own smoke test while the dashboard registry, installer, manifest, preflight parity, audit facts, agent config templates, installed mirrors, and docs disagree about whether it is installed or togglable.
+
+**Evidence:** The 2026-05-25 guardrails split and `gruff-on-change` addition touched `src/cli/server/hooks-registry.ts` (search: `deny-destructive-commands`), `workflow/hooks/` (search: `guardrails-self-test.sh`), `workflow/manifest.json` (search: `deny-git-mutations.sh`), `workflow/install-goat-flow.sh` (search: `guardrails-self-test.sh`), `scripts/preflight-checks.sh` (search: `guardrail_hooks`), per-agent config templates under `workflow/hooks/agent-config/`, installed mirrors under `.claude/hooks/`, `.codex/hooks/`, `.github/hooks/`, audit fact extraction in `src/cli/facts/agent/hooks.ts` (search: `GUARDRAIL_HOOK_FILES`), and dashboard/CLI surfaces in `src/dashboard/views/hooks.html` plus `src/cli/cli.ts` (search: `handleHooksCommand`).
+
+**Prevention:** When adding, renaming, or deleting a goat-flow hook, update this lock-step list: canonical script(s), central self-test, registry entry, config default, installer copy list, manifest `hooks[]`, per-agent config templates, installed repo mirrors, audit fact extraction, preflight self-test/parity/runtime smoke, dashboard view/API if response shape changes, CLI help if command surface changes, docs/code-map/architecture/changelog, and tests. Then run a source grep for the old hook id and a runtime-shaped smoke through an installed hook.
 
 ## Footgun: Active footgun Symptoms paragraph drifts after the underlying bug is fixed
 

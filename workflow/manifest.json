@@ -138,18 +138,23 @@
       "hooks_dir": ".claude/hooks/",
       "settings": ".claude/settings.json",
       "hook_config_file": ".claude/settings.json",
-      "deny_hook": ".claude/hooks/deny-dangerous.sh",
+      "deny_hook": ".claude/hooks/deny-git-mutations.sh",
       "deny_mechanism": {
         "type": "both",
         "settings_path": ".claude/settings.json",
-        "script_path": ".claude/hooks/deny-dangerous.sh"
+        "script_path": ".claude/hooks/deny-git-mutations.sh"
       },
       "local_pattern": "*/CLAUDE.md",
       "hook_events": {
         "pre_tool": "PreToolUse",
         "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
+      "hooks": [
+        "deny-destructive-commands.sh",
+        "deny-secret-access.sh",
+        "deny-git-mutations.sh",
+        "guardrails-self-test.sh"
+      ]
     },
     "codex": {
       "name": "Codex",
@@ -168,18 +173,23 @@
       "hooks_dir": ".codex/hooks/",
       "settings": ".codex/config.toml",
       "hook_config_file": ".codex/hooks.json",
-      "deny_hook": ".codex/hooks/deny-dangerous.sh",
+      "deny_hook": ".codex/hooks/deny-git-mutations.sh",
       "deny_mechanism": {
         "type": "both",
         "settings_path": ".codex/config.toml",
-        "script_path": ".codex/hooks/deny-dangerous.sh"
+        "script_path": ".codex/hooks/deny-git-mutations.sh"
       },
       "local_pattern": ".github/instructions/*.md",
       "hook_events": {
         "pre_tool": "PreToolUse",
         "post_turn": "Stop"
       },
-      "hooks": ["deny-dangerous.sh", "deny-dangerous.self-test.sh"]
+      "hooks": [
+        "deny-destructive-commands.sh",
+        "deny-secret-access.sh",
+        "deny-git-mutations.sh",
+        "guardrails-self-test.sh"
+      ]
     },
     "antigravity": {
       "name": "Antigravity",
@@ -187,11 +197,33 @@
       "skills_dir": ".agents/skills/",
       "capabilities": {
         "terminal_binary": "agy",
-        "setup_surfaces": ["AGENTS.md", ".agents/skills/"],
+        "setup_surfaces": [
+          "AGENTS.md",
+          ".agents/skills/",
+          ".agents/hooks.json",
+          ".agents/hooks/"
+        ],
         "prompt_invocation_style": "slash",
         "skill_source": "agent-mirror"
       },
-      "local_pattern": "*/AGENTS.md"
+      "hooks_dir": ".agents/hooks/",
+      "hook_config_file": ".agents/hooks.json",
+      "deny_hook": ".agents/hooks/deny-git-mutations.sh",
+      "deny_mechanism": {
+        "type": "deny-script",
+        "path": ".agents/hooks/deny-git-mutations.sh"
+      },
+      "local_pattern": "*/AGENTS.md",
+      "hook_events": {
+        "pre_tool": "PreToolUse",
+        "post_turn": "Stop"
+      },
+      "hooks": [
+        "deny-destructive-commands.sh",
+        "deny-secret-access.sh",
+        "deny-git-mutations.sh",
+        "guardrails-self-test.sh"
+      ]
     },
     "copilot": {
       "name": "Copilot CLI",
@@ -209,10 +241,10 @@
       },
       "hooks_dir": ".github/hooks/",
       "hook_config_file": ".github/hooks/hooks.json",
-      "deny_hook": ".github/hooks/deny-dangerous.sh",
+      "deny_hook": ".github/hooks/deny-git-mutations.sh",
       "deny_mechanism": {
         "type": "deny-script",
-        "path": ".github/hooks/deny-dangerous.sh"
+        "path": ".github/hooks/deny-git-mutations.sh"
       },
       "local_pattern": ".github/instructions/**/*.instructions.md",
       "hook_events": {
@@ -221,8 +253,10 @@
       },
       "hooks": [
         "hooks.json",
-        "deny-dangerous.sh",
-        "deny-dangerous.self-test.sh"
+        "deny-destructive-commands.sh",
+        "deny-secret-access.sh",
+        "deny-git-mutations.sh",
+        "guardrails-self-test.sh"
       ]
     }
   },
@@ -250,6 +284,7 @@
       "about",
       "coming-soon",
       "home",
+      "hooks",
       "projects",
       "prompts",
       "quality",

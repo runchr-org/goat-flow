@@ -55,7 +55,7 @@ const CHECK_TO_STEP: Record<string, string> = {
   "agent-instruction": "Step 02 (instruction file for agent)",
   "agent-skills": "Step 03 (install skills)",
   "agent-settings": "Step 05 (customise - settings file)",
-  "agent-deny-dangerous": "Step 05 (customise - deny mechanism)",
+  "agent-guardrails": "Step 05 (customise - deny mechanism)",
 };
 
 /** Lookup from agent ID to its agent-specific setup guide. */

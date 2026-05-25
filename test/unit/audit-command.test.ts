@@ -179,7 +179,7 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
-  denyHookFile: ".claude/hooks/deny-dangerous.sh",
+  denyHookFile: ".claude/hooks/deny-git-mutations.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
@@ -246,7 +246,7 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
       denyIsRegistered: true,
-      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
+      denyRegisteredPath: ".claude/hooks/deny-git-mutations.sh",
       postTurnExists: false,
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
@@ -1055,9 +1055,9 @@ describe("orphaned artifact detection refinement", () => {
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
-        path: ".codex/hooks/deny-dangerous.sh",
+        path: ".codex/hooks/deny-git-mutations.sh",
       },
-      denyHookFile: ".codex/hooks/deny-dangerous.sh",
+      denyHookFile: ".codex/hooks/deny-git-mutations.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -1089,7 +1089,7 @@ describe("orphaned artifact detection refinement", () => {
             if (path === "CLAUDE.md") return false;
             if (path === ".claude/settings.json") return true;
             if (path === ".claude/hooks") return true;
-            if (path === ".claude/hooks/deny-dangerous.sh") return false;
+            if (path === ".claude/hooks/deny-git-mutations.sh") return false;
             return true;
           },
           listDir: () => [],
@@ -1119,9 +1119,9 @@ describe("orphaned artifact detection refinement", () => {
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
-        path: ".codex/hooks/deny-dangerous.sh",
+        path: ".codex/hooks/deny-git-mutations.sh",
       },
-      denyHookFile: ".codex/hooks/deny-dangerous.sh",
+      denyHookFile: ".codex/hooks/deny-git-mutations.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -1151,7 +1151,7 @@ describe("orphaned artifact detection refinement", () => {
           exists: (path: string) => {
             if (path === "AGENTS.md") return true;
             if (path === "CLAUDE.md") return false;
-            if (path === ".claude/hooks/deny-dangerous.sh") return true;
+            if (path === ".claude/hooks/deny-git-mutations.sh") return true;
             return true;
           },
           listDir: () => [],
@@ -1181,9 +1181,9 @@ describe("--agent filtering", () => {
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
-        path: ".codex/hooks/deny-dangerous.sh",
+        path: ".codex/hooks/deny-git-mutations.sh",
       },
-      denyHookFile: ".codex/hooks/deny-dangerous.sh",
+      denyHookFile: ".codex/hooks/deny-git-mutations.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -1270,7 +1270,7 @@ describe("codex settings feature flags", () => {
         ...hooks,
         denyExists: true,
         denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+        denyRegisteredPath: ".codex/hooks/deny-git-mutations.sh",
       },
     });
   }
@@ -1971,52 +1971,72 @@ describe("harness check howToFix", () => {
 
 describe("agent deny hook template comparison", () => {
   const denyCheck = AGENT_CHECKS.find(
-    (check) => check.id === "agent-deny-dangerous",
+    (check) => check.id === "agent-guardrails",
   );
+  function guardrailTemplates() {
+    return {
+      destructive: readFileSync(
+        resolve(PROJECT_ROOT, "workflow/hooks/deny-destructive-commands.sh"),
+        "utf-8",
+      ),
+      secret: readFileSync(
+        resolve(PROJECT_ROOT, "workflow/hooks/deny-secret-access.sh"),
+        "utf-8",
+      ),
+      git: readFileSync(
+        resolve(PROJECT_ROOT, "workflow/hooks/deny-git-mutations.sh"),
+        "utf-8",
+      ),
+      selfTest: readFileSync(
+        resolve(PROJECT_ROOT, "workflow/hooks/guardrails-self-test.sh"),
+        "utf-8",
+      ),
+    };
+  }
+
+  function installedGuardrailContent(
+    hooksDir: string,
+    templates: ReturnType<typeof guardrailTemplates>,
+    overrides: Record<string, string | null> = {},
+  ) {
+    const files: Record<string, string> = {
+      [`${hooksDir}/deny-destructive-commands.sh`]: templates.destructive,
+      [`${hooksDir}/deny-secret-access.sh`]: templates.secret,
+      [`${hooksDir}/deny-git-mutations.sh`]: templates.git,
+      [`${hooksDir}/guardrails-self-test.sh`]: templates.selfTest,
+    };
+    return (path: string) => {
+      if (Object.hasOwn(overrides, path)) return overrides[path] ?? null;
+      return files[path] ?? null;
+    };
+  }
 
   it("fails when an installed deny hook differs from the canonical template", () => {
     assert.ok(denyCheck, "agent deny check should exist");
-    const template = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-      "utf-8",
-    );
+    const templates = guardrailTemplates();
     const ctx = makeCtx({
       agentFilter: "claude",
       projectPath: PROJECT_ROOT,
       fs: stubFS({
-        readFile: (path) =>
-          path === ".claude/hooks/deny-dangerous.sh"
-            ? `${template}\n# local drift\n`
-            : null,
+        readFile: installedGuardrailContent(".claude/hooks", templates, {
+          ".claude/hooks/deny-git-mutations.sh": `${templates.git}\n# local drift\n`,
+        }),
       }),
     });
     const result = denyCheck.run(ctx);
     assert.ok(result, "expected hook version drift failure");
     assert.match(result.message, /differs from the current goat-flow template/);
-    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.sh");
+    assert.equal(result.evidence, ".claude/hooks/deny-git-mutations.sh");
   });
 
   it("passes when the installed deny hook matches the canonical template", () => {
     assert.ok(denyCheck, "agent deny check should exist");
-    const template = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-      "utf-8",
-    );
-    const selfTestTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.self-test.sh"),
-      "utf-8",
-    );
+    const templates = guardrailTemplates();
     const ctx = makeCtx({
       agentFilter: "claude",
       projectPath: PROJECT_ROOT,
       fs: stubFS({
-        readFile: (path) => {
-          if (path === ".claude/hooks/deny-dangerous.sh") return template;
-          if (path === ".claude/hooks/deny-dangerous.self-test.sh") {
-            return selfTestTemplate;
-          }
-          return null;
-        },
+        readFile: installedGuardrailContent(".claude/hooks", templates),
       }),
     });
     assert.equal(denyCheck.run(ctx), null);
@@ -2024,14 +2044,7 @@ describe("agent deny hook template comparison", () => {
 
   it("passes registered-hook runtime smoke for Copilot JSON payloads", () => {
     assert.ok(denyCheck, "agent deny check should exist");
-    const template = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-      "utf-8",
-    );
-    const selfTestTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.self-test.sh"),
-      "utf-8",
-    );
+    const templates = guardrailTemplates();
     const ctx = makeCtx({
       agentFilter: "copilot",
       projectPath: PROJECT_ROOT,
@@ -2046,19 +2059,13 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".github/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".github/hooks/deny-git-mutations.sh",
             readDenyCoversSecrets: false,
           },
         }),
       ],
       fs: stubFS({
-        readFile: (path) => {
-          if (path === ".github/hooks/deny-dangerous.sh") return template;
-          if (path === ".github/hooks/deny-dangerous.self-test.sh") {
-            return selfTestTemplate;
-          }
-          return null;
-        },
+        readFile: installedGuardrailContent(".github/hooks", templates),
       }),
     });
 
@@ -2067,22 +2074,20 @@ describe("agent deny hook template comparison", () => {
 
   it("fails when the split deny hook self-test sibling is missing", () => {
     assert.ok(denyCheck, "agent deny check should exist");
-    const template = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-      "utf-8",
-    );
+    const templates = guardrailTemplates();
     const ctx = makeCtx({
       agentFilter: "claude",
       projectPath: PROJECT_ROOT,
       fs: stubFS({
-        readFile: (path) =>
-          path === ".claude/hooks/deny-dangerous.sh" ? template : null,
+        readFile: installedGuardrailContent(".claude/hooks", templates, {
+          ".claude/hooks/guardrails-self-test.sh": null,
+        }),
       }),
     });
     const result = denyCheck.run(ctx);
     assert.ok(result, "expected missing self-test sibling failure");
-    assert.match(result.message, /deny-dangerous\.self-test\.sh is missing/);
-    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.self-test.sh");
+    assert.match(result.message, /guardrails-self-test\.sh is missing/);
+    assert.equal(result.evidence, ".claude/hooks/guardrails-self-test.sh");
   });
 });
 
@@ -2147,11 +2152,39 @@ describe("M01 harness check type tagging", () => {
 
 describe("hook fact extraction", () => {
   it("detects current deny hook secret coverage from generalized path matcher", () => {
-    const template = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+    const gitTemplate = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-git-mutations.sh"),
       "utf8",
     );
-    const facts = extractHookFactsForDenyContent(template);
+    const secretTemplate = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-secret-access.sh"),
+      "utf8",
+    );
+    const destructiveTemplate = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/deny-destructive-commands.sh"),
+      "utf8",
+    );
+    const fs = stubFS({
+      exists: (path) =>
+        [
+          ".claude/hooks/deny-destructive-commands.sh",
+          ".claude/hooks/deny-secret-access.sh",
+          ".claude/hooks/deny-git-mutations.sh",
+        ].includes(path),
+      readFile: (path) => {
+        if (path === ".claude/hooks/deny-destructive-commands.sh") {
+          return destructiveTemplate;
+        }
+        if (path === ".claude/hooks/deny-secret-access.sh") {
+          return secretTemplate;
+        }
+        if (path === ".claude/hooks/deny-git-mutations.sh") {
+          return gitTemplate;
+        }
+        return null;
+      },
+    });
+    const facts = extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
     assert.equal(facts.bashDenyCoversSecrets, true);
   });
 
@@ -3359,7 +3392,7 @@ describe("setup check dependency status", () => {
       assert.equal(statuses["agent-instruction"], "fail");
       assert.equal(statuses["agent-skills"], "fail");
       assert.equal(statuses["agent-settings"], "fail");
-      assert.equal(statuses["agent-deny-dangerous"], "fail");
+      assert.equal(statuses["agent-guardrails"], "fail");
     } finally {
       await project.cleanup();
     }

@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-05-24
+last_reviewed: 2026-05-26
 ---
 
 ## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
@@ -97,6 +97,45 @@ last_reviewed: 2026-05-24
 - `workflow/install-goat-flow.sh` (search: `Read version from package.json`) must derive the install version from `package.json`; a hardcoded fallback recreates the same stale-version trap at install time.
 
 **Prevention:** When a skill rename ships with a version bump, treat version-sensitive helpers as part of the rename surface. Update current-version classifiers, shared config fixtures, install-script version discovery, and setup-routing tests in the same change before trusting `npm test`.
+
+## Footgun: New skill proposals can be configuration systems shaped around one workflow rather than general-purpose tools
+
+**Status:** active | **Created:** 2026-05-26 | **Evidence:** OBSERVED
+
+**Symptoms:** A thoughtful, first-person, well-written proposal lands for an eighth canonical skill. It solves a real problem the author actually had. On read-through it turns out the skill is parameterised by the proposer's working style (multi-domain isolation, per-project keyword auto-loading, session-locked context, personal taxonomy) rather than by a structural property of any goat-flow project. Accepting it grows the canonical skill set and forces every downstream consumer (and every audit pass that scores skill quality) to carry weight for a workflow most projects do not have.
+
+**Why it happens:** goat-flow has no prose document defining what makes a skill belong in `workflow/manifest.json` (search: `"canonical"`) vs in an out-of-tree plugin. ADR-009 (search: `Skill consolidation and canonical-skill doctrine`) records the *historical* doctrine of consolidating skills, and ADR-021 (search: `goat-critique runs in one mode: full delegated`) records the rejection of one over-narrow mode, but neither serves as a forward-facing scoping checklist for new skill proposals. `docs/skill-authoring.md` covers how to write a skill once accepted, not whether to accept one. Without that gate, well-intentioned skill PRs are evaluated on craft (which they often pass) rather than scope (where they should fail).
+
+**Evidence:**
+- `workflow/manifest.json` (search: `"canonical"`) enumerates the seven canonical skills; an eighth grows the surface area of every per-harness mirror, every audit check, and every parity script.
+- `.goat-flow/decisions/ADR-009-skill-consolidation.md` (search: `Skill consolidation and canonical-skill doctrine`) records the doctrine but does not encode it as an authoring-time gate.
+- `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `single-context lenses are self-talk, not multi-perspective critique`) is the closest prior art for rejecting a configuration-flavored alternative; it lives as a per-skill decision, not a generic test.
+- `docs/skill-authoring.md` (search: `goat-flow-skill-version`) covers structural authoring conventions but does not contain a "would this be useful to someone working on a completely different kind of project" gate.
+- External corroboration: obra/superpowers PR #1571 ("feat: add context-management skill with domain isolation") was closed with the maintainer comment "the skill as designed is shaped around your specific multi-domain workflow ... that's a configuration system, not [a skill]." Superpowers and goat-flow share the same risk because both maintain a small canonical-skill surface.
+
+**Prevention:**
+1. Before adding any skill to `workflow/manifest.json` `skills.canonical`, write a one-paragraph "general-purpose justification" answering: would a project with no overlap to the proposer's workflow still benefit? Record it in the corresponding ADR.
+2. Treat skill-shaped configuration (per-domain context auto-loading, session-locked taxonomies, opinion-locked keyword maps) as a signal that the work belongs in a downstream plugin or `.goat-flow/skill-playbooks/` rather than a new canonical skill.
+3. If the proposal is craft-strong but scope-narrow, route to `.goat-flow/skill-playbooks/` (which agents can opt into per project) rather than `workflow/skills/` (which every harness installs).
+
+## Footgun: Linter or security-scanner output can pressure rewrites of load-bearing skill language
+
+**Status:** active | **Created:** 2026-05-26 | **Evidence:** OBSERVED
+
+**Symptoms:** An automated tool (security scanner, prompt-injection detector, prose linter) flags a phrase or framing inside a canonical SKILL.md - `**EXTREMELY IMPORTANT**`-style emphasis, the Excuse | Reality tables, a forceful "Iron Law" line, the deliberate "your AI partner" phrasing. A well-meaning PR rewrites the flagged language to "comply" with the tool's guidance. The rewrite passes the tool, passes typecheck, passes structural skill-quality scoring (`src/cli/quality/skill-quality.ts` — search: `Scores one artifact`), and silently degrades the skill's behaviour-shaping power because the flagged phrasing was load-bearing.
+
+**Why it happens:** Excuse | Reality tables and forceful framing exist precisely *because* they shift agent behaviour under pressure. They look like editorial emphasis to an external tool (and to agents reading them cold) but they are the persuasion mechanism the skill depends on. goat-flow's existing structural scorer measures shape (presence of gates, table rows, frontmatter) but not behaviour, so a "compliance" rewrite passes every CI check while quietly weakening the runtime contract. The trap is structural: load-bearing prose has no machine-distinguishable signature from decorative prose.
+
+**Evidence:**
+- `.goat-flow/skill-playbooks/skill-quality-testing/adversarial-framing.md` (search: `cynical reviewer with zero patience`, `Zero-findings HALT rule`) documents that specific phrasing in review-class skills is the mechanism, not the message.
+- `src/cli/quality/skill-quality.ts` (search: `Scores one artifact`, `without executing agent prompts`) — the docstring is explicit that the scorer is structural only; a "compliance" rewrite that preserves shape passes scoring.
+- `.claude/skills/goat-plan/SKILL.md` (search: `Excuse`, `Reality`) — the Excuse | Reality table is the persuasion surface most likely to attract a "this is unprofessional / aggressive / could be softened" rewrite suggestion.
+- External corroboration: obra/superpowers PR #1608 ("fix(skill): remove prompt-injection marker") was closed as slop. The maintainer's comment: "the framing the scanner flagged is intentional — it's the mechanism that makes Superpowers actually shape agent behavior." Same shape of trap applies here.
+
+**Prevention:**
+1. Mark known-load-bearing prose surfaces (Excuse | Reality tables, hard gates, forceful framing lines, the `your AI partner` term) as protected in `docs/skill-authoring.md` so authors know rewording requires evidence.
+2. Treat any PR that rewords skill text in response to *tool output* (scanner, linter, model review) as requiring before/after behavioural eval evidence, not just passing structural checks. When the M10 behavioural eval harness lands, this becomes enforceable.
+3. CI rule (cheap, valuable): fail PRs whose bodies match canned scanner output patterns (`Risk score:`, `Matched signals:`, `pre-flight guardrails passed`) unless an explicit `[manual-review]` marker is present in the body.
 
 ---
 

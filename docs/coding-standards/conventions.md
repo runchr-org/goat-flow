@@ -36,7 +36,7 @@ workflow/
   setup/                      # Agent setup docs and shared setup references
 scripts/
   preflight-checks.sh  # Full preflight gate (shellcheck, tsc, tests, version, ADR)
-  deny-dangerous.sh    # Codex deny policy with --self-test
+  deny-git-mutations.sh    # Codex deny policy with --self-test
   maintenance/         # Utility scripts (git-cleanup, scan-secrets, etc.)
 test/
   unit/                # Unit tests

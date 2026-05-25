@@ -398,6 +398,39 @@ console.log("changed");
 NODE
 }
 
+ensure_config_hooks_entry() {
+  local path="$1"
+  node - "$path" <<'NODE'
+const fs = require("node:fs");
+
+const path = process.argv[2];
+const content = fs.readFileSync(path, "utf8");
+if (/^hooks\s*:/m.test(content)) {
+  console.log("unchanged");
+  process.exit(0);
+}
+const eol = content.includes("\r\n") ? "\r\n" : "\n";
+let next = content;
+if (next.length > 0 && !/\r?\n$/u.test(next)) next += eol;
+next += [
+  "",
+  "# Hook toggles for goat-flow-shipped hooks.",
+  "hooks:",
+  "  deny-destructive-commands:",
+  "    enabled: true",
+  "  deny-secret-access:",
+  "    enabled: true",
+  "  deny-git-mutations:",
+  "    enabled: true",
+  "  gruff-on-change:",
+  "    enabled: false",
+  "",
+].join(eol);
+fs.writeFileSync(path, next);
+console.log("changed");
+NODE
+}
+
 migrate_codex_hooks_feature_flag() {
   local path="$1"
   node - "$path" <<'NODE'
@@ -547,7 +580,7 @@ const canonicalBlock = [
   '# Codex 0.131 accepts exact paths and trailing "/**" subtrees here.',
   "# Exact entries must point at files that exist in the target checkout; absent",
   "# exact paths can make Codex fail before shell startup. Filename globs such as",
-  '# "*.key" are covered by .codex/hooks/deny-dangerous.sh.',
+  '# "*.key" are covered by .codex/hooks/deny-secret-access.sh.',
   '":workspace_roots" = { "." = "write", "secrets/**" = "none", ".ssh/**" = "none", ".aws/**" = "none", ".docker/**" = "none", ".gnupg/**" = "none", ".kube/**" = "none" }',
 ];
 
@@ -812,10 +845,15 @@ fi
 # ==========================================================================
 if $HOOKS_ENABLED; then
   echo "Hooks → $HOOKS_DIR/:"
-  copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.sh" "$DENY_HOOK_DST"
-  DENY_SELF_TEST_DST="$(dirname "$DENY_HOOK_DST")/deny-dangerous.self-test.sh"
-  copy_file "$GOAT_FLOW_ROOT/workflow/hooks/deny-dangerous.self-test.sh" "$DENY_SELF_TEST_DST"
-  chmod +x "$DENY_HOOK_DST" "$DENY_SELF_TEST_DST"
+  for hook_script in \
+    deny-destructive-commands.sh \
+    deny-secret-access.sh \
+    deny-git-mutations.sh \
+    guardrails-self-test.sh
+  do
+    copy_file "$GOAT_FLOW_ROOT/workflow/hooks/$hook_script" "$HOOKS_DIR/$hook_script"
+    chmod +x "$HOOKS_DIR/$hook_script"
+  done
   if [[ -n "${HOOK_CONFIG_DST:-}" && -n "${HOOK_CONFIG_SRC:-}" ]]; then
     echo "Hooks config:"
     copy_if_missing "$GOAT_FLOW_ROOT/$HOOK_CONFIG_SRC" "$HOOK_CONFIG_DST"
@@ -895,6 +933,10 @@ if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
     CONFIG_CHANGED=true
     CONFIG_NOTES+=("legacy agents allowlist removed")
   fi
+  if [[ "$(ensure_config_hooks_entry "$CONFIG_PATH")" == "changed" ]]; then
+    CONFIG_CHANGED=true
+    CONFIG_NOTES+=("hook toggles added")
+  fi
   if $CONFIG_CHANGED; then
     COPIED=$((COPIED + 1))
     note_text="$(IFS=', '; echo "${CONFIG_NOTES[*]}")"
@@ -904,7 +946,7 @@ if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
     echo "  · $CONFIG_PATH (exists, no config changes)"
   fi
 else
-  printf 'version: "%s"\n\nskills:\n  install: all\n' "$VERSION" > "$CONFIG_PATH"
+  printf 'version: "%s"\n\nskills:\n  install: all\n\nhooks:\n  deny-destructive-commands:\n    enabled: true\n  deny-secret-access:\n    enabled: true\n  deny-git-mutations:\n    enabled: true\n  gruff-on-change:\n    enabled: false\n' "$VERSION" > "$CONFIG_PATH"
   COPIED=$((COPIED + 1))
   echo "  ✓ $CONFIG_PATH (scaffolded)"
 fi
@@ -948,16 +990,16 @@ echo "DONE: $COPIED files installed, $SKIPPED skipped, $REMOVED stale removed"
 echo ""
 
 # Warn when deny hook is installed but settings file was skipped (hook may not be registered)
-if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$DENY_HOOK_DST" ]]; then
+if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-git-mutations.sh" ]]; then
   echo "⚠ Settings file was preserved (not overwritten)."
-  echo "  The deny hook at $DENY_HOOK_DST was installed but may not be"
+  echo "  The guardrail hooks in $HOOKS_DIR were installed but may not be"
   echo "  registered in $SETTINGS_DST. Verify your settings file includes"
-  echo "  a PreToolUse hook entry pointing at the deny script."
+  echo "  PreToolUse hook entries pointing at the guardrail scripts."
   if [[ "$AGENT" == "claude" ]]; then
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
     # shellcheck disable=SC2016
-    echo '    {"matcher":"Bash","hooks":[{"type":"command","command":"bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-dangerous.sh\""}]}'
+    echo '    {"matcher":"Bash","hooks":[{"type":"command","command":"bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-git-mutations.sh\""}]}'
   fi
   echo ""
 fi

@@ -210,7 +210,7 @@ describe("deny-hook-registered harness check", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             denyIsRegistered: true,
-            denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".claude/hooks/deny-git-mutations.sh",
           },
         }),
       ],
@@ -228,7 +228,7 @@ describe("deny-hook-registered harness check", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             denyIsRegistered: true,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".codex/hooks/deny-git-mutations.sh",
           },
         }),
       ],
@@ -237,8 +237,8 @@ describe("deny-hook-registered harness check", () => {
     assert.equal(result.status, "fail");
     const finding = result.findings.find((f) => f.includes("does not match"));
     assert.ok(finding, "should report path mismatch");
-    assert.ok(finding.includes(".codex/hooks/deny-dangerous.sh"));
-    assert.ok(finding.includes(".claude/hooks/deny-dangerous.sh"));
+    assert.ok(finding.includes(".codex/hooks/deny-git-mutations.sh"));
+    assert.ok(finding.includes(".claude/hooks/deny-git-mutations.sh"));
   });
 });
 

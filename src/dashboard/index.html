@@ -426,6 +426,18 @@
               </svg>
               <span class="gf-side-link-label">Plans</span>
             </button>
+            <button
+              @click="activeView = 'hooks'"
+              class="gf-side-link"
+              :class="activeView === 'hooks' && 'gf-side-link-active'"
+              data-short="Hk"
+              aria-label="Hooks"
+            >
+              <svg class="gf-side-icon" aria-hidden="true">
+                <use href="#gf-side-icon-hooks"></use>
+              </svg>
+              <span class="gf-side-link-label">Hooks</span>
+            </button>
           </section>
 
           <section class="gf-side-nav-group" aria-label="Operations">
@@ -685,6 +697,7 @@
           <!-- include: views/quality.html -->
           <!-- include: views/skills.html -->
           <!-- include: views/setup.html -->
+          <!-- include: views/hooks.html -->
           <!-- include: views/home.html -->
           <!-- include: views/projects.html -->
           <!-- include: views/settings.html -->

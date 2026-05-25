@@ -3,23 +3,23 @@ category: hooks
 last_reviewed: 2026-05-25
 ---
 
-**Last independent review:** 2026-05-24 - Active entries re-verified against current anchors and hook self-tests. Workflow, Claude, GitHub, Codex, and Antigravity deny-hook self-tests each return `PASS: deny-dangerous.sh self-test`. The direct `cat .env` probe is blocked by the active PreToolUse guard before script execution; coverage relies on self-test cases plus live harness blocking for that command shape.
+**Last independent review:** 2026-05-25 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, and Codex guardrail self-tests return `PASS: guardrails self-test`; Antigravity still has no hook surface. The direct `cat .env` probe is blocked by `deny-secret-access.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
 
 ## Footgun: File-read deny does not bind Bash shell reads of secret files
 
 **Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED
 **hallucination-risk:** high - `Read(**/.env*)` in `settings.json` or a Codex TOML permission profile can look like a blanket secret-read deny, but it only binds file-read paths. A Bash payload like `cat .env`, `source .env`, `base64 ~/.aws/credentials` is not bound by that file-read layer and silently succeeds unless the Bash hook blocks it explicitly.
 
-**Symptoms:** Settings-level `Read(**/.env*)` coverage can look complete even though shell-based secret reads require separate Bash-hook coverage. Before the Bash-side sentinel was added, `goat-flow audit --harness` reported `deny-covers-secrets: pass` while a live Bash probe (`bash .claude/hooks/deny-dangerous.sh 'cat .env'`) returned exit 0. Current expected behavior is exit 2 with `BLOCKED: Secret-file access ...`, verified by the runtime probe below.
+**Symptoms:** Settings-level `Read(**/.env*)` coverage can look complete even though shell-based secret reads require separate Bash-hook coverage. Before the Bash-side sentinel was added, `goat-flow audit --harness` reported `deny-covers-secrets: pass` while a live Bash probe returned exit 0. Current expected behavior is exit 2 with `BLOCKED: Secret-file access ...`, verified by the runtime probe below.
 
 **Why it happens:** Settings/config file-read deny entries are tool-scoped. Claude/Gemini `Read(...)` patterns bind the Read tool; Codex TOML permission profiles bind filesystem access. An agent using the Bash tool to run `cat .env` is not protected by file-read intent alone. Two independent coverage layers are required: file-read deny for the file tool path AND Bash-hook regex coverage for shell paths.
 
 **Evidence:**
 - `.claude/settings.json` (search: `"Read(**/.env*)"`) - tool-scoped deny patterns. Not applied to Bash.
-- `.claude/hooks/deny-dangerous.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across all four agent hooks.
+- `.claude/hooks/deny-secret-access.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across hook-capable agents.
 - `src/cli/audit/harness/check-constraints.ts` (search: `bashDenyCoversSecrets`) - the harness now requires BOTH `readDenyCoversSecrets` (settings/Codex permission file-read coverage) AND `bashDenyCoversSecrets` (Bash hook pattern) before classifying an agent as covered.
 - `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - fact derivation: scans the deny hook file for the active secret sentinel plus family markers for `.env*`, `.env.example` parity, normalized `./` / `../` / `~/` roots, `.ssh/`, `.aws/`, `secrets/`, credentials, and `.pem/.key/.pfx`.
-- Runtime probe: `bash .claude/hooks/deny-dangerous.sh 'cat .env'` now returns exit 2 with `BLOCKED: Secret-file access (cat). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk.`
+- Runtime probe: `bash .claude/hooks/deny-secret-access.sh --check="cat .env"` now returns exit 2 with `BLOCKED: Secret-file access blocked`.
 
 **Prevention:**
 1. For any new secret-path family added to the harness, extend BOTH `checkReadDenyCoversSecrets` in `src/cli/facts/agent/settings.ts` AND `detectBashDenyCoversSecrets` in `src/cli/facts/agent/hooks.ts`. A settings-only addition creates the same false-pass; a hook-regex refactor without detector coverage creates a false-fail.
@@ -40,8 +40,8 @@ last_reviewed: 2026-05-25
 - Reported incident: an assistant posted a GitHub issue comment to `owner/repo#64620` from forwarded Slack text; the user deleted the comment and reported the command was `gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md`.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md"` and `bash scripts/deny-dangerous.sh --check "gh api repos/owner/repo/issues/1/comments -X POST -f body=hi"`.
 - Runtime probes before the second fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "gh issue --repo owner/repo comment 64620 --body hi"` and `bash scripts/deny-dangerous.sh --check "printf '%s\n' body | xargs -I{} gh issue comment 64620 --body {}"`.
-- `workflow/hooks/deny-dangerous.sh` (search: `is_gh_write_operation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
-- `workflow/hooks/deny-dangerous.self-test.sh` (search: `gh issue comment body-file blocked`) - locks the original `--body-file` path plus `gh api` write and read-only allow cases.
+- `workflow/hooks/deny-git-mutations.sh` (search: `contains_git_mutation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
+- `workflow/hooks/guardrails-self-test.sh` (search: `gh issue comment`) - locks the current `gh issue comment` path plus read-only allow cases.
 
 **Prevention:**
 1. Treat `git push` as only one GitHub write path. Any new shared-system GitHub mutation route must get both a hook rule and a self-test case.
@@ -65,8 +65,8 @@ last_reviewed: 2026-05-25
 3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.
 
 **Evidence:**
-- `workflow/hooks/deny-dangerous.sh` (search: `tool_name_lc`) - the fix extracts `toolName` and exits 0 for non-bash tools.
-- Self-test (`bash .github/hooks/deny-dangerous.sh --self-test`) covers `view`, `edit`, and `Task` payloads with `!permissionDecision` assertions.
+- `workflow/hooks/deny-git-mutations.sh` (search: `is_copilot_payload`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
+- Self-test (`bash .github/hooks/guardrails-self-test.sh --self-test=smoke`) covers Copilot-shaped Bash payloads with deny JSON assertions.
 
 ---
 
@@ -144,8 +144,8 @@ last_reviewed: 2026-05-25
 **Why it happens:** A token check that only normalizes the start of a simple command misses shell grammar around the command word. `env -i git push ...` starts with an env option after `env`; `FOO='a b' git push ...` contains whitespace inside an assignment value; `if true; then git push ...; fi` leaves a segment starting with `then`; `f(){ git push ...; }; f` leaves a segment starting with a function declaration.
 
 **Evidence:**
-- `workflow/hooks/deny-dangerous.sh` (search: `normalize_git_push_candidate`) - central normalization for shell wrappers/control bodies before `is_git_push`.
-- `workflow/hooks/deny-dangerous.self-test.sh` (search: `env option git push`) - self-test coverage for env options, quoted assignments, `if`/`then`, direct `if` conditions, and function bodies.
+- `workflow/hooks/deny-git-mutations.sh` (search: `contains_git_mutation`) - current split hook blocks git push and destructive git mutations.
+- `workflow/hooks/guardrails-self-test.sh` (search: `sudo git push`) - self-test coverage for wrapper-prefixed git push.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh 'env -i git push origin main'`, `bash scripts/deny-dangerous.sh "FOO='a b' git push origin main"`, `bash scripts/deny-dangerous.sh 'if true; then git push origin main; fi'`, and `bash scripts/deny-dangerous.sh 'f(){ git push origin main; }; f'`.
 - Runtime probes before the `-lc` fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "bash -lc 'git push origin main'"` and `bash scripts/deny-dangerous.sh --check "sh -lc 'git push origin main'"`.
 
@@ -165,9 +165,8 @@ last_reviewed: 2026-05-25
 **Why it happens:** Top-level hook input is split on `&&`, `||`, semicolons, and newlines before checking each segment. Recursive paths for command substitution, process substitution, and `bash -c` can accidentally call the raw segment checker directly. If the nested string starts with a read-only verb such as `echo`, the read-only whitelist returns before the later destructive segment is inspected.
 
 **Evidence:**
-- `workflow/hooks/deny-dangerous.sh` (search: `check_command_segments`) - central splitter now reused by top-level checks, command substitution/process substitution recursion, and `bash -c` recursion.
-- `workflow/hooks/deny-dangerous.self-test.sh` (search: `bash -c semicolon dangerous`) - self-test locks the nested `bash -c "echo ok; rm -rf /"` bypass.
-- `workflow/hooks/deny-dangerous.self-test.sh` (search: `dangerous chained dollar substitution`) - self-test locks the nested command-substitution bypass.
+- `workflow/hooks/deny-destructive-commands.sh` (search: `contains_destructive_command`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
+- `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 - Runtime proof before the fix: `bash workflow/hooks/deny-dangerous.sh --self-test` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
 
 **Prevention:**
@@ -187,9 +186,8 @@ last_reviewed: 2026-05-25
 
 **Evidence:**
 - Runtime probe before the 2026-05-25 fix returned exit 0 for a `cat <<-'EOF' ... EOF` command followed by `rm -rf /`, because the tab-indented delimiter was not recognized and the later `rm` line was masked as body data.
-- `workflow/hooks/deny-dangerous.sh` (search: `mask_safe_quoted_heredoc_bodies`) - central heredoc masking helper now strips leading tabs only for `<<-` delimiters.
-- `workflow/hooks/deny-dangerous.self-test.sh` (search: `fp quality report heredoc allowed`) - locks the Copilot quality-report false-positive case with a large quoted JSON heredoc.
-- `workflow/hooks/deny-dangerous.self-test.sh` (search: `rb19h indented quoted heredoc then rm`) - locks the post-heredoc executable-line bypass.
+- `workflow/hooks/deny-destructive-commands.sh` (search: `contains_destructive_command`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
+- `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 
 **Prevention:**
 1. Any heredoc masking edit must test both sides of the boundary: safe quoted report data is allowed, shell-fed heredoc bodies stay inspectable, and commands after `<<-` tab-indented delimiters are scanned.
@@ -206,4 +204,4 @@ last_reviewed: 2026-05-25
 - **Advisory hooks create unfixable quality warning after setup** (resolved 2026-04-14) - Hook scripts now ship in enforce mode by default (`GOAT_LINT_ENFORCE` defaults to 1).
 - **Codex hooks registered in config.toml instead of hooks.json** (resolved 2026-04-15) - Moved hook definitions to `.codex/hooks.json` per official Codex docs; TOML hook sections were silently ignored.
 - **Codex hook migrations drift across live files, templates, installer, and docs** (resolved 2026-04-15) - Restored missing `.codex/hooks/deny-dangerous.sh` and aligned all four Codex hook surfaces (live files, templates, installer, docs).
-- **Deny hook blocks read-only commands containing dangerous string literals** (resolved 2026-04-17) - `.claude/hooks/deny-dangerous.sh` now includes a read-only tool whitelist (grep, rg, cat, head, tail, less, more, wc, file, diff, printf, echo, read, sed-without-`-i`) that skips pattern matching when the command verb is read-only AND there is no output redirection or pipe. Pipe-to-shell (`| bash`, `| python`) still blocks regardless of verb. Self-test covers 5 false-positive cases and 2 bypass-attempt cases (`.claude/hooks/deny-dangerous.self-test.sh` (search: `run_self_test`)). Template at `workflow/hooks/deny-dangerous.sh` and per-agent hooks at `.codex/hooks/` and `.gemini/hooks/` synced to the same implementation (2026-04-17).
+- **Deny hook blocks read-only commands containing dangerous string literals** (resolved 2026-04-17) - the current split guardrails keep representative read-only allow paths in `workflow/hooks/guardrails-self-test.sh` (search: `expect_allow`). Template hooks and installed per-agent hook directories are checked by preflight config parity.

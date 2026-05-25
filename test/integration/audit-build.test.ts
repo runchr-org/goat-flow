@@ -142,8 +142,8 @@ describe("audit build: all scopes pass on healthy project", () => {
 // Harness scope: missing deny patterns
 // ---------------------------------------------------------------------------
 describe("audit build: harness scope fails on missing deny", () => {
-  it("agent-deny-dangerous check fails when no deny configured", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "agent-deny-dangerous")!;
+  it("agent-guardrails check fails when no deny configured", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-guardrails")!;
     const ctx = makeCtx({
       agentFilter: "claude",
       agents: [
@@ -167,8 +167,8 @@ describe("audit build: harness scope fails on missing deny", () => {
     assert.ok(result!.howToFix, "Should include howToFix");
   });
 
-  it("agent-deny-dangerous summary mode stops at presence without shelling out", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "agent-deny-dangerous")!;
+  it("agent-guardrails summary mode stops at presence without shelling out", () => {
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-guardrails")!;
     let execCalls = 0;
     childProcess.execFileSync = (() => {
       execCalls += 1;

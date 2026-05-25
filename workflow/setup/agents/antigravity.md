@@ -12,7 +12,7 @@
 
 ## Autonomy Tiers
 
-**Always:** Set up Antigravity-owned surfaces: `AGENTS.md`, `.agents/skills/`, and shared `.goat-flow/`. `AGENTS.md` and `.agents/skills/` are shared with Codex; either setup can create/update them, but neither should duplicate or stomp the other's content.
+**Always:** Set up Antigravity-owned surfaces: `AGENTS.md`, `.agents/skills/`, `.agents/hooks.json`, `.agents/hooks/`, and shared `.goat-flow/`. `AGENTS.md` and `.agents/skills/` are shared with Codex; either setup can create/update them, but neither should duplicate or stomp the other's content.
 
 **Ask First:** Before touching non-Antigravity surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
@@ -25,7 +25,7 @@
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
 - Antigravity uses `agy` as the terminal binary; verify version with `agy --version` (>= 1.0.1 for the OAuth persistence fix).
 - Plugin migration from other agents: `agy plugin import gemini` or `agy plugin import claude` populates Antigravity from existing setups.
-- No deny-hook mechanism is wired in v1.8.0: Antigravity's upstream hooks directory and ignore-file conventions are not yet documented, so the manifest profile records hook fields as `null`. Audit checks treat this as capability-limited. See `.goat-flow/tasks/1.8.0/M02-antigravity-runtime-and-login-proof.md`.
+- Antigravity hook wiring uses `.agents/hooks.json` and scripts in `.agents/hooks/`. Goat-flow registers PreToolUse guardrails there; `gruff-on-change` remains unsupported until Antigravity exposes the completed tool's edited file path to PostToolUse hooks.
 - User-level config lives at `~/.config/antigravity/config.toml`; it is not a repo-local surface and is out of scope for per-project setup.
 - Sandbox/approval settings: Antigravity exposes `--sandbox` and `proceed-in-sandbox` permission modes through the binary, not via repo-local config files.
 
@@ -117,6 +117,7 @@ Requests to add footguns, lessons, decisions, or patterns route to the matching 
 | Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
 | Architecture | `.goat-flow/architecture.md` |
 | Antigravity skills | `.agents/skills/` (shared with Codex) |
+| Antigravity hooks | `.agents/hooks.json`, `.agents/hooks/` |
 | Project source/docs/config | adapt to detected project paths |
 | Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `.github/copilot-instructions.md` when present |

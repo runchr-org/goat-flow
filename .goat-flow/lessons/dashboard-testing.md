@@ -1,6 +1,18 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-24
+last_reviewed: 2026-05-26
+---
+
+## Lesson: Per-hook availability labels must not imply agent-level hook support
+
+**Status:** active | **Created:** 2026-05-26
+
+**What happened:** The Hooks dashboard used `not supported` for Antigravity on `gruff-on-change` after Antigravity already had project-local hook wiring. That made a per-hook PostToolUse payload limitation read as "Antigravity cannot have hooks," which was false and contradicted the hook-capable registry.
+
+**Root cause:** The UI collapsed every `HookAgentState.supported === false` case into the same label. That state can mean either "this agent has no hook surface" or "this specific hook cannot be installed for a runtime-specific reason."
+
+**Prevention:** Dashboard hook copy should use neutral per-hook labels such as `unavailable`, then expose the concrete reason through title/ARIA/detail text. Regression coverage should reject reintroducing `not supported` in the Hooks view-model label. Evidence anchors: `src/dashboard/app.ts` (search: `if (!state.supported) return "unavailable"`), `src/cli/server/hooks-registry.ts` (search: `GRUFF_ANTIGRAVITY_UNSUPPORTED_REASON`), `test/unit/dashboard-hooks-view.test.ts` (search: `unsupported agent`).
+
 ---
 
 ## Lesson: Dashboard release QA should avoid real agent runners unless runner behavior is the target

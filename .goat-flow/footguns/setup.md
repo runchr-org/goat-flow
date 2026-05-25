@@ -1,23 +1,44 @@
 ---
 category: setup
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-26
 ---
 
-## Footgun: Hookless agent profiles break when installer treats hooks as universal
+## Footgun: Optional-hook agent profiles break when installer treats hooks as universal
 
 **Status:** active | **Created:** 2026-05-24 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** The installer round-trip test can fail for an otherwise valid agent profile with `ERROR: manifest profile for 'antigravity' is incomplete`. PR #44 hit this in `test/integration/audit-drift.test.ts` (search: `install for ${agentId} should pass`) because the round-trip installs every manifest agent, including Antigravity.
+**Symptoms:** The installer round-trip test can fail for an otherwise valid agent profile with missing hook fields, even when that agent legitimately has no project-local hook mechanism yet. PR #44 hit this in `test/integration/audit-drift.test.ts` (search: `install for ${agentId} should pass`) when Antigravity was temporarily modeled as hookless.
 
-**Why it happens:** `workflow/manifest.json` allows capability-limited agents whose hook fields are absent, but the Bash installer previously required `hooks_dir` and `deny_hook` for every profile before copying shared files and skills. That made "no upstream hook mechanism documented yet" indistinguishable from a corrupt manifest profile.
+**Why it happens:** `workflow/manifest.json` allows agents whose project-local hook fields are absent, but the Bash installer previously required `hooks_dir` and `deny_hook` for every profile before copying shared files and skills. That made "no hook mechanism documented yet" indistinguishable from a corrupt manifest profile.
 
 **Evidence:**
-- `src/cli/manifest/types.ts` (search: `agents whose upstream CLI exists`) documents optional `deny_mechanism` and `hook_events`.
-- `workflow/setup/agents/antigravity.md` (search: `No deny-hook mechanism is wired`) documents Antigravity's current hookless status.
+- `src/cli/manifest/types.ts` (search: `upstream runtime has no documented project-local hook wiring`) documents optional `deny_mechanism` and `hook_events`.
 - `workflow/install-goat-flow.sh` (search: `HOOKS_ENABLED=false`) now gates hook copying separately from skills/reference installation.
 - `test/integration/audit-drift.test.ts` (search: `install for ${agentId} should pass`) proves every manifest agent still participates in install round-trip coverage.
 
-**Prevention:** Installer profile validation must require `skills_dir` for every agent, but hook fields only when any hook-related destination is present. Do not fix hookless-agent failures by removing the agent from round-trip coverage; that hides installer regressions for capability-limited profiles.
+**Prevention:** Installer profile validation must require `skills_dir` for every agent, but hook fields only when any hook-related destination is present. Do not fix hookless-agent failures by removing the agent from round-trip coverage; that hides installer regressions for future capability-limited profiles.
+
+## Footgun: New-harness contributions can bypass the manifest-driven installer and modify shared core surfaces
+
+**Status:** active | **Created:** 2026-05-26 | **Evidence:** OBSERVED
+
+**Symptoms:** A PR proposes "add harness X support." The diff turns out to copy skill files directly into a new `.harness-x/` directory, hand-edits a CLAUDE.md or AGENTS.md to add harness-specific instructions, monkey-patches `workflow/install-goat-flow.sh` with a harness-specific branch, or - worst case - converts a symlink (such as `AGENTS.md`) into a flat file because the new harness "needs its own copy." The PR is craft-strong (the integration works on the proposer's machine) but architecturally wrong: it bypasses the manifest-driven contract every existing harness obeys and creates a divergent install surface that no parity check defends.
+
+**Why it happens:** goat-flow's clean per-harness model — `workflow/manifest.json` declares each agent with its `skills_dir`, `hooks_dir`, `hook_config_file`, and `local_pattern`; `workflow/install-goat-flow.sh` reads the manifest and writes mirrors; `scripts/check-instruction-parity.mjs` enforces shared canonical sections across instruction files — is invisible to a contributor who has not added a harness before. They reach for the most direct mechanism (copy files where the harness expects them) instead of the architectural mechanism (add a manifest entry and let the installer place the files). There is no `docs/adding-a-new-harness.md` walking the path, so each new contribution is a fresh chance to recreate the trap.
+
+**Evidence:**
+- `workflow/manifest.json` (search: `"agents"`, `"skills_dir"`, `"hooks_dir"`, `"hook_config_file"`) declares every supported agent in a single contract; bypassing it creates a phantom harness invisible to manifest-driven tooling.
+- `workflow/install-goat-flow.sh` (search: `manifest_eval supported-agents`, `SKILLS_DIR`) reads the manifest and writes per-agent mirrors; any harness whose files arrive by another path will silently drift the moment a skill changes.
+- `scripts/installers/` holds `install-claude.sh`, `install-codex.sh`, `install-github-copilot.sh`, `install-antigravity.sh`, `install-kilo.sh` — each is a thin wrapper over the manifest-driven core, not a bespoke implementation. A new harness should add a sibling, not a fork.
+- `scripts/check-instruction-parity.mjs` (search: `SETUP_FILES`, `LIVE_FILES`, `CANONICAL_SECTIONS`) enforces shared sections across instruction files; a harness that adds its own instruction file without registering it here is silently exempt from the parity contract.
+- `AGENTS.md` is a symlink to `CLAUDE.md` (verify with `ls -la AGENTS.md`); a PR that "needs" AGENTS.md as a separate file breaks the shared-source pattern that keeps the two in sync.
+- External corroboration: obra/superpowers PR #1586 ("feat: add DeepSeek TUI harness support") was closed with "we need to use their plugin install mechanism, this would need to target the dev branch, not main, and you'd need to not turn AGENTS.md into a file instead of the symlink it is today." Same trap, same root cause: a contributor reached for the direct mechanism instead of the architectural one.
+
+**Prevention:**
+1. Write `docs/adding-a-new-harness.md` enumerating: add a `workflow/manifest.json` agent entry, add the agent's hook config in `workflow/hooks/agent-config/` (if hooks are supported), add a thin wrapper in `scripts/installers/`, register any new instruction file in `scripts/check-instruction-parity.mjs`'s `LIVE_FILES`, run `bash workflow/install-goat-flow.sh` and confirm parity. Cite this doc from `CONTRIBUTING.md` so new-harness contributors find it before writing code.
+2. Reject any PR that converts a symlinked instruction file (`AGENTS.md`, future symlinks) into a flat file. Symlinks are an architectural choice that keeps parity cheap; "I need a separate file" is the wrong fix.
+3. Reject any PR that hardcodes a harness-specific branch inside `workflow/install-goat-flow.sh`. New harnesses arrive via manifest entries and per-agent wrappers, not by branching the core installer.
+4. When adding the 5th, 6th, or Nth harness, run the path-integrity check (`scripts/check-path-integrity.sh`) and the parity check (`scripts/check-instruction-parity.mjs`) and confirm both pass before merging.
 
 ---
 

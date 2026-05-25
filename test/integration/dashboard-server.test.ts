@@ -326,11 +326,11 @@ async function makeDashboardCacheProject(): Promise<{
   await writeProjectFile(
     root,
     ".codex/hooks.json",
-    '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
+    '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-git-mutations.sh"}]}]}}\n',
   );
   await writeProjectFile(
     root,
-    ".codex/hooks/deny-dangerous.sh",
+    ".codex/hooks/deny-git-mutations.sh",
     "#!/usr/bin/env bash\nexit 0\n",
   );
   return {
@@ -381,11 +381,11 @@ async function makeDashboardSetupPromptProject(options: {
 }): Promise<{ root: string; cleanup: () => Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-prompt-tests-"));
   const denyHook = await readFile(
-    join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.sh"),
+    join(PROJECT_PATH, "workflow", "hooks", "deny-git-mutations.sh"),
     "utf-8",
   );
   const denyHookSelfTest = await readFile(
-    join(PROJECT_PATH, "workflow", "hooks", "deny-dangerous.self-test.sh"),
+    join(PROJECT_PATH, "workflow", "hooks", "guardrails-self-test.sh"),
     "utf-8",
   );
   const commonDirs = [
@@ -453,7 +453,7 @@ skills:
                 {
                   type: "command",
                   command:
-                    'bash "$(git rev-parse --show-toplevel)/.codex/hooks/deny-dangerous.sh"',
+                    'bash "$(git rev-parse --show-toplevel)/.codex/hooks/deny-git-mutations.sh"',
                 },
               ],
             },
@@ -464,10 +464,10 @@ skills:
       2,
     ),
   );
-  await writeProjectFile(root, ".codex/hooks/deny-dangerous.sh", denyHook);
+  await writeProjectFile(root, ".codex/hooks/deny-git-mutations.sh", denyHook);
   await writeProjectFile(
     root,
-    ".codex/hooks/deny-dangerous.self-test.sh",
+    ".codex/hooks/guardrails-self-test.sh",
     denyHookSelfTest,
   );
   if (options.installSkills) {
@@ -1113,7 +1113,7 @@ describe("dashboard /api/audit", () => {
 
       await writeProjectFile(
         project.root,
-        ".codex/hooks/deny-dangerous.sh",
+        ".codex/hooks/deny-git-mutations.sh",
         "#!/usr/bin/env bash\nexit 1\n",
       );
       const afterHook = await fetchProfiledAudit(project.root);

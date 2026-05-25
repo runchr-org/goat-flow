@@ -43,6 +43,11 @@ import {
 } from "../quality/skill-quality.js";
 import { MAX_EVALUATE_CONTENT_BYTES } from "./decoders.js";
 import {
+  applyHookState,
+  HookRegistrarError,
+  readAllHookStates,
+} from "./hook-registrar.js";
+import {
   loadQualityConfig,
   type ArtifactSource,
 } from "../quality/quality-config.js";
@@ -1124,10 +1129,20 @@ function buildAuditCacheSignature(
     ".claude/settings.json",
     ".codex/config.toml",
     ".codex/hooks.json",
+    ".agents/hooks.json",
     ".github/hooks/hooks.json",
-    ".claude/hooks/deny-dangerous.sh",
-    ".codex/hooks/deny-dangerous.sh",
-    ".github/hooks/deny-dangerous.sh",
+    ".claude/hooks/deny-destructive-commands.sh",
+    ".claude/hooks/deny-secret-access.sh",
+    ".claude/hooks/deny-git-mutations.sh",
+    ".codex/hooks/deny-destructive-commands.sh",
+    ".codex/hooks/deny-secret-access.sh",
+    ".codex/hooks/deny-git-mutations.sh",
+    ".agents/hooks/deny-destructive-commands.sh",
+    ".agents/hooks/deny-secret-access.sh",
+    ".agents/hooks/deny-git-mutations.sh",
+    ".github/hooks/deny-destructive-commands.sh",
+    ".github/hooks/deny-secret-access.sh",
+    ".github/hooks/deny-git-mutations.sh",
   ];
   const directoryInputs = [
     ".claude/skills",
@@ -1385,6 +1400,11 @@ export function createDashboardRouteHandlers(
     res: ServerResponse,
   ) => Promise<boolean>;
   handleAgentDetectRequest: (url: URL, res: ServerResponse) => boolean;
+  handleHooksRequest: (
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ) => Promise<boolean>;
   handleProjectsListRequest: (
     req: IncomingMessage,
     url: URL,
@@ -2448,6 +2468,69 @@ export function createDashboardRouteHandlers(
     return true;
   }
 
+  function hookIdFromTogglePath(pathname: string): string | null {
+    const match = pathname.match(/^\/api\/hooks\/([^/]+)\/toggle$/u);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  }
+
+  function hookErrorStatus(err: unknown): number {
+    if (err instanceof HookRegistrarError) return err.statusCode;
+    return responseStatusForError(err, 500);
+  }
+
+  /** Return hook state or mutate one hook toggle for the selected project. */
+  async function handleHooksRequest(
+    req: IncomingMessage,
+    url: URL,
+    res: ServerResponse,
+  ): Promise<boolean> {
+    if (url.pathname === "/api/hooks") {
+      if (req.method !== "GET") {
+        jsonResponse(res, 405, { error: "Method not allowed" });
+        return true;
+      }
+      try {
+        const projectPath = validatedPath(
+          url.searchParams.get("path"),
+          "project-read",
+        );
+        jsonResponse(res, 200, { hooks: readAllHookStates(projectPath) });
+      } catch (err) {
+        jsonResponse(res, hookErrorStatus(err), {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return true;
+    }
+
+    const hookId = hookIdFromTogglePath(url.pathname);
+    if (hookId === null) return false;
+    if (req.method !== "POST") {
+      jsonResponse(res, 405, { error: "Method not allowed" });
+      return true;
+    }
+
+    try {
+      const projectPath = validatedPath(
+        url.searchParams.get("path"),
+        "write-local-state",
+      );
+      const { decodeHookToggleBody } = await import("./decoders.js");
+      const decoded = decodeHookToggleBody(await readBody(req));
+      if (!decoded.ok) {
+        jsonResponse(res, 400, { error: decoded.error, path: decoded.path });
+        return true;
+      }
+      const hook = applyHookState(hookId, decoded.value.enabled, projectPath);
+      jsonResponse(res, 200, { hook });
+    } catch (err) {
+      jsonResponse(res, hookErrorStatus(err), {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return true;
+  }
+
   /**
    * Spawns lightweight agent probes because the dashboard needs availability
    * without failing page load when a runner is missing.
@@ -2653,6 +2736,7 @@ export function createDashboardRouteHandlers(
     handleBrowseRequest,
     handleTasksRequest,
     handleAgentDetectRequest,
+    handleHooksRequest,
     handleProjectsListRequest,
     handleProjectsStatusRequest,
   };

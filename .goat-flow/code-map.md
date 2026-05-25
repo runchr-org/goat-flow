@@ -117,7 +117,7 @@ skills/
   reference/               # Meta-reference templates: skill-preamble.md, skill-conventions.md
   playbooks/               # Standalone playbook templates: browser-use.md, changelog.md, code-comments.md, gruff-code-quality.md, observability.md, page-capture.md, release-notes.md, skill-quality-testing.md + topical skill-quality-testing/*
 
-hooks/                     # Hook templates (deny-dangerous.sh + self-test sibling, etc.)
+hooks/                     # Hook templates (three guardrails, central self-test, gruff-on-change, agent configs)
 evaluation/                # Quality-assessment prompt templates
 ```
 
@@ -133,8 +133,6 @@ check-path-integrity.sh    # Cross-reference path-integrity checks between docs 
 check-versions.mjs         # Verify workflow/skills templates match package.json version
 dependency-install.sh      # Wrapper: npm install with guards
 dependency-update.sh       # Wrapper: upgrade dependencies
-deny-dangerous.sh          # Hook: blocks destructive commands (copied to agent hook dirs)
-deny-dangerous.self-test.sh # Self-test corpus sourced by deny-dangerous.sh --self-test
 deploy-landing.sh          # Deploy landing page to hosting
 install-browser-tools.sh   # Install browser-use and Playwright for page capture
 npm-publish.sh             # Wrapper: npm publish sanity checks
@@ -157,7 +155,7 @@ audit-and-quality.md       # User-facing audit vs quality command model and repo
 audit-checks.md            # Deterministic audit check inventory and scope breakdown
 cli.md                     # CLI command reference, flags, and examples
 dashboard.md               # Dashboard views, terminal behavior, and HTTP API reference
-deny-dangerous.md          # Deny hook behavior, installation notes, and troubleshooting
+guardrails.md              # Guardrail hook behavior, installation notes, and troubleshooting
 skill-authoring.md         # `goat-flow skill new` / `quality candidacy` / dashboard Evaluate workflow
 skill-quality-config.md    # Project overrides for the skill-quality rubric in `.goat-flow/config.yaml`
 skills.md                  # User-facing goat-* skill overview and routing guide

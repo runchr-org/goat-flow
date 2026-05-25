@@ -13,7 +13,7 @@ function agentScope(status: "pass" | "fail" | "skipped"): AuditScope {
     status: status === "fail" ? "fail" : "pass",
     checks: [
       {
-        id: "agent-deny-dangerous",
+        id: "agent-guardrails",
         name: "Agent deny mechanism",
         status,
         displayStatus: status === "skipped" ? "skipped" : status,
@@ -28,7 +28,7 @@ function agentScope(status: "pass" | "fail" | "skipped"): AuditScope {
           ? {
               failure: {
                 check: "Agent deny mechanism",
-                message: "deny-dangerous.sh --self-test=smoke failed",
+                message: "deny-git-mutations.sh --self-test=smoke failed",
               },
             }
           : {}),

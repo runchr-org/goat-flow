@@ -14,6 +14,16 @@
  *   - The `allowList` is the security boundary, not `command -v`.
  */
 import { spawn } from "node:child_process";
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { basename as pathBasename, dirname, resolve, sep } from "node:path";
 import { performance } from "node:perf_hooks";
 import { StringDecoder } from "node:string_decoder";
 import {
@@ -117,10 +127,71 @@ export class SafeExecRejection extends Error {
   }
 }
 
+/** Rejected local file write before any content is written. */
+class SafeFileWriteRejection extends Error {
+  readonly reason = "target-outside-project";
+
+  constructor(targetPath: string, projectRoot: string) {
+    super(
+      `Refusing to write ${JSON.stringify(targetPath)} outside project root ${JSON.stringify(projectRoot)}`,
+    );
+    this.name = "SafeFileWriteRejection";
+  }
+}
+
 /** Extract telemetry-safe command names from POSIX or Windows-style command paths. */
 function basename(path: string): string {
   const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   return slash === -1 ? path : path.slice(slash + 1);
+}
+
+function isWithinProject(projectRoot: string, targetPath: string): boolean {
+  const root = resolve(projectRoot);
+  const target = resolve(targetPath);
+  return target === root || target.startsWith(`${root}${sep}`);
+}
+
+/**
+ * Write one file atomically inside a project root.
+ *
+ * The temp file lives beside the destination so `rename` stays atomic on the
+ * same filesystem. Existing destination content is replaced only after the
+ * temp file is flushed and closed.
+ */
+export function writeFileAtomic(
+  targetPath: string,
+  content: string,
+  projectRoot: string,
+): void {
+  if (!isWithinProject(projectRoot, targetPath)) {
+    throw new SafeFileWriteRejection(targetPath, projectRoot);
+  }
+  const dir = dirname(targetPath);
+  mkdirSync(dir, { recursive: true });
+  const tempPath = resolve(
+    dir,
+    `.${pathBasename(targetPath)}.${process.pid}.${Date.now()}.tmp`,
+  );
+  if (!isWithinProject(projectRoot, tempPath)) {
+    throw new SafeFileWriteRejection(tempPath, projectRoot);
+  }
+  let fd: number | null = null;
+  try {
+    fd = openSync(tempPath, "w", 0o600);
+    writeFileSync(fd, content, "utf-8");
+    fsyncSync(fd);
+    closeSync(fd);
+    fd = null;
+    renameSync(tempPath, targetPath);
+  } catch (err) {
+    if (fd !== null) closeSync(fd);
+    try {
+      unlinkSync(tempPath);
+    } catch {
+      /* temp file may not exist */
+    }
+    throw err;
+  }
 }
 
 /** Build a minimal inherited environment so spawned commands keep PATH but not secrets. */

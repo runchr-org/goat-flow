@@ -3,6 +3,16 @@ category: design-decisions
 last_reviewed: 2026-05-25
 ---
 
+## Lesson: Monolithic guardrails hide useful operational choices
+
+**Status:** active | **Created:** 2026-05-25
+
+**What happened:** The old single command-safety hook bundled destructive command blocking, secret-path blocking, and git/GitHub mutation blocking into one toggle and one self-test. The dashboard Hooks page needed per-category enablement and drift reporting, but the runtime shape could only represent "all guardrails on" or "all guardrails off".
+
+**Root cause:** A monolithic safety artifact optimized for initial installation became the wrong abstraction once goat-flow gained a registry, registrar, and dashboard toggle surface.
+
+**Prevention:** Keep hook categories aligned to user-operational decisions. If a future hook category has a distinct risk profile, default state, self-test corpus, or dashboard toggle need, make it a separate registry entry and script from the start instead of adding another branch to an existing hook.
+
 ## Lesson: Contract changes need a canary surface before propagating
 
 **Status:** active | **Created:** 2026-05-25

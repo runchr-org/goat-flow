@@ -914,7 +914,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push(
     `2. **${skillFacts.total} skills** (${skillFacts.functional_count} functional + 1 dispatcher) - ${skillList}. Loaded on demand via slash commands.`,
   );
-  lines.push("3. **Hook scripts** - deny-dangerous.sh for safety guardrails.");
+  lines.push("3. **Hook scripts** - guardrail hooks for command safety.");
   lines.push(
     "4. **Learning loop** (`.goat-flow/`) - config, architecture doc, footguns, lessons, decisions, session logs.",
   );
@@ -1002,7 +1002,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
   lines.push("#    Record: which pass, which fail, which don't exist.");
   lines.push("");
   lines.push(
-    "# 2. Hook self-test (if deny-dangerous.sh exists in your hooks directory)",
+    "# 2. Hook self-test (if guardrails-self-test.sh exists in your hooks directory)",
   );
   if (denyHookFile) {
     lines.push(`bash ${denyHookFile} --self-test=smoke`);
@@ -1135,7 +1135,7 @@ export function composeQuality(input: QualityInput): QualityPayload {
     `- Were hook scripts installed and registered in \`${hookConfigFile}\`?`,
   );
   lines.push(
-    "- Did deny-dangerous.sh pass the self-test in Step 0? If not, what failed?",
+    "- Did guardrails-self-test.sh pass the self-test in Step 0? If not, what failed?",
   );
   lines.push("");
 

@@ -108,11 +108,11 @@ describe("setup --apply installer", () => {
       true,
     );
     assert.equal(
-      existsSync(join(root, ".codex", "hooks", "deny-dangerous.sh")),
+      existsSync(join(root, ".codex", "hooks", "deny-git-mutations.sh")),
       true,
     );
     assert.equal(
-      existsSync(join(root, ".codex", "hooks", "deny-dangerous.self-test.sh")),
+      existsSync(join(root, ".codex", "hooks", "guardrails-self-test.sh")),
       true,
     );
   });
@@ -322,7 +322,7 @@ describe("--update-config-version flag", () => {
 // ── Bug 2: Settings skip warning ────────────────────────────────────────
 
 describe("settings skip warning", () => {
-  it("warns when deny hook is installed but settings.json was skipped", () => {
+  it("warns when guardrail hooks are installed but settings.json was skipped", () => {
     const root = makeTempProject();
     const claudeDir = join(root, ".claude");
     mkdirSync(claudeDir, { recursive: true });
@@ -338,8 +338,8 @@ describe("settings skip warning", () => {
     );
     assert.match(
       result.stdout,
-      /deny hook.*was installed but may not be/i,
-      "should mention the deny hook may not be registered",
+      /guardrail hooks.*were installed but may not be/i,
+      "should mention the guardrail hooks may not be registered",
     );
   });
 });

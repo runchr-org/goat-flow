@@ -1,6 +1,6 @@
 /**
  * Agent Setup checks for `goat-flow audit --agent <id>`.
- * 4 checks that validate per-agent installation: instruction, skills, settings, deny hook.
+ * 4 checks that validate per-agent installation: instruction, skills, settings, guardrail hooks.
  * All checks require --agent and skip in aggregate mode (except orphaned-artifacts detection).
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -46,14 +46,17 @@ function uniquePaths(paths: string[]): string[] {
 /** Returns true if goat-flow-specific artifacts exist for an agent.
  *  A bare agent directory (e.g. `.claude/` from Claude Code) with only a
  *  settings file does NOT count - we require goat-flow skill directories
- *  or the deny hook script to distinguish goat-flow installs from the
+ *  or the guardrail hook scripts to distinguish goat-flow installs from the
  *  agent's own config. */
 function agentArtifactsExist(
   fs: ReadonlyFS,
   profile: { hooks_dir?: string; settings?: string; skills_dir: string },
 ): boolean {
   const hooksDir = profile.hooks_dir?.replace(/\/$/, "");
-  if (hooksDir !== undefined && fs.exists(`${hooksDir}/deny-dangerous.sh`)) {
+  if (
+    hooksDir !== undefined &&
+    fs.exists(`${hooksDir}/deny-git-mutations.sh`)
+  ) {
     return true;
   }
   const skillsDir = profile.skills_dir.replace(/\/$/, "");
@@ -597,7 +600,7 @@ function checkCodexWorkspaceRootInvalidGlobs(
       ),
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
-        "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/deny-dangerous.sh.",
+        "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/deny-secret-access.sh.",
     };
   }
   return null;
@@ -726,7 +729,7 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
 /** Check whether each agent has deny patterns registered somewhere. */
 function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
-    // Skip capability-limited agents (no documented deny mechanism upstream).
+    // Skip agents with no documented project-local deny mechanism.
     if (af.agent.denyMechanism === null) continue;
     if (!af.settings.hasDenyPatterns && !af.hooks.denyExists) {
       return {
@@ -750,10 +753,15 @@ function evidencePath(relPath: string): string {
 
 /** Compare installed deny hook content against the canonical template. */
 function checkHookVersion(ctx: AuditContext): AuditFailure | null {
-  const templateFiles = ["deny-dangerous.sh", "deny-dangerous.self-test.sh"];
+  const templateFiles = [
+    "deny-destructive-commands.sh",
+    "deny-secret-access.sh",
+    "deny-git-mutations.sh",
+    "guardrails-self-test.sh",
+  ];
   for (const af of ctx.agents) {
     if (!af.agent.hooksDir) continue;
-    const denyRelPath = join(af.agent.hooksDir, "deny-dangerous.sh");
+    const denyRelPath = join(af.agent.hooksDir, "deny-git-mutations.sh");
     if (ctx.fs.readFile(denyRelPath) === null) continue;
 
     for (const templateFile of templateFiles) {
@@ -792,7 +800,7 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
 function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
     if (!af.agent.hooksDir) continue;
-    const denyRelPath = join(af.agent.hooksDir, "deny-dangerous.sh");
+    const denyRelPath = join(af.agent.hooksDir, "guardrails-self-test.sh");
     const content = ctx.fs.readFile(denyRelPath);
     // Config-based deny rules satisfy the deny-mechanism requirement, but only an
     // on-disk shell hook can run the registered self-test.
@@ -806,10 +814,10 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
     } catch {
       return {
         check: "Agent deny mechanism",
-        message: `deny-dangerous.sh --self-test=smoke failed for ${af.agent.id}`,
+        message: `guardrails-self-test.sh --self-test=smoke failed for ${af.agent.id}`,
         evidence: evidencePath(denyRelPath),
         howToFix:
-          "Run `bash <hooks-dir>/deny-dangerous.sh --self-test=smoke` to see which cases fail.",
+          "Run `bash <hooks-dir>/guardrails-self-test.sh --self-test=smoke` to see which cases fail.",
       };
     }
   }
@@ -831,6 +839,15 @@ function runtimeSmokePayload(agentId: string): {
       expectedPattern: /"permissionDecision"\s*:\s*"deny"/,
     };
   }
+  if (agentId === "antigravity") {
+    return {
+      input:
+        '{"hookEventName":"PreToolUse","toolCall":{"name":"run_command","args":{"CommandLine":"git push origin main"}}}',
+      expectedStatus: 0,
+      expectedStream: "stdout",
+      expectedPattern: /"decision"\s*:\s*"deny"/,
+    };
+  }
   return {
     input:
       '{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}',
@@ -845,7 +862,7 @@ function registeredDenyRelPath(
 ): string | null {
   if (af.hooks.denyRegisteredPath) return af.hooks.denyRegisteredPath;
   if (!af.agent.hooksDir) return null;
-  return join(af.agent.hooksDir, "deny-dangerous.sh");
+  return join(af.agent.hooksDir, "deny-git-mutations.sh");
 }
 
 function runHookRuntimeSmoke(
@@ -889,7 +906,7 @@ function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
 }
 
 const agentDenyMechanism: BuildCheck = {
-  id: "agent-deny-dangerous",
+  id: "agent-guardrails",
   name: "Agent deny mechanism",
   scope: "agent",
   provenance: incidentProvenance([

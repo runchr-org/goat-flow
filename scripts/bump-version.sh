@@ -112,8 +112,8 @@ fi
 for hook_sh in workflow/hooks/*.sh; do
   update_file "$hook_sh"
 done
-update_file "scripts/deny-dangerous.sh"
-update_file "scripts/deny-dangerous.self-test.sh"
+update_file "scripts/deny-git-mutations.sh"
+update_file "scripts/guardrails-self-test.sh"
 
 # Docs
 update_file "docs/audit-and-quality.md"
@@ -197,12 +197,12 @@ done < <(manifest_skill_roots)
 # Sync deny hook template to each installed hook mirror
 while IFS= read -r hook_dst; do
   if [[ -f "$hook_dst" ]]; then
-    cp workflow/hooks/deny-dangerous.sh "$hook_dst"
+    cp workflow/hooks/deny-git-mutations.sh "$hook_dst"
     echo "  ✓ ${hook_dst}"
   fi
-  hook_self_test_dst="$(dirname "$hook_dst")/deny-dangerous.self-test.sh"
+  hook_self_test_dst="$(dirname "$hook_dst")/guardrails-self-test.sh"
   if [[ -f "$hook_self_test_dst" ]]; then
-    cp workflow/hooks/deny-dangerous.self-test.sh "$hook_self_test_dst"
+    cp workflow/hooks/guardrails-self-test.sh "$hook_self_test_dst"
     echo "  ✓ ${hook_self_test_dst}"
   fi
 done < <(manifest_deny_hooks)
