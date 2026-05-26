@@ -108,6 +108,10 @@ describe("setup --apply installer", () => {
       true,
     );
     assert.equal(
+      existsSync(join(root, ".codex", "hooks", "guard-common.sh")),
+      true,
+    );
+    assert.equal(
       existsSync(join(root, ".codex", "hooks", "guard-repository-writes.sh")),
       true,
     );

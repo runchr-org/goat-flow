@@ -11,6 +11,12 @@ import { writeFileAtomic } from "../server/safe-exec.js";
 
 type HookConfigMap = Record<string, { enabled: boolean }>;
 
+const HOOK_ID_ALIASES = new Map([["gruff-on-change", "gruff-code-quality"]]);
+const HOOK_BLOCK_COMMENT_LINES = new Set([
+  "# Togglable goat-flow hook state. Missing entries use registry defaults.",
+  "# Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.",
+]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&
@@ -35,6 +41,10 @@ function readConfigText(projectPath: string): string {
   return readFileSync(path, "utf-8");
 }
 
+function normalizeHookId(hookId: string): string {
+  return HOOK_ID_ALIASES.get(hookId) ?? hookId;
+}
+
 function readRawHooks(text: string): HookConfigMap {
   let parsed: unknown;
   try {
@@ -46,7 +56,14 @@ function readRawHooks(text: string): HookConfigMap {
   const hooks: HookConfigMap = {};
   for (const [hookId, value] of Object.entries(parsed.hooks)) {
     if (!isRecord(value) || typeof value.enabled !== "boolean") continue;
-    hooks[hookId] = { enabled: value.enabled };
+    const normalizedHookId = normalizeHookId(hookId);
+    if (
+      normalizedHookId !== hookId &&
+      Object.prototype.hasOwnProperty.call(hooks, normalizedHookId)
+    ) {
+      continue;
+    }
+    hooks[normalizedHookId] = { enabled: value.enabled };
   }
   return hooks;
 }
@@ -72,13 +89,21 @@ function replaceTopLevelHooksBlock(text: string, block: string): string {
   const start = lines.findIndex((line) => /^hooks:\s*(?:#.*)?$/u.test(line));
   if (start === -1) return `${lines.join("\n").trimEnd()}\n\n${block}\n`;
 
+  let prefixEnd = start;
+  while (
+    prefixEnd > 0 &&
+    HOOK_BLOCK_COMMENT_LINES.has(lines[prefixEnd - 1] ?? "")
+  ) {
+    prefixEnd -= 1;
+  }
+
   let end = start + 1;
   while (end < lines.length) {
     const line = lines[end] ?? "";
     if (line.trim() !== "" && isTopLevelLine(line)) break;
     end += 1;
   }
-  return [...lines.slice(0, start), block, ...lines.slice(end)]
+  return [...lines.slice(0, prefixEnd), block, ...lines.slice(end)]
     .join("\n")
     .replace(/\n{3,}/gu, "\n\n")
     .trimEnd()

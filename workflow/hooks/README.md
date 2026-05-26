@@ -6,6 +6,7 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 
 | Script | Event | Required? | Purpose |
 |--------|-------|-----------|---------|
+| `guard-common.sh` | Sourced helper | Required with guardrails | Shared payload parsing, shell normalization, command splitting, and runner logic used by the three guardrail hooks |
 | `guard-destructive-shell.sh` | PreToolUse | Required | Blocks broad recursive deletion, privileged package-manager mutation, chmod 777, pipe-to-shell, file truncation, destructive database commands, and destructive cloud/infrastructure commands |
 | `guard-secret-paths.sh` | PreToolUse | Required | Blocks direct literal shell access to `.env`, credentials, key material, and common secret directories |
 | `guard-repository-writes.sh` | PreToolUse | Required | Blocks `git commit`, all git push (ADR-025), destructive git flags, and GitHub writes via `gh` |
@@ -22,7 +23,7 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 
 ## Setup
 
-1. Copy the required guardrail files to your agent's hooks directory: `guard-destructive-shell.sh`, `guard-secret-paths.sh`, `guard-repository-writes.sh`, and `guardrails-self-test.sh`.
+1. Copy the required guardrail files to your agent's hooks directory: `guard-common.sh`, `guard-destructive-shell.sh`, `guard-secret-paths.sh`, `guard-repository-writes.sh`, and `guardrails-self-test.sh`.
 2. Copy the matching agent-config template(s) for your runtime:
    - Claude: `agent-config/claude.json` -> `.claude/settings.json`
    - Codex: `agent-config/codex.toml` -> `.codex/config.toml` and `agent-config/codex-hooks.json` -> `.codex/hooks.json`

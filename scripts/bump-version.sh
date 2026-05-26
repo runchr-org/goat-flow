@@ -176,6 +176,22 @@ for (const h of hooks) console.log(h);
 NODE
 }
 
+manifest_hook_script_paths() {
+  node - "$MANIFEST_PATH" <<'NODE'
+const fs = require("node:fs");
+const manifest = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const paths = [];
+for (const agent of Object.values(manifest.agents || {})) {
+  if (typeof agent.hooks_dir !== "string" || !Array.isArray(agent.hooks)) continue;
+  const hooksDir = agent.hooks_dir.replace(/\/$/, "");
+  for (const hook of agent.hooks) {
+    if (typeof hook === "string" && hook.endsWith(".sh")) paths.push(`${hooksDir}/${hook}`);
+  }
+}
+for (const path of [...new Set(paths)]) console.log(path);
+NODE
+}
+
 # Sync skill SKILL.md files and manifest-backed references to each installed mirror
 while IFS= read -r skill_root; do
   if [[ ! -d "$skill_root" ]]; then continue; fi
@@ -192,18 +208,14 @@ while IFS= read -r skill_root; do
   echo "  ✓ ${skill_root}/*/{SKILL.md,references/}"
 done < <(manifest_skill_roots)
 
-# Sync deny hook template to each installed hook mirror
+# Sync hook templates to each installed hook mirror
 while IFS= read -r hook_dst; do
-  if [[ -f "$hook_dst" ]]; then
-    cp workflow/hooks/guard-repository-writes.sh "$hook_dst"
+  hook_src="workflow/hooks/$(basename "$hook_dst")"
+  if [[ -f "$hook_src" && -d "$(dirname "$hook_dst")" ]]; then
+    cp "$hook_src" "$hook_dst"
     echo "  ✓ ${hook_dst}"
   fi
-  hook_self_test_dst="$(dirname "$hook_dst")/guardrails-self-test.sh"
-  if [[ -f "$hook_self_test_dst" ]]; then
-    cp workflow/hooks/guardrails-self-test.sh "$hook_self_test_dst"
-    echo "  ✓ ${hook_self_test_dst}"
-  fi
-done < <(manifest_deny_hooks)
+done < <(manifest_hook_script_paths)
 
 # Sync shared reference docs
 if [[ -d ".goat-flow/skill-reference" ]]; then

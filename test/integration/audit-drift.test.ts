@@ -226,6 +226,7 @@ function writeHookFixtures(root: string): void {
     recursive: true,
   });
   for (const guardrailHook of [
+    "guard-common.sh",
     "guard-destructive-shell.sh",
     "guard-secret-paths.sh",
     "guard-repository-writes.sh",
@@ -243,6 +244,7 @@ function writeHookFixtures(root: string): void {
   for (const hooksDir of [".claude/hooks", ".codex/hooks", ".github/hooks"]) {
     mkdirSync(join(root, hooksDir), { recursive: true });
     for (const guardrailHook of [
+      "guard-common.sh",
       "guard-destructive-shell.sh",
       "guard-secret-paths.sh",
       "guard-repository-writes.sh",

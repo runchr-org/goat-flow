@@ -130,13 +130,11 @@ function removeHookScripts(
   agent: AgentProfile,
   spec: HookSpec,
 ): void {
-  for (const script of spec.scriptFiles) {
-    const target = scriptTarget(projectPath, agent, script);
-    try {
-      unlinkSync(target);
-    } catch {
-      /* already absent */
-    }
+  const target = scriptTarget(projectPath, agent, spec.primaryScript);
+  try {
+    unlinkSync(target);
+  } catch {
+    /* already absent */
   }
 }
 

@@ -754,6 +754,7 @@ function evidencePath(relPath: string): string {
 /** Compare installed deny hook content against the canonical template. */
 function checkHookVersion(ctx: AuditContext): AuditFailure | null {
   const templateFiles = [
+    "guard-common.sh",
     "guard-destructive-shell.sh",
     "guard-secret-paths.sh",
     "guard-repository-writes.sh",

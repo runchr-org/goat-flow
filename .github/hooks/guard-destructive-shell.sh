@@ -1,144 +1,287 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2317,SC2319
 # guard-destructive-shell.sh - PreToolUse hook for destructive shell commands.
-# Blocks rm -rf, chmod 777, curl | bash pipe-to-shell, docker push, and
-# chained command strings that contain those destructive segments.
+# Blocks unsafe recursive deletion, chmod 777, pipe-to-shell, truncation, destructive DB/cloud commands, npm token deletion, and opaque destructive execution.
 
-set -euo pipefail
+set -uo pipefail
 
-SELF_TEST_MODE=""
-CHECK_COMMAND=""
-
-for arg in "$@"; do
-  case "$arg" in
-    --self-test) SELF_TEST_MODE="smoke" ;;
-    --self-test=*) SELF_TEST_MODE="${arg#--self-test=}" ;;
-    --check=*) CHECK_COMMAND="${arg#--check=}" ;;
-    --check)
-      shift
-      CHECK_COMMAND="${1:-}"
-      ;;
-  esac
-done
-
-if [[ -n "$SELF_TEST_MODE" ]]; then
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook guard-destructive-shell
-fi
-
-read_payload() {
-  if [[ -n "$CHECK_COMMAND" ]]; then
-    printf '%s' "$CHECK_COMMAND"
-    return
-  fi
-  cat || true
-}
-
-json_value() {
-  local payload="$1"
-  local expr="$2"
-  if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$payload" | jq -r "$expr // empty" 2>/dev/null || true
-  fi
-}
-
-fallback_command() {
-  local payload="$1"
-  if [[ "$payload" =~ \"(command|CommandLine|commandLine)\"[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
-    printf '%s' "${BASH_REMATCH[2]}"
-  else
-    printf '%s' "$payload"
-  fi
-}
-
-extract_command() {
-  local payload="$1"
-  local command
-  if [[ -n "$CHECK_COMMAND" ]]; then
-    printf '%s' "$CHECK_COMMAND"
-    return
-  fi
-  command="$(json_value "$payload" '.tool_input.command // .toolCall.args.CommandLine // .toolCall.args.command // .toolCall.args.commandLine // .toolCall.args.input // .command // .input // (.toolArgs | if type == "string" then fromjson? else . end | .command)')"
-  [[ -n "$command" ]] || command="$(fallback_command "$payload")"
-  printf '%s' "$command"
-}
-
-is_copilot_payload() {
-  local payload="$1"
-  [[ "$payload" == *'"toolName"'* && "$payload" != *'"tool_name"'* ]]
-}
-
-is_antigravity_payload() {
-  local payload="$1"
-  [[ "$payload" == *'"toolCall"'* ]]
-}
-
-deny() {
-  local payload="$1"
-  local reason="$2"
-  if is_copilot_payload "$payload"; then
-    printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}\n' "$reason"
-    exit 0
-  fi
-  if is_antigravity_payload "$payload"; then
-    printf '{"decision":"deny","reason":"%s"}\n' "$reason"
-    exit 0
-  fi
-  printf 'BLOCKED: %s\n' "$reason" >&2
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+  echo "guard-destructive-shell.sh requires bash 4.4+ (got ${BASH_VERSION:-unknown}). On macOS install Homebrew bash and invoke /usr/local/bin/bash or /opt/homebrew/bin/bash explicitly." >&2
   exit 2
-}
-
-allow_if_antigravity() {
-  local payload="$1"
-  if is_antigravity_payload "$payload"; then
-    printf '{"decision":"allow"}\n'
-  fi
-}
-
-contains_destructive_command() {
-  local cmd="$1"
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?rm[[:space:]]+-[^[:space:]]*r[^[:space:]]*f'; then
-    printf 'recursive force deletion'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])sudo[[:space:]]+(apt(-get)?|dnf|yum|pacman|brew)[[:space:]]+(install|remove|upgrade|update)'; then
-    printf 'privileged package-manager mutation'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(mkfs|dd[[:space:]].*of=/dev/|diskutil[[:space:]]+erase|wipefs|shred)[[:space:]]'; then
-    printf 'disk-destructive command'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq 'chmod[[:space:]]+(-R[[:space:]]+)?777'; then
-    printf 'chmod 777'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh'; then
-    printf 'pipe-to-shell execution'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(eval|bash[[:space:]]+-c|sh[[:space:]]+-c|zsh[[:space:]]+-c|python[[:space:]]+-c|node[[:space:]]+-e|perl[[:space:]]+-e)[[:space:]]'; then
-    printf 'opaque interpreter execution'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|]):[[:space:]]*>|(^|[[:space:];&|])truncate[[:space:]]+-s[[:space:]]*0'; then
-    printf 'file truncation'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(mysql|psql|sqlite3|mongosh|redis-cli)[^;&|]*(DROP[[:space:]]+(TABLE|DATABASE)|TRUNCATE[[:space:]]+TABLE|FLUSHALL)'; then
-    printf 'destructive database command'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(docker[[:space:]]+push|terraform[[:space:]]+destroy|terraform[[:space:]]+apply[^;&|]*-auto-approve|aws[[:space:]]+s3[[:space:]]+rm|aws[[:space:]]+ec2[[:space:]]+terminate)'; then
-    printf 'cloud or infrastructure destructive command'
-    return 0
-  fi
-  return 1
-}
-
-payload="$(read_payload)"
-command_text="$(extract_command "$payload")"
-if reason="$(contains_destructive_command "$command_text")"; then
-  deny "$payload" "Guard destructive shell: $reason"
 fi
-allow_if_antigravity "$payload"
-exit 0
+
+GOAT_GUARD_NAME="guard-destructive-shell.sh"
+GOAT_GUARD_SCOPE="destructive"
+GOAT_GUARD_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$GOAT_GUARD_SCRIPT_DIR/guard-common.sh"
+
+rm_has_recursive() {
+  local c="$1"
+  # Match by basename so /bin/rm, /usr/bin/rm, etc. are all caught after
+  # normalize_command_candidate has stripped any wrappers.
+  local base
+  base=$(first_word_base "$c")
+  [[ "$base" == "rm" ]] || return 1
+
+  [[ "$c" =~ (^|[[:space:]])--recursive([[:space:]]|$) ]] || [[ "$c" =~ (^|[[:space:]])-[^-[:space:]]*[rR][^[:space:]]*([[:space:]]|$) ]]
+}
+
+rm_is_safely_scoped() {
+  local c="$1"
+  local targets_str
+  targets_str=$(drop_first_shell_word "$c")
+  targets_str="${targets_str#"${targets_str%%[![:space:]]*}"}"
+  targets_str="${targets_str%"${targets_str##*[![:space:]]}"}"
+  [[ -z "$targets_str" ]] && return 1
+  # Check each target independently - one unsafe path fails the whole command.
+  local target
+  for target in $targets_str; do
+    [[ "$target" == "--" ]] && continue
+    [[ "$target" == -* ]] && continue
+    target="${target#./}"
+    target="${target%/}"
+    [[ -z "$target" ]] && return 1
+    [[ "$target" =~ ^/tmp/build-[a-zA-Z0-9._-] ]] && continue
+    [[ "$target" == /* ]] && return 1
+    [[ "$target" == "~"* ]] && return 1
+    # Windows drive-rooted paths (e.g. C:/Users/x or C:\Users\x) are absolute
+    # in Windows semantics; reject them the same way as POSIX-absolute paths.
+    [[ "$target" =~ ^[A-Za-z]:[/\\] ]] && return 1
+    case "$target" in
+      node_modules|dist|out|build|coverage|__pycache__|.cache|.next|.nuxt|.turbo) continue ;;
+    esac
+    [[ "$target" == */* ]] && continue
+    return 1
+  done
+  return 0
+}
+
+is_shell_command() {
+  local c
+  c=$(normalize_command_candidate "$1")
+  c="${c#"${c%%[![:space:]]*}"}"
+  local word="${c%%[[:space:]]*}"
+  local base="${word##*/}"
+
+  [[ "$base" == "bash" || "$base" == "sh" ]]
+}
+
+is_interpreter_command() {
+  local c
+  c=$(normalize_command_candidate "$1")
+  c="${c#"${c%%[![:space:]]*}"}"
+  local word="${c%%[[:space:]]*}"
+  local base="${word##*/}"
+
+  case "$base" in
+    python|python3|node|perl|ruby) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+strip_sql_literals_inside_double_quotes() {
+  local input="$1"
+  local out=""
+  local char=""
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      out+="$char"
+      escaped=0
+      continue
+    fi
+
+    if [[ "$char" == "\\" ]]; then
+      out+="$char"
+      escaped=1
+      continue
+    fi
+
+    if [[ "$char" == '"' ]]; then
+      out+="$char"
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_double" -eq 1 && "$char" == "'" ]]; then
+      out+="''"
+      i=$((i + 1))
+      while (( i < ${#input} )); do
+        char="${input:i:1}"
+        if [[ "$char" == "'" ]]; then
+          break
+        fi
+        i=$((i + 1))
+      done
+      continue
+    fi
+
+    out+="$char"
+  done
+
+  printf '%s' "$out"
+}
+
+check_command_chain_policy() {
+  local input="$1"
+  local depth="${2:-0}"
+  local download_re='(^|[[:space:]])(curl|wget|fetch|http)([[:space:]]|$)'
+  local execute_re='(;|&&|\|\|)[[:space:]]*(ba)?sh[[:space:]]+[^[:space:]&|;]+'
+  if [[ "$depth" -eq 0 && "$input" =~ $download_re && "$input" =~ $execute_re ]]; then
+    block "Download-then-execute (curl/wget ... && bash file). Inspect the downloaded file before running it." || return $?
+  fi
+}
+
+check_pipeline_shell_consumers() {
+  local pipe_scan="${CMD_UNQUOTED//||/__GOAT_OR__}"
+  local -a pipeline_parts
+  local pipe_index
+  IFS='|' read -ra pipeline_parts <<< "$pipe_scan"
+  for ((pipe_index = 1; pipe_index < ${#pipeline_parts[@]}; pipe_index++)); do
+    if is_shell_command "${pipeline_parts[$pipe_index]}"; then
+      block "Pipe to shell. Download or inspect first, then run." || return $?
+    fi
+    if is_interpreter_command "${pipeline_parts[$pipe_index]}"; then
+      block "Pipe to interpreter. Download or inspect first, then run." || return $?
+    fi
+  done
+}
+
+check_segment() {
+  local cmd="$1"
+  local depth="${2:-0}"
+  prepare_segment_context "$cmd" "$depth" || return $?
+
+  if [[ "$HAS_PIPE" -eq 1 ]]; then
+    check_pipeline_shell_consumers || return $?
+  fi
+
+  if is_unredirected_unpiped_read_only "$cmd"; then
+    return 0
+  fi
+
+  if rm_has_recursive "$CMD_NORMALIZED"; then
+    if [[ "$CMD_NORMALIZED" == *".."* ]]; then
+      block "rm -r with path traversal (..). Resolve the full path first." || return $?
+    fi
+    if ! rm_is_safely_scoped "$CMD_NORMALIZED"; then
+      block "rm -r without safe scoping. Specify an explicit target path." || return $?
+    fi
+  fi
+
+  if [[ "$CMD_NORMALIZED" =~ (^|[[:space:]])chmod([[:space:]]|$) ]] &&      [[ "$CMD_NORMALIZED" =~ chmod[[:space:]]+([^;&|]*[[:space:]])?0?777([[:space:]]|$) ]]; then
+    block "chmod 777 sets world-writable permissions. Use a more restrictive mode." || return $?
+  fi
+
+  local pipe_to_shell_re='(curl|wget)[^|]*\|[[:space:]]*(ba)?sh'
+  if [[ "$cmd" =~ $pipe_to_shell_re ]]; then
+    block "Pipe-to-shell (curl|bash). Download first, inspect, then run." || return $?
+  fi
+  local pipe_to_interpreter_re='(curl|wget)[^|]*\|[[:space:]]*(python|python3|node|perl|ruby)'
+  if [[ "$cmd" =~ $pipe_to_interpreter_re ]]; then
+    block "Pipe-to-interpreter. Download first, inspect, then run." || return $?
+  fi
+
+  local lockfile_write_re='(>|>>|tee|sed[[:space:]]+-i)[[:space:]]+.*(package-lock\.json|pnpm-lock\.yaml|composer\.lock|Cargo\.lock|yarn\.lock)'
+  if [[ "$cmd" =~ $lockfile_write_re ]]; then
+    block "Direct lockfile modification. Use the package manager (npm install, composer update, etc.)." || return $?
+  fi
+
+  if [[ "$CMD_UNQUOTED" =~ ^eval[[:space:]] ]] || [[ "$CMD_UNQUOTED" =~ [[:space:]]eval[[:space:]] ]]; then
+    block "eval hides commands from safety checks. Write the command directly." || return $?
+  fi
+
+  local bare_redirect_re='^[[:space:]]*>[[:space:]]'
+  if [[ "$cmd" =~ $bare_redirect_re ]]; then
+    block "Redirect to empty file. This truncates the target. Use a safer approach." || return $?
+  fi
+  local null_redirect_re='^[[:space:]]*(:|true)[[:space:]]+>{1,2}\|?[[:space:]]*[^[:space:]<>]'
+  if [[ "$CMD_NORMALIZED" =~ $null_redirect_re ]]; then
+    block "Null-command (: / true) followed by redirect truncates the target. Use a safer approach." || return $?
+  fi
+  local empty_printf_single_re="printf[[:space:]]+''[[:space:]]*>\\|?[[:space:]]+[^[:space:]]"
+  local empty_printf_double_re='printf[[:space:]]+""[[:space:]]*>\|?[[:space:]]+[^[:space:]]'
+  local empty_echo_single_re="echo[[:space:]]+(-n[[:space:]]+)?''[[:space:]]*>\\|?[[:space:]]+[^[:space:]]"
+  local empty_echo_double_re='echo[[:space:]]+(-n[[:space:]]+)?""[[:space:]]*>\|?[[:space:]]+[^[:space:]]'
+  if [[ "$cmd" =~ $empty_printf_single_re ]] || [[ "$cmd" =~ $empty_printf_double_re ]] || [[ "$cmd" =~ $empty_echo_single_re ]] || [[ "$cmd" =~ $empty_echo_double_re ]]; then
+    block "Empty-output redirect truncates the target file. Use a safer approach." || return $?
+  fi
+  if [[ "$CMD_UNQUOTED" == *">|"* ]]; then
+    block "Clobber redirect (>|) overrides noclobber and truncates the target. Use a safer approach." || return $?
+  fi
+  if [[ "$cmd" =~ truncate[[:space:]] ]]; then
+    block "truncate can destroy file contents. Verify intent before proceeding." || return $?
+  fi
+
+  local cmd_db_scan="$CMD_LOWER"
+  if [[ "$cmd_db_scan" == *'"'* && "$cmd_db_scan" == *"'"* ]]; then
+    cmd_db_scan=$(strip_sql_literals_inside_double_quotes "$cmd_db_scan")
+  fi
+  local db_cli_re='(^|[[:space:]])(mysql|mariadb|psql|sqlite3|mongosh|cqlsh)([[:space:]]|$)'
+  local db_eval_flag_re='(-e|-c|--command|--eval)'
+  local db_destructive_re='(drop[[:space:]]+(database|table|schema|index|view)|truncate[[:space:]]+table|delete[[:space:]]+from|\.drop[[:space:]]*\(|\.deletemany[[:space:]]*\(|\.deleteone[[:space:]]*\(|\.remove[[:space:]]*\()'
+  if [[ "$cmd_db_scan" =~ $db_cli_re ]] && [[ "$cmd_db_scan" =~ $db_eval_flag_re ]] && [[ "$cmd_db_scan" =~ $db_destructive_re ]]; then
+    block "Destructive database command (DROP/TRUNCATE/DELETE). Run manually with verification." || return $?
+  fi
+  if [[ "$CMD_LOWER" =~ (^|[[:space:]])(psql|mysql|mariadb|sqlite3|mongosh)([[:space:]]+|$).*-f[[:space:]] ]]; then
+    block "File-fed database command. Inspect the SQL file and run it manually." || return $?
+  fi
+
+  local cmd_normalized_lower="${CMD_NORMALIZED,,}"
+  if [[ "$cmd_normalized_lower" =~ ^npm[[:space:]]+token[[:space:]]+(delete|revoke) ]]; then
+    block "npm token delete/revoke is irreversible. Manage tokens manually via the npm website." || return $?
+  fi
+
+  local interpreter_eval_re='(^|[[:space:]])(python|python2|python3|node|nodejs|deno|perl|ruby|php)([[:space:]]+-[a-zA-Z]+)*[[:space:]]+-(c|e|-eval|-execute)'
+  if [[ "$cmd" =~ $interpreter_eval_re ]]; then
+    local shell_primitive_re='(os\.system|os\.popen|os\.exec|subprocess|child_process|system[[:space:]]*\(|backtick|exec[[:space:]]*\(|popen|shell_exec)'
+    if [[ "$cmd" =~ $shell_primitive_re ]]; then
+      block "Interpreter -c/-e with shell-execution primitive. Run the destructive operation directly so the hook can review it." || return $?
+    fi
+  fi
+
+  local shell_here_string_re='(^|[[:space:]])(ba)?sh([[:space:]]+-[a-zA-Z]+)*[[:space:]]+<<<'
+  local shell_here_doc_re="(^|[[:space:]])(ba)?sh([[:space:]]+-[a-zA-Z]+)*[[:space:]]+<<-?[[:space:]]*['\"]?[A-Za-z_]"
+  if [[ "$cmd" =~ $shell_here_string_re ]] || [[ "$cmd" =~ $shell_here_doc_re ]]; then
+    block "Shell stdin (<<< / here-doc) hides commands from inspection. Run the command directly." || return $?
+  fi
+
+  local powershell_eval_re='(^|[[:space:]])(powershell|pwsh)(\.exe)?([[:space:]]+-[a-zA-Z]+)*[[:space:]]+(-c|-command|-encodedcommand)'
+  if [[ "$CMD_LOWER" =~ $powershell_eval_re ]]; then
+    if [[ "$CMD_LOWER" =~ (remove-item|clear-disk|format-volume|stop-computer|restart-computer|set-executionpolicy[[:space:]]+(unrestricted|bypass)) ]]; then
+      block "PowerShell destructive verb. Run manually with explicit confirmation." || return $?
+    fi
+    if [[ "$CMD_LOWER" =~ -encodedcommand[[:space:]]+ ]]; then
+      block "PowerShell -EncodedCommand is opaque to inspection. Run the decoded command directly." || return $?
+    fi
+  fi
+  local cmd_eval_re='(^|[[:space:]])cmd(\.exe)?[[:space:]]+/[ck][[:space:]]+'
+  if [[ "$CMD_LOWER" =~ $cmd_eval_re ]]; then
+    local cmd_destructive_re='(^|[[:space:]/"])(del|erase|rmdir|rd|format)([[:space:]]|$|\.exe)'
+    if [[ "$CMD_LOWER" =~ $cmd_destructive_re ]]; then
+      block "cmd.exe destructive verb (del/rmdir/rd/format). Run manually with explicit confirmation." || return $?
+    fi
+  fi
+
+  local sudo_package_re='(^|[[:space:];&|])sudo[[:space:]]+(apt(-get)?|dnf|yum|pacman|brew)[[:space:]]+(install|remove|upgrade|update)'
+  if [[ "$CMD_LOWER" =~ $sudo_package_re ]]; then
+    block "Privileged package-manager mutation. Ask the user to run it manually." || return $?
+  fi
+  local infra_re='(^|[[:space:];&|])(docker[[:space:]]+push|terraform[[:space:]]+destroy|terraform[[:space:]]+apply[^;&|]*-auto-approve|aws[[:space:]]+s3[[:space:]]+rm|aws[[:space:]]+ec2[[:space:]]+terminate)'
+  local infra_normalized_re='^(docker[[:space:]]+push|terraform[[:space:]]+destroy|terraform[[:space:]]+apply[^;&|]*-auto-approve|aws[[:space:]]+s3[[:space:]]+rm|aws[[:space:]]+ec2[[:space:]]+terminate)'
+  if [[ "$CMD_LOWER" =~ $infra_re ]] || [[ "$CMD_NORMALIZED" =~ $infra_normalized_re ]]; then
+    block "Cloud or infrastructure destructive command. Ask the user to run it manually." || return $?
+  fi
+}
+
+main "$@"

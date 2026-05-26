@@ -330,6 +330,11 @@ async function makeDashboardCacheProject(): Promise<{
   );
   await writeProjectFile(
     root,
+    ".codex/hooks/guard-common.sh",
+    "#!/usr/bin/env bash\nexit 0\n",
+  );
+  await writeProjectFile(
+    root,
     ".codex/hooks/guard-repository-writes.sh",
     "#!/usr/bin/env bash\nexit 0\n",
   );
@@ -382,6 +387,10 @@ async function makeDashboardSetupPromptProject(options: {
   const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-prompt-tests-"));
   const denyHook = await readFile(
     join(PROJECT_PATH, "workflow", "hooks", "guard-repository-writes.sh"),
+    "utf-8",
+  );
+  const guardCommon = await readFile(
+    join(PROJECT_PATH, "workflow", "hooks", "guard-common.sh"),
     "utf-8",
   );
   const denyHookSelfTest = await readFile(
@@ -464,6 +473,7 @@ skills:
       2,
     ),
   );
+  await writeProjectFile(root, ".codex/hooks/guard-common.sh", guardCommon);
   await writeProjectFile(
     root,
     ".codex/hooks/guard-repository-writes.sh",

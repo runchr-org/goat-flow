@@ -1977,6 +1977,10 @@ describe("agent deny hook template comparison", () => {
   );
   function guardrailTemplates() {
     return {
+      common: readFileSync(
+        resolve(PROJECT_ROOT, "workflow/hooks/guard-common.sh"),
+        "utf-8",
+      ),
       destructive: readFileSync(
         resolve(PROJECT_ROOT, "workflow/hooks/guard-destructive-shell.sh"),
         "utf-8",
@@ -2002,6 +2006,7 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
+      [`${hooksDir}/guard-common.sh`]: templates.common,
       [`${hooksDir}/guard-destructive-shell.sh`]: templates.destructive,
       [`${hooksDir}/guard-secret-paths.sh`]: templates.secret,
       [`${hooksDir}/guard-repository-writes.sh`]: templates.git,
@@ -2166,14 +2171,22 @@ describe("hook fact extraction", () => {
       resolve(PROJECT_ROOT, "workflow/hooks/guard-destructive-shell.sh"),
       "utf8",
     );
+    const commonTemplate = readFileSync(
+      resolve(PROJECT_ROOT, "workflow/hooks/guard-common.sh"),
+      "utf8",
+    );
     const fs = stubFS({
       exists: (path) =>
         [
+          ".claude/hooks/guard-common.sh",
           ".claude/hooks/guard-destructive-shell.sh",
           ".claude/hooks/guard-secret-paths.sh",
           ".claude/hooks/guard-repository-writes.sh",
         ].includes(path),
       readFile: (path) => {
+        if (path === ".claude/hooks/guard-common.sh") {
+          return commonTemplate;
+        }
         if (path === ".claude/hooks/guard-destructive-shell.sh") {
           return destructiveTemplate;
         }

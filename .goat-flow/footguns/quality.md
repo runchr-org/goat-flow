@@ -52,8 +52,8 @@ See `.goat-flow/lessons/design-decisions.md` (2026-04-19 amendment under "Don't 
 
 **Evidence:**
 - External: `kennyjpowers/claude-flow` PR #6 ("Feat: spec open questions workflow", MERGED 2025-11-22, 5,502 additions). The motivating statement is in the external PR's specs/spec-open-questions-workflow/02-specification.md file (search: `only checks structural completeness (18 required sections), not whether open questions have been answered. There's a gap between "structurally valid" and "implementation-ready."`). The PR added an entire workflow command whose only job is to detect unresolved `?` questions inside an otherwise valid spec — re-parse on each run, detect already-resolved entries by `Answer:` keyword presence, prompt only for unresolved.
-- Goat-flow baseline: `/home/devgoat/projects/goat-flow-related/analysis/01-goat-flow-baseline.md` (search: `Scanner compliance vs quality divergence`) names the same gap as pain point #2.
-- Related milestone: `.goat-flow/tasks/related-improvement-ideas/M14-directive-enforcement-gradient.md` is the deterministic version goat-flow is pursuing — it maps prose directives to enforcement layers, but only for instruction files, not for arbitrary artifacts the audit clears.
+- Goat-flow committed direction: `src/cli/audit/check-content-quality.ts` (search: `runContentQualityChecks`) is the deterministic content-quality layer that should own unresolved-content markers instead of relying on structural setup checks alone.
+- Related committed pattern: `.goat-flow/patterns/verification.md` (search: `check-content-quality.ts`) maps artifact prose checks to deterministic enforcement layers; extend that path before treating a green structural audit as implementation-ready.
 - Goat-flow surfaces at risk: `src/cli/audit/check-goat-flow.ts` (search: `15 setup-scope checks`) currently asserts structural presence of `.goat-flow/architecture.md`, `code-map.md`, etc. — but does not inspect their content for unresolved questions. Same applies to milestone files in `.goat-flow/tasks/**`.
 
 **Prevention:**

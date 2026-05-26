@@ -8,6 +8,7 @@ import { pushUniquePath } from "./routing.js";
 const POST_TURN_VALIDATION_COMMAND_PATTERN =
   /\b(shellcheck|eslint|tsc|phpstan|ruff|mypy|flake8|rubocop|stylelint|ktlint|swiftlint)\b|biome\s+check|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:lint|typecheck|format(?::check)?)\b|cargo\s+check|go\s+vet|prettier\s+--check|bash\s+-n\b|(?:^|\s)(?:bash\s+)?(?:\.\/)?scripts\/preflight-checks\.sh\b/i;
 const GUARDRAIL_HOOK_FILES = [
+  "guard-common.sh",
   "guard-destructive-shell.sh",
   "guard-secret-paths.sh",
   "guard-repository-writes.sh",

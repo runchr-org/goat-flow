@@ -1,119 +1,403 @@
 #!/usr/bin/env bash
-# guard-repository-writes.sh - PreToolUse hook for agent-side git/GitHub writes.
-# Blocks git push, git commit, destructive git flags, and gh write operations.
+# shellcheck disable=SC2034,SC2317,SC2319
+# guard-repository-writes.sh - PreToolUse hook for repository write operations.
+# Blocks git commit, git push, destructive git flags, and GitHub writes through gh.
 
-set -euo pipefail
+set -uo pipefail
 
-SELF_TEST_MODE=""
-CHECK_COMMAND=""
-
-for arg in "$@"; do
-  case "$arg" in
-    --self-test) SELF_TEST_MODE="smoke" ;;
-    --self-test=*) SELF_TEST_MODE="${arg#--self-test=}" ;;
-    --check=*) CHECK_COMMAND="${arg#--check=}" ;;
-  esac
-done
-
-if [[ -n "$SELF_TEST_MODE" ]]; then
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook guard-repository-writes
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+  echo "guard-repository-writes.sh requires bash 4.4+ (got ${BASH_VERSION:-unknown}). On macOS install Homebrew bash and invoke /usr/local/bin/bash or /opt/homebrew/bin/bash explicitly." >&2
+  exit 2
 fi
 
-read_payload() {
-  if [[ -n "$CHECK_COMMAND" ]]; then
-    printf '%s' "$CHECK_COMMAND"
-    return
-  fi
-  cat || true
+GOAT_GUARD_NAME="guard-repository-writes.sh"
+GOAT_GUARD_SCOPE="repository"
+GOAT_GUARD_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$GOAT_GUARD_SCRIPT_DIR/guard-common.sh"
+
+__goat_git_strip_globals() {
+  __goat_git_aliased_push=0
+  __goat_git_rest=""
+  local c="$1"
+  c=$(normalize_leading_command_word "$c")
+  local command_word="${c%%[[:space:]]*}"
+  local command_base="${command_word##*/}"
+  [[ "$command_base" == "git" ]] || return 1
+  c="${c#"$command_word"}"
+  c="${c#"${c%%[![:space:]]*}"}"
+  while [[ "$c" =~ ^- ]]; do
+    local opt="${c%%[[:space:]]*}"
+    c="${c#"$opt"}"
+    c="${c#"${c%%[![:space:]]*}"}"
+    if [[ "$opt" == "-c" || "$opt" == "-C" ]]; then
+      local val=""
+      if [[ "$c" == \'* ]]; then
+        val="${c#\'}"; val="${val%%\'*}"
+        c="${c#\'}" && c="${c#*\'}"
+      elif [[ "$c" == \"* ]]; then
+        val="${c#\"}"; val="${val%%\"*}"
+        c="${c#\"}" && c="${c#*\"}"
+      else
+        val="${c%%[[:space:]]*}"
+        c="${c#"${c%%[[:space:]]*}"}"
+      fi
+      c="${c#"${c%%[![:space:]]*}"}"
+      # Detect dangerous alias forms regardless of quoting. Three cases:
+      #   (a) -c alias.X=push           (unquoted; val is whole token)
+      #   (b) -c alias.X='push ...'     (key=quoted; val is `alias.X='push` after
+      #       parser truncates at first inner space - leading quote left in val)
+      #   (c) -c "alias.X=push ..."     (whole-arg-quoted; val is full inner)
+      # The regex permits a leading quote between `=` and the dangerous
+      # keyword (push or `!`-shell-command).
+      if [[ "$opt" == "-c" && "$val" =~ ^alias\.[a-zA-Z0-9_-]+=[\'\"]?(push|!) ]]; then
+        __goat_git_aliased_push=1
+      fi
+    fi
+  done
+  __goat_git_rest="$c"
+  return 0
 }
 
-json_value() {
-  local payload="$1"
-  local expr="$2"
-  if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$payload" | jq -r "$expr // empty" 2>/dev/null || true
-  fi
-}
-
-fallback_command() {
-  local payload="$1"
-  if [[ "$payload" =~ \"(command|CommandLine|commandLine)\"[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
-    printf '%s' "${BASH_REMATCH[2]}"
-  else
-    printf '%s' "$payload"
-  fi
-}
-
-extract_command() {
-  local payload="$1"
-  local command
-  if [[ -n "$CHECK_COMMAND" ]]; then
-    printf '%s' "$CHECK_COMMAND"
-    return
-  fi
-  command="$(json_value "$payload" '.tool_input.command // .toolCall.args.CommandLine // .toolCall.args.command // .toolCall.args.commandLine // .toolCall.args.input // .command // .input // (.toolArgs | if type == "string" then fromjson? else . end | .command)')"
-  [[ -n "$command" ]] || command="$(fallback_command "$payload")"
-  printf '%s' "$command"
-}
-
-is_copilot_payload() {
-  local payload="$1"
-  [[ "$payload" == *'"toolName"'* && "$payload" != *'"tool_name"'* ]]
-}
-
-is_antigravity_payload() {
-  local payload="$1"
-  [[ "$payload" == *'"toolCall"'* ]]
-}
-
-deny() {
-  local payload="$1"
-  local reason="$2"
-  if is_copilot_payload "$payload"; then
-    printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}\n' "$reason"
-    exit 0
-  fi
-  if is_antigravity_payload "$payload"; then
-    printf '{"decision":"deny","reason":"%s"}\n' "$reason"
-    exit 0
-  fi
-  printf 'BLOCKED: %s\n' "$reason" >&2
-  exit 2
-}
-
-allow_if_antigravity() {
-  local payload="$1"
-  if is_antigravity_payload "$payload"; then
-    printf '{"decision":"allow"}\n'
-  fi
-}
-
-contains_git_mutation() {
-  local cmd="$1"
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+push([[:space:]]|$)'; then
-    printf 'git push'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+commit([[:space:]]|$)'; then
-    printf 'git commit'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+(reset[[:space:]]+--hard|clean[[:space:]]+-[^[:space:]]*f|branch[[:space:]]+-D|tag[[:space:]]+-d|checkout[[:space:]]+-f|rebase|filter-branch|remote[[:space:]]+(add|remove|set-url))'; then
-    printf 'destructive git mutation'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])gh[[:space:]]+(issue|pr|release|gist|repo|api)[[:space:]][^;&|]*(create|edit|delete|close|reopen|merge|comment|upload|--method[[:space:]]+(POST|PATCH|PUT|DELETE)|-X[[:space:]]+(POST|PATCH|PUT|DELETE))'; then
-    printf 'GitHub write operation'
+is_git_push() {
+  __goat_git_strip_globals "$1" || return 1
+  [[ "$__goat_git_rest" =~ ^(push|send-pack)([[:space:]]|$) ]] && return 0
+  if [[ "$__goat_git_aliased_push" -eq 1 ]]; then
     return 0
   fi
   return 1
 }
 
-payload="$(read_payload)"
-command_text="$(extract_command "$payload")"
-if reason="$(contains_git_mutation "$command_text")"; then
-  deny "$payload" "Guard repository writes: $reason"
-fi
-allow_if_antigravity "$payload"
-exit 0
+is_git_destructive() {
+  __goat_git_strip_globals "$1" || return 1
+  local rest="$__goat_git_rest"
+  if [[ "$rest" =~ (^|[[:space:]])--no-verify([[:space:]]|$) ]]; then
+    return 0
+  fi
+  if [[ "$rest" =~ ^reset([[:space:]]|$) ]] && [[ "$rest" =~ (^|[[:space:]])--hard([[:space:]]|$) ]]; then
+    return 0
+  fi
+  if [[ "$rest" =~ ^clean([[:space:]]|$) ]] && \
+     { [[ "$rest" =~ (^|[[:space:]])--force([[:space:]]|$) ]] || \
+       [[ "$rest" =~ (^|[[:space:]])-[^-[:space:]]*f[^[:space:]]*([[:space:]]|$) ]]; }; then
+    return 0
+  fi
+  return 1
+}
+
+normalize_git_push_candidate() {
+  normalize_command_candidate "$1"
+}
+
+split_shell_words_into() {
+  local -n __goat_words_out__="$1"
+  local input="$2"
+  __goat_words_out__=()
+  local current=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      current+="$char"
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      if [[ -n "$current" ]]; then
+        __goat_words_out__+=("$current")
+        current=""
+      fi
+      continue
+    fi
+
+    current+="$char"
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    current+="\\"
+  fi
+  if [[ -n "$current" ]]; then
+    __goat_words_out__+=("$current")
+  fi
+}
+
+is_gh_api_write() {
+  local -n __goat_gh_words_ref__="$1"
+  local start_index="$2"
+  local method=""
+  local has_body_fields=0
+  local i="$start_index"
+  local word=""
+  local word_lc=""
+
+  while [[ "$i" -lt "${#__goat_gh_words_ref__[@]}" ]]; do
+    word="${__goat_gh_words_ref__[$i]}"
+    word_lc="${word,,}"
+
+    case "$word_lc" in
+      -x|--method)
+        i=$((i + 1))
+        method="${__goat_gh_words_ref__[$i]:-}"
+        method="${method,,}"
+        ;;
+      -x*)
+        method="${word_lc#-x}"
+        ;;
+      --method=*)
+        method="${word_lc#--method=}"
+        ;;
+      -f|-F|--field|--raw-field|--input)
+        has_body_fields=1
+        i=$((i + 1))
+        ;;
+      -f?*|-F?*|--field=*|--raw-field=*|--input=*)
+        has_body_fields=1
+        ;;
+    esac
+
+    i=$((i + 1))
+  done
+
+  case "$method" in
+    "" )
+      [[ "$has_body_fields" -eq 1 ]]
+      return $?
+      ;;
+    get|head)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+gh_skip_options_index() {
+  local -n __goat_gh_skip_words_ref__="$1"
+  local i="$2"
+  local word=""
+
+  while [[ "$i" -lt "${#__goat_gh_skip_words_ref__[@]}" ]]; do
+    word="${__goat_gh_skip_words_ref__[$i]}"
+    case "$word" in
+      --)
+        i=$((i + 1))
+        break
+        ;;
+      --repo|--hostname|--cwd|--config-dir|--jq|--template|--cache|-R|-H|-q)
+        i=$((i + 2))
+        continue
+        ;;
+      --repo=*|--hostname=*|--cwd=*|--config-dir=*|--jq=*|--template=*|--cache=*|-R?*|-H?*|-q?*)
+        i=$((i + 1))
+        continue
+        ;;
+      --paginate|--no-pager|--help|-h)
+        i=$((i + 1))
+        continue
+        ;;
+      -*)
+        i=$((i + 1))
+        continue
+        ;;
+    esac
+    break
+  done
+
+  printf '%s' "$i"
+}
+
+strip_xargs_prefix() {
+  local c="$1"
+  local -a xargs_words=()
+  split_shell_words_into xargs_words "$c"
+  [[ "${#xargs_words[@]}" -eq 0 ]] && return 1
+
+  local command_word="${xargs_words[0]##*/}"
+  [[ "$command_word" == "xargs" ]] || return 1
+
+  local i=1
+  local word=""
+  while [[ "$i" -lt "${#xargs_words[@]}" ]]; do
+    word="${xargs_words[$i]}"
+    case "$word" in
+      --)
+        i=$((i + 1))
+        break
+        ;;
+      -0|--null|-r|--no-run-if-empty|-t|--verbose|-p|--interactive)
+        i=$((i + 1))
+        continue
+        ;;
+      -I|-i|-L|-l|-n|-P|-s|-E|-e|-d|--replace|--max-lines|--max-args|--max-procs|--max-chars|--eof|--delimiter)
+        i=$((i + 2))
+        continue
+        ;;
+      -I?*|-i?*|-L?*|-l?*|-n?*|-P?*|-s?*|-E?*|-e?*|-d?*|--replace=*|--max-lines=*|--max-args=*|--max-procs=*|--max-chars=*|--eof=*|--delimiter=*)
+        i=$((i + 1))
+        continue
+        ;;
+      -*)
+        i=$((i + 1))
+        continue
+        ;;
+    esac
+    break
+  done
+
+  [[ "$i" -lt "${#xargs_words[@]}" ]] || return 1
+
+  local rest=""
+  while [[ "$i" -lt "${#xargs_words[@]}" ]]; do
+    rest+="${xargs_words[$i]} "
+    i=$((i + 1))
+  done
+  printf '%s' "${rest% }"
+}
+
+is_gh_write_operation() {
+  local c
+  c=$(normalize_command_candidate "$1")
+
+  local xargs_rest=""
+  if xargs_rest=$(strip_xargs_prefix "$c"); then
+    c="$xargs_rest"
+  fi
+
+  local -a words=()
+  split_shell_words_into words "$c"
+  [[ "${#words[@]}" -eq 0 ]] && return 1
+
+  local gh_word="${words[0]##*/}"
+  [[ "$gh_word" == "gh" ]] || return 1
+
+  local i
+  i=$(gh_skip_options_index words 1)
+
+  local topic="${words[$i]:-}"
+  [[ -z "$topic" || "$topic" == -* ]] && return 1
+  topic="${topic,,}"
+
+  if [[ "$topic" == "api" ]]; then
+    is_gh_api_write words $((i + 1))
+    return $?
+  fi
+
+  local subcommand_index
+  subcommand_index=$(gh_skip_options_index words $((i + 1)))
+  local subcommand="${words[$subcommand_index]:-}"
+  subcommand="${subcommand,,}"
+  case "$topic:$subcommand" in
+    issue:create|issue:comment|issue:close|issue:reopen|issue:edit|issue:delete|issue:lock|issue:unlock|issue:pin|issue:unpin|issue:transfer|issue:develop)
+      return 0 ;;
+    pr:create|pr:comment|pr:review|pr:merge|pr:close|pr:reopen|pr:edit|pr:ready|pr:update-branch)
+      return 0 ;;
+    release:create|release:upload|release:delete|release:edit)
+      return 0 ;;
+    repo:create|repo:delete|repo:edit|repo:fork|repo:rename|repo:archive|repo:unarchive|repo:sync|repo:set-default)
+      return 0 ;;
+    label:create|label:delete|label:edit|label:clone)
+      return 0 ;;
+    workflow:run|workflow:disable|workflow:enable)
+      return 0 ;;
+    run:rerun|run:cancel|run:delete)
+      return 0 ;;
+    gist:create|gist:edit|gist:delete)
+      return 0 ;;
+    secret:set|secret:remove|secret:delete)
+      return 0 ;;
+    variable:set|variable:delete)
+      return 0 ;;
+    ssh-key:add|ssh-key:delete|gpg-key:add|gpg-key:delete)
+      return 0 ;;
+    auth:login|auth:logout|auth:refresh|auth:setup-git)
+      return 0 ;;
+    codespace:create|codespace:delete|codespace:edit)
+      return 0 ;;
+    extension:install|extension:remove|extension:upgrade)
+      return 0 ;;
+    project:create|project:delete|project:edit|project:close|project:copy|project:link|project:unlink|project:mark-template|project:field-create|project:field-delete|project:field-update|project:item-add|project:item-archive|project:item-create|project:item-delete|project:item-edit)
+      return 0 ;;
+    cache:delete)
+      return 0 ;;
+  esac
+
+  return 1
+}
+
+check_segment() {
+  local cmd="$1"
+  local depth="${2:-0}"
+  prepare_segment_context "$cmd" "$depth" || return $?
+
+  if is_unredirected_unpiped_read_only "$cmd"; then
+    return 0
+  fi
+
+  local push_scan="${CMD_LOWER//||/__GOAT_OR__}"
+  local -a pipe_parts
+  local pipe_part
+  IFS='|' read -ra pipe_parts <<< "$push_scan"
+  for pipe_part in "${pipe_parts[@]}"; do
+    local cmd_for_push
+    cmd_for_push=$(normalize_git_push_candidate "$pipe_part")
+    if is_git_push "$cmd_for_push"; then
+      block "git push is not allowed. Ask the user to push manually." || return $?
+    fi
+  done
+
+  local gh_scan="${cmd//||/__GOAT_OR__}"
+  local -a gh_pipe_parts
+  IFS='|' read -ra gh_pipe_parts <<< "$gh_scan"
+  for pipe_part in "${gh_pipe_parts[@]}"; do
+    if is_gh_write_operation "$pipe_part"; then
+      block "GitHub write via gh is not allowed. Draft the content or command and wait for explicit user approval." || return $?
+    fi
+  done
+
+  local git_rest=""
+  local git_subcommand=""
+  if __goat_git_strip_globals "$CMD_NORMALIZED"; then
+    git_rest="$__goat_git_rest"
+    git_subcommand="${git_rest%%[[:space:]]*}"
+    if [[ "$git_subcommand" == "commit" ]]; then
+      block "git commit is not allowed. Ask the user to commit manually." || return $?
+    fi
+  fi
+
+  if is_git_destructive "$CMD_NORMALIZED"; then
+    block "Destructive git operation (--no-verify / reset --hard / clean -f). Remove the flag, stash first, or run manually." || return $?
+  fi
+}
+
+main "$@"

@@ -33,10 +33,6 @@ learning-loop:
 # Edit here, use dashboard /hooks, or run `goat-flow hooks enable <id>`.
 # Togglable goat-flow hook state. Missing entries use registry defaults.
 # Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.
-# Togglable goat-flow hook state. Missing entries use registry defaults.
-# Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.
-# Togglable goat-flow hook state. Missing entries use registry defaults.
-# Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.
 hooks:
   guard-destructive-shell:
     enabled: true
@@ -44,7 +40,7 @@ hooks:
     enabled: true
   guard-repository-writes:
     enabled: true
-  gruff-on-change:
+  gruff-code-quality:
     enabled: false
 line-limits:
   target: 125

@@ -1,9 +1,27 @@
 ---
 category: hooks
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
 ---
 
-**Last independent review:** 2026-05-25 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, and Codex guardrail self-tests return `PASS: guardrails self-test`; Antigravity still has no hook surface. The direct `cat .env` probe is blocked by `guard-secret-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
+**Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: guardrails self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `guard-secret-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
+
+## Footgun: Splitting a monolithic guardrail can drop parser coverage while preserving the headline checks
+
+**Status:** active | **Created:** 2026-05-26 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A hook split looks cleaner because `guard-destructive-shell.sh`, `guard-secret-paths.sh`, and `guard-repository-writes.sh` each block the obvious happy-path examples (`rm -rf /`, `cat .env`, `git push`). The old monolithic `deny-dangerous.sh` carried much broader parser coverage, though: wrapper normalization, quoted read-only search literals, `git -C` / `git -c` push forms, global `gh --repo` grammar, split-quoted `.env`, `.envrc`, safe-scoped recursive deletion, and structured Copilot/Antigravity payload variants. A small split can pass smoke tests while re-opening old bypasses and false positives.
+
+**Evidence:**
+- Git history before the split had `workflow/hooks/deny-dangerous.sh` with 1,997 lines and `workflow/hooks/deny-dangerous.self-test.sh` with 629 lines; the first split replaced them with three small guards totaling 393 lines plus a 195-line self-test.
+- Runtime probes before the restoration allowed `git -C /tmp push origin main`, `git -c core.sshCommand=foo push origin main`, `/usr/bin/git push origin main`, `gh --repo owner/repo issue comment ...`, `gh workflow run deploy.yml`, `rm -r src`, `cat .envrc`, `cat '.'env`, and `python3 -c 'print(open(".env").read())'`.
+- Runtime probes before the restoration also blocked allowed commands such as `rm -rf ./node_modules`, `rg "&& rm -rf /" src/`, `bash -c "echo hello"`, and `python -c 'print(1)'`.
+- Current anchors: `workflow/hooks/guard-repository-writes.sh` (search: `is_gh_write_operation`), `workflow/hooks/guard-destructive-shell.sh` (search: `rm_has_recursive`), `workflow/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`), and `workflow/hooks/guardrails-self-test.sh` (search: `git -C push`, `quoted destructive search literal`).
+
+**Prevention:**
+1. Treat guardrail splits as parser migrations, not simple renames. Port the old parser normalization and the old false-positive corpus before deleting the monolith.
+2. Compare line count and self-test case count before approving a split; a large drop is a review smell until the removed coverage is explicitly mapped to replacement tests.
+3. Run representative old-case probes across all split hooks: wrapper-prefixed git pushes, global/inherited `gh` flags, read-only search literals containing dangerous text, safe-scoped recursive deletion, split-quoted secret paths, and structured payloads for every registered agent.
+4. Keep the central self-test broad enough to fail on both bypasses and false positives. Smoke checks alone only prove the headline examples.
 
 ## Footgun: File-read deny does not bind Bash shell reads of secret files
 
@@ -40,7 +58,7 @@ last_reviewed: 2026-05-25
 - Reported incident: an assistant posted a GitHub issue comment to `owner/repo#64620` from forwarded Slack text; the user deleted the comment and reported the command was `gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md`.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md"` and `bash scripts/deny-dangerous.sh --check "gh api repos/owner/repo/issues/1/comments -X POST -f body=hi"`.
 - Runtime probes before the second fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "gh issue --repo owner/repo comment 64620 --body hi"` and `bash scripts/deny-dangerous.sh --check "printf '%s\n' body | xargs -I{} gh issue comment 64620 --body {}"`.
-- `workflow/hooks/guard-repository-writes.sh` (search: `contains_git_mutation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
+- `workflow/hooks/guard-repository-writes.sh` (search: `is_gh_write_operation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
 - `workflow/hooks/guardrails-self-test.sh` (search: `gh issue comment`) - locks the current `gh issue comment` path plus read-only allow cases.
 
 **Prevention:**
@@ -65,7 +83,7 @@ last_reviewed: 2026-05-25
 3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.
 
 **Evidence:**
-- `workflow/hooks/guard-repository-writes.sh` (search: `is_copilot_payload`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
+- `workflow/hooks/guard-common.sh` (search: `detect_output_mode`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
 - Self-test (`bash .github/hooks/guardrails-self-test.sh --self-test=smoke`) covers Copilot-shaped Bash payloads with deny JSON assertions.
 
 ---
@@ -144,7 +162,7 @@ last_reviewed: 2026-05-25
 **Why it happens:** A token check that only normalizes the start of a simple command misses shell grammar around the command word. `env -i git push ...` starts with an env option after `env`; `FOO='a b' git push ...` contains whitespace inside an assignment value; `if true; then git push ...; fi` leaves a segment starting with `then`; `f(){ git push ...; }; f` leaves a segment starting with a function declaration.
 
 **Evidence:**
-- `workflow/hooks/guard-repository-writes.sh` (search: `contains_git_mutation`) - current split hook blocks git push and destructive git mutations.
+- `workflow/hooks/guard-repository-writes.sh` (search: `is_git_push`) - current split hook blocks git push and destructive git mutations.
 - `workflow/hooks/guardrails-self-test.sh` (search: `sudo git push`) - self-test coverage for wrapper-prefixed git push.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh 'env -i git push origin main'`, `bash scripts/deny-dangerous.sh "FOO='a b' git push origin main"`, `bash scripts/deny-dangerous.sh 'if true; then git push origin main; fi'`, and `bash scripts/deny-dangerous.sh 'f(){ git push origin main; }; f'`.
 - Runtime probes before the `-lc` fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "bash -lc 'git push origin main'"` and `bash scripts/deny-dangerous.sh --check "sh -lc 'git push origin main'"`.
@@ -165,7 +183,7 @@ last_reviewed: 2026-05-25
 **Why it happens:** Top-level hook input is split on `&&`, `||`, semicolons, and newlines before checking each segment. Recursive paths for command substitution, process substitution, and `bash -c` can accidentally call the raw segment checker directly. If the nested string starts with a read-only verb such as `echo`, the read-only whitelist returns before the later destructive segment is inspected.
 
 **Evidence:**
-- `workflow/hooks/guard-destructive-shell.sh` (search: `contains_destructive_command`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
+- `workflow/hooks/guard-destructive-shell.sh` (search: `rm_has_recursive`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
 - `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 - Runtime proof before the fix: `bash workflow/hooks/deny-dangerous.sh --self-test` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
 
@@ -186,7 +204,7 @@ last_reviewed: 2026-05-25
 
 **Evidence:**
 - Runtime probe before the 2026-05-25 fix returned exit 0 for a `cat <<-'EOF' ... EOF` command followed by `rm -rf /`, because the tab-indented delimiter was not recognized and the later `rm` line was masked as body data.
-- `workflow/hooks/guard-destructive-shell.sh` (search: `contains_destructive_command`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
+- `workflow/hooks/guard-destructive-shell.sh` (search: `rm_has_recursive`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
 - `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 
 **Prevention:**

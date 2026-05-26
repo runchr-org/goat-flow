@@ -1,130 +1,418 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034,SC2317,SC2319
 # guard-secret-paths.sh - PreToolUse hook for direct literal secret-path access.
+# Blocks direct literal access to .env files, credentials, key material, and common secret directories.
 
-set -euo pipefail
+set -uo pipefail
 
-SELF_TEST_MODE=""
-CHECK_COMMAND=""
-
-for arg in "$@"; do
-  case "$arg" in
-    --self-test) SELF_TEST_MODE="smoke" ;;
-    --self-test=*) SELF_TEST_MODE="${arg#--self-test=}" ;;
-    --check=*) CHECK_COMMAND="${arg#--check=}" ;;
-  esac
-done
-
-if [[ -n "$SELF_TEST_MODE" ]]; then
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook guard-secret-paths
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+  echo "guard-secret-paths.sh requires bash 4.4+ (got ${BASH_VERSION:-unknown}). On macOS install Homebrew bash and invoke /usr/local/bin/bash or /opt/homebrew/bin/bash explicitly." >&2
+  exit 2
 fi
 
-read_payload() {
-  if [[ -n "$CHECK_COMMAND" ]]; then
-    printf '%s' "$CHECK_COMMAND"
-    return
-  fi
-  cat || true
-}
+GOAT_GUARD_NAME="guard-secret-paths.sh"
+GOAT_GUARD_SCOPE="secret"
+GOAT_GUARD_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$GOAT_GUARD_SCRIPT_DIR/guard-common.sh"
 
-json_value() {
-  local payload="$1"
-  local expr="$2"
-  if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$payload" | jq -r "$expr // empty" 2>/dev/null || true
-  fi
-}
+strip_shell_quotes_for_path_scan() {
+  local input="$1"
+  local out=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
 
-fallback_command() {
-  local payload="$1"
-  if [[ "$payload" =~ \"(command|CommandLine|commandLine)\"[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
-    printf '%s' "${BASH_REMATCH[2]}"
-  else
-    printf '%s' "$payload"
-  fi
-}
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
 
-extract_command() {
-  local payload="$1"
-  local command
-  local path
-  if [[ -n "$CHECK_COMMAND" ]]; then
-    printf '%s' "$CHECK_COMMAND"
-    return
-  fi
-  command="$(json_value "$payload" '.tool_input.command // .toolCall.args.CommandLine // .toolCall.args.command // .toolCall.args.commandLine // .toolCall.args.input // .command // .input // (.toolArgs | if type == "string" then fromjson? else . end | .command)')"
-  path="$(json_value "$payload" '.tool_input.file_path // .tool_input.path // .toolCall.args.AbsolutePath // .toolCall.args.TargetFile // .toolCall.args.FilePath // .toolCall.args.SearchPath // .toolCall.args.path // .toolCall.args.file_path')"
-  if [[ -n "$path" ]]; then
-    command="${command} ${path}"
-  fi
-  [[ -n "$command" ]] || command="$(fallback_command "$payload")"
-  printf '%s' "$command"
-}
+    if [[ "$escaped" -eq 1 ]]; then
+      out+="$char"
+      escaped=0
+      continue
+    fi
 
-is_copilot_payload() {
-  local payload="$1"
-  [[ "$payload" == *'"toolName"'* && "$payload" != *'"tool_name"'* ]]
-}
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
 
-is_antigravity_payload() {
-  local payload="$1"
-  [[ "$payload" == *'"toolCall"'* ]]
-}
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
 
-deny() {
-  local payload="$1"
-  local reason="$2"
-  if is_copilot_payload "$payload"; then
-    printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}\n' "$reason"
-    exit 0
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    out+="$char"
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    out+="\\"
   fi
-  if is_antigravity_payload "$payload"; then
-    printf '{"decision":"deny","reason":"%s"}\n' "$reason"
-    exit 0
-  fi
-  printf 'BLOCKED: %s\n' "$reason" >&2
-  exit 2
-}
 
-allow_if_antigravity() {
-  local payload="$1"
-  if is_antigravity_payload "$payload"; then
-    printf '{"decision":"allow"}\n'
-  fi
-}
-
-is_env_example_touch() {
-  local cmd="$1"
-  [[ "$cmd" =~ (^|[[:space:]/.])\.env\.example($|[[:space:];&|]) ]] || return 1
-  [[ "$cmd" =~ (>|>>|\btee\b|\bcp\b|\bmv\b|\brm\b|\bchmod\b|\bchown\b) ]]
+  printf '%s' "$out"
 }
 
 is_secret_path_touch() {
-  local cmd="$1"
-  local touches_secret=1
-  shopt -s nocasematch
-  if is_env_example_touch "$cmd"; then
-    shopt -u nocasematch
-    return 0
+  local c
+  c=$(strip_shell_quotes_for_path_scan "$1")
+  # Fast path: only spawn sed if .env.example is even mentioned. The sed below
+  # masks .env.example so the subsequent .env regex doesn't false-match.
+  local env_scan="$c"
+  if [[ "$c" == *.env.example* ]]; then
+    # shellcheck disable=SC2001  # multi-pattern ERE with capture groups
+    env_scan=$(sed -E \
+      "s#(^|[[:space:]=:/'\"])\\.env\\.example([[:space:]]|$|['\"])#\\1__goat_env_example__\\2#g; s#(>|>>|>\\|)[[:space:]]*(['\"]?)\\.env\\.example([[:space:]]|$|['\"])#\\1\\2__goat_env_example__\\3#g" \
+      <<<"$c")
   fi
-  if [[ "$cmd" =~ (^|[[:space:]\"\'=])((\./|\.\./|~/)*)\.env([[:space:];&|/]|$) ]] &&
-    [[ ! "$cmd" =~ (^|[[:space:]\"\'=])((\./|\.\./|~/)*)\.env\.example([[:space:];&|]|$) ]]; then
-    touches_secret=0
-  elif [[ "$cmd" =~ (^|[[:space:]\"\'=])((\./|\.\./|~/)*)(\.ssh/|\.aws/|\.docker/|\.gnupg/|\.config/gcloud/|\.kube/config) ]]; then
-    touches_secret=0
-  elif [[ "$cmd" =~ (^|[[:space:]\"\'=/])(secrets/|credentials($|[[:space:]._/=-])|\.npmrc|\.pypirc) ]]; then
-    touches_secret=0
-  elif [[ "$cmd" =~ \.(pem|key|pfx|p12)($|[[:space:];&|]) ]]; then
-    touches_secret=0
-  fi
-  shopt -u nocasematch
-  return "$touches_secret"
+  if [[ "$env_scan" =~ (^|[[:space:]]|=|:|/|[\'\"])\.env[a-zA-Z0-9_.-]*([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  if [[ "$env_scan" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?\.env[a-zA-Z0-9_.-]*([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])((\./|\.\./|~/)*)(\.ssh/|\.aws/|\.config/gcloud/|\.gnupg/|\.docker/config\.json|\.kube/config|secrets/) ]]; then return 0; fi
+  if [[ "$c" =~ application_default_credentials\.json ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|[\'\"])[^[:space:]]*\.(pem|key|pfx)([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])(credentials|\.npmrc|\.pypirc)([[:space:]]|$|\.|[\'\"]) ]]; then return 0; fi
+  return 1
 }
 
-payload="$(read_payload)"
-command_text="$(extract_command "$payload")"
-if is_secret_path_touch "$command_text"; then
-  deny "$payload" "Secret-file access blocked"
-fi
-allow_if_antigravity "$payload"
-exit 0
+is_env_example_touch() {
+  local c
+  c=$(strip_shell_quotes_for_path_scan "$1")
+  if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])\.env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  if [[ "$c" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?\.env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  return 1
+}
+
+__goat_git_strip_globals() {
+  __goat_git_aliased_push=0
+  __goat_git_rest=""
+  local c="$1"
+  c=$(normalize_leading_command_word "$c")
+  local command_word="${c%%[[:space:]]*}"
+  local command_base="${command_word##*/}"
+  [[ "$command_base" == "git" ]] || return 1
+  c="${c#"$command_word"}"
+  c="${c#"${c%%[![:space:]]*}"}"
+  while [[ "$c" =~ ^- ]]; do
+    local opt="${c%%[[:space:]]*}"
+    c="${c#"$opt"}"
+    c="${c#"${c%%[![:space:]]*}"}"
+    if [[ "$opt" == "-c" || "$opt" == "-C" ]]; then
+      local val=""
+      if [[ "$c" == \'* ]]; then
+        val="${c#\'}"; val="${val%%\'*}"
+        c="${c#\'}" && c="${c#*\'}"
+      elif [[ "$c" == \"* ]]; then
+        val="${c#\"}"; val="${val%%\"*}"
+        c="${c#\"}" && c="${c#*\"}"
+      else
+        val="${c%%[[:space:]]*}"
+        c="${c#"${c%%[[:space:]]*}"}"
+      fi
+      c="${c#"${c%%[![:space:]]*}"}"
+      # Detect dangerous alias forms regardless of quoting. Three cases:
+      #   (a) -c alias.X=push           (unquoted; val is whole token)
+      #   (b) -c alias.X='push ...'     (key=quoted; val is `alias.X='push` after
+      #       parser truncates at first inner space - leading quote left in val)
+      #   (c) -c "alias.X=push ..."     (whole-arg-quoted; val is full inner)
+      # The regex permits a leading quote between `=` and the dangerous
+      # keyword (push or `!`-shell-command).
+      if [[ "$opt" == "-c" && "$val" =~ ^alias\.[a-zA-Z0-9_-]+=[\'\"]?(push|!) ]]; then
+        __goat_git_aliased_push=1
+      fi
+    fi
+  done
+  __goat_git_rest="$c"
+  return 0
+}
+
+is_git_ls_files() {
+  __goat_git_strip_globals "$1" || return 1
+  [[ "$__goat_git_rest" =~ ^ls-files([[:space:]]|$) ]]
+}
+
+is_find_read_only() {
+  local c="$1"
+  ! [[ "$c" =~ (^|[[:space:]])-(delete|exec|execdir|ok|okdir)([[:space:]]|$) ]]
+}
+
+is_env_example_pipe_consumer_read_only() {
+  local c
+  c=$(normalize_command_candidate "$1")
+  local verb="${c%%[[:space:]]*}"
+  verb="${verb##*/}"
+  case "$verb" in
+    grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read|ls|stat|test)
+      return 0 ;;
+    sed)
+      ! [[ "$c" =~ sed[[:space:]]+-[a-zA-Z]*i || "$c" =~ sed[[:space:]]+--in-place ]]
+      return $? ;;
+    *) return 1 ;;
+  esac
+}
+
+split_shell_words_into() {
+  local -n __goat_words_out__="$1"
+  local input="$2"
+  __goat_words_out__=()
+  local current=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      current+="$char"
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      if [[ -n "$current" ]]; then
+        __goat_words_out__+=("$current")
+        current=""
+      fi
+      continue
+    fi
+
+    current+="$char"
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    current+="\\"
+  fi
+  if [[ -n "$current" ]]; then
+    __goat_words_out__+=("$current")
+  fi
+}
+
+is_search_command_verb() {
+  local verb="${1##*/}"
+  case "$verb" in
+    grep|egrep|fgrep|rg|ag|ack) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+search_option_consumes_value() {
+  local opt="$1"
+  case "$opt" in
+    -A|-B|-C|-D|-d|-g|-M|-m|-t|-T|--after-context|--before-context|--binary-files|--color|--colour|--colors|--context|--context-separator|--directories|--devices|--encoding|--engine|--exclude|--exclude-dir|--exclude-from|--glob|--group-separator|--iglob|--ignore-file|--include|--label|--max-columns|--max-count|--max-depth|--path-separator|--pre|--pre-glob|--regexp|--replace|--sort|--sortr|--threads|--type|--type-add|--type-clear|--type-not)
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+search_pattern_file_touches_secret() {
+  local option="$1"
+  local value="$2"
+  case "$option" in
+    -f|--file)
+      is_secret_path_touch "$value"
+      return $?
+      ;;
+    -f?*)
+      is_secret_path_touch "${option#-f}"
+      return $?
+      ;;
+    --file=*)
+      is_secret_path_touch "${option#--file=}"
+      return $?
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+search_file_operands_touch_secret() {
+  local c
+  c=$(normalize_command_candidate "$1")
+
+  local -a words=()
+  split_shell_words_into words "$c"
+  [[ "${#words[@]}" -eq 0 ]] && return 1
+
+  local verb="${words[0]##*/}"
+  is_search_command_verb "$verb" || return 1
+
+  local pattern_seen=0
+  local after_options=0
+  local i=1
+  local word=""
+  local next=""
+
+  while [[ "$i" -lt "${#words[@]}" ]]; do
+    word="${words[$i]}"
+
+    if [[ "$after_options" -eq 0 && "$word" == "--" ]]; then
+      after_options=1
+      i=$((i + 1))
+      continue
+    fi
+
+    if [[ "$after_options" -eq 0 ]]; then
+      if [[ "$word" == "-e" || "$word" == "--regexp" ]]; then
+        pattern_seen=1
+        i=$((i + 2))
+        continue
+      fi
+      if [[ "$word" == -e?* || "$word" == --regexp=* ]]; then
+        pattern_seen=1
+        i=$((i + 1))
+        continue
+      fi
+      if [[ "$word" == "-f" || "$word" == "--file" ]]; then
+        next="${words[$((i + 1))]:-}"
+        if search_pattern_file_touches_secret "$word" "$next"; then
+          return 0
+        fi
+        pattern_seen=1
+        i=$((i + 2))
+        continue
+      fi
+      if [[ "$word" == -f?* || "$word" == --file=* ]]; then
+        if search_pattern_file_touches_secret "$word" ""; then
+          return 0
+        fi
+        pattern_seen=1
+        i=$((i + 1))
+        continue
+      fi
+      if [[ "$word" == --*=* ]]; then
+        i=$((i + 1))
+        continue
+      fi
+      if search_option_consumes_value "$word"; then
+        i=$((i + 2))
+        continue
+      fi
+      if [[ "$word" == -* ]]; then
+        i=$((i + 1))
+        continue
+      fi
+    fi
+
+    if [[ "$pattern_seen" -eq 0 ]]; then
+      pattern_seen=1
+      i=$((i + 1))
+      continue
+    fi
+
+    if is_secret_path_touch "$word"; then
+      return 0
+    fi
+    i=$((i + 1))
+  done
+
+  return 1
+}
+
+check_segment() {
+  local cmd="$1"
+  local depth="${2:-0}"
+  prepare_segment_context "$cmd" "$depth" || return $?
+
+  local touches_secret=0
+  if is_search_command_verb "$CMD_VERB"; then
+    if search_file_operands_touch_secret "$cmd"; then
+      touches_secret=1
+    fi
+  else
+    if is_secret_path_touch "$cmd"; then
+      touches_secret=1
+    fi
+  fi
+
+  local touches_env_example=0
+  if is_env_example_touch "$cmd"; then
+    touches_env_example=1
+  fi
+
+  if [[ "$touches_env_example" -eq 1 ]]; then
+    local env_example_read_only=0
+    case "$CMD_VERB" in
+      grep|egrep|fgrep|rg|ag|ack|cat|head|tail|less|more|wc|file|diff|printf|echo|read|ls|stat|test)
+        env_example_read_only=1 ;;
+      find)
+        if is_find_read_only "$cmd"; then
+          env_example_read_only=1
+        fi ;;
+      git)
+        if is_git_ls_files "$cmd"; then
+          env_example_read_only=1
+        fi ;;
+      sed)
+        if ! [[ "$cmd" =~ sed[[:space:]]+-[a-zA-Z]*i || "$cmd" =~ sed[[:space:]]+--in-place ]]; then
+          env_example_read_only=1
+        fi ;;
+    esac
+    if [[ "$HAS_REDIRECT" -eq 1 ]]; then
+      env_example_read_only=0
+    fi
+    if [[ "$HAS_PIPE" -eq 1 ]]; then
+      local env_pipe_scan="${CMD_UNQUOTED//||/__GOAT_OR__}"
+      local -a env_pipeline_parts
+      local env_pipe_index
+      IFS='|' read -ra env_pipeline_parts <<< "$env_pipe_scan"
+      for ((env_pipe_index = 1; env_pipe_index < ${#env_pipeline_parts[@]}; env_pipe_index++)); do
+        if ! is_env_example_pipe_consumer_read_only "${env_pipeline_parts[$env_pipe_index]}"; then
+          env_example_read_only=0
+          break
+        fi
+      done
+    fi
+    if [[ "$env_example_read_only" -eq 0 ]]; then
+      block ".env.example is allowed for read-only inspection only. Use an explicit file-edit approval path for changes." || return $?
+    fi
+  fi
+
+  if [[ "$touches_secret" -eq 1 ]]; then
+    block "Secret-file access ($CMD_VERB). Reading or editing .env / SSH/AWS/GCP keys / credentials through the agent is an exfil risk." || return $?
+  fi
+
+  if is_unredirected_unpiped_read_only "$cmd"; then
+    return 0
+  fi
+}
+
+main "$@"
