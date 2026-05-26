@@ -133,6 +133,33 @@ expect_antigravity_secret_file_block() {
   fi
 }
 
+expect_missing_common_fails_closed() {
+  local hook="$1"
+  selected_hook "$hook" || {
+    record_skip
+    return
+  }
+  executed=$((executed + 1))
+  local tmp output status
+  tmp="$(mktemp -d)"
+  cp "$(hook_path "$hook")" "$tmp/$hook.sh"
+  set +e
+  output="$(bash "$tmp/$hook.sh" --check="echo safe" 2>&1)"
+  status=$?
+  set -e
+  rm -rf "$tmp"
+  if [[ "$status" -eq 127 ]]; then
+    record_fail "$hook missing guard-common should not exit 127"
+    return
+  fi
+  if [[ "$status" -ne 2 ]]; then
+    record_fail "$hook missing guard-common should fail closed (exit=$status)"
+  fi
+  if [[ "$output" != *"cannot start"* || "$output" != *"guard-common.sh"* ]]; then
+    record_fail "$hook missing guard-common should explain the missing helper"
+  fi
+}
+
 run_smoke() {
   expect_block guard-destructive-shell "rm -rf /" "rm -rf"
   expect_block guard-secret-paths "cat .env" ".env read"
@@ -215,6 +242,10 @@ run_full() {
   expect_antigravity_block guard-secret-paths "cat .env" ".env read"
   expect_antigravity_secret_file_block
   expect_antigravity_block guard-repository-writes "git push" "git push"
+
+  expect_missing_common_fails_closed guard-destructive-shell
+  expect_missing_common_fails_closed guard-secret-paths
+  expect_missing_common_fails_closed guard-repository-writes
 }
 
 case "$SELF_TEST_MODE" in

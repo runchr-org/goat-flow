@@ -27,11 +27,31 @@ last_reviewed: 2026-05-27
 
 **Status:** active | **Created:** 2026-05-27
 
-**What happened:** After extracting `guard-common.sh`, I expected `# shellcheck source=guard-common.sh` above the runtime-computed `source "$GOAT_GUARD_SCRIPT_DIR/guard-common.sh"` line to satisfy linting. The repo's hook lint command does not run ShellCheck with `-x`, so ShellCheck failed every mirrored policy hook with SC1091 before any behavior checks could matter.
+**What happened:** After extracting `guard-common.sh`, I expected `# shellcheck source=guard-common.sh` above the runtime-computed source line to satisfy linting. The repo's hook lint command does not run ShellCheck with `-x`, so ShellCheck failed or warned every mirrored policy hook with SC1091/SC1090 before any behavior checks could matter.
 
 **Root cause:** I treated the source directive as enough without checking it against the exact lint invocation used by preflight and CI.
 
-**Prevention:** For sourced hook helpers resolved through runtime variables, shellcheck the helper as its own input and suppress SC1091 only on the dynamic `source` line in each thin policy hook. Verify the workflow and installed mirrors with the same no-`-x` ShellCheck command used by preflight. Evidence anchors: `workflow/hooks/guard-common.sh` (search: `guard-common.sh - shared payload parsing`) and `workflow/hooks/guard-destructive-shell.sh` (search: `shellcheck disable=SC1091`).
+**Prevention:** For sourced hook helpers resolved through runtime variables, shellcheck the helper as its own input and suppress SC1090/SC1091 only on the dynamic `source` line in each thin policy hook. Verify the workflow and installed mirrors with the same no-`-x` ShellCheck command used by preflight. Evidence anchors: `workflow/hooks/guard-common.sh` (search: `guard-common.sh - shared payload parsing`) and `workflow/hooks/guard-destructive-shell.sh` (search: `shellcheck disable=SC1090,SC1091`).
+
+## Lesson: Shared hook helpers need missing-dependency runtime tests
+
+**Status:** active | **Created:** 2026-05-27
+
+**What happened:** After splitting the guard hooks through `guard-common.sh`, PreToolUse started reporting hook failures with exit code 127 when a thin policy hook could not load the shared helper. The script used `set -uo pipefail`, so a failed `source` did not stop execution; the hook then reached `main "$@"` before `main` existed.
+
+**Root cause:** I tested normal installed mirrors but did not test the degraded install shape where a policy hook exists without its required shared helper. That missed the actual failure users see during partial installs, stale mirrors, or interrupted setup.
+
+**Prevention:** Any Bash hook that sources a shared helper must guard the source path explicitly and include a self-test that runs the hook from a temp directory without the helper. The expected result is a fail-closed guardrail message, never exit 127. Evidence anchors: `workflow/hooks/guard-destructive-shell.sh` (search: `guard_common_unavailable`) and `workflow/hooks/guardrails-self-test.sh` (search: `expect_missing_common_fails_closed`).
+
+## Lesson: Codex hook commands should not depend on shell substitution
+
+**Status:** active | **Created:** 2026-05-27
+
+**What happened:** The live Codex hook config kept reporting three PreToolUse failures with exit code 127 even after the scripts themselves passed. The registered commands were `bash "$(git rev-parse --show-toplevel)/.codex/hooks/..."`, so Codex could fail before the guard script started when command substitution was not resolved in the hook runner context.
+
+**Root cause:** I assumed the Claude-style hook command string was safe for Codex too. The audit parser only needed to see the hook script path, but the runtime needed a command shape Codex can execute directly.
+
+**Prevention:** For Codex `.codex/hooks.json`, register direct project-local script paths such as `.codex/hooks/guard-repository-writes.sh` and verify the exact configured commands from the JSON file, not only direct `bash hook.sh` calls. Evidence anchors: `.codex/hooks.json` (search: `.codex/hooks/guard-repository-writes.sh`) and `src/cli/server/agent-hook-writer.ts` (search: `if (agent.id === "codex") return path`).
 
 ---
 

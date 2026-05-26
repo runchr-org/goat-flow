@@ -461,8 +461,7 @@ skills:
               hooks: [
                 {
                   type: "command",
-                  command:
-                    'bash "$(git rev-parse --show-toplevel)/.codex/hooks/guard-repository-writes.sh"',
+                  command: ".codex/hooks/guard-repository-writes.sh",
                 },
               ],
             },

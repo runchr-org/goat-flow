@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-destructive-shell.sh\"",
+            "command": ".codex/hooks/guard-destructive-shell.sh",
             "statusMessage": "Guard destructive shell"
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-secret-paths.sh\"",
+            "command": ".codex/hooks/guard-secret-paths.sh",
             "statusMessage": "Guard secret paths"
           }
         ]
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-repository-writes.sh\"",
+            "command": ".codex/hooks/guard-repository-writes.sh",
             "statusMessage": "Guard repository writes"
           }
         ]

@@ -31,7 +31,7 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
    - Copilot: `agent-config/copilot-hooks.json` -> `.github/hooks/hooks.json`
 3. `gruff-code-quality.sh` is opt-in through `.goat-flow/config.yaml`, the dashboard Hooks page, or `goat-flow hooks enable gruff-code-quality`.
 
-All hook paths use `$(git rev-parse --show-toplevel)` so they work regardless of the agent's working directory.
+Claude and Antigravity hook commands use `$(git rev-parse --show-toplevel)` so they work from nested project directories. Codex hook commands use direct project-local script paths because Codex runs `.codex/hooks.json` entries from the selected project.
 
 ## Post-Turn Linting (project-specific, not shipped)
 

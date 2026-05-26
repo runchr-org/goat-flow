@@ -83,7 +83,9 @@ function commandPath(agent: AgentProfile, script: string): string {
 }
 
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
-  return `bash "$(git rev-parse --show-toplevel)/${commandPath(agent, spec.primaryScript)}"`;
+  const path = commandPath(agent, spec.primaryScript);
+  if (agent.id === "codex") return path;
+  return `bash "$(git rev-parse --show-toplevel)/${path}"`;
 }
 
 function powershellCommand(agent: AgentProfile, spec: HookSpec): string {

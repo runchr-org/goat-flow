@@ -13,8 +13,42 @@ fi
 GOAT_GUARD_NAME="guard-repository-writes.sh"
 GOAT_GUARD_SCOPE="repository"
 GOAT_GUARD_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
-source "$GOAT_GUARD_SCRIPT_DIR/guard-common.sh"
+GOAT_GUARD_COMMON="$GOAT_GUARD_SCRIPT_DIR/guard-common.sh"
+
+guard_common_missing_json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
+
+guard_common_unavailable() {
+  local detail="$1"
+  local message payload escaped
+  message="$GOAT_GUARD_NAME cannot start: $detail. Re-run goat-flow setup so guard-common.sh is installed beside this hook."
+  payload="$(cat || true)"
+  escaped="$(guard_common_missing_json_escape "$message")"
+  if [[ "$payload" == *'"toolName"'* && "$payload" != *'"tool_name"'* ]]; then
+    printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}\n' "$escaped"
+    exit 0
+  fi
+  if [[ "$payload" == *'"toolCall"'* ]]; then
+    printf '{"decision":"deny","reason":"%s"}\n' "$escaped"
+    exit 0
+  fi
+  printf '%s\n' "$message" >&2
+  exit 2
+}
+
+if [[ ! -r "$GOAT_GUARD_COMMON" ]]; then
+  guard_common_unavailable "missing required shared helper $GOAT_GUARD_COMMON"
+fi
+
+# shellcheck disable=SC1090,SC1091
+source "$GOAT_GUARD_COMMON" || guard_common_unavailable "failed to load required shared helper $GOAT_GUARD_COMMON"
 
 __goat_git_strip_globals() {
   __goat_git_aliased_push=0
