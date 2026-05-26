@@ -84,6 +84,28 @@ last_reviewed: 2026-05-26
 
 **Prevention:** Seed first-pass retrieval terms with the concrete symptom, platform, or file/tool name rather than milestone titles or abstract design labels. One reword is allowed; if the second query still misses, record the retrieval miss explicitly and move on. Broad-loading the bucket to compensate defeats the protocol.
 
+## Footgun: Bash-prescribed slash-command or skill bodies break under per-block tool isolation
+
+**Status:** active | **Created:** 2026-05-26 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A SKILL.md or slash-command body grows past one or two `!cmd` invocations into a multi-block bash program. The agent runtime treats each bash block as an independent tool invocation. Variables defined in block N are gone in block N+1; heredocs with substitution, `BASH_REMATCH`, associative arrays, and `$(tool …)` substitution all become unreliable because the shell state is reset between blocks. The command starts producing parse errors or silently does the wrong thing.
+
+**Why it happens:** Authors write a skill body the way they'd write a shell script — top to bottom, with variables shared across steps. Claude Code (and Codex/Gemini) treat each fenced bash block as a separate `Bash` tool call. The slash-command body should describe steps declaratively for the agent to execute; it should not prescribe an exact multi-block bash program. The cost is hidden until the body crosses ~10 lines or ~2 blocks — short skills look fine.
+
+**Evidence:**
+- External: `kennyjpowers/claude-flow` PR #2 ("feat: add feedback workflow command" follow-up, MERGED 2025-11-21, 1,691 additions / 3,174 deletions). The original `feedback.md` shipped in PR #1 had 26+ bash blocks using `BASH_REMATCH`, heredocs with substitution, and `$(stm list …)` substitution. The PR #2 feedback log at `specs/add-feedback-workflow-command/05-feedback.md` (search: `Variable Persistence Problem: Bash variables don't persist between separate Bash tool invocations`) names the root cause: *"The command tries to prescribe exact bash scripts instead of providing declarative guidance for Claude to follow."* Fix: declarative steps + direct `!claudekit status stm` invocations replacing `$(claudekit status stm)` substitution.
+- External, follow-up: the same defect remained in sibling `decompose.md` (16 bash blocks) until a second feedback cycle. Same author, same codebase, same fix needed twice. Reinforces "when refactoring is the right answer, do the same refactor across sibling files."
+- Goat-flow surfaces at risk: every `workflow/skills/*/SKILL.md`, especially the dispatcher (`goat`) and any skill that orchestrates multi-step shell work. Verification: `rg -c '^```bash' workflow/skills/*/SKILL.md` lists current bash-block counts per skill.
+
+**Prevention:**
+1. If a SKILL.md body contains a bash block longer than ~10 lines OR more than 2 bash blocks total, refactor to declarative steps that name the tool and the inputs but let the agent pick the invocation.
+2. Use direct `!` tool invocations (e.g. `!goat-flow audit`) not `$(goat-flow audit)` substitution — the substitution form forces a subshell whose state doesn't persist beyond the block.
+3. Replace heredocs-with-substitution and associative-array tricks with a single file write + read, or with prose that asks the agent to track the value across steps.
+4. Validate by reading the SKILL.md as if a fresh agent ran each bash block in isolation: if any block expects a variable from a prior block, the body is prescriptive — refactor before shipping.
+5. When a sibling skill has the same shape (multiple skills wrapping the same kind of tool orchestration), audit them together. The kennyjpowers PR #2/decompose.md pattern shows that fixing only the one that bit leaves the rest as latent traps.
+
+Applies wherever goat-flow ships a SKILL.md or command body that orchestrates multi-step bash work. Cross-reference: `.goat-flow/footguns/skills.md` (search: `Skill parity edits can miss`) for the parallel concern about edits not propagating across installed mirrors — a bash-heavy skill compounds that risk because each block must remain byte-identical across all four installed copies.
+
 ## Footgun: Release-version bumps can break skill-rename work through stale fixtures and hardcoded current-version routing
 
 **Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
@@ -109,8 +131,8 @@ last_reviewed: 2026-05-26
 **Evidence:**
 - `workflow/manifest.json` (search: `"canonical"`) enumerates the seven canonical skills; an eighth grows the surface area of every per-harness mirror, every audit check, and every parity script.
 - `.goat-flow/decisions/ADR-009-skill-consolidation.md` (search: `Skill consolidation and canonical-skill doctrine`) records the doctrine but does not encode it as an authoring-time gate.
-- `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `single-context lenses are self-talk, not multi-perspective critique`) is the closest prior art for rejecting a configuration-flavored alternative; it lives as a per-skill decision, not a generic test.
-- `docs/skill-authoring.md` (search: `goat-flow-skill-version`) covers structural authoring conventions but does not contain a "would this be useful to someone working on a completely different kind of project" gate.
+- `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) is the closest prior art for rejecting a configuration-flavored alternative; it lives as a per-skill decision, not a generic test.
+- `docs/skill-authoring.md` (search: `Decide First`) is structured as scaffold / validate / interactive / dashboard / authoring checks; none of the sections gate on general-purpose vs. workflow-specific.
 - External corroboration: obra/superpowers PR #1571 ("feat: add context-management skill with domain isolation") was closed with the maintainer comment "the skill as designed is shaped around your specific multi-domain workflow ... that's a configuration system, not [a skill]." Superpowers and goat-flow share the same risk because both maintain a small canonical-skill surface.
 
 **Prevention:**

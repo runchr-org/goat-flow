@@ -1,6 +1,6 @@
 ---
 category: external-pr-learnings
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-26
 ---
 
 Lessons extracted from reviewing merged PRs in external projects relevant to goat-flow's
@@ -114,3 +114,23 @@ Related principle: replacing the subject of measurement with a stub or shortcut 
 4. Only then run the full test suite as regression coverage.
 
 "Test suite passes" is necessary but not sufficient evidence of a bug fix. Reinforces CLAUDE.md's "Fix verification" hallucination red-flag ("Do not claim a fix works without running the reproduction steps that originally demonstrated the bug. 'Looks correct' is not verification."). The dspy case is concrete cost evidence: three failed PRs over weeks of repeated review cycles, traceable to skipping step 3.
+
+---
+
+## Lesson: Status markers drift from ground truth unless the audit verifies the underlying change
+
+**Status:** active | **Created:** 2026-05-26
+
+**What happened (external — kennyjpowers/claude-flow PR #3, MERGED 2025-11-22, 14,693 additions):** An OIDC workflow change was logged as done across two sessions but the underlying file was never modified. Session 1 created the publish workflow using `NPM_TOKEN`. Session 2 marked Task 1.12 as `🔄 UPDATED` to indicate the OIDC switch was complete — but the workflow file itself was never edited. The divergence persisted until a user noticed both production workflows looked identical. The post-incident commit `9e2e3b3` ("fix: properly implement OIDC workflow and temporarily disable") records the discovery, and the implementation log at `specs/package-publishing-strategy/04-implementation.md` distills the rule: *"Task 1.12 was marked UPDATED for OIDC but file was never modified. Session 1 created workflow with NPM_TOKEN. Session 2 updated task spec but not actual file. Caught by user noticing both workflows looked identical. Documented lesson: UPDATED tasks need code changes verified."*
+
+**Root cause:** Status markers in human-curated task files (`✅ DONE`, `🔄 UPDATED`, `⏳ NEW`, or checkbox `[x]`) are *claims* about the world, not measurements of it. When the marker is updated but the corresponding code change is missed — because the session was interrupted, the agent assumed the change was trivial, or the task was incrementally re-marked across multiple sessions — the marker file drifts from ground truth. Subsequent audits that read the marker as authoritative reinforce the divergence. No purely structural check (does the marker exist? is the heading correct?) can catch this; the marker is structurally valid even when its claim is false.
+
+This is the task-tracking analogue of the goat-flow baseline pain point #2 (scanner compliance vs quality divergence): the structural signal (marker says DONE) passed while the truth (file unchanged) did not. The existing split between deterministic audit and inferential critique is designed to surface this shape; M14 (directive enforcement gradient) extends it to instruction-file directives. Neither mechanism today covers task-file completion claims directly.
+
+**Prevention:**
+1. When a task tracker (markdown checklist, milestone file, plan section) marks an item DONE or UPDATED, the audit (or peer review) must verify the underlying artifact changed in the expected way. Reading only the marker is reading the team's claim, not the world.
+2. For goat-flow's own milestone files (`.goat-flow/tasks/**/*.md` and the `M*.md` files in `related-improvement-ideas/`), the Mid-Implementation Proof section and Exit Criteria already require verification beyond marking the checkbox. The lesson here is that this discipline only works if the proof is *executed*; marking the box without running the proof reproduces the kennyjpowers OIDC failure mode.
+3. The lightest-weight defence is a paired check: each completion claim cites a specific file:section change (e.g., "`src/foo.ts` now exports `bar()`" or "`workflow/hook.sh` exits 1 on …"), and the audit greps for the cited evidence. If the grep fails, the claim is unverified.
+4. For interactive sessions that span multiple turns, save-as-you-go on the marker file is necessary but not sufficient — the corresponding edit on the underlying file must land in the same session, or the marker must be reverted before the session closes. Treat any session-end state where the marker advances without a corresponding code diff as a defect.
+
+Goat-flow surfaces where this could bite: every milestone Exit Criteria checklist; every Mid-Implementation Proof; every change to `.goat-flow/tasks/*.md` that doesn't pair with a code diff in the same PR. Cross-reference: `.goat-flow/footguns/quality.md` (search: `Structural validation passes while content is still unanswerable`) records the parallel structural-vs-content failure at the audit boundary; this lesson is its task-tracking analogue. Also reinforces existing CLAUDE.md verification discipline ("MUST read relevant files before changes. Never fabricate codebase facts.") — the marker file is part of the relevant set, but it is not authoritative about what was actually changed.
