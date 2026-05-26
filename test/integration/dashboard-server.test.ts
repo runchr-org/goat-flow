@@ -326,11 +326,11 @@ async function makeDashboardCacheProject(): Promise<{
   await writeProjectFile(
     root,
     ".codex/hooks.json",
-    '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-git-mutations.sh"}]}]}}\n',
+    '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/guard-repository-writes.sh"}]}]}}\n',
   );
   await writeProjectFile(
     root,
-    ".codex/hooks/deny-git-mutations.sh",
+    ".codex/hooks/guard-repository-writes.sh",
     "#!/usr/bin/env bash\nexit 0\n",
   );
   return {
@@ -381,7 +381,7 @@ async function makeDashboardSetupPromptProject(options: {
 }): Promise<{ root: string; cleanup: () => Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-prompt-tests-"));
   const denyHook = await readFile(
-    join(PROJECT_PATH, "workflow", "hooks", "deny-git-mutations.sh"),
+    join(PROJECT_PATH, "workflow", "hooks", "guard-repository-writes.sh"),
     "utf-8",
   );
   const denyHookSelfTest = await readFile(
@@ -453,7 +453,7 @@ skills:
                 {
                   type: "command",
                   command:
-                    'bash "$(git rev-parse --show-toplevel)/.codex/hooks/deny-git-mutations.sh"',
+                    'bash "$(git rev-parse --show-toplevel)/.codex/hooks/guard-repository-writes.sh"',
                 },
               ],
             },
@@ -464,7 +464,11 @@ skills:
       2,
     ),
   );
-  await writeProjectFile(root, ".codex/hooks/deny-git-mutations.sh", denyHook);
+  await writeProjectFile(
+    root,
+    ".codex/hooks/guard-repository-writes.sh",
+    denyHook,
+  );
   await writeProjectFile(
     root,
     ".codex/hooks/guardrails-self-test.sh",
@@ -1113,7 +1117,7 @@ describe("dashboard /api/audit", () => {
 
       await writeProjectFile(
         project.root,
-        ".codex/hooks/deny-git-mutations.sh",
+        ".codex/hooks/guard-repository-writes.sh",
         "#!/usr/bin/env bash\nexit 1\n",
       );
       const afterHook = await fetchProfiledAudit(project.root);

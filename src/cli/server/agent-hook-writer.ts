@@ -108,12 +108,12 @@ function entryReferencesSpec(entry: unknown, spec: HookSpec): boolean {
 function matcherForAgent(agent: AgentProfile, spec: HookSpec): string {
   if (agent.id !== "antigravity") return spec.matcher;
   if (
-    spec.id === "deny-destructive-commands" ||
-    spec.id === "deny-git-mutations"
+    spec.id === "guard-destructive-shell" ||
+    spec.id === "guard-repository-writes"
   ) {
     return "run_command";
   }
-  if (spec.id === "deny-secret-access") {
+  if (spec.id === "guard-secret-paths") {
     return [
       "run_command",
       "view_file",

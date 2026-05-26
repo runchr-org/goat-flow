@@ -267,7 +267,7 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
     writeFileSync(join(root, "CLAUDE.md"), "# CLAUDE.md\n\nSynthetic.\n");
     writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
     writeFileSync(
-      join(root, ".claude", "hooks", "deny-git-mutations.sh"),
+      join(root, ".claude", "hooks", "guard-repository-writes.sh"),
       "#!/usr/bin/env bash\nexit 0\n",
     );
     writeFileSync(
@@ -287,10 +287,10 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
     writeFileSync(join(root, ".codex", "config.toml"), CODEX_CONFIG);
     writeFileSync(
       join(root, ".codex", "hooks.json"),
-      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-git-mutations.sh"}]}]}}\n',
+      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/guard-repository-writes.sh"}]}]}}\n',
     );
     writeFileSync(
-      join(root, ".codex", "hooks", "deny-git-mutations.sh"),
+      join(root, ".codex", "hooks", "guard-repository-writes.sh"),
       "#!/usr/bin/env bash\nexit 0\n",
     );
     writeFileSync(
@@ -316,10 +316,10 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
     );
     writeFileSync(
       join(root, ".github", "hooks", "hooks.json"),
-      '{"hooks":{"preToolUse":[{"command":".github/hooks/deny-git-mutations.sh"}]}}\n',
+      '{"hooks":{"preToolUse":[{"command":".github/hooks/guard-repository-writes.sh"}]}}\n',
     );
     writeFileSync(
-      join(root, ".github", "hooks", "deny-git-mutations.sh"),
+      join(root, ".github", "hooks", "guard-repository-writes.sh"),
       "#!/usr/bin/env bash\nexit 0\n",
     );
     writeFileSync(

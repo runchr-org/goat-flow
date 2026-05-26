@@ -25,7 +25,7 @@
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
 - Antigravity uses `agy` as the terminal binary; verify version with `agy --version` (>= 1.0.1 for the OAuth persistence fix).
 - Plugin migration from other agents: `agy plugin import gemini` or `agy plugin import claude` populates Antigravity from existing setups.
-- Antigravity hook wiring uses `.agents/hooks.json` and scripts in `.agents/hooks/`. Goat-flow registers PreToolUse guardrails there; `gruff-on-change` remains unsupported until Antigravity exposes the completed tool's edited file path to PostToolUse hooks.
+- Antigravity hook wiring uses `.agents/hooks.json` and scripts in `.agents/hooks/`. Goat-flow registers PreToolUse guardrails there; `gruff-code-quality` remains unsupported until Antigravity exposes the completed tool's edited file path to PostToolUse hooks.
 - User-level config lives at `~/.config/antigravity/config.toml`; it is not a repo-local surface and is out of scope for per-project setup.
 - Sandbox/approval settings: Antigravity exposes `--sandbox` and `proceed-in-sandbox` permission modes through the binary, not via repo-local config files.
 

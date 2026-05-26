@@ -38,11 +38,11 @@ learning-loop:
 # Togglable goat-flow hook state. Missing entries use registry defaults.
 # Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.
 hooks:
-  deny-destructive-commands:
+  guard-destructive-shell:
     enabled: true
-  deny-git-mutations:
+  guard-secret-paths:
     enabled: true
-  deny-secret-access:
+  guard-repository-writes:
     enabled: true
   gruff-on-change:
     enabled: false

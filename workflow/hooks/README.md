@@ -6,11 +6,11 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 
 | Script | Event | Required? | Purpose |
 |--------|-------|-----------|---------|
-| `deny-destructive-commands.sh` | PreToolUse | Required | Blocks broad recursive deletion, privileged package-manager mutation, chmod 777, pipe-to-shell, file truncation, destructive database commands, and destructive cloud/infrastructure commands |
-| `deny-secret-access.sh` | PreToolUse | Required | Blocks direct literal shell access to `.env`, credentials, key material, and common secret directories |
-| `deny-git-mutations.sh` | PreToolUse | Required | Blocks `git commit`, all git push (ADR-025), destructive git flags, and GitHub writes via `gh` |
+| `guard-destructive-shell.sh` | PreToolUse | Required | Blocks broad recursive deletion, privileged package-manager mutation, chmod 777, pipe-to-shell, file truncation, destructive database commands, and destructive cloud/infrastructure commands |
+| `guard-secret-paths.sh` | PreToolUse | Required | Blocks direct literal shell access to `.env`, credentials, key material, and common secret directories |
+| `guard-repository-writes.sh` | PreToolUse | Required | Blocks `git commit`, all git push (ADR-025), destructive git flags, and GitHub writes via `gh` |
 | `guardrails-self-test.sh` | Self-test helper | Required with guardrails | Central smoke/full self-test for all three guardrails |
-| `gruff-on-change.sh` | PostToolUse | Optional | Runs the matching `gruff-* analyse <file>` command after Edit/Write/MultiEdit when enabled |
+| `gruff-code-quality.sh` | PostToolUse | Optional | Runs the matching `gruff-* analyse <file>` command after Edit/Write/MultiEdit when enabled |
 
 ## Agent Event Name Mapping
 
@@ -22,19 +22,19 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 
 ## Setup
 
-1. Copy the required guardrail files to your agent's hooks directory: `deny-destructive-commands.sh`, `deny-secret-access.sh`, `deny-git-mutations.sh`, and `guardrails-self-test.sh`.
+1. Copy the required guardrail files to your agent's hooks directory: `guard-destructive-shell.sh`, `guard-secret-paths.sh`, `guard-repository-writes.sh`, and `guardrails-self-test.sh`.
 2. Copy the matching agent-config template(s) for your runtime:
    - Claude: `agent-config/claude.json` -> `.claude/settings.json`
    - Codex: `agent-config/codex.toml` -> `.codex/config.toml` and `agent-config/codex-hooks.json` -> `.codex/hooks.json`
    - Antigravity: `agent-config/antigravity-hooks.json` -> `.agents/hooks.json`
    - Copilot: `agent-config/copilot-hooks.json` -> `.github/hooks/hooks.json`
-3. `gruff-on-change.sh` is opt-in through `.goat-flow/config.yaml`, the dashboard Hooks page, or `goat-flow hooks enable gruff-on-change`.
+3. `gruff-code-quality.sh` is opt-in through `.goat-flow/config.yaml`, the dashboard Hooks page, or `goat-flow hooks enable gruff-code-quality`.
 
 All hook paths use `$(git rev-parse --show-toplevel)` so they work regardless of the agent's working directory.
 
 ## Post-Turn Linting (project-specific, not shipped)
 
-goat-flow does not ship a post-turn lint hook. Every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Claude `Stop`, Codex `Stop`, or Antigravity `Stop` event and register it in that agent's hook config. The shipped `gruff-on-change.sh` remains unsupported for Antigravity because it requires the completed tool's edited file path from PostToolUse input.
+goat-flow does not ship a post-turn lint hook. Every project has different linters, configs, and performance constraints. If you want post-turn validation, write a project-specific script for the Claude `Stop`, Codex `Stop`, or Antigravity `Stop` event and register it in that agent's hook config. The shipped `gruff-code-quality.sh` remains unsupported for Antigravity because it requires the completed tool's edited file path from PostToolUse input.
 
 ## Codex Permissions
 

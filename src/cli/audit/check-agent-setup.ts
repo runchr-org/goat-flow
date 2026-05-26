@@ -55,7 +55,7 @@ function agentArtifactsExist(
   const hooksDir = profile.hooks_dir?.replace(/\/$/, "");
   if (
     hooksDir !== undefined &&
-    fs.exists(`${hooksDir}/deny-git-mutations.sh`)
+    fs.exists(`${hooksDir}/guard-repository-writes.sh`)
   ) {
     return true;
   }
@@ -600,7 +600,7 @@ function checkCodexWorkspaceRootInvalidGlobs(
       ),
       evidence: af.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
-        "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/deny-secret-access.sh.",
+        "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/guard-secret-paths.sh.",
     };
   }
   return null;
@@ -754,14 +754,14 @@ function evidencePath(relPath: string): string {
 /** Compare installed deny hook content against the canonical template. */
 function checkHookVersion(ctx: AuditContext): AuditFailure | null {
   const templateFiles = [
-    "deny-destructive-commands.sh",
-    "deny-secret-access.sh",
-    "deny-git-mutations.sh",
+    "guard-destructive-shell.sh",
+    "guard-secret-paths.sh",
+    "guard-repository-writes.sh",
     "guardrails-self-test.sh",
   ];
   for (const af of ctx.agents) {
     if (!af.agent.hooksDir) continue;
-    const denyRelPath = join(af.agent.hooksDir, "deny-git-mutations.sh");
+    const denyRelPath = join(af.agent.hooksDir, "guard-repository-writes.sh");
     if (ctx.fs.readFile(denyRelPath) === null) continue;
 
     for (const templateFile of templateFiles) {
@@ -862,7 +862,7 @@ function registeredDenyRelPath(
 ): string | null {
   if (af.hooks.denyRegisteredPath) return af.hooks.denyRegisteredPath;
   if (!af.agent.hooksDir) return null;
-  return join(af.agent.hooksDir, "deny-git-mutations.sh");
+  return join(af.agent.hooksDir, "guard-repository-writes.sh");
 }
 
 function runHookRuntimeSmoke(

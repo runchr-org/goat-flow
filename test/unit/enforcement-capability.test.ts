@@ -28,7 +28,7 @@ function agentScope(status: "pass" | "fail" | "skipped"): AuditScope {
           ? {
               failure: {
                 check: "Agent deny mechanism",
-                message: "deny-git-mutations.sh --self-test=smoke failed",
+                message: "guard-repository-writes.sh --self-test=smoke failed",
               },
             }
           : {}),

@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
-const HOOK = join(PROJECT_ROOT, "workflow", "hooks", "gruff-on-change.sh");
+const HOOK = join(PROJECT_ROOT, "workflow", "hooks", "gruff-code-quality.sh");
 const disposables: string[] = [];
 
 after(() => {
@@ -50,7 +50,7 @@ function runHook(
   });
 }
 
-describe("gruff-on-change hook", () => {
+describe("gruff-code-quality hook", () => {
   it("prints findings and footer for edited TypeScript files", () => {
     const root = makeRoot();
     const binDir = writeMockGruff(root);

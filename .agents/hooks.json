@@ -1,5 +1,5 @@
 {
-  "deny-destructive-commands": {
+  "guard-destructive-shell": {
     "enabled": true,
     "PreToolUse": [
       {
@@ -7,14 +7,14 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/deny-destructive-commands.sh\"",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-destructive-shell.sh\"",
             "timeout": 30
           }
         ]
       }
     ]
   },
-  "deny-secret-access": {
+  "guard-secret-paths": {
     "enabled": true,
     "PreToolUse": [
       {
@@ -22,14 +22,14 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/deny-secret-access.sh\"",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-secret-paths.sh\"",
             "timeout": 30
           }
         ]
       }
     ]
   },
-  "deny-git-mutations": {
+  "guard-repository-writes": {
     "enabled": true,
     "PreToolUse": [
       {
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/deny-git-mutations.sh\"",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-repository-writes.sh\"",
             "timeout": 30
           }
         ]

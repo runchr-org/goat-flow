@@ -58,7 +58,7 @@ describe("dashboard side navigation", () => {
     );
     assert.match(
       sideMenu,
-      />\s*Managers\s*<[\s\S]*>\s*Skill Evaluator\s*<[\s\S]*>\s*Plans\s*<[\s\S]*>\s*Hooks\s*</,
+      />\s*Managers\s*<[\s\S]*>\s*Hooks\s*<[\s\S]*>\s*Plans\s*<[\s\S]*>\s*Skill Evaluator\s*</,
     );
     assert.match(
       sideMenu,

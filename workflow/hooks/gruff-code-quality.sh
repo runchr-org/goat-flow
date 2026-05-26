@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gruff-on-change.sh - PostToolUse hook: run gruff on just-edited files.
+# gruff-code-quality.sh - PostToolUse hook: run gruff code-quality checks on just-edited files.
 
 set -euo pipefail
 
@@ -111,7 +111,7 @@ main() {
   set -e
 
   if [[ "$status" -eq 124 ]]; then
-    printf 'gruff-on-change: %s crashed or timed out\n' "$binary" >&2
+    printf 'gruff-code-quality: %s crashed or timed out\n' "$binary" >&2
     exit 0
   fi
   if [[ -n "$output" ]]; then

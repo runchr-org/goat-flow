@@ -11,7 +11,7 @@ last_reviewed: 2026-05-26
 
 **Root cause:** I added a new agent payload shape without first normalizing the existing polymorphic field shape shared by another agent. The fallback was present, but the earlier direct field access made it unreachable for string payloads.
 
-**Prevention:** For hook payload parsing, normalize variant fields first, then read subfields. Keep self-tests for every registered agent payload shape in `workflow/hooks/guardrails-self-test.sh` (search: `expect_copilot_block`, `expect_antigravity_block`) and run the full self-test after every extractor edit. Evidence anchors: `workflow/hooks/deny-git-mutations.sh` (search: `if type == "string" then fromjson?`) and `workflow/hooks/guardrails-self-test.sh` (search: `expect_antigravity_secret_file_block`).
+**Prevention:** For hook payload parsing, normalize variant fields first, then read subfields. Keep self-tests for every registered agent payload shape in `workflow/hooks/guardrails-self-test.sh` (search: `expect_copilot_block`, `expect_antigravity_block`) and run the full self-test after every extractor edit. Evidence anchors: `workflow/hooks/guard-repository-writes.sh` (search: `if type == "string" then fromjson?`) and `workflow/hooks/guardrails-self-test.sh` (search: `expect_antigravity_secret_file_block`).
 
 ## Lesson: Hook write-block tests must vary valid CLI grammar
 
@@ -21,4 +21,4 @@ last_reviewed: 2026-05-26
 
 **Root cause:** I tested the incident shape and a few nearby commands, but not the CLI grammar surface. GitHub CLI accepts inherited flags after the topic, and shell pipeline consumers can move the real command behind a wrapper such as `xargs`.
 
-**Prevention:** For hook rules that classify write-capable CLI commands, build the regression set as a grammar matrix before mirror fanout: direct incident form, global flags before topic, inherited flags after topic, short flag forms, shell wrappers, pipeline consumers such as `xargs`, write-method API forms, and read-only allow controls. Evidence anchors: `workflow/hooks/deny-git-mutations.sh` (search: `contains_git_mutation`), `workflow/hooks/guardrails-self-test.sh` (search: `gh issue comment`).
+**Prevention:** For hook rules that classify write-capable CLI commands, build the regression set as a grammar matrix before mirror fanout: direct incident form, global flags before topic, inherited flags after topic, short flag forms, shell wrappers, pipeline consumers such as `xargs`, write-method API forms, and read-only allow controls. Evidence anchors: `workflow/hooks/guard-repository-writes.sh` (search: `contains_git_mutation`), `workflow/hooks/guardrails-self-test.sh` (search: `gh issue comment`).

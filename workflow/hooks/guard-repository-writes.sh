@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# deny-destructive-commands.sh - PreToolUse hook for destructive shell commands.
-# Blocks rm -rf, chmod 777, curl | bash pipe-to-shell, docker push, and
-# chained command strings that contain those destructive segments.
+# guard-repository-writes.sh - PreToolUse hook for agent-side git/GitHub writes.
+# Blocks git push, git commit, destructive git flags, and gh write operations.
 
 set -euo pipefail
 
@@ -13,16 +12,12 @@ for arg in "$@"; do
     --self-test) SELF_TEST_MODE="smoke" ;;
     --self-test=*) SELF_TEST_MODE="${arg#--self-test=}" ;;
     --check=*) CHECK_COMMAND="${arg#--check=}" ;;
-    --check)
-      shift
-      CHECK_COMMAND="${1:-}"
-      ;;
   esac
 done
 
 if [[ -n "$SELF_TEST_MODE" ]]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook deny-destructive-commands
+  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook guard-repository-writes
 fi
 
 read_payload() {
@@ -94,42 +89,22 @@ allow_if_antigravity() {
   fi
 }
 
-contains_destructive_command() {
+contains_git_mutation() {
   local cmd="$1"
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?rm[[:space:]]+-[^[:space:]]*r[^[:space:]]*f'; then
-    printf 'recursive force deletion'
+  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+push([[:space:]]|$)'; then
+    printf 'git push'
     return 0
   fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])sudo[[:space:]]+(apt(-get)?|dnf|yum|pacman|brew)[[:space:]]+(install|remove|upgrade|update)'; then
-    printf 'privileged package-manager mutation'
+  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+commit([[:space:]]|$)'; then
+    printf 'git commit'
     return 0
   fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(mkfs|dd[[:space:]].*of=/dev/|diskutil[[:space:]]+erase|wipefs|shred)[[:space:]]'; then
-    printf 'disk-destructive command'
+  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+(reset[[:space:]]+--hard|clean[[:space:]]+-[^[:space:]]*f|branch[[:space:]]+-D|tag[[:space:]]+-d|checkout[[:space:]]+-f|rebase|filter-branch|remote[[:space:]]+(add|remove|set-url))'; then
+    printf 'destructive git mutation'
     return 0
   fi
-  if printf '%s' "$cmd" | grep -Eiq 'chmod[[:space:]]+(-R[[:space:]]+)?777'; then
-    printf 'chmod 777'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh'; then
-    printf 'pipe-to-shell execution'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(eval|bash[[:space:]]+-c|sh[[:space:]]+-c|zsh[[:space:]]+-c|python[[:space:]]+-c|node[[:space:]]+-e|perl[[:space:]]+-e)[[:space:]]'; then
-    printf 'opaque interpreter execution'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|]):[[:space:]]*>|(^|[[:space:];&|])truncate[[:space:]]+-s[[:space:]]*0'; then
-    printf 'file truncation'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(mysql|psql|sqlite3|mongosh|redis-cli)[^;&|]*(DROP[[:space:]]+(TABLE|DATABASE)|TRUNCATE[[:space:]]+TABLE|FLUSHALL)'; then
-    printf 'destructive database command'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(docker[[:space:]]+push|terraform[[:space:]]+destroy|terraform[[:space:]]+apply[^;&|]*-auto-approve|aws[[:space:]]+s3[[:space:]]+rm|aws[[:space:]]+ec2[[:space:]]+terminate)'; then
-    printf 'cloud or infrastructure destructive command'
+  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])gh[[:space:]]+(issue|pr|release|gist|repo|api)[[:space:]][^;&|]*(create|edit|delete|close|reopen|merge|comment|upload|--method[[:space:]]+(POST|PATCH|PUT|DELETE)|-X[[:space:]]+(POST|PATCH|PUT|DELETE))'; then
+    printf 'GitHub write operation'
     return 0
   fi
   return 1
@@ -137,8 +112,8 @@ contains_destructive_command() {
 
 payload="$(read_payload)"
 command_text="$(extract_command "$payload")"
-if reason="$(contains_destructive_command "$command_text")"; then
-  deny "$payload" "Deny destructive commands: $reason"
+if reason="$(contains_git_mutation "$command_text")"; then
+  deny "$payload" "Guard repository writes: $reason"
 fi
 allow_if_antigravity "$payload"
 exit 0

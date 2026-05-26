@@ -29,7 +29,7 @@ Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `
 - No features, abstractions, or error handling beyond what was asked. Gold-plating is scope creep.
 - Ambiguous requirements: present interpretations, don't pick silently.
 - Use current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
-- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/deny-*.sh`, `.github/hooks/guardrails-self-test.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
+- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/guard-*.sh`, `.github/hooks/guardrails-self-test.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
 - `.github/agents/` is intentionally out of scope; CI/CD, hooks, prompts, or skills work should prefer `goat-security` or `goat-review`.
 
 ## Key Resources
@@ -104,7 +104,7 @@ When asked to add/update a goat-flow artifact, route to docs, not runtime code: 
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation, agent config templates) |
 | CLI + dashboard | `src/cli/`, `src/dashboard/` |
 | Scripts | `scripts/` |
-| Hooks | `.github/hooks/hooks.json`, `.github/hooks/deny-*.sh`, `.github/hooks/guardrails-self-test.sh` |
+| Hooks | `.github/hooks/hooks.json`, `.github/hooks/guard-*.sh`, `.github/hooks/guardrails-self-test.sh` |
 | Config | `.goat-flow/config.yaml` |
 | Documentation | `docs/` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

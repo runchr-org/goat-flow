@@ -179,7 +179,7 @@ const STUB_AGENT_PROFILE: AgentProfile = {
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
-  denyHookFile: ".claude/hooks/deny-git-mutations.sh",
+  denyHookFile: ".claude/hooks/guard-repository-writes.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
@@ -246,7 +246,7 @@ function stubAgentFacts(overrides: Partial<AgentFacts> = {}): AgentFacts {
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
       denyIsRegistered: true,
-      denyRegisteredPath: ".claude/hooks/deny-git-mutations.sh",
+      denyRegisteredPath: ".claude/hooks/guard-repository-writes.sh",
       postTurnExists: false,
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
@@ -1055,9 +1055,9 @@ describe("orphaned artifact detection refinement", () => {
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
-        path: ".codex/hooks/deny-git-mutations.sh",
+        path: ".codex/hooks/guard-repository-writes.sh",
       },
-      denyHookFile: ".codex/hooks/deny-git-mutations.sh",
+      denyHookFile: ".codex/hooks/guard-repository-writes.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -1089,7 +1089,8 @@ describe("orphaned artifact detection refinement", () => {
             if (path === "CLAUDE.md") return false;
             if (path === ".claude/settings.json") return true;
             if (path === ".claude/hooks") return true;
-            if (path === ".claude/hooks/deny-git-mutations.sh") return false;
+            if (path === ".claude/hooks/guard-repository-writes.sh")
+              return false;
             return true;
           },
           listDir: () => [],
@@ -1119,9 +1120,9 @@ describe("orphaned artifact detection refinement", () => {
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
-        path: ".codex/hooks/deny-git-mutations.sh",
+        path: ".codex/hooks/guard-repository-writes.sh",
       },
-      denyHookFile: ".codex/hooks/deny-git-mutations.sh",
+      denyHookFile: ".codex/hooks/guard-repository-writes.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -1151,7 +1152,8 @@ describe("orphaned artifact detection refinement", () => {
           exists: (path: string) => {
             if (path === "AGENTS.md") return true;
             if (path === "CLAUDE.md") return false;
-            if (path === ".claude/hooks/deny-git-mutations.sh") return true;
+            if (path === ".claude/hooks/guard-repository-writes.sh")
+              return true;
             return true;
           },
           listDir: () => [],
@@ -1181,9 +1183,9 @@ describe("--agent filtering", () => {
       hooksDir: ".codex/hooks",
       denyMechanism: {
         type: "deny-script",
-        path: ".codex/hooks/deny-git-mutations.sh",
+        path: ".codex/hooks/guard-repository-writes.sh",
       },
-      denyHookFile: ".codex/hooks/deny-git-mutations.sh",
+      denyHookFile: ".codex/hooks/guard-repository-writes.sh",
       localPattern: ".github/instructions/*.md",
       hookEvents: { preTool: "", postTurn: "stop" },
     };
@@ -1270,7 +1272,7 @@ describe("codex settings feature flags", () => {
         ...hooks,
         denyExists: true,
         denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-git-mutations.sh",
+        denyRegisteredPath: ".codex/hooks/guard-repository-writes.sh",
       },
     });
   }
@@ -1976,15 +1978,15 @@ describe("agent deny hook template comparison", () => {
   function guardrailTemplates() {
     return {
       destructive: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-destructive-commands.sh"),
+        resolve(PROJECT_ROOT, "workflow/hooks/guard-destructive-shell.sh"),
         "utf-8",
       ),
       secret: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-secret-access.sh"),
+        resolve(PROJECT_ROOT, "workflow/hooks/guard-secret-paths.sh"),
         "utf-8",
       ),
       git: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-git-mutations.sh"),
+        resolve(PROJECT_ROOT, "workflow/hooks/guard-repository-writes.sh"),
         "utf-8",
       ),
       selfTest: readFileSync(
@@ -2000,9 +2002,9 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-destructive-commands.sh`]: templates.destructive,
-      [`${hooksDir}/deny-secret-access.sh`]: templates.secret,
-      [`${hooksDir}/deny-git-mutations.sh`]: templates.git,
+      [`${hooksDir}/guard-destructive-shell.sh`]: templates.destructive,
+      [`${hooksDir}/guard-secret-paths.sh`]: templates.secret,
+      [`${hooksDir}/guard-repository-writes.sh`]: templates.git,
       [`${hooksDir}/guardrails-self-test.sh`]: templates.selfTest,
     };
     return (path: string) => {
@@ -2019,14 +2021,14 @@ describe("agent deny hook template comparison", () => {
       projectPath: PROJECT_ROOT,
       fs: stubFS({
         readFile: installedGuardrailContent(".claude/hooks", templates, {
-          ".claude/hooks/deny-git-mutations.sh": `${templates.git}\n# local drift\n`,
+          ".claude/hooks/guard-repository-writes.sh": `${templates.git}\n# local drift\n`,
         }),
       }),
     });
     const result = denyCheck.run(ctx);
     assert.ok(result, "expected hook version drift failure");
     assert.match(result.message, /differs from the current goat-flow template/);
-    assert.equal(result.evidence, ".claude/hooks/deny-git-mutations.sh");
+    assert.equal(result.evidence, ".claude/hooks/guard-repository-writes.sh");
   });
 
   it("passes when the installed deny hook matches the canonical template", () => {
@@ -2059,7 +2061,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".github/hooks/deny-git-mutations.sh",
+            denyRegisteredPath: ".github/hooks/guard-repository-writes.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -2153,32 +2155,32 @@ describe("M01 harness check type tagging", () => {
 describe("hook fact extraction", () => {
   it("detects current deny hook secret coverage from generalized path matcher", () => {
     const gitTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-git-mutations.sh"),
+      resolve(PROJECT_ROOT, "workflow/hooks/guard-repository-writes.sh"),
       "utf8",
     );
     const secretTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-secret-access.sh"),
+      resolve(PROJECT_ROOT, "workflow/hooks/guard-secret-paths.sh"),
       "utf8",
     );
     const destructiveTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-destructive-commands.sh"),
+      resolve(PROJECT_ROOT, "workflow/hooks/guard-destructive-shell.sh"),
       "utf8",
     );
     const fs = stubFS({
       exists: (path) =>
         [
-          ".claude/hooks/deny-destructive-commands.sh",
-          ".claude/hooks/deny-secret-access.sh",
-          ".claude/hooks/deny-git-mutations.sh",
+          ".claude/hooks/guard-destructive-shell.sh",
+          ".claude/hooks/guard-secret-paths.sh",
+          ".claude/hooks/guard-repository-writes.sh",
         ].includes(path),
       readFile: (path) => {
-        if (path === ".claude/hooks/deny-destructive-commands.sh") {
+        if (path === ".claude/hooks/guard-destructive-shell.sh") {
           return destructiveTemplate;
         }
-        if (path === ".claude/hooks/deny-secret-access.sh") {
+        if (path === ".claude/hooks/guard-secret-paths.sh") {
           return secretTemplate;
         }
-        if (path === ".claude/hooks/deny-git-mutations.sh") {
+        if (path === ".claude/hooks/guard-repository-writes.sh") {
           return gitTemplate;
         }
         return null;

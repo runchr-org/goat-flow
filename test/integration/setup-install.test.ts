@@ -108,7 +108,7 @@ describe("setup --apply installer", () => {
       true,
     );
     assert.equal(
-      existsSync(join(root, ".codex", "hooks", "deny-git-mutations.sh")),
+      existsSync(join(root, ".codex", "hooks", "guard-repository-writes.sh")),
       true,
     );
     assert.equal(

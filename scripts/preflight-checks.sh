@@ -694,9 +694,9 @@ fi
 # install-safe representative set; the local scripts/ copy runs the full corpus
 # above.
 guardrail_hooks=(
-    deny-destructive-commands.sh
-    deny-secret-access.sh
-    deny-git-mutations.sh
+    guard-destructive-shell.sh
+    guard-secret-paths.sh
+    guard-repository-writes.sh
 )
 while IFS= read -r hookdir; do
     for guardrail_hook in "${guardrail_hooks[@]}"; do
@@ -719,42 +719,42 @@ done < <(manifest_eval hook-dirs)
 
 # Runtime smoke test: pipe a known-blocked command through installed deny hooks
 while IFS= read -r hookdir; do
-    if [[ -f "$hookdir/deny-destructive-commands.sh" ]]; then
+    if [[ -f "$hookdir/guard-destructive-shell.sh" ]]; then
         if [[ "$hookdir" == ".github/hooks" ]]; then
             test_payload='{"toolName":"bash","toolArgs":"{\"command\":\"rm -rf /\"}"}'
-            if output=$(bash "$hookdir/deny-destructive-commands.sh" <<< "$test_payload" 2>&1); then
+            if output=$(bash "$hookdir/guard-destructive-shell.sh" <<< "$test_payload" 2>&1); then
                 if echo "$output" | grep -q '"permissionDecision":"deny"'; then
-                    pass "$hookdir/deny-destructive-commands.sh runtime smoke test (copilot payload denied rm -rf)"
+                    pass "$hookdir/guard-destructive-shell.sh runtime smoke test (copilot payload denied rm -rf)"
                 else
-                    fail "$hookdir/deny-destructive-commands.sh did not return a deny decision for Copilot payload"
+                    fail "$hookdir/guard-destructive-shell.sh did not return a deny decision for Copilot payload"
                 fi
             else
                 exit_code=$?
-                warn "$hookdir/deny-destructive-commands.sh exited $exit_code on Copilot deny payload (expected 0 + deny JSON)"
+                warn "$hookdir/guard-destructive-shell.sh exited $exit_code on Copilot deny payload (expected 0 + deny JSON)"
             fi
         elif [[ "$hookdir" == ".agents/hooks" ]]; then
             test_payload='{"hookEventName":"PreToolUse","toolCall":{"name":"run_command","args":{"CommandLine":"rm -rf /"}}}'
-            if output=$(bash "$hookdir/deny-destructive-commands.sh" <<< "$test_payload" 2>&1); then
+            if output=$(bash "$hookdir/guard-destructive-shell.sh" <<< "$test_payload" 2>&1); then
                 if echo "$output" | grep -q '"decision":"deny"'; then
-                    pass "$hookdir/deny-destructive-commands.sh runtime smoke test (antigravity payload denied rm -rf)"
+                    pass "$hookdir/guard-destructive-shell.sh runtime smoke test (antigravity payload denied rm -rf)"
                 else
-                    fail "$hookdir/deny-destructive-commands.sh did not return a deny decision for Antigravity payload"
+                    fail "$hookdir/guard-destructive-shell.sh did not return a deny decision for Antigravity payload"
                 fi
             else
                 exit_code=$?
-                warn "$hookdir/deny-destructive-commands.sh exited $exit_code on Antigravity deny payload (expected 0 + deny JSON)"
+                warn "$hookdir/guard-destructive-shell.sh exited $exit_code on Antigravity deny payload (expected 0 + deny JSON)"
             fi
         else
             # Simulate a VS Code-style Bash tool call with a dangerous command
             test_payload='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
-            if bash "$hookdir/deny-destructive-commands.sh" <<< "$test_payload" >/dev/null 2>&1; then
-                fail "$hookdir/deny-destructive-commands.sh did not block 'rm -rf /' (exit 0)"
+            if bash "$hookdir/guard-destructive-shell.sh" <<< "$test_payload" >/dev/null 2>&1; then
+                fail "$hookdir/guard-destructive-shell.sh did not block 'rm -rf /' (exit 0)"
             else
                 exit_code=$?
                 if [[ $exit_code -eq 2 ]]; then
-                    pass "$hookdir/deny-destructive-commands.sh runtime smoke test (blocked rm -rf)"
+                    pass "$hookdir/guard-destructive-shell.sh runtime smoke test (blocked rm -rf)"
                 else
-                    warn "$hookdir/deny-destructive-commands.sh exited $exit_code on blocked command (expected 2)"
+                    warn "$hookdir/guard-destructive-shell.sh exited $exit_code on blocked command (expected 2)"
                 fi
             fi
         fi

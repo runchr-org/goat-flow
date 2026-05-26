@@ -225,10 +225,13 @@ function writeHookFixtures(root: string): void {
   mkdirSync(join(root, "workflow", "hooks", "agent-config"), {
     recursive: true,
   });
-  writeFileSync(
-    join(root, "workflow", "hooks", "deny-git-mutations.sh"),
-    HOOK_STUB,
-  );
+  for (const guardrailHook of [
+    "guard-destructive-shell.sh",
+    "guard-secret-paths.sh",
+    "guard-repository-writes.sh",
+  ]) {
+    writeFileSync(join(root, "workflow", "hooks", guardrailHook), HOOK_STUB);
+  }
   writeFileSync(
     join(root, "workflow", "hooks", "guardrails-self-test.sh"),
     HOOK_STUB,
@@ -239,7 +242,13 @@ function writeHookFixtures(root: string): void {
   );
   for (const hooksDir of [".claude/hooks", ".codex/hooks", ".github/hooks"]) {
     mkdirSync(join(root, hooksDir), { recursive: true });
-    writeFileSync(join(root, hooksDir, "deny-git-mutations.sh"), HOOK_STUB);
+    for (const guardrailHook of [
+      "guard-destructive-shell.sh",
+      "guard-secret-paths.sh",
+      "guard-repository-writes.sh",
+    ]) {
+      writeFileSync(join(root, hooksDir, guardrailHook), HOOK_STUB);
+    }
     writeFileSync(join(root, hooksDir, "guardrails-self-test.sh"), HOOK_STUB);
   }
   writeFileSync(
@@ -488,7 +497,7 @@ describe("checkDrift: hook templates", () => {
     try {
       writeHookFixtures(root);
       writeFileSync(
-        join(root, ".codex", "hooks", "deny-git-mutations.sh"),
+        join(root, ".codex", "hooks", "guard-repository-writes.sh"),
         `${HOOK_STUB}\n# local drift\n`,
       );
       const report = checkDrift({
@@ -501,7 +510,7 @@ describe("checkDrift: hook templates", () => {
         report.findings.some(
           (finding) =>
             finding.kind === "content" &&
-            finding.path === ".codex/hooks/deny-git-mutations.sh",
+            finding.path === ".codex/hooks/guard-repository-writes.sh",
         ),
         `expected .codex hook drift, findings=${JSON.stringify(report.findings)}`,
       );
@@ -514,7 +523,7 @@ describe("checkDrift: hook templates", () => {
     const root = setupFixture();
     try {
       writeHookFixtures(root);
-      rmSync(join(root, ".codex", "hooks", "deny-git-mutations.sh"), {
+      rmSync(join(root, ".codex", "hooks", "guard-repository-writes.sh"), {
         force: true,
       });
       const report = checkDrift({
@@ -527,7 +536,7 @@ describe("checkDrift: hook templates", () => {
         report.findings.some(
           (finding) =>
             finding.kind === "missing" &&
-            finding.path === ".codex/hooks/deny-git-mutations.sh",
+            finding.path === ".codex/hooks/guard-repository-writes.sh",
         ),
         `expected missing .codex hook finding, findings=${JSON.stringify(report.findings)}`,
       );

@@ -416,13 +416,13 @@ next += [
   "",
   "# Hook toggles for goat-flow-shipped hooks.",
   "hooks:",
-  "  deny-destructive-commands:",
+  "  guard-destructive-shell:",
   "    enabled: true",
-  "  deny-secret-access:",
+  "  guard-secret-paths:",
   "    enabled: true",
-  "  deny-git-mutations:",
+  "  guard-repository-writes:",
   "    enabled: true",
-  "  gruff-on-change:",
+  "  gruff-code-quality:",
   "    enabled: false",
   "",
 ].join(eol);
@@ -580,7 +580,7 @@ const canonicalBlock = [
   '# Codex 0.131 accepts exact paths and trailing "/**" subtrees here.',
   "# Exact entries must point at files that exist in the target checkout; absent",
   "# exact paths can make Codex fail before shell startup. Filename globs such as",
-  '# "*.key" are covered by .codex/hooks/deny-secret-access.sh.',
+  '# "*.key" are covered by .codex/hooks/guard-secret-paths.sh.',
   '":workspace_roots" = { "." = "write", "secrets/**" = "none", ".ssh/**" = "none", ".aws/**" = "none", ".docker/**" = "none", ".gnupg/**" = "none", ".kube/**" = "none" }',
 ];
 
@@ -846,9 +846,9 @@ fi
 if $HOOKS_ENABLED; then
   echo "Hooks → $HOOKS_DIR/:"
   for hook_script in \
-    deny-destructive-commands.sh \
-    deny-secret-access.sh \
-    deny-git-mutations.sh \
+    guard-destructive-shell.sh \
+    guard-secret-paths.sh \
+    guard-repository-writes.sh \
     guardrails-self-test.sh
   do
     copy_file "$GOAT_FLOW_ROOT/workflow/hooks/$hook_script" "$HOOKS_DIR/$hook_script"
@@ -946,7 +946,7 @@ if [[ -f "$CONFIG_PATH" ]] && ! $FORCE; then
     echo "  · $CONFIG_PATH (exists, no config changes)"
   fi
 else
-  printf 'version: "%s"\n\nskills:\n  install: all\n\nhooks:\n  deny-destructive-commands:\n    enabled: true\n  deny-secret-access:\n    enabled: true\n  deny-git-mutations:\n    enabled: true\n  gruff-on-change:\n    enabled: false\n' "$VERSION" > "$CONFIG_PATH"
+  printf 'version: "%s"\n\nskills:\n  install: all\n\nhooks:\n  guard-destructive-shell:\n    enabled: true\n  guard-secret-paths:\n    enabled: true\n  guard-repository-writes:\n    enabled: true\n  gruff-code-quality:\n    enabled: false\n' "$VERSION" > "$CONFIG_PATH"
   COPIED=$((COPIED + 1))
   echo "  ✓ $CONFIG_PATH (scaffolded)"
 fi
@@ -990,7 +990,7 @@ echo "DONE: $COPIED files installed, $SKIPPED skipped, $REMOVED stale removed"
 echo ""
 
 # Warn when deny hook is installed but settings file was skipped (hook may not be registered)
-if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-git-mutations.sh" ]]; then
+if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/guard-repository-writes.sh" ]]; then
   echo "⚠ Settings file was preserved (not overwritten)."
   echo "  The guardrail hooks in $HOOKS_DIR were installed but may not be"
   echo "  registered in $SETTINGS_DST. Verify your settings file includes"
@@ -999,7 +999,7 @@ if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-git-mutations.s
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
     # shellcheck disable=SC2016
-    echo '    {"matcher":"Bash","hooks":[{"type":"command","command":"bash \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-git-mutations.sh\""}]}'
+    echo '    {"matcher":"Bash","hooks":[{"type":"command","command":"bash \"$(git rev-parse --show-toplevel)/.claude/hooks/guard-repository-writes.sh\""}]}'
   fi
   echo ""
 fi

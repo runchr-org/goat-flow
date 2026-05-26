@@ -138,11 +138,11 @@
       "hooks_dir": ".claude/hooks/",
       "settings": ".claude/settings.json",
       "hook_config_file": ".claude/settings.json",
-      "deny_hook": ".claude/hooks/deny-git-mutations.sh",
+      "deny_hook": ".claude/hooks/guard-repository-writes.sh",
       "deny_mechanism": {
         "type": "both",
         "settings_path": ".claude/settings.json",
-        "script_path": ".claude/hooks/deny-git-mutations.sh"
+        "script_path": ".claude/hooks/guard-repository-writes.sh"
       },
       "local_pattern": "*/CLAUDE.md",
       "hook_events": {
@@ -150,9 +150,9 @@
         "post_turn": "Stop"
       },
       "hooks": [
-        "deny-destructive-commands.sh",
-        "deny-secret-access.sh",
-        "deny-git-mutations.sh",
+        "guard-destructive-shell.sh",
+        "guard-secret-paths.sh",
+        "guard-repository-writes.sh",
         "guardrails-self-test.sh"
       ]
     },
@@ -173,11 +173,11 @@
       "hooks_dir": ".codex/hooks/",
       "settings": ".codex/config.toml",
       "hook_config_file": ".codex/hooks.json",
-      "deny_hook": ".codex/hooks/deny-git-mutations.sh",
+      "deny_hook": ".codex/hooks/guard-repository-writes.sh",
       "deny_mechanism": {
         "type": "both",
         "settings_path": ".codex/config.toml",
-        "script_path": ".codex/hooks/deny-git-mutations.sh"
+        "script_path": ".codex/hooks/guard-repository-writes.sh"
       },
       "local_pattern": ".github/instructions/*.md",
       "hook_events": {
@@ -185,9 +185,9 @@
         "post_turn": "Stop"
       },
       "hooks": [
-        "deny-destructive-commands.sh",
-        "deny-secret-access.sh",
-        "deny-git-mutations.sh",
+        "guard-destructive-shell.sh",
+        "guard-secret-paths.sh",
+        "guard-repository-writes.sh",
         "guardrails-self-test.sh"
       ]
     },
@@ -208,10 +208,10 @@
       },
       "hooks_dir": ".agents/hooks/",
       "hook_config_file": ".agents/hooks.json",
-      "deny_hook": ".agents/hooks/deny-git-mutations.sh",
+      "deny_hook": ".agents/hooks/guard-repository-writes.sh",
       "deny_mechanism": {
         "type": "deny-script",
-        "path": ".agents/hooks/deny-git-mutations.sh"
+        "path": ".agents/hooks/guard-repository-writes.sh"
       },
       "local_pattern": "*/AGENTS.md",
       "hook_events": {
@@ -219,9 +219,9 @@
         "post_turn": "Stop"
       },
       "hooks": [
-        "deny-destructive-commands.sh",
-        "deny-secret-access.sh",
-        "deny-git-mutations.sh",
+        "guard-destructive-shell.sh",
+        "guard-secret-paths.sh",
+        "guard-repository-writes.sh",
         "guardrails-self-test.sh"
       ]
     },
@@ -241,10 +241,10 @@
       },
       "hooks_dir": ".github/hooks/",
       "hook_config_file": ".github/hooks/hooks.json",
-      "deny_hook": ".github/hooks/deny-git-mutations.sh",
+      "deny_hook": ".github/hooks/guard-repository-writes.sh",
       "deny_mechanism": {
         "type": "deny-script",
-        "path": ".github/hooks/deny-git-mutations.sh"
+        "path": ".github/hooks/guard-repository-writes.sh"
       },
       "local_pattern": ".github/instructions/**/*.instructions.md",
       "hook_events": {
@@ -253,9 +253,9 @@
       },
       "hooks": [
         "hooks.json",
-        "deny-destructive-commands.sh",
-        "deny-secret-access.sh",
-        "deny-git-mutations.sh",
+        "guard-destructive-shell.sh",
+        "guard-secret-paths.sh",
+        "guard-repository-writes.sh",
         "guardrails-self-test.sh"
       ]
     }

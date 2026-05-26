@@ -415,7 +415,7 @@ function buildDenyRegistrationFailure(
     [
       ...unregistered.map(
         (id) =>
-          `Add a ${findAgent(agents, id)?.agent.hookEvents?.preTool ?? "PreToolUse"} hook entry in ${id} agent settings that runs deny-git-mutations.sh.`,
+          `Add a ${findAgent(agents, id)?.agent.hookEvents?.preTool ?? "PreToolUse"} hook entry in ${id} agent settings that runs guard-repository-writes.sh.`,
       ),
       ...pathMismatch.map(
         (id) =>

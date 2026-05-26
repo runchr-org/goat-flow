@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# deny-git-mutations.sh - PreToolUse hook for agent-side git/GitHub writes.
-# Blocks git push, git commit, destructive git flags, and gh write operations.
+# guard-secret-paths.sh - PreToolUse hook for direct literal secret-path access.
 
 set -euo pipefail
 
@@ -17,7 +16,7 @@ done
 
 if [[ -n "$SELF_TEST_MODE" ]]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook deny-git-mutations
+  exec bash "$script_dir/guardrails-self-test.sh" "--self-test=$SELF_TEST_MODE" --hook guard-secret-paths
 fi
 
 read_payload() {
@@ -48,11 +47,16 @@ fallback_command() {
 extract_command() {
   local payload="$1"
   local command
+  local path
   if [[ -n "$CHECK_COMMAND" ]]; then
     printf '%s' "$CHECK_COMMAND"
     return
   fi
   command="$(json_value "$payload" '.tool_input.command // .toolCall.args.CommandLine // .toolCall.args.command // .toolCall.args.commandLine // .toolCall.args.input // .command // .input // (.toolArgs | if type == "string" then fromjson? else . end | .command)')"
+  path="$(json_value "$payload" '.tool_input.file_path // .tool_input.path // .toolCall.args.AbsolutePath // .toolCall.args.TargetFile // .toolCall.args.FilePath // .toolCall.args.SearchPath // .toolCall.args.path // .toolCall.args.file_path')"
+  if [[ -n "$path" ]]; then
+    command="${command} ${path}"
+  fi
   [[ -n "$command" ]] || command="$(fallback_command "$payload")"
   printf '%s' "$command"
 }
@@ -89,31 +93,38 @@ allow_if_antigravity() {
   fi
 }
 
-contains_git_mutation() {
+is_env_example_touch() {
   local cmd="$1"
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+push([[:space:]]|$)'; then
-    printf 'git push'
+  [[ "$cmd" =~ (^|[[:space:]/.])\.env\.example($|[[:space:];&|]) ]] || return 1
+  [[ "$cmd" =~ (>|>>|\btee\b|\bcp\b|\bmv\b|\brm\b|\bchmod\b|\bchown\b) ]]
+}
+
+is_secret_path_touch() {
+  local cmd="$1"
+  local touches_secret=1
+  shopt -s nocasematch
+  if is_env_example_touch "$cmd"; then
+    shopt -u nocasematch
     return 0
   fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+commit([[:space:]]|$)'; then
-    printf 'git commit'
-    return 0
+  if [[ "$cmd" =~ (^|[[:space:]\"\'=])((\./|\.\./|~/)*)\.env([[:space:];&|/]|$) ]] &&
+    [[ ! "$cmd" =~ (^|[[:space:]\"\'=])((\./|\.\./|~/)*)\.env\.example([[:space:];&|]|$) ]]; then
+    touches_secret=0
+  elif [[ "$cmd" =~ (^|[[:space:]\"\'=])((\./|\.\./|~/)*)(\.ssh/|\.aws/|\.docker/|\.gnupg/|\.config/gcloud/|\.kube/config) ]]; then
+    touches_secret=0
+  elif [[ "$cmd" =~ (^|[[:space:]\"\'=/])(secrets/|credentials($|[[:space:]._/=-])|\.npmrc|\.pypirc) ]]; then
+    touches_secret=0
+  elif [[ "$cmd" =~ \.(pem|key|pfx|p12)($|[[:space:];&|]) ]]; then
+    touches_secret=0
   fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])(sudo[[:space:]]+)?git[[:space:]]+(reset[[:space:]]+--hard|clean[[:space:]]+-[^[:space:]]*f|branch[[:space:]]+-D|tag[[:space:]]+-d|checkout[[:space:]]+-f|rebase|filter-branch|remote[[:space:]]+(add|remove|set-url))'; then
-    printf 'destructive git mutation'
-    return 0
-  fi
-  if printf '%s' "$cmd" | grep -Eiq '(^|[[:space:];&|])gh[[:space:]]+(issue|pr|release|gist|repo|api)[[:space:]][^;&|]*(create|edit|delete|close|reopen|merge|comment|upload|--method[[:space:]]+(POST|PATCH|PUT|DELETE)|-X[[:space:]]+(POST|PATCH|PUT|DELETE))'; then
-    printf 'GitHub write operation'
-    return 0
-  fi
-  return 1
+  shopt -u nocasematch
+  return "$touches_secret"
 }
 
 payload="$(read_payload)"
 command_text="$(extract_command "$payload")"
-if reason="$(contains_git_mutation "$command_text")"; then
-  deny "$payload" "Deny git mutations: $reason"
+if is_secret_path_touch "$command_text"; then
+  deny "$payload" "Secret-file access blocked"
 fi
 allow_if_antigravity "$payload"
 exit 0

@@ -3,7 +3,7 @@ category: hooks
 last_reviewed: 2026-05-25
 ---
 
-**Last independent review:** 2026-05-25 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, and Codex guardrail self-tests return `PASS: guardrails self-test`; Antigravity still has no hook surface. The direct `cat .env` probe is blocked by `deny-secret-access.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
+**Last independent review:** 2026-05-25 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, and Codex guardrail self-tests return `PASS: guardrails self-test`; Antigravity still has no hook surface. The direct `cat .env` probe is blocked by `guard-secret-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
 
 ## Footgun: File-read deny does not bind Bash shell reads of secret files
 
@@ -16,10 +16,10 @@ last_reviewed: 2026-05-25
 
 **Evidence:**
 - `.claude/settings.json` (search: `"Read(**/.env*)"`) - tool-scoped deny patterns. Not applied to Bash.
-- `.claude/hooks/deny-secret-access.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across hook-capable agents.
+- `.claude/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across hook-capable agents.
 - `src/cli/audit/harness/check-constraints.ts` (search: `bashDenyCoversSecrets`) - the harness now requires BOTH `readDenyCoversSecrets` (settings/Codex permission file-read coverage) AND `bashDenyCoversSecrets` (Bash hook pattern) before classifying an agent as covered.
 - `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - fact derivation: scans the deny hook file for the active secret sentinel plus family markers for `.env*`, `.env.example` parity, normalized `./` / `../` / `~/` roots, `.ssh/`, `.aws/`, `secrets/`, credentials, and `.pem/.key/.pfx`.
-- Runtime probe: `bash .claude/hooks/deny-secret-access.sh --check="cat .env"` now returns exit 2 with `BLOCKED: Secret-file access blocked`.
+- Runtime probe: `bash .claude/hooks/guard-secret-paths.sh --check="cat .env"` now returns exit 2 with `BLOCKED: Secret-file access blocked`.
 
 **Prevention:**
 1. For any new secret-path family added to the harness, extend BOTH `checkReadDenyCoversSecrets` in `src/cli/facts/agent/settings.ts` AND `detectBashDenyCoversSecrets` in `src/cli/facts/agent/hooks.ts`. A settings-only addition creates the same false-pass; a hook-regex refactor without detector coverage creates a false-fail.
@@ -40,7 +40,7 @@ last_reviewed: 2026-05-25
 - Reported incident: an assistant posted a GitHub issue comment to `owner/repo#64620` from forwarded Slack text; the user deleted the comment and reported the command was `gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md`.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md"` and `bash scripts/deny-dangerous.sh --check "gh api repos/owner/repo/issues/1/comments -X POST -f body=hi"`.
 - Runtime probes before the second fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "gh issue --repo owner/repo comment 64620 --body hi"` and `bash scripts/deny-dangerous.sh --check "printf '%s\n' body | xargs -I{} gh issue comment 64620 --body {}"`.
-- `workflow/hooks/deny-git-mutations.sh` (search: `contains_git_mutation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
+- `workflow/hooks/guard-repository-writes.sh` (search: `contains_git_mutation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
 - `workflow/hooks/guardrails-self-test.sh` (search: `gh issue comment`) - locks the current `gh issue comment` path plus read-only allow cases.
 
 **Prevention:**
@@ -65,7 +65,7 @@ last_reviewed: 2026-05-25
 3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.
 
 **Evidence:**
-- `workflow/hooks/deny-git-mutations.sh` (search: `is_copilot_payload`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
+- `workflow/hooks/guard-repository-writes.sh` (search: `is_copilot_payload`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
 - Self-test (`bash .github/hooks/guardrails-self-test.sh --self-test=smoke`) covers Copilot-shaped Bash payloads with deny JSON assertions.
 
 ---
@@ -144,7 +144,7 @@ last_reviewed: 2026-05-25
 **Why it happens:** A token check that only normalizes the start of a simple command misses shell grammar around the command word. `env -i git push ...` starts with an env option after `env`; `FOO='a b' git push ...` contains whitespace inside an assignment value; `if true; then git push ...; fi` leaves a segment starting with `then`; `f(){ git push ...; }; f` leaves a segment starting with a function declaration.
 
 **Evidence:**
-- `workflow/hooks/deny-git-mutations.sh` (search: `contains_git_mutation`) - current split hook blocks git push and destructive git mutations.
+- `workflow/hooks/guard-repository-writes.sh` (search: `contains_git_mutation`) - current split hook blocks git push and destructive git mutations.
 - `workflow/hooks/guardrails-self-test.sh` (search: `sudo git push`) - self-test coverage for wrapper-prefixed git push.
 - Runtime probes before the fix returned exit 0 for `bash scripts/deny-dangerous.sh 'env -i git push origin main'`, `bash scripts/deny-dangerous.sh "FOO='a b' git push origin main"`, `bash scripts/deny-dangerous.sh 'if true; then git push origin main; fi'`, and `bash scripts/deny-dangerous.sh 'f(){ git push origin main; }; f'`.
 - Runtime probes before the `-lc` fix returned exit 0 for `bash scripts/deny-dangerous.sh --check "bash -lc 'git push origin main'"` and `bash scripts/deny-dangerous.sh --check "sh -lc 'git push origin main'"`.
@@ -165,7 +165,7 @@ last_reviewed: 2026-05-25
 **Why it happens:** Top-level hook input is split on `&&`, `||`, semicolons, and newlines before checking each segment. Recursive paths for command substitution, process substitution, and `bash -c` can accidentally call the raw segment checker directly. If the nested string starts with a read-only verb such as `echo`, the read-only whitelist returns before the later destructive segment is inspected.
 
 **Evidence:**
-- `workflow/hooks/deny-destructive-commands.sh` (search: `contains_destructive_command`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
+- `workflow/hooks/guard-destructive-shell.sh` (search: `contains_destructive_command`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
 - `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 - Runtime proof before the fix: `bash workflow/hooks/deny-dangerous.sh --self-test` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
 
@@ -186,7 +186,7 @@ last_reviewed: 2026-05-25
 
 **Evidence:**
 - Runtime probe before the 2026-05-25 fix returned exit 0 for a `cat <<-'EOF' ... EOF` command followed by `rm -rf /`, because the tab-indented delimiter was not recognized and the later `rm` line was masked as body data.
-- `workflow/hooks/deny-destructive-commands.sh` (search: `contains_destructive_command`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
+- `workflow/hooks/guard-destructive-shell.sh` (search: `contains_destructive_command`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
 - `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 
 **Prevention:**

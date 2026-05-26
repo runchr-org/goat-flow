@@ -1281,8 +1281,8 @@ function app() {
       ]);
     },
     hookSectionFor(hook: HookState): HookSection {
-      if (hook.id === "deny-git-mutations") return "git";
-      if (hook.id === "gruff-on-change") return "quality";
+      if (hook.id === "guard-repository-writes") return "git";
+      if (hook.id === "gruff-code-quality") return "quality";
       return "safety";
     },
     hookTone(hook: HookState): HookTone {
@@ -1292,7 +1292,7 @@ function app() {
       return "danger";
     },
     hookHasDrift(hook: HookState): boolean {
-      return Object.values(hook.agents).some((state) => Boolean(state?.drift));
+      return Object.values(hook.agents).some((state) => Boolean(state.drift));
     },
     hookInstalledSurfaceCount(hook: HookState): number {
       return this.hookAgents(hook).filter(([, state]) => state.installed)

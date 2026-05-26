@@ -102,11 +102,11 @@ function fixtureAgent(
     hooks_dir: ".claude/hooks/",
     settings: ".claude/settings.json",
     hook_config_file: ".claude/settings.json",
-    deny_hook: ".claude/hooks/deny-git-mutations.sh",
+    deny_hook: ".claude/hooks/guard-repository-writes.sh",
     deny_mechanism: {
       type: "both",
       settings_path: ".claude/settings.json",
-      script_path: ".claude/hooks/deny-git-mutations.sh",
+      script_path: ".claude/hooks/guard-repository-writes.sh",
     },
     local_pattern: "*/CLAUDE.md",
     hook_events: {
@@ -114,9 +114,9 @@ function fixtureAgent(
       post_turn: "Stop",
     },
     hooks: [
-      "deny-destructive-commands.sh",
-      "deny-secret-access.sh",
-      "deny-git-mutations.sh",
+      "guard-destructive-shell.sh",
+      "guard-secret-paths.sh",
+      "guard-repository-writes.sh",
       "guardrails-self-test.sh",
     ],
     ...overrides,

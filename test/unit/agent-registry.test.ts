@@ -25,7 +25,7 @@ describe("agent registry", () => {
     const codex = getAgentProfile("codex");
     assert.equal(codex.settingsFile, ".codex/config.toml");
     assert.equal(codex.hookConfigFile, ".codex/hooks.json");
-    assert.equal(codex.denyHookFile, ".codex/hooks/deny-git-mutations.sh");
+    assert.equal(codex.denyHookFile, ".codex/hooks/guard-repository-writes.sh");
     assert.equal(codex.hookEvents.postTurn, "Stop");
   });
 
@@ -33,7 +33,10 @@ describe("agent registry", () => {
     const copilot = getAgentProfile("copilot");
     assert.equal(copilot.settingsFile, null);
     assert.equal(copilot.hookConfigFile, ".github/hooks/hooks.json");
-    assert.equal(copilot.denyHookFile, ".github/hooks/deny-git-mutations.sh");
+    assert.equal(
+      copilot.denyHookFile,
+      ".github/hooks/guard-repository-writes.sh",
+    );
     assert.equal(copilot.skillsDir, ".github/skills");
   });
 
@@ -44,7 +47,7 @@ describe("agent registry", () => {
     assert.equal(antigravity.hooksDir, ".agents/hooks");
     assert.equal(
       antigravity.denyHookFile,
-      ".agents/hooks/deny-git-mutations.sh",
+      ".agents/hooks/guard-repository-writes.sh",
     );
     assert.equal(antigravity.hookEvents?.preTool, "PreToolUse");
   });
@@ -54,20 +57,20 @@ describe("agent registry", () => {
     assert.deepEqual(claude.denyMechanism, {
       type: "both",
       settingsPath: ".claude/settings.json",
-      scriptPath: ".claude/hooks/deny-git-mutations.sh",
+      scriptPath: ".claude/hooks/guard-repository-writes.sh",
     });
 
     const codex = getAgentProfile("codex");
     assert.deepEqual(codex.denyMechanism, {
       type: "both",
       settingsPath: ".codex/config.toml",
-      scriptPath: ".codex/hooks/deny-git-mutations.sh",
+      scriptPath: ".codex/hooks/guard-repository-writes.sh",
     });
 
     const antigravity = getAgentProfile("antigravity");
     assert.deepEqual(antigravity.denyMechanism, {
       type: "deny-script",
-      path: ".agents/hooks/deny-git-mutations.sh",
+      path: ".agents/hooks/guard-repository-writes.sh",
     });
   });
 

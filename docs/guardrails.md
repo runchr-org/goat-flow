@@ -8,9 +8,9 @@ re-synced independently.
 
 | Surface | Path | Role |
 | --- | --- | --- |
-| Destructive commands | `workflow/hooks/deny-destructive-commands.sh` | Blocks recursive force deletion, privileged package-manager mutation, chmod 777, pipe-to-shell, file truncation, destructive database commands, and destructive cloud/infrastructure commands |
-| Secret access | `workflow/hooks/deny-secret-access.sh` | Blocks direct literal shell access to `.env`, credentials, key material, and common secret directories while allowing read-only `.env.example` inspection |
-| Git mutations | `workflow/hooks/deny-git-mutations.sh` | Blocks `git commit`, `git push`, destructive git flags, and GitHub write operations through `gh` |
+| Destructive commands | `workflow/hooks/guard-destructive-shell.sh` | Blocks recursive force deletion, privileged package-manager mutation, chmod 777, pipe-to-shell, file truncation, destructive database commands, and destructive cloud/infrastructure commands |
+| Secret access | `workflow/hooks/guard-secret-paths.sh` | Blocks direct literal shell access to `.env`, credentials, key material, and common secret directories while allowing read-only `.env.example` inspection |
+| Git mutations | `workflow/hooks/guard-repository-writes.sh` | Blocks `git commit`, `git push`, destructive git flags, and GitHub write operations through `gh` |
 | Self-test | `workflow/hooks/guardrails-self-test.sh` | Runs smoke/full checks across all three guardrails and is what preflight invokes |
 
 ## Agent Mapping

@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/deny-destructive-commands.sh\"",
-            "statusMessage": "Deny destructive commands"
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-destructive-shell.sh\"",
+            "statusMessage": "Guard destructive shell"
           }
         ]
       },
@@ -16,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/deny-secret-access.sh\"",
-            "statusMessage": "Deny secret access"
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-secret-paths.sh\"",
+            "statusMessage": "Guard secret paths"
           }
         ]
       },
@@ -26,8 +26,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/deny-git-mutations.sh\"",
-            "statusMessage": "Deny git mutations"
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-repository-writes.sh\"",
+            "statusMessage": "Guard repository writes"
           }
         ]
       }

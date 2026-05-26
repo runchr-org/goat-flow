@@ -8,9 +8,9 @@ import { pushUniquePath } from "./routing.js";
 const POST_TURN_VALIDATION_COMMAND_PATTERN =
   /\b(shellcheck|eslint|tsc|phpstan|ruff|mypy|flake8|rubocop|stylelint|ktlint|swiftlint)\b|biome\s+check|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:lint|typecheck|format(?::check)?)\b|cargo\s+check|go\s+vet|prettier\s+--check|bash\s+-n\b|(?:^|\s)(?:bash\s+)?(?:\.\/)?scripts\/preflight-checks\.sh\b/i;
 const GUARDRAIL_HOOK_FILES = [
-  "deny-destructive-commands.sh",
-  "deny-secret-access.sh",
-  "deny-git-mutations.sh",
+  "guard-destructive-shell.sh",
+  "guard-secret-paths.sh",
+  "guard-repository-writes.sh",
 ];
 
 /** Detect shell lines that intentionally mask validation failures with `|| true`. */
@@ -245,7 +245,7 @@ function preferredHookPathFromCommands(commands: string[]): string | null {
     for (const candidate of candidates) pushUniquePath(paths, candidate);
   }
   return (
-    paths.find((path) => path.endsWith("/deny-git-mutations.sh")) ??
+    paths.find((path) => path.endsWith("/guard-repository-writes.sh")) ??
     paths[0] ??
     null
   );
@@ -389,7 +389,7 @@ function buildDenyRegistration(
     }
     const denyDefinition = readAntigravityHookDefinition(
       hookConfigParsed,
-      "deny-git-mutations",
+      "guard-repository-writes",
     );
     if (!denyDefinition || denyDefinition.enabled === false) {
       return { denyIsRegistered: false, denyRegisteredPath: null };
@@ -431,7 +431,7 @@ function resolveDenyHookPath(
   if (explicitHook) return explicitHook;
 
   const splitGuardrail = agent.hooksDir
-    ? `${agent.hooksDir}/deny-git-mutations.sh`
+    ? `${agent.hooksDir}/guard-repository-writes.sh`
     : null;
   if (splitGuardrail && fs.exists(splitGuardrail)) return splitGuardrail;
 
@@ -556,7 +556,7 @@ function detectBashDenyCoversSecrets(
 ): boolean {
   if (!denyHookPath || !fs.exists(denyHookPath)) return false;
   const secretSibling = siblingGuardrailPaths(fs, denyHookPath).find((path) =>
-    path.endsWith("/deny-secret-access.sh"),
+    path.endsWith("/guard-secret-paths.sh"),
   );
   const content = fs.readFile(secretSibling ?? denyHookPath);
   if (!content) return false;

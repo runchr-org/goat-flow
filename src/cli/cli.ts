@@ -107,7 +107,7 @@ Examples:
   goat-flow manifest                   Print the resolved manifest
   goat-flow manifest --check           Verify the manifest is consistent with code
   goat-flow hooks list --json          Print hook state as JSON
-  goat-flow hooks enable gruff-on-change
+  goat-flow hooks enable gruff-code-quality
   goat-flow hooks sync                 Re-apply hook toggles from config.yaml
   goat-flow stats                      Learning-loop health report
   goat-flow stats --check              Fail if any bucket is missing last_reviewed or has stale refs
