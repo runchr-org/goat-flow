@@ -112,6 +112,13 @@ function entryReferencesSpec(entry: unknown, spec: HookSpec): boolean {
 
 function matcherForAgent(agent: AgentProfile, spec: HookSpec): string {
   if (agent.id !== "antigravity") return spec.matcher;
+  if (spec.id === "gruff-code-quality") {
+    return [
+      "write_to_file",
+      "replace_file_content",
+      "multi_replace_file_content",
+    ].join("|");
+  }
   if (
     spec.id === "guard-destructive-shell" ||
     spec.id === "guard-repository-writes"

@@ -40,10 +40,11 @@ describe("dashboard hooks view", () => {
     assert.match(styles, /\.gf-hook-switch/);
   });
 
-  it("keeps unavailable hook surfaces from reading as an unsupported agent", () => {
+  it("labels hook-specific unsupported surfaces without implying agent support is unavailable", () => {
     const appSource = read(DASHBOARD_APP_PATH);
 
-    assert.match(appSource, /if \(!state\.supported\) return "unavailable"/);
+    assert.match(appSource, /if \(!state\.supported\) return "not for this hook"/);
     assert.doesNotMatch(appSource, /return "not supported"/);
+    assert.doesNotMatch(appSource, /return "unavailable"/);
   });
 });

@@ -1,23 +1,24 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-05-27
+last_reviewed: 2026-05-28
 ---
 
 ## Footgun: Agent capability metadata goes stale when upstream docs add hooks
 
 **Status:** active | **Created:** 2026-05-26 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** Dashboard and docs can report an agent as "not supported" for hooks while the upstream runtime now documents a project-local hook config. The 2026-05-26 Antigravity correction found stale "not wired" claims in `workflow/setup/agents/antigravity.md` (search: `.agents/hooks.json`), `workflow/hooks/README.md` (search: `secret-bearing file tools`), and `workflow/manifest.json` (search: `"antigravity"`) after official Antigravity docs documented `.agents/hooks.json` and PreToolUse hooks.
+**Symptoms:** Dashboard and docs can report an agent as "not supported" for hooks while the runtime has a project-local hook config or a viable fallback path. The 2026-05-26 Antigravity correction found stale "not wired" claims in `workflow/setup/agents/antigravity.md` (search: `.agents/hooks.json`), `workflow/hooks/README.md` (search: `secret-bearing file tools`), and `workflow/manifest.json` (search: `"antigravity"`) after official Antigravity docs documented `.agents/hooks.json` and PreToolUse hooks. The 2026-05-28 gruff correction then removed a stale `gruff-code-quality` exclusion after the hook gained Antigravity file-tool matchers and a git-changed-file fallback.
 
 **Why it happens:** Agent capability tables freeze a past product observation. Manifest fields, setup docs, dashboard state, audit logic, and changelog prose then reinforce each other, so structural checks can pass while the primary upstream docs have moved on.
 
 **Evidence:**
 - `workflow/manifest.json` (search: `"hook_config_file": ".agents/hooks.json"`) now records the corrected Antigravity hook config.
-- `src/cli/server/hooks-registry.ts` (search: `GRUFF_ANTIGRAVITY_UNSUPPORTED_REASON`) keeps the remaining limitation hook-specific instead of agent-wide.
+- `src/cli/server/agent-hook-writer.ts` (search: `spec.id === "gruff-code-quality"`) maps `gruff-code-quality` to Antigravity file-edit tool names.
+- `workflow/hooks/gruff-code-quality.sh` (search: `file_paths_for_payload`) falls back to git-changed supported files when a PostToolUse payload omits the edited path.
 - `workflow/hooks/agent-config/antigravity-hooks.json` (search: `run_command|view_file`) is the new Antigravity config template.
 - `.agents/hooks.json` (search: `guard-secret-paths`) is the installed mirror that proves this controlling workspace no longer treats Antigravity as hookless.
 
-**Prevention:** Before marking an agent capability "unsupported" or "capability-limited", check current primary product docs and the local binary version, then make the limitation as narrow as the evidence supports. Add hook-specific unsupported reasons when only one hook needs data the runtime does not expose. After correcting capability metadata, grep docs, changelog, footguns, manifest, audit, dashboard, templates, and installed mirrors for the old unsupported wording.
+**Prevention:** Before marking an agent capability "unsupported" or "capability-limited", check current primary product docs and the local binary version, then test whether an agent-specific matcher or repository-state fallback can preserve the contract. Use hook-specific unsupported reasons only after the fallback path is disproven. After correcting capability metadata, grep docs, changelog, footguns, manifest, audit, dashboard, templates, and installed mirrors for the old unsupported wording.
 
 ## Footgun: Hook additions and renames cross runtime, dashboard, and audit surfaces
 

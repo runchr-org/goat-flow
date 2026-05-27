@@ -123,6 +123,35 @@ describe("hook registrar", () => {
     });
   });
 
+  it("enables gruff-code-quality for a detected Antigravity surface", () => {
+    withTempProject((root) => {
+      mkdirSync(join(root, ".agents"), { recursive: true });
+      writeFileSync(join(root, ".agents", "hooks.json"), "{}\n");
+
+      const state = applyHookState("gruff-code-quality", true, root);
+
+      assertPresent(root, [
+        ".agents/hooks.json",
+        ".agents/hooks/gruff-code-quality.sh",
+      ]);
+      const config = JSON.parse(
+        readFileSync(join(root, ".agents", "hooks.json"), "utf-8"),
+      ) as {
+        "gruff-code-quality": {
+          enabled: boolean;
+          PostToolUse: Array<{ matcher: string }>;
+        };
+      };
+      assert.equal(config["gruff-code-quality"].enabled, true);
+      assert.equal(
+        config["gruff-code-quality"].PostToolUse[0]?.matcher,
+        "write_to_file|replace_file_content|multi_replace_file_content",
+      );
+      assert.equal(state.agents.antigravity.supported, true);
+      assert.equal(state.agents.antigravity.installed, true);
+    });
+  });
+
   it("cleans existing script residue without creating missing hook config", () => {
     withTempProject((root) => {
       mkdirSync(join(root, ".claude", "hooks"), { recursive: true });

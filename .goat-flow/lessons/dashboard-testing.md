@@ -1,17 +1,17 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-27
+last_reviewed: 2026-05-28
 ---
 
-## Lesson: Per-hook availability labels must not imply agent-level hook support
+## Lesson: Prove hook capability before marking an agent unsupported
 
 **Status:** active | **Created:** 2026-05-26
 
-**What happened:** The Hooks dashboard used `not supported` for Antigravity on `gruff-code-quality` after Antigravity already had project-local hook wiring. That made a per-hook PostToolUse payload limitation read as "Antigravity cannot have hooks," which was false and contradicted the hook-capable registry.
+**What happened:** The Hooks dashboard first used `not supported`, then `unavailable`, for Antigravity on `gruff-code-quality` after Antigravity already had project-local hook wiring. The registry then excluded Antigravity for that hook because I treated missing edited-path payload evidence as a hard blocker. That was too narrow: the hook can still register for Antigravity file-write tool names and fall back to git-changed supported files while preserving changed-line filtering.
 
-**Root cause:** The UI collapsed every `HookAgentState.supported === false` case into the same label. That state can mean either "this agent has no hook surface" or "this specific hook cannot be installed for a runtime-specific reason."
+**Root cause:** I collapsed "payload path may be absent" into "the hook cannot work for this agent" before testing the writer mapping and available fallback data. The UI label made that mistaken runtime exclusion look like an agent-level capability failure.
 
-**Prevention:** Dashboard hook copy should use neutral per-hook labels such as `unavailable`, then expose the concrete reason through title/ARIA/detail text. Regression coverage should reject reintroducing `not supported` in the Hooks view-model label. Evidence anchors: `src/dashboard/app.ts` (search: `if (!state.supported) return "unavailable"`), `src/cli/server/hooks-registry.ts` (search: `GRUFF_ANTIGRAVITY_UNSUPPORTED_REASON`), `test/unit/dashboard-hooks-view.test.ts` (search: `unsupported agent`).
+**Prevention:** Before adding `unsupportedAgents` or similar capability gates, verify the agent-specific matcher names and whether the hook can infer the needed data from repository state without widening enforcement beyond changed lines. For gruff, Antigravity uses `write_to_file`, `replace_file_content`, and `multi_replace_file_content`; the hook should prefer payload paths and use git-changed supported files only as a fallback. Evidence anchors: `src/cli/server/agent-hook-writer.ts` (search: `spec.id === "gruff-code-quality"`), `workflow/hooks/gruff-code-quality.sh` (search: `file_paths_for_payload`), `test/unit/hook-registrar.test.ts` (search: `enables gruff-code-quality for a detected Antigravity surface`), and `test/integration/gruff-code-quality-smoke.test.ts` (search: `runs for Antigravity file-tool payloads without a file path`).
 
 ---
 

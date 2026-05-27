@@ -22,9 +22,6 @@ export interface HookSpec {
   unsupportedAgents?: Partial<Record<AgentId, string>>;
 }
 
-const GRUFF_ANTIGRAVITY_UNSUPPORTED_REASON =
-  "Antigravity PostToolUse hooks do not expose the completed tool's edited file path; gruff-code-quality requires that file path to run changed-line checks.";
-
 const HOOKS: HookSpec[] = [
   {
     id: "guard-destructive-shell",
@@ -77,9 +74,6 @@ const HOOKS: HookSpec[] = [
     togglable: true,
     defaultEnabled: false,
     requiresConfirmDialog: false,
-    unsupportedAgents: {
-      antigravity: GRUFF_ANTIGRAVITY_UNSUPPORTED_REASON,
-    },
   },
 ];
 

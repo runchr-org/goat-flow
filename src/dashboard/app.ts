@@ -1340,7 +1340,7 @@ function app() {
       return this.hooksForSection(section).length;
     },
     hookAgentStatusLabel(state: HookAgentState): string {
-      if (!state.supported) return "unavailable";
+      if (!state.supported) return "not for this hook";
       if (state.drift === "desired-on-actual-off") return "drift: missing";
       if (state.drift === "desired-off-actual-on") return "drift: installed";
       return state.installed ? "installed" : "not installed";
