@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-05-26
+last_reviewed: 2026-05-27
 ---
 
 ## Footgun: Agent capability metadata goes stale when upstream docs add hooks
@@ -78,7 +78,7 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 - `scripts/preflight-checks.sh` (search: `if [[ -f workflow/skills/playbooks/code-comments.md`) added during the same change set that added `changelog.md` and `release-notes.md` parity, retroactively closing the gap for the two prior playbooks.
 - `src/cli/audit/check-drift.ts` (search: `template: "workflow/skills/playbooks/code-comments.md"`) similarly added retroactively.
 - `test/integration/preamble-sync.test.ts` (search: `template and installed code-comments.md match`) similarly added.
-- 2026-05-25 gruff-tools addition/rename: `bash scripts/preflight-checks.sh --verbose --no-color` in the installer round-trip fixture enrolled `gruff-tools.md`, then failed Knip because `@blundergoat/gruff-ts` is a CLI-only devDependency. `knip.json` (search: `@blundergoat/gruff-ts`) now records that non-imported tool dependency explicitly.
+- 2026-05-25 gruff-code-quality addition/rename: `bash scripts/preflight-checks.sh --verbose --no-color` in the installer round-trip fixture enrolled `gruff-code-quality.md`, then failed Knip because `@blundergoat/gruff-ts` is a CLI-only devDependency. `knip.json` (search: `@blundergoat/gruff-ts`) now records that non-imported tool dependency explicitly.
 
 **Prevention:**
 1. When adding a new skill-playbook, walk the checklist above before declaring done. Every surface is independent; missing one leaves silent drift.
@@ -120,10 +120,7 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 
 **Why it happens:** The ADR number is used as both identity and order. On 2026-04-18, historical ADR stubs were deleted and the surviving ADRs were compact-renumbered; old prose references kept the numeric labels but no longer named the deleted slug.
 
-**Evidence:**
-- `.goat-flow/decisions/ADR-001-remove-confusion-log.md` (search: `ADR-010-confusion-log-disposition.md`) - current ADR-010 is setup file ownership, not confusion-log disposition.
-- `.goat-flow/decisions/ADR-007-extract-skill-conventions.md` (search: `ADR-023-expand-inline-conventions.md`) - current ADR-023 is reference-pack budget tiers, not inline convention expansion.
-- `.goat-flow/decisions/ADR-009-skill-consolidation.md` (search: `ADR-016-dispatcher-is-canonical-skill.md`) - current ADR-016 is cold-path truth maintenance, not dispatcher canonical-skill counting.
+**Evidence:** A 2026-05-18 ADR cleanup found three numeric references whose numbers still resolved but whose topics no longer matched the historical slug. The concrete stale references have since been rewritten; the active trap is the cross-reference class, not those fixed links. Historical examples are retained below at `.goat-flow/footguns/docs-and-crossrefs.md` (search: `ADR renumbering concrete examples`).
 
 **Prevention:** When deleting, compacting, or renumbering ADRs, grep `.goat-flow/decisions/` for every old `ADR-NNN` token and replace historical references with the deleted slug, not just the number. Then run a topic check: each remaining `ADR-NNN` reference must either match the current target title or explicitly say `now-removed ADR-NNN-slug`.
 
@@ -252,14 +249,15 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 
 **Status:** active | **Created:** 2026-04-21 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** A doc lists an agent-specific path (`.gemini/skills/`, `.codex/skills/`, etc.) that does not match the manifest. The harness `doc-paths-resolve` check may or may not catch it depending on whether the wrong path happens to exist on disk. When the harness catches it, every agent card in the dashboard drops to 75% Context with the same finding; when it does not, the doc is silently wrong.
+**Symptoms:** A doc lists an agent-specific path (`.agents/skills/`, `.codex/skills/`, etc.) that does not match the manifest. The harness `doc-paths-resolve` check may or may not catch it depending on whether the wrong path happens to exist on disk. When the harness catches it, every agent card in the dashboard drops to 75% Context with the same finding; when it does not, the doc is silently wrong.
 
-**Why it happens:** `workflow/manifest.json` is the canonical source for each agent's `skills_dir`, `hooks_dir`, `settings`, and `instruction_file`. Prose in docs hand-writes these paths as examples - often guessed from the agent name (`gemini` → `.gemini/skills/`) rather than looked up. Multiple agents sometimes share a directory (gemini and codex both use `.agents/skills/`), so name-based inference is wrong by default for those agents. The detection gap: `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) only verifies that backtick-quoted paths resolve on disk. A plausible-but-wrong path that happens to exist (e.g. writing `.claude/skills/` in a gemini example) passes the audit while still misleading readers.
+**Why it happens:** `workflow/manifest.json` is the canonical source for each agent's `skills_dir`, `hooks_dir`, `settings`, and `instruction_file`. Prose in docs hand-writes these paths as examples - often guessed from the agent name (`antigravity` → `.antigravity/skills/`) rather than looked up. Multiple agents sometimes share a directory (Antigravity and Codex both use `.agents/skills/`), so name-based inference is wrong by default for those agents. The detection gap: `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) only verifies that backtick-quoted paths resolve on disk. A plausible-but-wrong path that happens to exist (e.g. writing `.claude/skills/` in an Antigravity example) passes the audit while still misleading readers. ADR-030 records the Gemini to Antigravity runtime swap that made the old example stale.
 
 **Evidence:**
-- `workflow/manifest.json` (search: `"skills_dir"`) - four entries, but only three distinct paths: `.claude/skills/`, `.agents/skills/` (shared by codex and gemini), `.github/skills/`. Name-based inference gives the wrong answer for gemini.
+- `workflow/manifest.json` (search: `"skills_dir"`) - four entries, but only three distinct paths: `.claude/skills/`, `.agents/skills/` (shared by Codex and Antigravity), `.github/skills/`. Name-based inference gives the wrong answer for Antigravity.
 - `docs/audit-and-quality.md` (search: `satellite agents' skill dirs`) - previously named `.gemini/skills/` as an example of a satellite-agent skill dir. The path does not exist (and never did per the manifest); the harness caught it only because `.gemini/skills/` happens not to exist on disk.
-- `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) - existence-only check; an agent-wrong path that exists (e.g. `.claude/skills/` in a gemini example) would pass.
+- `src/cli/audit/harness/check-context.ts` (search: `extractBacktickPaths`) - existence-only check; an agent-wrong path that exists (e.g. `.claude/skills/` in an Antigravity example) would pass.
+- `.goat-flow/decisions/ADR-030-replace-gemini-with-antigravity.md` (search: `Canonical agents`) - current four-agent identity is Claude, Codex, Antigravity, and Copilot.
 
 **Prevention:**
 1. Before hand-writing an agent-specific path in prose, grep `workflow/manifest.json` for that agent's `skills_dir` / `hooks_dir` / `settings` / `instruction_file` entry and copy the exact value.
@@ -284,3 +282,4 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 - **Stale references from old project structure** (resolved 2026-04-15) - `ai-workflow-framework` no longer appears anywhere in the repo (verified by `rg "ai-workflow-framework"`).
 - **Preflight validates doc totals but not sub-breakdowns** (resolved 2026-04-17) - `scripts/preflight-checks.sh` (search: `B.8a2: Sub-breakdown validation`) now extracts `setup_count` and `agent_count` from the audit modules and validates the `(N setup + M agent)` breakdown claim in `.goat-flow/architecture.md`, not just the total. Verified by grep of preflight source.
 - **Dashboard session-limit constants drift across server, UI, docs, and tests** (resolved 2026-04-19) - `src/cli/server/terminal.ts` (search: `MAX_SESSIONS`) exports the constant, `src/cli/server/dashboard-terminal.ts` (search: `MAX_SESSIONS`) imports it, `test/integration/dashboard-server.test.ts` (search: `data.maxSessions`) asserts the value, and `docs/dashboard.md` says "Maximum 10 concurrent sessions" - all four surfaces agree on 10. Pattern-class hygiene ("single exported constant reused in API payload, UI guards, and static copy") remains good practice for any future repo-wide cap; grep `maxSessions`, `serverSessions.length >=`, `Maximum of` before closing a similar change.
+- **ADR renumbering concrete examples** (resolved 2026-05-27) - Historical stale references to `ADR-010-confusion-log-disposition.md`, `ADR-023-expand-inline-conventions.md`, and `ADR-016-dispatcher-is-canonical-skill.md` were already fixed before M11; the active entry now keeps only the failure pattern.

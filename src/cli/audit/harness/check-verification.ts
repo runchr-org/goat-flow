@@ -282,8 +282,8 @@ const evidenceBeforeClaims: HarnessCheck = {
     [
       "CLAUDE.md",
       RATIONALISATIONS_PATH,
-      ".goat-flow/lessons/verification-review.md",
-      ".goat-flow/lessons/agent-behavior-trust.md",
+      ".goat-flow/lessons/review-feedback.md",
+      ".goat-flow/lessons/agent-behavior.md",
     ],
     "incident",
     EVIDENCE_BEFORE_CLAIMS_VERIFIED_ON,

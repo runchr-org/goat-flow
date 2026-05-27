@@ -496,7 +496,7 @@ const boundaryGuidancePresentCheck: HarnessCheck = {
   evidenceKind: "structural",
   provenance: contextProvenance("advisory", [
     "docs/harness-audit.md",
-    ".goat-flow/lessons/auditor-and-rubric.md",
+    ".goat-flow/decisions/ADR-026-keep-workspace-boundary-path-agnostic.md",
     "CLAUDE.md",
     "AGENTS.md",
     ".github/copilot-instructions.md",

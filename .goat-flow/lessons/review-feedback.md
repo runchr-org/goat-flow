@@ -1,6 +1,6 @@
 ---
-category: verification-review
-last_reviewed: 2026-05-24
+category: review-feedback
+last_reviewed: 2026-05-27
 ---
 
 ## Lesson: Multi-agent critique finds findings single reviewers miss - but synthesis is the expensive part
@@ -37,6 +37,8 @@ last_reviewed: 2026-05-24
 
 **Status:** active | **Created:** 2026-04-11
 **What happened:** After M17, 6 external critics independently reviewed the goat-flow framework itself (not installed projects). They found 14 verified bugs that had survived all prior milestones: foundation.ts emitting v1.0, SKILL_TEMPLATES missing goat-sbao, config.yaml referencing a renamed script, README overclaiming hooks, stale test fixtures encoding the wrong skill count, setup fragments still creating coding-standards (removed in M13), classify-state marking "healthy" from version alone, and more. Every bug was a 1-5 line fix.
+
+**Name note:** `goat-sbao` was the predecessor of `goat-critique` per ADR-019.
 
 **Why these were missed:**
 1. **Tests validated shape, not truth.** Contract tests checked "does this section heading exist" not "is the skill count correct." An old `evaluate-check.test.ts` assertion literally said "All 6 skills present" - nobody noticed when goat-sbao made it 7.

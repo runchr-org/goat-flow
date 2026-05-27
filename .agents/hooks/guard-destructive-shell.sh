@@ -195,6 +195,7 @@ check_segment() {
   local cmd="$1"
   local depth="${2:-0}"
   prepare_segment_context "$cmd" "$depth" || return $?
+  cmd="$CMD_TRIMMED"
 
   if [[ "$HAS_PIPE" -eq 1 ]]; then
     check_pipeline_shell_consumers || return $?
@@ -290,12 +291,12 @@ check_segment() {
     block "Shell stdin (<<< / here-doc) hides commands from inspection. Run the command directly." || return $?
   fi
 
-  local powershell_eval_re='(^|[[:space:]])(powershell|pwsh)(\.exe)?([[:space:]]+-[a-zA-Z]+)*[[:space:]]+(-c|-command|-encodedcommand)'
+  local powershell_eval_re='(^|[[:space:]])(powershell|pwsh)(\.exe)?([[:space:]]+--?[a-z0-9-]+(=[^[:space:]]+)?)*[[:space:]]+--?(c|command|encodedcommand)([[:space:]]|$)'
   if [[ "$CMD_LOWER" =~ $powershell_eval_re ]]; then
     if [[ "$CMD_LOWER" =~ (remove-item|clear-disk|format-volume|stop-computer|restart-computer|set-executionpolicy[[:space:]]+(unrestricted|bypass)) ]]; then
       block "PowerShell destructive verb. Run manually with explicit confirmation." || return $?
     fi
-    if [[ "$CMD_LOWER" =~ -encodedcommand[[:space:]]+ ]]; then
+    if [[ "$CMD_LOWER" =~ --?encodedcommand[[:space:]]+ ]]; then
       block "PowerShell -EncodedCommand is opaque to inspection. Run the decoded command directly." || return $?
     fi
   fi

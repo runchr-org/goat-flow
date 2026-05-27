@@ -761,6 +761,152 @@ while IFS= read -r hookdir; do
     fi
 done < <(manifest_eval hook-dirs)
 
+# Runtime smoke test the exact command strings in installed agent configs. This
+# catches failures before the guard script starts, including stale paths and
+# exit-127 command-shape regressions.
+configured_hook_smoke_output=$(
+    node <<'NODE'
+const fs = require("node:fs");
+const { spawnSync } = require("node:child_process");
+
+const guardScripts = [
+  "guard-destructive-shell.sh",
+  "guard-secret-paths.sh",
+  "guard-repository-writes.sh",
+];
+const configs = [
+  { agent: "claude", path: ".claude/settings.json", mode: "stderr" },
+  { agent: "codex", path: ".codex/hooks.json", mode: "stderr" },
+  { agent: "antigravity", path: ".agents/hooks.json", mode: "antigravity-json" },
+  { agent: "copilot", path: ".github/hooks/hooks.json", mode: "copilot-json" },
+];
+
+function emit(status, message) {
+  console.log(`${status}\t${message}`);
+}
+
+function payloadFor(mode, script) {
+  const command =
+    script === "guard-destructive-shell.sh"
+      ? "rm -rf /"
+      : script === "guard-secret-paths.sh"
+        ? "cat .env"
+        : "git push origin main";
+  if (mode === "copilot-json") {
+    return {
+      input: JSON.stringify({ toolName: "bash", toolArgs: { command } }),
+      status: 0,
+      stream: "stdout",
+      pattern: /"permissionDecision"\s*:\s*"deny"/,
+    };
+  }
+  if (mode === "antigravity-json") {
+    return {
+      input: JSON.stringify({
+        hookEventName: "PreToolUse",
+        toolCall: { name: "run_command", args: { CommandLine: command } },
+      }),
+      status: 0,
+      stream: "stdout",
+      pattern: /"decision"\s*:\s*"deny"/,
+    };
+  }
+  return {
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
+    status: 2,
+    stream: "stderr",
+    pattern: /BLOCKED:/,
+  };
+}
+
+function collect(value, out = []) {
+  if (Array.isArray(value)) {
+    for (const item of value) collect(item, out);
+    return out;
+  }
+  if (!value || typeof value !== "object") return out;
+  for (const key of ["command", "bash"]) {
+    if (typeof value[key] !== "string") continue;
+    const script = guardScripts.find((name) => value[key].includes(name));
+    if (script) out.push({ command: value[key], script });
+  }
+  for (const child of Object.values(value)) {
+    if (child && typeof child === "object") collect(child, out);
+  }
+  return out;
+}
+
+function runCommand(command, input) {
+  if (!/\s/u.test(command) && !command.includes("$(")) {
+    return spawnSync(command, [], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      input,
+      timeout: 5000,
+    });
+  }
+  return spawnSync("bash", ["-lc", command], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    input,
+    timeout: 5000,
+  });
+}
+
+let checked = 0;
+for (const config of configs) {
+  if (!fs.existsSync(config.path)) {
+    emit("SKIP", `${config.agent}: hook config missing (${config.path})`);
+    continue;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(config.path, "utf8"));
+  } catch (error) {
+    emit("FAIL", `${config.agent}: hook config JSON parse failed (${error.message})`);
+    continue;
+  }
+  const seen = new Set();
+  const commands = collect(parsed).filter((entry) => {
+    const key = `${entry.command}\0${entry.script}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (commands.length === 0) {
+    emit("FAIL", `${config.agent}: no configured guard hook commands found in ${config.path}`);
+    continue;
+  }
+  for (const entry of commands) {
+    checked += 1;
+    const smoke = payloadFor(config.mode, entry.script);
+    const result = runCommand(entry.command, smoke.input);
+    const status = result.status ?? (result.error ? -1 : 0);
+    if (status === 126 || status === 127) {
+      emit("FAIL", `${config.agent}: ${entry.script} configured command exited ${status}: ${entry.command}`);
+      continue;
+    }
+    const stream = smoke.stream === "stdout" ? result.stdout : result.stderr;
+    if (status === smoke.status && smoke.pattern.test(stream)) {
+      emit("PASS", `${config.agent}: ${entry.script} configured command smoke denied payload`);
+    } else {
+      emit("FAIL", `${config.agent}: ${entry.script} configured command smoke failed (exit ${status})`);
+    }
+  }
+}
+if (checked === 0) emit("SKIP", "No configured guard hook commands checked");
+NODE
+)
+while IFS=$'\t' read -r status message; do
+    [[ -z "${status:-}" ]] && continue
+    case "$status" in
+        PASS) pass "$message" ;;
+        FAIL) fail "$message" ;;
+        SKIP) skip "$message" ;;
+        *) fail "Configured hook smoke emitted unexpected result: $status $message" ;;
+    esac
+done <<< "$configured_hook_smoke_output"
+
 # ── Agent Config Parity ──────────────────────────────────────────────
 section "Agent Config Parity"
 agent_config_output=$(

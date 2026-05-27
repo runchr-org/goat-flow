@@ -368,6 +368,132 @@ drop_first_shell_word() {
   printf ''
 }
 
+split_shell_words_into() {
+  local -n __goat_words_out__="$1"
+  local input="$2"
+  __goat_words_out__=()
+  local current=""
+  local char=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      current+="$char"
+      escaped=0
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      escaped=1
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
+      if [[ -n "$current" ]]; then
+        __goat_words_out__+=("$current")
+        current=""
+      fi
+      continue
+    fi
+
+    current+="$char"
+  done
+
+  if [[ "$escaped" -eq 1 ]]; then
+    current+="\\"
+  fi
+  if [[ -n "$current" ]]; then
+    __goat_words_out__+=("$current")
+  fi
+}
+
+__goat_git_strip_globals() {
+  __goat_git_aliased_push=0
+  __goat_git_rest=""
+  local c="$1"
+  c=$(normalize_leading_command_word "$c")
+
+  local -a words=()
+  split_shell_words_into words "$c"
+  [[ "${#words[@]}" -gt 0 ]] || return 1
+
+  local command_base="${words[0]##*/}"
+  [[ "$command_base" == "git" ]] || return 1
+
+  local i=1
+  local opt=""
+  local val=""
+  while [[ "$i" -lt "${#words[@]}" ]]; do
+    opt="${words[$i]}"
+    case "$opt" in
+      --)
+        i=$((i + 1))
+        break
+        ;;
+      -c|-C|--git-dir|--work-tree|--namespace|--exec-path|--config-env)
+        val="${words[$((i + 1))]:-}"
+        if [[ "$opt" == "-c" && "$val" =~ ^alias\.[a-zA-Z0-9_-]+=[\'\"]?(push|!) ]]; then
+          __goat_git_aliased_push=1
+        fi
+        i=$((i + 2))
+        continue
+        ;;
+      -c?*)
+        val="${opt#-c}"
+        if [[ "$val" =~ ^alias\.[a-zA-Z0-9_-]+=[\'\"]?(push|!) ]]; then
+          __goat_git_aliased_push=1
+        fi
+        i=$((i + 1))
+        continue
+        ;;
+      -C?*|--git-dir=*|--work-tree=*|--namespace=*|--exec-path=*|--config-env=*)
+        i=$((i + 1))
+        continue
+        ;;
+      --no-pager|--paginate|--bare|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--help|--version|--html-path|--man-path|--info-path)
+        i=$((i + 1))
+        continue
+        ;;
+      -*)
+        i=$((i + 1))
+        continue
+        ;;
+    esac
+    break
+  done
+
+  local rest=""
+  while [[ "$i" -lt "${#words[@]}" ]]; do
+    rest+="${words[$i]} "
+    i=$((i + 1))
+  done
+  __goat_git_rest="${rest% }"
+  return 0
+}
+
 strip_one_assignment_prefix() {
   local c="$1"
   [[ "$c" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]] || return 1
@@ -746,28 +872,93 @@ allow() {
   exit 0
 }
 
+strip_unquoted_shell_comments() {
+  local input="$1"
+  local out=""
+  local char=""
+  local previous=""
+  local in_single=0
+  local in_double=0
+  local escaped=0
+  local i=0
+
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:i:1}"
+
+    if [[ "$escaped" -eq 1 ]]; then
+      out+="$char"
+      escaped=0
+      previous="$char"
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
+      out+="$char"
+      escaped=1
+      previous="$char"
+      continue
+    fi
+
+    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
+      if [[ "$in_single" -eq 1 ]]; then
+        in_single=0
+      else
+        in_single=1
+      fi
+      out+="$char"
+      previous="$char"
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
+      if [[ "$in_double" -eq 1 ]]; then
+        in_double=0
+      else
+        in_double=1
+      fi
+      out+="$char"
+      previous="$char"
+      continue
+    fi
+
+    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" == "#" ]]; then
+      if [[ -z "$previous" || "$previous" =~ [[:space:]] ]]; then
+        break
+      fi
+    fi
+
+    out+="$char"
+    previous="$char"
+  done
+
+  out="${out%"${out##*[![:space:]]}"}"
+  printf '%s' "$out"
+}
+
 prepare_segment_context() {
   local cmd="$1"
   local depth="${2:-0}"
+  local policy_cmd
 
   if [ "$depth" -gt 3 ]; then
     block "Deeply nested command substitution. Simplify the command." || return $?
   fi
 
-  check_command_substitutions "$cmd" "$depth" || return $?
+  policy_cmd=$(strip_unquoted_shell_comments "$cmd")
+  check_command_substitutions "$policy_cmd" "$depth" || return $?
 
-  CMD_TRIMMED="${cmd#"${cmd%%[![:space:]]*}"}"
+  CMD_TRIMMED="${policy_cmd#"${policy_cmd%%[![:space:]]*}"}"
   CMD_NORMALIZED=$(normalize_command_candidate "$CMD_TRIMMED")
   CMD_VERB="${CMD_NORMALIZED%%[[:space:]]*}"
   CMD_VERB="${CMD_VERB##*/}"
 
-  CMD_UNQUOTED="$cmd"
-  if [[ "$cmd" == *"'"* || "$cmd" == *'"'* ]]; then
+  CMD_UNQUOTED="$policy_cmd"
+  if [[ "$policy_cmd" == *"'"* || "$policy_cmd" == *'"'* ]]; then
     # shellcheck disable=SC2001  # ERE alternation; parameter expansion uses globs
-    CMD_UNQUOTED=$(sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g" <<<"$cmd")
+    CMD_UNQUOTED=$(sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g" <<<"$policy_cmd")
   fi
 
-  CMD_LOWER="${cmd,,}"
+  CMD_LOWER="${policy_cmd,,}"
   HAS_REDIRECT=0
   HAS_PIPE=0
   local redirect_append_re='(^|[^=])[0-9]*>>'
@@ -779,7 +970,7 @@ prepare_segment_context() {
   [[ "$pipe_stripped" == *"|"* ]] && HAS_PIPE=1
 
   local shell_c_re="(^|[[:space:]])(ba)?sh([[:space:]]+-[a-zA-Z]+)*[[:space:]]+-[a-zA-Z]*c[a-zA-Z]*[[:space:]]+(['\"])([^'\"]*)(['\"])"
-  if [[ "$cmd" =~ $shell_c_re ]]; then
+  if [[ "$policy_cmd" =~ $shell_c_re ]]; then
     local inner_c="${BASH_REMATCH[5]}"
     if [[ -n "$inner_c" ]]; then
       check_command_segments "$inner_c" $((depth + 1)) || return $?

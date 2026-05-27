@@ -7,7 +7,7 @@
 
 The prior monolithic deny hook previously blocked only pushes to protected branches (main, master, production, deploy) and force pushes. Feature-branch pushes were allowed. This was based on the assumption that agents should be able to push to feature branches as part of a PR workflow.
 
-The settings.json deny patterns were inconsistent: `.gemini/settings.json` had `Bash(*git push*)` (block all), while `.claude/settings.json` had `Bash(*git push*--force*)` (block force only). The workflow template (`workflow/hooks/agent-config/claude.json`) had the correct blanket pattern, but the installed copy had drifted.
+The settings.json deny patterns were inconsistent: the fourth-runtime settings had `Bash(*git push*)` (block all), while `.claude/settings.json` had `Bash(*git push*--force*)` (block force only). The workflow template (`workflow/hooks/agent-config/claude.json`) had the correct blanket pattern, but the installed copy had drifted.
 
 ## Decision
 

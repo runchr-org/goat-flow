@@ -85,7 +85,10 @@ function commandPath(agent: AgentProfile, script: string): string {
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
   if (agent.id === "codex") return path;
-  return `bash "$(git rev-parse --show-toplevel)/${path}"`;
+  if (agent.id === "antigravity") {
+    return `root="$(git rev-parse --show-toplevel 2>/dev/null)" || { printf '{"decision":"deny","reason":"Guard cannot start: git repository root unavailable."}\\n'; exit 0; }; bash "$root/${path}"`;
+  }
+  return `root="$(git rev-parse --show-toplevel 2>/dev/null)" || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; bash "$root/${path}"`;
 }
 
 function powershellCommand(agent: AgentProfile, spec: HookSpec): string {

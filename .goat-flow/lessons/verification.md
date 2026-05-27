@@ -1,6 +1,18 @@
 ---
 category: verification
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
+---
+
+## Lesson: Stryker sandboxes need local-state ignores and mutation-safe test selection
+
+**Status:** active | **Created:** 2026-05-15 | **Merged during:** M11 learning-loop consolidation
+
+**What happened:** The first `scripts/mutation-test.sh` audit-engine run failed before mutation testing because Stryker copied gitignored `.goat-flow/scratchpad` content into its sandbox. After local-state ignores were added, the dry run still failed because instrumented source broke learning-loop semantic-anchor checks and the sandbox lacked `dist/cli/cli.js` for the main-module guard.
+
+**Root cause:** Mutation sandboxes are not the same as the live checkout. They copy and instrument files, so repo self-inspection tests and local working artifacts can break before a mutation campaign begins.
+
+**Prevention:** For mutation-test helpers, run `bash scripts/mutation-test.sh '<target>' -- --dryRunOnly` before a full campaign. Keep Stryker sandbox inputs focused on committed anchors, ignore `.goat-flow/logs/`, `.goat-flow/scratchpad/`, and `.goat-flow/tasks/` local contents, and use mutation-safe test selection for source-text and built-dist guards. Evidence anchors: `scripts/mutation-test.sh` (search: `ignorePatterns`) and `scripts/mutation-test.sh` (search: `--test-skip-pattern`).
+
 ---
 
 ## Lesson: Gruff comment fixes must satisfy both humans and the analyzer
@@ -190,26 +202,6 @@ Applies whenever the change is: a status flip (`planned → conditional`, `plann
 **Fix:** Updated `manifest.json` `skills.canonical` to list all 7. Updated `constants.ts` `SKILL_NAMES` to list all 7. Contract test now passes with the correct count. Ran install script on the consumer project to deploy the missing 6 skills.
 
 **Prevention:** Contract tests that validate two sources agree with each other are necessary but not sufficient - at least one source must be validated against ground truth (e.g., the actual files on disk or the install script's list). A test like "SKILL_NAMES matches the directories in .claude/skills/" would have caught this immediately.
-
----
-
-## Lesson: Missing RULES.md went undetected because failing tests were dismissed as pre-existing
-
-**Status:** historical | **Created:** 2026-04-16 | **Reason:** RULES.md deleted; "never dismiss test failures as pre-existing" rule survives as an active principle elsewhere in this file
-
-**What happened:** `RULES.md` existed in `.agents/skills/goat/` (codex/gemini) but was missing from `.claude/skills/goat/`. The audit code in `check-agent-setup.ts` explicitly checked for it. The goat dispatcher's `SKILL.md` told the agent to "Read RULES.md in this directory immediately." But:
-1. The install script (`install-goat-flow.sh`) only copied `SKILL.md` per skill - never copied `RULES.md`.
-2. No template for `RULES.md` existed in `workflow/skills/`.
-3. The 2 test failures (`audit on well-configured project`, `audit --harness`) were caused by this + the skill count bug, but were treated as "pre-existing failures" across an entire session of work.
-
-**Root cause:** Two compounding failures. First, the install script was never updated to copy RULES.md when the audit check was added - the check and the installer were authored independently. Second, the resulting test failures were dismissed as background noise instead of investigated. Every test run showed "62 pass / 2 fail" and the response was "same 2 pre-existing failures, not from my change" - a correct but useless observation that prevented anyone from reading the actual failure messages.
-
-**Fix:** Created a rules template for the goat skill. Updated install script to copy it. (RULES.md was later deleted entirely; its 2 unique lines were moved to `skill-preamble.md`.)
-
-**Prevention:**
-1. Never dismiss test failures as "pre-existing" without reading what they actually assert. If 2 tests fail, read the 2 failure messages.
-2. When adding an audit check that requires a file, also update the install script that creates that file. Audit checks and install scripts must be updated together.
-3. A contract test should verify that every file the audit checks for is also produced by the install script - otherwise the audit gates on something the installer never creates.
 
 ---
 

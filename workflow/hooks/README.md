@@ -31,7 +31,15 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
    - Copilot: `agent-config/copilot-hooks.json` -> `.github/hooks/hooks.json`
 3. `gruff-code-quality.sh` is opt-in through `.goat-flow/config.yaml`, the dashboard Hooks page, or `goat-flow hooks enable gruff-code-quality`.
 
-Claude and Antigravity hook commands use `$(git rev-parse --show-toplevel)` so they work from nested project directories. Codex hook commands use direct project-local script paths because Codex runs `.codex/hooks.json` entries from the selected project.
+Claude and Antigravity hook commands resolve the repository root with `git rev-parse --show-toplevel` so they work from nested project directories. If the root cannot be resolved, the configured command fails closed before the hook script starts: Claude emits a stderr `BLOCKED:` message with exit 2, and Antigravity emits deny JSON with exit 0. Codex and Copilot hook commands use direct project-local script paths because their configs are expected to run from the selected project root.
+
+## Failure Modes / Runtime Contracts
+
+- `guard-common.sh` must sit beside each thin guard hook. If it is missing, the hook denies with a clear `guard-common.sh` message instead of reaching `main` undefined or exiting 127.
+- Audit and preflight run the exact configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`; this catches stale paths, missing executable bits, and command-shape failures before an agent session sees them.
+- Claude and Antigravity support nested cwd inside a git checkout through the root-resolving wrapper. Outside a git checkout they fail closed as described above.
+- Codex and Copilot use direct project-local paths and therefore require project-root cwd for the configured command. Nested-cwd execution is outside the current contract unless those runtimes add a portable project-root variable.
+- Directly invoked `.sh` hooks must keep executable bits. Missing `bash` is a hard runtime prerequisite for all shipped guardrails.
 
 ## Post-Turn Linting (project-specific, not shipped)
 

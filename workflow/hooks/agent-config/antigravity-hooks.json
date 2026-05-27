@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-destructive-shell.sh\"",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf '{\"decision\":\"deny\",\"reason\":\"Guard cannot start: git repository root unavailable.\"}\\n'; exit 0; }; bash \"$root/.agents/hooks/guard-destructive-shell.sh\"",
             "timeout": 30
           }
         ]
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-secret-paths.sh\"",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf '{\"decision\":\"deny\",\"reason\":\"Guard cannot start: git repository root unavailable.\"}\\n'; exit 0; }; bash \"$root/.agents/hooks/guard-secret-paths.sh\"",
             "timeout": 30
           }
         ]
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-repository-writes.sh\"",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf '{\"decision\":\"deny\",\"reason\":\"Guard cannot start: git repository root unavailable.\"}\\n'; exit 0; }; bash \"$root/.agents/hooks/guard-repository-writes.sh\"",
             "timeout": 30
           }
         ]

@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/guard-destructive-shell.sh\""
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; bash \"$root/.claude/hooks/guard-destructive-shell.sh\""
           }
         ]
       },
@@ -81,7 +81,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/guard-secret-paths.sh\""
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; bash \"$root/.claude/hooks/guard-secret-paths.sh\""
           }
         ]
       },
@@ -90,7 +90,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/guard-repository-writes.sh\""
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; bash \"$root/.claude/hooks/guard-repository-writes.sh\""
           }
         ]
       }

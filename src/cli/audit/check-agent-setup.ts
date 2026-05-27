@@ -858,6 +858,44 @@ function runtimeSmokePayload(agentId: string): {
   };
 }
 
+function runtimeSmokePayloadForScript(
+  agentId: string,
+  scriptFile: string,
+): ReturnType<typeof runtimeSmokePayload> {
+  const command =
+    scriptFile === "guard-destructive-shell.sh"
+      ? "rm -rf /"
+      : scriptFile === "guard-secret-paths.sh"
+        ? "cat .env"
+        : "git push origin main";
+  const base = runtimeSmokePayload(agentId);
+  if (agentId === "copilot") {
+    return {
+      ...base,
+      input: JSON.stringify({
+        toolName: "bash",
+        toolArgs: { command },
+      }),
+    };
+  }
+  if (agentId === "antigravity") {
+    return {
+      ...base,
+      input: JSON.stringify({
+        hookEventName: "PreToolUse",
+        toolCall: { name: "run_command", args: { CommandLine: command } },
+      }),
+    };
+  }
+  return {
+    ...base,
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command },
+    }),
+  };
+}
+
 function registeredDenyRelPath(
   af: AuditContext["agents"][number],
 ): string | null {
@@ -866,7 +904,131 @@ function registeredDenyRelPath(
   return join(af.agent.hooksDir, "guard-repository-writes.sh");
 }
 
-function runHookRuntimeSmoke(
+const CONFIGURED_SMOKE_SCRIPTS = [
+  "guard-destructive-shell.sh",
+  "guard-secret-paths.sh",
+  "guard-repository-writes.sh",
+] as const;
+
+interface ConfiguredHookCommand {
+  command: string;
+  scriptFile: string;
+  configPath: string;
+}
+
+function pushConfiguredCommand(
+  commands: ConfiguredHookCommand[],
+  command: unknown,
+  configPath: string,
+): void {
+  if (typeof command !== "string" || command.length === 0) return;
+  const scriptFile = CONFIGURED_SMOKE_SCRIPTS.find((script) =>
+    command.includes(script),
+  );
+  if (!scriptFile) return;
+  commands.push({ command, scriptFile, configPath });
+}
+
+function collectNestedCommandValues(
+  value: unknown,
+  configPath: string,
+  commands: ConfiguredHookCommand[],
+): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectNestedCommandValues(entry, configPath, commands);
+    }
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const obj = value as Record<string, unknown>;
+  pushConfiguredCommand(commands, obj.command, configPath);
+  pushConfiguredCommand(commands, obj.bash, configPath);
+  for (const child of Object.values(obj)) {
+    if (typeof child === "object") {
+      collectNestedCommandValues(child, configPath, commands);
+    }
+  }
+}
+
+function configuredGuardCommands(
+  ctx: AuditContext,
+  af: AuditContext["agents"][number],
+): ConfiguredHookCommand[] {
+  const configPath = af.agent.hookConfigFile ?? af.agent.settingsFile;
+  if (!configPath) return [];
+  const rawConfig = ctx.fs.readFile(configPath);
+  if (rawConfig === null) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawConfig);
+  } catch {
+    return [];
+  }
+  const commands: ConfiguredHookCommand[] = [];
+  collectNestedCommandValues(parsed, configPath, commands);
+  const seen = new Set<string>();
+  return commands.filter((command) => {
+    const key = `${command.configPath}\0${command.command}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function runConfiguredCommand(
+  ctx: AuditContext,
+  command: string,
+  input: string,
+): ReturnType<typeof spawnSync> {
+  if (!/\s/u.test(command) && !command.includes("$(")) {
+    return spawnSync(command, [], {
+      cwd: ctx.projectPath,
+      encoding: "utf8",
+      input,
+      timeout: 5000,
+    });
+  }
+  return spawnSync("bash", ["-lc", command], {
+    cwd: ctx.projectPath,
+    encoding: "utf8",
+    input,
+    timeout: 5000,
+  });
+}
+
+function runConfiguredHookCommandSmoke(
+  ctx: AuditContext,
+  af: AuditContext["agents"][number],
+  configured: ConfiguredHookCommand,
+): { ok: boolean; message: string; evidence: string } {
+  const smoke = runtimeSmokePayloadForScript(
+    af.agent.id,
+    configured.scriptFile,
+  );
+  const result = runConfiguredCommand(ctx, configured.command, smoke.input);
+  const status = result.status ?? (result.error ? -1 : 0);
+  if (status === 126 || status === 127) {
+    return {
+      ok: false,
+      message: `${af.agent.id} configured hook command exited ${status}: ${configured.command}`,
+      evidence: configured.configPath,
+    };
+  }
+  const stream = String(
+    smoke.expectedStream === "stdout" ? result.stdout : result.stderr,
+  );
+  if (status !== smoke.expectedStatus || !smoke.expectedPattern.test(stream)) {
+    return {
+      ok: false,
+      message: `${af.agent.id} configured hook command did not deny ${configured.scriptFile}: ${configured.command}`,
+      evidence: configured.configPath,
+    };
+  }
+  return { ok: true, message: "", evidence: configured.configPath };
+}
+
+function runDirectHookRuntimeSmoke(
   ctx: AuditContext,
   af: AuditContext["agents"][number],
   denyRelPath: string,
@@ -888,12 +1050,28 @@ function runHookRuntimeSmoke(
 /** Run a runtime-shaped blocked payload through the installed deny hook. */
 function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
   for (const af of ctx.agents) {
+    const configuredCommands = configuredGuardCommands(ctx, af);
+    if (configuredCommands.length > 0) {
+      for (const configured of configuredCommands) {
+        const result = runConfiguredHookCommandSmoke(ctx, af, configured);
+        if (result.ok) continue;
+        return {
+          check: "Agent deny mechanism",
+          message: result.message,
+          evidence: evidencePath(result.evidence),
+          howToFix:
+            "Run the exact hook command string from the agent config with a runtime-shaped payload and confirm it reaches the guard script without exit 126/127.",
+        };
+      }
+      continue;
+    }
+
     const denyRelPath = registeredDenyRelPath(af);
     if (denyRelPath === null) continue;
     const content = ctx.fs.readFile(denyRelPath);
     if (content === null) continue;
 
-    if (runHookRuntimeSmoke(ctx, af, denyRelPath)) continue;
+    if (runDirectHookRuntimeSmoke(ctx, af, denyRelPath)) continue;
 
     return {
       check: "Agent deny mechanism",

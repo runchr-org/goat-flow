@@ -1,13 +1,13 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-26
+last_reviewed: 2026-05-27
 ---
 
 ## Lesson: Per-hook availability labels must not imply agent-level hook support
 
 **Status:** active | **Created:** 2026-05-26
 
-**What happened:** The Hooks dashboard used `not supported` for Antigravity on `gruff-on-change` after Antigravity already had project-local hook wiring. That made a per-hook PostToolUse payload limitation read as "Antigravity cannot have hooks," which was false and contradicted the hook-capable registry.
+**What happened:** The Hooks dashboard used `not supported` for Antigravity on `gruff-code-quality` after Antigravity already had project-local hook wiring. That made a per-hook PostToolUse payload limitation read as "Antigravity cannot have hooks," which was false and contradicted the hook-capable registry.
 
 **Root cause:** The UI collapsed every `HookAgentState.supported === false` case into the same label. That state can mean either "this agent has no hook surface" or "this specific hook cannot be installed for a runtime-specific reason."
 

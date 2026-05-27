@@ -1,6 +1,6 @@
 ---
 category: sentinels
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
 ---
 
 ## Footgun: Sentinel-position policy is invisible until the LM tries trailing output
@@ -15,7 +15,7 @@ last_reviewed: 2026-05-25
 - mini-swe-agent PR #683 (`b6984ac5`, 2026-01-05) moved the `COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT` marker from first-line to last-line, claiming "Only allow submission for successful command." Touched 15 files (all envs, configs, tests). Closed issue #659 which had explicitly listed BOTH options: position swap *or* exit-status check.
 - Reverted 7 days later by direct commit `1ce8e917` ("Revert back to COMPLETE_TASK_.. preceding final submission"). The commit message gives no reason. The verifiable lesson is narrower than any specific theory about *why*: a team tried the alternative and reverted within a week, leaving no explainer.
 - The complementary fix (explicit `returncode == 0` gate, which was option 2 in issue #659) shipped separately in PR #747 (commit `537aac0c`, 2026-02-19) inside an unrelated SwerexModalEnvironment v2-protocol port — `git log -S 'returncode"] == 0'` confirms it. The current "first-line + rc=0" combo was assembled across three events over six weeks, not designed as a unit.
-- Current state in `.goat-flow/scratchpad/related/mini-swe-agent/src/minisweagent/environments/local.py` (search: `_check_finished`):
+- Current upstream state in mini-swe-agent's public source file `local.py` (search: `_check_finished`):
 
   ```python
   lines = output.get("output", "").lstrip().splitlines(keepends=True)

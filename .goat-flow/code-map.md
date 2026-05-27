@@ -117,7 +117,7 @@ skills/
   reference/               # Meta-reference templates: skill-preamble.md, skill-conventions.md
   playbooks/               # Standalone playbook templates: browser-use.md, changelog.md, code-comments.md, gruff-code-quality.md, observability.md, page-capture.md, release-notes.md, skill-quality-testing.md + topical skill-quality-testing/*
 
-hooks/                     # Hook templates (three guardrails, central self-test, gruff-on-change, agent configs)
+hooks/                     # Hook templates (three guardrails, central self-test, gruff-code-quality, agent configs)
 evaluation/                # Quality-assessment prompt templates
 ```
 

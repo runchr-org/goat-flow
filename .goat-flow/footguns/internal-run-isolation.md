@@ -1,6 +1,6 @@
 ---
 category: internal-run-isolation
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
 ---
 
 ## Footgun: Internal / intermediate runs against a user target must strip side-effect-bearing config
@@ -20,7 +20,7 @@ last_reviewed: 2026-05-25
 - `src/cli/audit/audit.ts` accepts an output JSON path via `--output`; if a dashboard route constructs an `AuditContext` from user config and forwards `--output` without stripping, the internal run will overwrite the user's saved audit output.
 
 **Prevention:**
-1. Define a named function `stripUserOutputPaths(config)` (or per-engine equivalent) that nulls every field whose presence triggers a side-effect writer: output paths, log files, report files, trace sinks, share URLs, webhook callbacks. Use it AT EVERY SITE that constructs an internal / intermediate run from user config. Document the field list in a comment that names this footgun.
+1. Define an explicit config-sanitization boundary for internal runs that nulls every field whose presence triggers a side-effect writer: output paths, log files, report files, trace sinks, share URLs, webhook callbacks. Use that boundary AT EVERY SITE that constructs an internal / intermediate run from user config. Document the field list in a comment that names this footgun.
 2. Internal runs should pipe results back via in-memory return values or scratch tmpdirs, never the user's configured output paths. If a writer is truly needed for an intermediate run, it should be a temp file in `os.tmpdir()` that the caller deletes.
 3. Contract test pattern: for every meta-command (optimize / preview / dry-run / batch-compare), assert that running it does NOT touch the user's `outputPath` file. Fixture: set `outputPath: "/tmp/should-not-be-written-N.jsonl"`, run the meta-command, assert the file does not exist after the run completes.
-4. When adding a new side-effect-bearing config field (a new output sink, a new external integration), add it to the `stripUserOutputPaths` allowlist in the same PR. If you don't, the next meta-command that runs will silently pollute it.
+4. When adding a new side-effect-bearing config field (a new output sink, a new external integration), add it to the internal-run sanitization field list in the same PR. If you don't, the next meta-command that runs will silently pollute it.

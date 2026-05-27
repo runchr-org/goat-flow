@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
 ---
 
 ## Lesson: Agent proposed disabling gruff-ts rules to silence high-volume advisory findings
@@ -97,7 +97,7 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **Created:** 2026-04-29
 
-**What happened:** Audit of the last 10 commit messages on `dev` (HEAD `0366419`..`82db04b`, 2026-04-25..2026-04-29) showed 7 of 10 subjects led with *enhance, improve, streamline,* or *clarify* and carried no body. Examples: `feat(deny-dangerous): enhance command checks for combined shell flags and git push scenarios`, `refactor(docs): streamline artifact routing instructions and enhance clarity`, `refactor(docs): enhance clarity in artifact routing and learning loop instructions` (back-to-back, near-identical wording on different content). Reading the message in isolation - without the diff - told a future bisector or release-notes drafter nothing about what actually changed.
+**What happened:** Audit of the last 10 commit messages on `dev` (HEAD `0366419`..`82db04b`, 2026-04-25..2026-04-29) showed 7 of 10 subjects led with *enhance, improve, streamline,* or *clarify* and carried no body. Examples included vague guardrail and docs refactor subjects such as "enhance command checks" and back-to-back "enhance clarity" messages on different content. Reading the message in isolation - without the diff - told a future bisector or release-notes drafter nothing about what actually changed.
 
 **Root cause:** The agent was generating commit subjects by paraphrasing the diff in abstract verbs ("the change makes X better") instead of naming the concrete edit ("replace shell-specific build steps with Node fs calls"). The prior `.github/git-commit-instructions.md` listed format rules and a "what not to commit" list but did not name the failure mode or show a bad-vs-good rewrite, so the rules were easy to satisfy on paper while still emitting low-information subjects. One outlier commit (`4e0ec5d fix(dashboard): speed up home audit load on Windows`) carried a concrete subject + bulleted body and stood out as the gold standard.
 
@@ -116,6 +116,18 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 **Why this matters:** Search-first retrieval only works if the first query is grounded enough to overlap with the recorded evidence. Weak cues do not just miss a convenience result; they create false confidence that "nothing relevant exists" unless the protocol forces a reword or an explicit miss.
 
 **Prevention:** Build the first retrieval query from target area + symptom + named file/tool, not from milestone names or architecture abstractions. If the first pass is abstract, reword toward the concrete failure class before concluding miss.
+
+**Updated 2026-05-27:** The same failure class applies to learning-loop retrieval generally: roadmap phrases such as "support matrix" and "registry canonicality" miss entries because buckets store concrete incident language. Use the concrete symptom, platform, or file/tool name first, reword once, then record a retrieval miss instead of broad-loading the bucket.
+
+## Lesson: Quality assessors can reopen ADR-settled skill modes
+
+**Status:** active | **Created:** 2026-05-27
+
+**What happened:** Quality assessment agents recommended "quick critique mode" or "allow lightweight critique for smaller artifacts" as a Top 5 improvement. Implementing that would have reintroduced the exact failure ADR-021 records: single-context self-talk disguised as multi-perspective critique.
+
+**Root cause:** The assessors saw that `goat-critique` spawns three sub-agents for every invocation and pattern-matched the cost as over-engineering without reading the decision history.
+
+**Prevention:** Before accepting a quality recommendation that changes a skill mode, read the relevant ADR and prompt constraints first. If the recommendation contradicts an accepted ADR, fix the assessor prompt or cite the ADR; do not re-litigate the mode inside the skill file. Evidence anchors: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) and `src/cli/prompt/compose-quality.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`).
 
 ---
 
@@ -138,13 +150,13 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 **Created:** 2026-03-28
 **Updated:** 2026-05-17
 
-**What happened:** Agent needed to delete `.github/skills/goat-onboard/` and `.github/skills/goat-reflect/` directories. Used `rm -rf` which was blocked by deny-dangerous.sh. Instead of using `rm file && rmdir dir` (which is not blocked), the agent asked the user to delete manually - wasting a round trip on something trivially solvable.
+**What happened:** Agent needed to delete `.github/skills/goat-onboard/` and `.github/skills/goat-reflect/` directories. Used `rm -rf` which is blocked by the destructive-shell guard. Instead of using `rm file && rmdir dir` (which is not blocked), the agent asked the user to delete manually - wasting a round trip on something trivially solvable.
 
 **Repeat incident:** During CLI menu/install verification, the installer smoke command used `rm -rf "$tmp"` for temp cleanup and the deny hook blocked it. The corrected smoke used a fixed `/tmp/goat-flow-install-smoke-*` path, preserved the command status, and cleaned up with `rm -r "$tmp"` after verification.
 
 **Repeat incident 2026-05-17:** During release-blocker cleanup, an inline Node heredoc for mechanically splitting lesson buckets was blocked with `BLOCKED: Command has more than 50 chained segments`. The corrected path was to put the helper in `.goat-flow/scratchpad/split-lessons-release.mjs`, run it as a plain `node` file, and delete the temporary helper after the move.
 
-**Root cause:** Agent defaulted to `rm -rf` out of habit and treated the deny hook block as a dead end instead of thinking about alternatives for 2 seconds.
+**Root cause:** Agent defaulted to `rm -rf` out of habit and treated the guardrail block as a dead end instead of thinking about alternatives for 2 seconds.
 **Fix:** When a command is blocked, think about the unblocked equivalent. `rm -rf dir/` → `rm dir/file && rmdir dir/`. `mv old new` → `mv -n old new`. The deny hook blocks dangerous patterns, not all file operations.
 
 ---
@@ -210,7 +222,7 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **Created:** 2026-04-24
 
-**What happened:** Three independent Gemini quality reports in one session flagged stale `file:line` references across footgun entries. `hooks.md` cited `deny-dangerous.sh` lines for the read-only whitelist that had moved, and `skills.md` cited `skill-preamble.md` lines for the Step 0 budget that had also moved. Nine active line references across 3 footgun files had drifted. The framework's README and CLAUDE.md already said "line numbers are advisory" but evaluation templates said "RECOMMENDED," so agents kept using them.
+**What happened:** Three independent Gemini quality reports in one session flagged stale `file:line` references across footgun entries. `hooks.md` cited old guardrail lines for the read-only whitelist that had moved, and `skills.md` cited `skill-preamble.md` lines for the Step 0 budget that had also moved. Nine active line references across 3 footgun files had drifted. The framework's README and CLAUDE.md already said "line numbers are advisory" but evaluation templates said "RECOMMENDED," so agents kept using them.
 
 **Root cause:** Line numbers shift on every edit to the target file. Unlike stale file paths (which `stats --check` catches), stale line numbers point at valid-but-wrong code and pass all mechanical checks. The guidance was contradictory: README discouraged them while the evaluation template encouraged them.
 
@@ -227,5 +239,53 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 **Root cause:** The agent preserved a backward-compatibility shape from the starting point without proving that any installed project still needed the per-skill file. That weakened the shared-reference migration: one canonical reference existed, but stale compatibility files could keep attracting edits or references.
 
 **Prevention:** When moving guidance into `.goat-flow/skill-reference/`, grep every old path, remove redundant local copies unless there is an explicit compatibility requirement, and update manifest/install references in the same pass. Compatibility copies are a conscious exception, not the default cleanup state.
+
+---
+
+## Lesson: Verify agent capabilities against official docs, not assumptions
+
+**Status:** active | **Created:** 2026-04-15 | **Merged during:** M11 learning-loop consolidation
+
+**What happened:** Codex was assumed to have no PreToolUse hook support, so its profile left the hook field empty and a parallel Starlark execpolicy workaround was built. Later doc/runtime checks showed Codex did support hooks, making copied guardrail scripts dead code until registration was fixed.
+
+**Root cause:** A stale platform assumption propagated through templates, install scripts, fact extraction, and setup guides without being re-checked against primary docs or the local binary.
+
+**Prevention:** When a profile field says an agent "can't" do something, verify against current product docs and runtime evidence before building workarounds. For Codex permission grammar, current evidence anchors are `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`), `.codex/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`), and `src/cli/facts/agent/settings.ts` (search: `collectCodexWorkspaceRootEntries`).
+
+---
+
+## Lesson: Sub-agent delegation is universal across goat-flow's four supported agents
+
+**Status:** active | **Created:** 2026-04-20 | **Merged during:** M11 learning-loop consolidation
+
+**What happened:** Quality reports proposed a pre-check before routing to `/goat-critique`, assuming delegation might be unavailable. The user corrected the premise: Claude Code, Codex, Antigravity, and Copilot all ship sub-agent / delegated-agent capability, so the pre-check would be dead ceremony.
+
+**Root cause:** Reviewers reasoned abstractly about platform variance instead of grounding the finding against goat-flow's actual supported-agent list.
+
+**Prevention:** Before accepting a finding that adds a capability pre-check, verify the capability against the four supported agents. If all four ship it, retract the finding. Applies to delegation, hook support, MCP, slash commands, and other historically partial capabilities.
+
+---
+
+## Lesson: End-of-task rules must be treated as deliverables
+
+**Status:** active | **Created:** 2026-04-08 | **Merged during:** M11 learning-loop consolidation
+
+**What happened:** Multiple incidents shared the same shape: the agent skipped an AI testing gate after completing milestone tasks, treated an AI gate's "14/14 checks passed" as proof that real-world setup worked, skipped session/learning-loop closure steps, or offered to commit after completing work.
+
+**Root cause:** Closing rules fire after the primary work feels done, so the agent's attention shifts to reporting instead of executing the remaining gate.
+
+**Prevention:** Make closing gates part of the deliverable, not an optional afterword. After completing milestone tasks, run the named testing gate before summary. Report what was done and stop; do not offer commits, pushes, PRs, or follow-on git writes unless the user asked.
+
+---
+
+## Lesson: Fresh-eyes critique reruns need section-only evidence after a leak-scan discard
+
+**Status:** active | **Created:** 2026-04-24 | **Merged during:** M11 learning-loop consolidation
+
+**What happened:** During a full `goat-critique` run, a fresh-eyes sub-agent stayed within the artifact but returned evidence links that echoed the artifact's `.goat-flow/...` path. Phase 2's leak scan treats that path text as context leak, so the output had to be discarded and rerun.
+
+**Root cause:** The isolation rule is enforced over output text, not just over what the sub-agent actually read. A clean analysis can still fail if its citation format contains repository-local paths.
+
+**Prevention:** When rerunning a fresh-eyes critique after leak-scan discard, instruct the sub-agent to cite section titles or neutral labels only. Do not include repository-local paths in the output unless the phase explicitly permits them.
 
 ---

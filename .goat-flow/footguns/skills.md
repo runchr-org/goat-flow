@@ -1,24 +1,7 @@
 ---
 category: skills
-last_reviewed: 2026-05-26
+last_reviewed: 2026-05-27
 ---
-
-## Footgun: Quality assessors recommend adding quick/lite modes to goat-critique
-
-**Status:** active | **Created:** 2026-04-27 | **Evidence:** ACTUAL_MEASURED
-
-**Symptoms:** Quality assessment agents recommend "quick critique mode" or "allow lightweight critique for smaller artifacts" as a Top 5 Improvement. If implemented, this would re-introduce the exact failure that ADR-021 was written to prevent: single-context self-talk disguised as multi-perspective critique.
-
-**Why it happens:** Assessing agents see that goat-critique spawns 3 sub-agents for every invocation regardless of artifact size and pattern-match this as over-engineering. They do not read ADR-021 unless directed to, so they miss that Quick mode was tried, produced structurally misleading output, and was intentionally removed.
-
-**Evidence:**
-- `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) documents the decision and four rejected alternatives including "Default to Full, keep Quick as opt-in."
-- `.goat-flow/lessons/agent-routing.md` (search: `Never override explicit skill invocation`) documents the 2026-04-27 incident where bypassing the full protocol produced a worse result than running it.
-- `src/cli/prompt/compose-quality.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`) now explicitly tells assessment agents to respect ADR-decided skill mode choices.
-
-**Prevention:**
-1. The quality assessment prompt now includes an explicit constraint against recommending reduced skill modes.
-2. ADR-021 remains the authoritative source. If this recommendation resurfaces, point the assessor at the ADR, not at the skill file alone.
 
 ## Footgun: Skill parity edits can miss `.github/skills/` and fail repo-level drift checks
 
@@ -53,7 +36,7 @@ last_reviewed: 2026-05-26
 - `scripts/preflight-checks.sh` (search: `Skill Reference + Playbooks Sync`) fails when shared reference and playbook templates and installed copies differ.
 - `src/cli/audit/check-drift.ts` (search: `workflow/skills/reference/skill-preamble.md`) also checks shared-reference template/install parity through the audit path.
 
-**Prevention:** When changing `skill-preamble.md`, `skill-conventions.md`, `skill-quality-testing.md`, or topical files under `skill-quality-testing/`, edit the workflow template and installed copy together. Re-run `bash scripts/preflight-checks.sh` or at minimum `node --import tsx src/cli/cli.ts audit . --check-drift --format json` before treating the change as complete.
+**Prevention:** When changing shared skill-reference files (`skill-preamble.md`, `skill-conventions.md`) or topical files under `workflow/skills/reference/`, edit the workflow template and installed copy together. When changing standalone playbooks such as `skill-quality-testing.md`, update the matching `workflow/skills/playbooks/` and `.goat-flow/skill-playbooks/` surfaces instead. Re-run `bash scripts/preflight-checks.sh` or at minimum `node --import tsx src/cli/cli.ts audit . --check-drift --format json` before treating the change as complete.
 
 ## Footgun: Skill reference-pack merges can leave stale installed files behind
 
@@ -69,20 +52,6 @@ last_reviewed: 2026-05-26
 - Downstream gruff-php upgrade on 2026-05-21 left `auth-authz.md`, `cicd-and-agent-surfaces.md`, `dependency-and-supply-chain.md`, and `secrets-and-data-exposure.md` under `.claude/skills/goat-security/references/` after those files were merged into the v1.7.0 `identity-and-data.md` and `supply-chain-and-cicd.md` reference set.
 
 **Prevention:** After any per-skill reference merge, rename, or deletion, update `workflow/manifest.json` `skills.references`, run an installer round-trip test that starts with a stale reference file, and run `node --import tsx src/cli/cli.ts audit <target> --agent <id>` against a target containing the stale file to prove audit fails before reinstall and passes after reinstall.
-
-## Footgun: Weak retrieval cues cause learning-loop misses
-
-**Status:** active | **Created:** 2026-04-18 | **Evidence:** ACTUAL_MEASURED
-
-**Symptoms:** A grep-first retrieval returns zero hits even though a relevant footgun exists, because the first query uses roadmap or abstraction language instead of the concrete failure class stored in the bucket.
-
-**Why it happens:** The learning-loop buckets index real incidents and failure classes, not milestone names. Queries like "support matrix" or "registry canonicality" sound precise in planning context but do not match the actual wording of stored hook/platform incidents.
-
-**Evidence:**
-- `.goat-flow/skill-reference/skill-preamble.md` (search: `Learning-Loop Retrieval`) hard-codes the mitigation: derive 2-4 terms from target area + symptom + named file/tool, reword once, open only matching entries, then record a miss instead of broad-loading the bucket.
-- `workflow/skills/reference/skill-preamble.md` (search: `Learning-Loop Retrieval`) holds the template source that the installer copies from.
-
-**Prevention:** Seed first-pass retrieval terms with the concrete symptom, platform, or file/tool name rather than milestone titles or abstract design labels. One reword is allowed; if the second query still misses, record the retrieval miss explicitly and move on. Broad-loading the bucket to compensate defeats the protocol.
 
 ## Footgun: Bash-prescribed slash-command or skill bodies break under per-block tool isolation
 

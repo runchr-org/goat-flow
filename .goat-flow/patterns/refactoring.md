@@ -1,6 +1,6 @@
 ---
 category: refactoring
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
 ---
 
 ## Pattern: Canary-first contract changes (one consumer before all consumers)
@@ -11,7 +11,7 @@ last_reviewed: 2026-05-25
 
 **Evidence (external — mini-swe-agent):** PR #683 (merged 2026-01-05) changed the submit-marker position from first-line to last-line across all 5 environment classes + 4 benchmark configs + 6+ test files in one PR. The PR was well-reasoned (addressed a real bug in issue #659: agent could submit when the command failed). On 2026-01-12, direct commit `1ce8e917` reverted the position swap across the same 15 files. The revert commit message gives no reason; the verifiable lesson is that the breadth-first change cost a breadth-first revert. The complementary fix from the same issue (explicit `returncode == 0` check) landed months later in tangentially-related PR #747.
 
-A canary path — apply to `LocalEnvironment` only first, run mini against a real task for a week, then propagate to `DockerEnvironment` / `SingularityEnvironment` / `BubblewrapEnvironment` / configs / tests — would have surfaced the failure mode against a 1-file revert surface instead of 15. See [lessons/design-decisions.md](../lessons/design-decisions.md) (search: `Contract changes need a canary surface`) for the lesson-frame of the same story.
+A canary path — apply to `LocalEnvironment` only first, run mini against a real task for a week, then propagate to `DockerEnvironment` / `SingularityEnvironment` / `BubblewrapEnvironment` / configs / tests — would have surfaced the failure mode against a 1-file revert surface instead of 15.
 
 **Goat-flow application:**
 - Cross-file contracts that share this shape: `CheckResult` / `HarnessCheckResult` in `src/cli/audit/types.ts`, manifest schema in `workflow/manifest.json`, skill composition contract in `src/cli/audit/check-drift.ts`, hook event naming (per `.goat-flow/tasks/1.18.0/M01-hook-programme-foundation.md`).
@@ -30,6 +30,12 @@ A canary path — apply to `LocalEnvironment` only first, run mini against a rea
 ## Pattern: Skill consolidation requires a full grep after every merge
 **Context:** Renaming, merging, or deleting skills.
 **Approach:** After any skill rename/merge/delete: (1) grep entire repo for every old name, (2) check every installed skill root listed in `workflow/manifest.json` (search: `"skills_dir"`), (3) check constants + types + test fixtures, (4) run the full test suite + audit. Don't trust "it builds and tests pass" - read the changed files.
+
+---
+
+## Pattern: Put prompt side effects on the CLI side of the boundary
+**Context:** A prompt contract forbids tracked-file writes or unrestricted I/O, but a new feature needs persistence, capture, or report history.
+**Approach:** Keep the prompt read-only or single-path-limited and move extraction, path validation, suffix numbering, schema validation, and writes into CLI code whenever possible. If the prompt must write, pin the path to a gitignored local-state directory and make the exception explicit. Evidence anchor: `src/cli/prompt/compose-quality.ts` (search: `No tracked-file writes`).
 
 ---
 

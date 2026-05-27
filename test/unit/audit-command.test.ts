@@ -2079,6 +2079,105 @@ describe("agent deny hook template comparison", () => {
     assert.equal(denyCheck.run(ctx), null);
   });
 
+  it("fails when an exact configured hook command points at a stale path", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".codex/hooks/guard-repository-writes.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates, {
+          ".codex/hooks.json": JSON.stringify({
+            hooks: {
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: ".codex/hooks/stale-guard-repository-writes.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }),
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected configured command runtime failure");
+    assert.match(result.message, /configured hook command/);
+    assert.equal(result.evidence, ".codex/hooks.json");
+  });
+
+  it("fails when an exact configured hook command exits 127", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".codex/hooks/guard-repository-writes.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates, {
+          ".codex/hooks.json": JSON.stringify({
+            hooks: {
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command:
+                        "bash -lc 'exit 127' # .codex/hooks/guard-repository-writes.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }),
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected configured command runtime failure");
+    assert.match(result.message, /configured hook command exited 127/);
+    assert.equal(result.evidence, ".codex/hooks.json");
+  });
+
   it("fails when the split deny hook self-test sibling is missing", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();

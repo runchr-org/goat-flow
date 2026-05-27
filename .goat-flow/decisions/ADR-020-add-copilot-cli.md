@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-04-18
+**Updated:** 2026-05-27 - Runtime slot updated per ADR-030; the four-agent parity matrix now reads Claude, Codex, Antigravity, and Copilot.
 
 ## Context
 
@@ -14,7 +15,7 @@ Copilot CLI now exposes the same broad categories of surface the other supported
 - **Hooks.** `.github/hooks/hooks.json` plus on-disk scripts such as `.github/hooks/guard-repository-writes.sh`.
 - **Copilot commands.** Current Copilot CLI command help exposes `/agent`, `/review`, `/research`, and `/tasks`, plus `/fleet` for parallelizable work.
 
-The live repo already carries peer hot-path instruction files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`), shared guardrail script templates under `workflow/hooks/`, and canonical skill templates under `workflow/skills/`. Shipping Copilot support therefore means wiring Copilot into the same standalone per-agent model rather than inventing a special-case bridge.
+The live repo already carries peer hot-path instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`), shared guardrail script templates under `workflow/hooks/`, and canonical skill templates under `workflow/skills/`. Shipping Copilot support therefore means wiring Copilot into the same standalone per-agent model rather than inventing a special-case bridge.
 
 ## Decision
 
@@ -40,7 +41,7 @@ Treat `copilot` as a first-class `AgentId` and ship full runtime parity in the s
 
 ## Consequences
 
-- **Positive:** Copilot now participates in the same audit/setup/dashboard matrix as Claude, Codex, and Gemini.
+- **Positive:** Copilot now participates in the same audit/setup/dashboard matrix as Claude, Codex, and Antigravity.
 - **Positive:** `.github/skills/` and `.github/hooks/` become maintained install targets rather than undocumented side surfaces.
 - **Positive:** The registry stays honest: support claims match the runtime, not just the docs.
 - **Negative:** The repo now has another installed skill root and hook surface to keep in parity, so preflight and drift checks must enforce it.

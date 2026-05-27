@@ -1,9 +1,9 @@
 ---
-category: external-pr-learnings
-last_reviewed: 2026-05-26
+category: external-lessons
+last_reviewed: 2026-05-27
 ---
 
-Lessons extracted from reviewing merged PRs in external projects relevant to goat-flow's
+Patterns extracted from reviewing merged PRs in external projects relevant to goat-flow's
 surfaces (CLI, dashboard, audit pipeline, config merging, persistence). Each entry names
 the source PR(s), the root cause, and the goat-flow surface where the rule applies.
 

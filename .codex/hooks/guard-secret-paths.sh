@@ -50,6 +50,9 @@ fi
 # shellcheck disable=SC1090,SC1091
 source "$GOAT_GUARD_COMMON" || guard_common_unavailable "failed to load required shared helper $GOAT_GUARD_COMMON"
 
+__goat_git_rest=""
+__goat_git_aliased_push=0
+
 strip_shell_quotes_for_path_scan() {
   local input="$1"
   local out=""
@@ -101,6 +104,26 @@ strip_shell_quotes_for_path_scan() {
   printf '%s' "$out"
 }
 
+key_material_path_touch() {
+  local input="$1"
+  local -a words=()
+  split_shell_words_into words "$input"
+  local word=""
+  local candidate=""
+  local base=""
+
+  for word in "${words[@]}"; do
+    candidate="${word#*=}"
+    candidate="${candidate#*:}"
+    candidate="${candidate,,}"
+    base="${candidate##*/}"
+    if [[ "$base" =~ ^[^.][^[:space:]]*\.(pem|key|pfx)$ ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 is_secret_path_touch() {
   local c
   c=$(strip_shell_quotes_for_path_scan "$1")
@@ -117,7 +140,7 @@ is_secret_path_touch() {
   if [[ "$env_scan" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?\.env[a-zA-Z0-9_.-]*([[:space:]]|$|[\'\"]) ]]; then return 0; fi
   if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])((\./|\.\./|~/)*)(\.ssh/|\.aws/|\.config/gcloud/|\.gnupg/|\.docker/config\.json|\.kube/config|secrets/) ]]; then return 0; fi
   if [[ "$c" =~ application_default_credentials\.json ]]; then return 0; fi
-  if [[ "$c" =~ (^|[[:space:]]|=|:|[\'\"])[^[:space:]]*\.(pem|key|pfx)([[:space:]]|$|[\'\"]) ]]; then return 0; fi
+  if key_material_path_touch "$c"; then return 0; fi
   if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])(credentials|\.npmrc|\.pypirc)([[:space:]]|$|\.|[\'\"]) ]]; then return 0; fi
   return 1
 }
@@ -128,49 +151,6 @@ is_env_example_touch() {
   if [[ "$c" =~ (^|[[:space:]]|=|:|/|[\'\"])\.env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
   if [[ "$c" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?\.env\.example([[:space:]]|$|[\'\"]) ]]; then return 0; fi
   return 1
-}
-
-__goat_git_strip_globals() {
-  __goat_git_aliased_push=0
-  __goat_git_rest=""
-  local c="$1"
-  c=$(normalize_leading_command_word "$c")
-  local command_word="${c%%[[:space:]]*}"
-  local command_base="${command_word##*/}"
-  [[ "$command_base" == "git" ]] || return 1
-  c="${c#"$command_word"}"
-  c="${c#"${c%%[![:space:]]*}"}"
-  while [[ "$c" =~ ^- ]]; do
-    local opt="${c%%[[:space:]]*}"
-    c="${c#"$opt"}"
-    c="${c#"${c%%[![:space:]]*}"}"
-    if [[ "$opt" == "-c" || "$opt" == "-C" ]]; then
-      local val=""
-      if [[ "$c" == \'* ]]; then
-        val="${c#\'}"; val="${val%%\'*}"
-        c="${c#\'}" && c="${c#*\'}"
-      elif [[ "$c" == \"* ]]; then
-        val="${c#\"}"; val="${val%%\"*}"
-        c="${c#\"}" && c="${c#*\"}"
-      else
-        val="${c%%[[:space:]]*}"
-        c="${c#"${c%%[[:space:]]*}"}"
-      fi
-      c="${c#"${c%%[![:space:]]*}"}"
-      # Detect dangerous alias forms regardless of quoting. Three cases:
-      #   (a) -c alias.X=push           (unquoted; val is whole token)
-      #   (b) -c alias.X='push ...'     (key=quoted; val is `alias.X='push` after
-      #       parser truncates at first inner space - leading quote left in val)
-      #   (c) -c "alias.X=push ..."     (whole-arg-quoted; val is full inner)
-      # The regex permits a leading quote between `=` and the dangerous
-      # keyword (push or `!`-shell-command).
-      if [[ "$opt" == "-c" && "$val" =~ ^alias\.[a-zA-Z0-9_-]+=[\'\"]?(push|!) ]]; then
-        __goat_git_aliased_push=1
-      fi
-    fi
-  done
-  __goat_git_rest="$c"
-  return 0
 }
 
 is_git_ls_files() {
@@ -196,68 +176,6 @@ is_env_example_pipe_consumer_read_only() {
       return $? ;;
     *) return 1 ;;
   esac
-}
-
-split_shell_words_into() {
-  local -n __goat_words_out__="$1"
-  local input="$2"
-  __goat_words_out__=()
-  local current=""
-  local char=""
-  local in_single=0
-  local in_double=0
-  local escaped=0
-  local i=0
-
-  for ((i = 0; i < ${#input}; i++)); do
-    char="${input:i:1}"
-
-    if [[ "$escaped" -eq 1 ]]; then
-      current+="$char"
-      escaped=0
-      continue
-    fi
-
-    if [[ "$in_single" -eq 0 && "$char" == "\\" ]]; then
-      escaped=1
-      continue
-    fi
-
-    if [[ "$in_double" -eq 0 && "$char" == "'" ]]; then
-      if [[ "$in_single" -eq 1 ]]; then
-        in_single=0
-      else
-        in_single=1
-      fi
-      continue
-    fi
-
-    if [[ "$in_single" -eq 0 && "$char" == '"' ]]; then
-      if [[ "$in_double" -eq 1 ]]; then
-        in_double=0
-      else
-        in_double=1
-      fi
-      continue
-    fi
-
-    if [[ "$in_single" -eq 0 && "$in_double" -eq 0 && "$char" =~ [[:space:]] ]]; then
-      if [[ -n "$current" ]]; then
-        __goat_words_out__+=("$current")
-        current=""
-      fi
-      continue
-    fi
-
-    current+="$char"
-  done
-
-  if [[ "$escaped" -eq 1 ]]; then
-    current+="\\"
-  fi
-  if [[ -n "$current" ]]; then
-    __goat_words_out__+=("$current")
-  fi
 }
 
 is_search_command_verb() {
@@ -385,6 +303,14 @@ check_segment() {
   local cmd="$1"
   local depth="${2:-0}"
   prepare_segment_context "$cmd" "$depth" || return $?
+  cmd="$CMD_TRIMMED"
+
+  if [[ "$HAS_REDIRECT" -eq 0 && "$HAS_PIPE" -eq 0 ]]; then
+    case "$CMD_VERB" in
+      echo|printf)
+        return 0 ;;
+    esac
+  fi
 
   local touches_secret=0
   if is_search_command_verb "$CMD_VERB"; then

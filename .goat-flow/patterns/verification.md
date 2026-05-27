@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-05-25
+last_reviewed: 2026-05-27
 ---
 
 ## Pattern: Cross-runner quality-report triage by convergence
@@ -14,7 +14,7 @@ last_reviewed: 2026-05-25
 3. **Singleton (1-of-N flagged it):** The finding is a HYPOTHESIS, not a fact. The other runners did not see it. Three sub-cases: (a) a real issue only one runner happened to notice (rare but valuable — typically with a specific file:line anchor), (b) a hallucinated fact the agent invented (e.g., a reference to a file that does not exist), (c) a defensible design tradeoff one runner misread. Per-finding verification is mandatory before any action; reject (b) and document (c) as defensible rather than fixing.
 
 **Evidence (2026-05-25 quality session, framework-self):** Four runners reviewed goat-flow at 20:06-20:18.
-- Convergent (4-of-4): `verification.md` lessons bucket exceeded 39KB schema gate. Verified by running preflight (failed at `Learning-loop schema` exit 1) and `wc -c` (41,323 bytes). Real and load-bearing — split-out of external-PR lessons into `external-pr-learnings.md` reduced it to 33,325 bytes, preflight green.
+- Convergent (4-of-4): `verification.md` lessons bucket exceeded 39KB schema gate. Verified by running preflight (failed at `Learning-loop schema` exit 1) and `wc -c` (41,323 bytes). Real and load-bearing — splitting external PR lessons into their own patterns bucket reduced it to 33,325 bytes, preflight green.
 - Singleton-real (1-of-4, Codex): `footguns/setup.md:10` cites search anchor `invalidNoneEntryPattern` that no longer exists in `workflow/install-goat-flow.sh`. Verified by `rg invalidNoneEntryPattern workflow/install-goat-flow.sh` returning zero hits and `rg isInvalidNoneKey workflow/install-goat-flow.sh` returning lines 497 + 599. Real and actionable.
 - Singleton-hallucination (1-of-4, Antigravity): `.agents/skills/goat-critique/SKILL.md` references `references/refuter-spec.md` that does not exist. Verified by `grep refuter-spec .{agents,claude,github}/skills/goat-critique/SKILL.md workflow/skills/goat-critique/SKILL.md` returning zero hits across all four mirrors. `refuter-spec.md` exists only under `goat-review/references/`. False positive — the agent confused which skill it was reviewing.
 - Singleton-defensible (1-of-4, Claude, persisted): `CLAUDE.md:38` lists only 2 of 9 playbook examples on the Tool playbooks hot-path hint. Defensible design — the line says "examples" and the README is the named index; the v1.4.1 parity check requires `browser-use` + `page-capture` specifically. Persisted finding worth documenting as a tradeoff, not fixing.
@@ -170,22 +170,10 @@ describe("source-grep guardrails", () => {
 
 ---
 
-## Pattern: Hollow-test detection in skill bodies (proposed audit check)
+## Pattern: Verification needs a real context boundary
 
-**Context:** A test or skill body claims coverage that doesn't actually exist. Example from the wild: `it("should reuse existing connection", () => expect(provider.config.maintainContext).toBe(true))` proves nothing about connection reuse — it asserts a config flag that was just set up by the test fixture. Equivalent shape for skills: a skill body that promises a behaviour (`"This skill validates the dashboard launches"`) but the actual implementation is `expect(true).toBe(true)` or `// TODO: implement` or returns immediately before any assertion. The test / skill passes, coverage looks healthy, and the bug it was supposed to surface ships unprotected.
+**Context:** The same agent writes a change and then proposes to "independently verify" it inside the same invocation.
 
-**Approach:** A static check that flags test functions / skill bodies matching the hollow shape. Detection signal candidates in priority order:
-1. Body whose only non-comment statement is `expect(true).toBe(true)` / `assert.ok(true)` / `assert.equal(1, 1)` — high precision, low effort.
-2. Body that includes `TODO`, `FIXME`, `Skip`, `difficult to mock`, `for now`, `placeholder` in a comment AND has fewer than 2 assertion calls — medium precision; tune to the false-positive rate observed.
-3. Skill body that contains a behavioural claim in the description but the implementation has zero side-effects (no file writes, no return value, no thrown error) — harder to detect; defer until 1 and 2 prove their value.
+**Approach:** Treat same-context self-verification as evidence gathering, not independent review. Real verification needs a context boundary: a fresh invocation, a different agent, a human, or a deterministic test that can fail the author. Use `/goat-review` or `/goat-qa` as the verification layer after implementation, not a self-verifier phase inside the same skill. Evidence anchor: `.goat-flow/decisions/ADR-005-no-implementation-skill.md` (search: `goat-doer / goat-verifier`).
 
-**Evidence (external — promptfoo PR #9344):** AI-graded code review on the promptfoo codebase flagged `test/providers/openai/realtime.test.ts` `it('should reuse existing connection', ...)` whose body was a comment ("Skip this test since it's difficult to mock") plus a trivial `expect(provider.config.maintainContext).toBe(true)`. The test name advertised connection-reuse coverage that didn't exist. The PR replaced the body with a real two-turn assertion that proves `MockWebSocket` is NOT re-constructed and `conversation.item.create` fires twice. This was the highest-signal finding in the PR — no linter catches "the test name lies about what it asserts."
-
-**Goat-flow application:**
-- Closest existing rule shape lives in `src/cli/audit/check-content-quality.ts` (search: `scanContentQuality`) — vague-term detector for skill / instruction prose. Adding a "test / skill body looks hollow" pass extends the same module's vocabulary.
-- Format the finding as the standard audit shape: file path with a semantic anchor (the `it("...")` or skill heading), the offending body excerpt, and a suggested remediation ("write a real assertion or delete the test").
-- Surface in `check-content-quality.ts` first (low risk, opt-out per check id). Promote to a gating check after running against the live repo to calibrate the false-positive rate.
-
-**When NOT to use:** Some test bodies are legitimately one-line tautologies (e.g., a smoke test that just imports a module to verify it loads). Distinguish by checking the test name: tautological tests usually have names like `"module loads"` or `"import succeeds"`; hollow tests have names that promise behaviour (`"should reuse"`, `"handles errors"`, `"sends N messages"`). When in doubt, surface the finding as a warning rather than a fail and let the human decide.
-
-**Companion footgun (rejected AI findings):** During the same PR review, the AI proposed adding a trailing `0` to four SHA256 fixtures — confidently wrong on deterministic data. The PR author recomputed the digests, confirmed the AI was wrong, and documented the refusal in the PR body. Lesson: any AI-driven audit check that flags hash literals, snapshot fixtures, or numeric constants must require running the producing function before trusting the suggested fix. Add a "AI-finding disposition log" section to any review-driven PR template so rejected findings are surfaced for future readers.
+---

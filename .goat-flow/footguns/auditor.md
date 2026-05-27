@@ -1,6 +1,6 @@
 ---
 category: auditor
-last_reviewed: 2026-05-24
+last_reviewed: 2026-05-27
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
@@ -9,9 +9,9 @@ last_reviewed: 2026-05-24
 
 The selected-agent audit validates hook syntax, self-test behavior, registration, and a runtime-shaped blocked Bash payload through the registered hook path. It still does not prove that the external agent runtime itself delivered the hook payload for a real Bash tool invocation. A hook that passes every local check can still fail at the provider/runtime boundary if the agent ignores the configured hook event or changes its payload contract.
 
-**Residual scope** (after 2026-05-24 `agent-deny-dangerous` check which invokes the hook's `--self-test` and a runtime-shaped blocked payload):
+**Residual scope** (after the selected-agent guardrail check started invoking the hook's `--self-test` and a runtime-shaped blocked payload):
 
-1. Hook registration cross-check (file exists ↔ registered in settings). The `deny-hook-registered` check in `harness/check-constraints.ts` covers this, and `agent-deny-dangerous` now exercises the registered hook path with a runtime-shaped payload. Neither launches the external agent binary to prove provider-side delivery.
+1. Hook registration cross-check (file exists ↔ registered in settings). The `deny-hook-registered` check in `harness/check-constraints.ts` covers this, and the selected-agent guardrail check now exercises the registered hook path with a runtime-shaped payload. Neither launches the external agent binary to prove provider-side delivery.
 2. A dedicated `goat-flow verify` command for full external-runtime hook smoke-test is not yet built.
 3. Static fact extraction can drift from the deny hook when hook regexes are generalized. On 2026-04-27, `detectBashDenyCoversSecrets` still expected older `/.ssh/` and `/.aws/` regex text after the hook moved to relative/home-root normalization, causing a false harness failure until the detector and unit coverage were updated.
 
@@ -52,28 +52,6 @@ Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agen
 - `src/cli/audit/check-content-quality.ts` and `src/cli/audit/check-factual-claims.ts` exist because structural correctness alone did not catch cold-path truth drift.
 
 **Prevention:** Keep structural audit and content-truth checks separate and explicit. Never treat a build PASS as proof that docs, ADRs, or prompts are semantically current.
-
----
-
-## Footgun: Quality prompt generation pays full per-agent audit cost on fresh loads
-
-**Status:** active | **Created:** 2026-04-29 | **Updated:** 2026-05-20 | **Evidence:** ACTUAL_MEASURED
-
-The dashboard quality page has two audit-enrichment paths. Fast view changes use cache-only enrichment and must not imply the audit failed when no cached report exists. Explicit fresh/non-fast quality generation still can feel slow even when quality-history loading and prompt composition are effectively free, because the hot path is the live per-agent harness audit that runs before the prompt is composed.
-
-**Why it happens:** The dashboard calls `generateQuality({ fast: true })` for default quality view changes. `handleQualityRequest` passes that through `getOrRunQualityAudit(..., { cacheOnly: params.fast })`, so a fast cache miss returns no audit report instead of running `runAudit`. Explicit fresh/non-fast requests still call `runAudit(fs, projectPath, { agentFilter: agent, harness: true })` before composing the prompt. In the real bash-enabled dashboard path, current-session timings measured fresh `/api/quality` requests at about 30,573 ms and 30,182 ms, with a cached repeat at about 5 ms after a short-lived per-agent cache was added. That means fast/cache-only routing fixes default loads and repeat loads, but fresh quality generation still pays the full deny-hook/runtime evidence cost.
-
-**Evidence:**
-- `src/dashboard/app.ts` (search: `generateQuality({ fast: true })`) - entering the quality view and changing agent/mode request the fast cache-only path.
-- `src/cli/server/dashboard-routes.ts` (search: `getOrRunQualityAudit`) - cache-only requests return a null report on cache miss instead of running audit.
-- `src/cli/server/dashboard-routes.ts` (search: `runAudit(fs, projectPath, {`) - fresh/non-fast quality requests still run the live per-agent harness audit before composing the prompt.
-- `src/cli/server/dashboard-routes.ts` (search: `"present-only" : "full"`) - the summary-only evidence downgrade exists on `/api/audit`, not on `/api/quality`.
-
-**Prevention:**
-1. Label fast cache misses as "audit not loaded" rather than "audit unavailable" so quality agents do not infer setup failure.
-2. Profile fresh `/api/quality` before touching history parsing or prompt rendering; those are easy suspects and were not the bottleneck here.
-3. Keep the distinction explicit: fast/cache-only paths are for responsive prompt generation; fresh/non-fast paths are for live audit grounding and may still pay the full runtime-evidence cost.
-4. If fresh quality generation must become faster, optimize the underlying hook self-test itself; cache-only routing cannot remove the explicit fresh-run cost.
 
 ---
 

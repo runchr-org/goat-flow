@@ -7,7 +7,7 @@ last_reviewed: 2026-05-27
 
 **Status:** active | **Created:** 2026-05-27
 
-**What happened:** While restoring lost `deny-dangerous.sh` coverage after the guardrail split, I copied the old parser/checker body into all three split hooks: `guard-destructive-shell.sh`, `guard-secret-paths.sh`, and `guard-repository-writes.sh`. Each file sets a different `GOAT_GUARD_SCOPE` and `reason_in_scope` filters which `block` calls actually exit, so runtime behavior is mostly separated. The implementation is still structurally wrong: every file carries unrelated parsers and checks for secrets, repository writes, destructive shell commands, and npm token deletion.
+**What happened:** While restoring lost pre-M10 monolith coverage after the guardrail split, I copied the old parser/checker body into all three split hooks: `guard-destructive-shell.sh`, `guard-secret-paths.sh`, and `guard-repository-writes.sh`. Each file sets a different `GOAT_GUARD_SCOPE` and `reason_in_scope` filters which `block` calls actually exit, so runtime behavior is mostly separated. The implementation is still structurally wrong: every file carries unrelated parsers and checks for secrets, repository writes, destructive shell commands, and npm token deletion.
 
 **Root cause:** I optimized for recovering behavior quickly after finding dropped coverage, but I skipped the design step that should have extracted shared parsing into one source or generated the three guards from one policy table. That turned "split hooks" into three scoped copies of a monolith.
 
@@ -33,6 +33,8 @@ last_reviewed: 2026-05-27
 
 **Prevention:** For sourced hook helpers resolved through runtime variables, shellcheck the helper as its own input and suppress SC1090/SC1091 only on the dynamic `source` line in each thin policy hook. Verify the workflow and installed mirrors with the same no-`-x` ShellCheck command used by preflight. Evidence anchors: `workflow/hooks/guard-common.sh` (search: `guard-common.sh - shared payload parsing`) and `workflow/hooks/guard-destructive-shell.sh` (search: `shellcheck disable=SC1090,SC1091`).
 
+**Updated 2026-05-27:** M12 moved git parsing into `guard-common.sh`, but ShellCheck still warned in thin hooks with SC2154 because helper-owned output variables (`__goat_git_rest`, `__goat_git_aliased_push`) were assigned dynamically in the sourced file. Initialize helper output variables in each thin hook before first reference so static analysis sees the contract. Evidence anchors: `workflow/hooks/guard-repository-writes.sh` (search: `__goat_git_aliased_push=0`) and `workflow/hooks/guard-secret-paths.sh` (search: `__goat_git_rest=""`).
+
 ## Lesson: Shared hook helpers need missing-dependency runtime tests
 
 **Status:** active | **Created:** 2026-05-27
@@ -52,6 +54,36 @@ last_reviewed: 2026-05-27
 **Root cause:** I assumed the Claude-style hook command string was safe for Codex too. The audit parser only needed to see the hook script path, but the runtime needed a command shape Codex can execute directly.
 
 **Prevention:** For Codex `.codex/hooks.json`, register direct project-local script paths such as `.codex/hooks/guard-repository-writes.sh` and verify the exact configured commands from the JSON file, not only direct `bash hook.sh` calls. Evidence anchors: `.codex/hooks.json` (search: `.codex/hooks/guard-repository-writes.sh`) and `src/cli/server/agent-hook-writer.ts` (search: `if (agent.id === "codex") return path`).
+
+## Lesson: Configured-command smoke must execute the registered string
+
+**Status:** active | **Created:** 2026-05-27
+
+**What happened:** M12 found that audit and preflight smoke tests launched hook scripts directly, so they could pass even when an agent config contained a stale command string or a command shape that exited before the hook started. The fix parses `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, then runs each registered guard command with a runtime-shaped safe deny payload.
+
+**Root cause:** The verification target was the hook file, not the runtime contract. That missed exit 126/127 failures caused by stale paths, executable-bit loss, or shell-substitution assumptions.
+
+**Prevention:** Hook verification must include exact configured-command replay in addition to direct script self-tests. Fail hard on exit 126/127, assert the agent-specific deny stream, and coerce `spawnSync` streams with `String(...)` before regex matching because TypeScript can type them as `string | Buffer`. Evidence anchors: `src/cli/audit/check-agent-setup.ts` (search: `runConfiguredHookCommandSmoke`), `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), and `test/unit/audit-command.test.ts` (search: `exact configured hook command exits 127`).
+
+## Lesson: Hook parser regressions need false-positive grammar probes
+
+**Status:** active | **Created:** 2026-05-27
+
+**What happened:** M12 closed three parser gaps that the headline block tests missed: `pwsh --command` was allowed while single-dash PowerShell eval forms were blocked, `git --git-dir /tmp/repo push` was allowed while `git --git-dir=/tmp/repo push` was covered, and `git status # .env` plus `jq -r .key file.json` were falsely blocked as secret reads.
+
+**Root cause:** The tests covered obvious dangerous strings and a few equals-valued options, but not valid long-option space forms, shell comments, or dotted query syntax that resembles key-file extensions.
+
+**Prevention:** For shell hooks, build regression matrices from valid CLI grammar and common inert syntax, not only incident strings. Include single-dash and double-dash eval flags, equals-valued and space-valued global options, unquoted shell comments, quoted `#`, jq/yq dotted queries, and filename controls such as `private.key`, `deploy.pem`, and `prod.pfx`. Evidence anchors: `workflow/hooks/guardrails-self-test.sh` (search: `powershell double-dash command remove-item`), `workflow/hooks/guardrails-self-test.sh` (search: `git --git-dir push`), and `workflow/hooks/guardrails-self-test.sh` (search: `jq bare key query`).
+
+## Lesson: Missing-helper self-tests must close stdin
+
+**Status:** active | **Created:** 2026-05-27
+
+**What happened:** `guardrails-self-test.sh --self-test=full` hung on an interactive terminal while copying a thin hook into a temp directory without `guard-common.sh`. The copied hook hit the missing-helper branch before `--check` parsing, then read from the inherited terminal instead of receiving closed stdin.
+
+**Root cause:** The missing-dependency test proved fail-closed behavior only when stdin was already closed. Interactive terminals changed the control flow enough to hide the PASS/FAIL line behind a blocked read.
+
+**Prevention:** Any self-test that intentionally runs a degraded hook or helper must redirect stdin from `/dev/null`, and smoke mode should include the missing-helper branch so startup failures are caught quickly. Evidence anchors: `workflow/hooks/guardrails-self-test.sh` (search: `expect_missing_common_fails_closed`) and `workflow/hooks/guardrails-self-test.sh` (search: `run_common_dependency_checks`).
 
 ---
 
