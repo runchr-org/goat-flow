@@ -43,7 +43,10 @@ describe("dashboard hooks view", () => {
   it("labels hook-specific unsupported surfaces without implying agent support is unavailable", () => {
     const appSource = read(DASHBOARD_APP_PATH);
 
-    assert.match(appSource, /if \(!state\.supported\) return "not for this hook"/);
+    assert.match(
+      appSource,
+      /if \(!state\.supported\) return "not for this hook"/,
+    );
     assert.doesNotMatch(appSource, /return "not supported"/);
     assert.doesNotMatch(appSource, /return "unavailable"/);
   });

@@ -45,8 +45,12 @@ import {
   getSkillFiles,
   loadManifest,
 } from "../manifest/manifest.js";
+import { listHookSpecs, type HookSpec } from "../server/hooks-registry.js";
+import type { AgentId } from "../types.js";
 import type { AgentProfile } from "../manifest/types.js";
 import type { DriftFinding, DriftReport } from "./types.js";
+
+const KNOWN_AGENT_IDS = new Set(["claude", "codex", "antigravity", "copilot"]);
 
 /** Remove nullish values from nested data before comparing manifests. */
 function stripNullish(frontmatterValue: unknown): unknown {
@@ -251,6 +255,18 @@ function readTemplate(templateRoot: string, relative: string): string | null {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Array.isArray(value) === false
+  );
+}
+
+function isAgentId(value: string): value is AgentId {
+  return KNOWN_AGENT_IDS.has(value);
+}
+
 /** Read the configured list of deprecated skill names from the validated manifest. */
 function getStaleSkillNames(): Set<string> {
   return new Set(loadManifest().facts.skills.stale_names);
@@ -403,6 +419,163 @@ function hookTemplateRel(
 }
 
 /** Compare installed hook scripts against their workflow templates. */
+function hookEventKey(agentId: AgentId, spec: HookSpec): string {
+  if (agentId === "copilot") {
+    return spec.event === "PreToolUse" ? "preToolUse" : "postToolUse";
+  }
+  return spec.event;
+}
+
+function hookCommandPath(agent: AgentProfile, script: string): string {
+  if (!agent.hooks_dir) return script;
+  return pathPosix.join(agent.hooks_dir, script);
+}
+
+function copilotHookEntry(agent: AgentProfile, spec: HookSpec): object {
+  const path = hookCommandPath(agent, spec.primaryScript);
+  return {
+    type: "command",
+    bash: path,
+    powershell: `if (Get-Command bash -ErrorAction SilentlyContinue) { bash ${path} } else { Write-Output '{"permissionDecision":"deny","permissionDecisionReason":"Bash, Git Bash, or WSL is required to run ${path} on Windows."}' }`,
+    timeoutSec: 30,
+  };
+}
+
+function entryReferencesSpec(entry: unknown, spec: HookSpec): boolean {
+  if (!isRecord(entry)) return false;
+  const commands = [
+    typeof entry.command === "string" ? entry.command : "",
+    typeof entry.bash === "string" ? entry.bash : "",
+    typeof entry.powershell === "string" ? entry.powershell : "",
+  ].join("\n");
+  if (spec.scriptFiles.some((script) => commands.includes(script))) {
+    return true;
+  }
+  if (Array.isArray(entry.hooks)) {
+    return entry.hooks.some((hook) => entryReferencesSpec(hook, spec));
+  }
+  return false;
+}
+
+function ensureHooksObject(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const hooks = config.hooks;
+  if (isRecord(hooks)) return hooks;
+  const next: Record<string, unknown> = {};
+  config.hooks = next;
+  return next;
+}
+
+function ensureHookEntries(
+  config: Record<string, unknown>,
+  event: string,
+): unknown[] {
+  const hooks = ensureHooksObject(config);
+  const entries = hooks[event];
+  if (Array.isArray(entries)) return entries;
+  const next: unknown[] = [];
+  hooks[event] = next;
+  return next;
+}
+
+function readExplicitHooks(fs: ReadonlyFS): Record<string, unknown> | null {
+  const config = fs.readFile(".goat-flow/config.yaml");
+  if (config === null) return null;
+  let parsed: unknown;
+  try {
+    parsed = load(config) ?? {};
+  } catch {
+    return null;
+  }
+  if (!isRecord(parsed) || !isRecord(parsed.hooks)) return null;
+  return parsed.hooks;
+}
+
+function enabledFromHookConfig(value: unknown): boolean | null {
+  if (!isRecord(value) || typeof value.enabled !== "boolean") return null;
+  return value.enabled;
+}
+
+function explicitHookEnabled(fs: ReadonlyFS, hookId: string): boolean | null {
+  const hooks = readExplicitHooks(fs);
+  if (hooks === null) return null;
+  const explicit = enabledFromHookConfig(hooks[hookId]);
+  if (explicit !== null) return explicit;
+  if (hookId !== "gruff-code-quality") return null;
+  return enabledFromHookConfig(hooks["gruff-on-change"]);
+}
+
+function hooksObject(config: Record<string, unknown>): Record<string, unknown> {
+  return ensureHooksObject(config);
+}
+
+function deleteHookEventIfEmpty(
+  config: Record<string, unknown>,
+  event: string,
+): void {
+  const hooks = hooksObject(config);
+  if (Array.isArray(hooks[event]) && hooks[event].length === 0) {
+    Reflect.deleteProperty(hooks, event);
+  }
+}
+
+function removeHookEntries(
+  config: Record<string, unknown>,
+  event: string,
+  spec: HookSpec,
+): void {
+  const entries = ensureHookEntries(config, event);
+  const next = entries.filter((entry) => !entryReferencesSpec(entry, spec));
+  const hooks = hooksObject(config);
+  if (next.length === 0) {
+    Reflect.deleteProperty(hooks, event);
+    return;
+  }
+  hooks[event] = next;
+}
+
+/**
+ * Copilot keeps hook registrations in `.github/hooks/hooks.json`, which is
+ * also the manifest-declared installed hook artifact. The static template only
+ * represents default guardrails; dashboard/CLI toggles can add optional hooks.
+ * Drift therefore compares against template plus desired toggle state.
+ */
+function expectedHookConfig(
+  fs: ReadonlyFS,
+  agentId: string,
+  agent: AgentProfile,
+  template: string,
+): string {
+  if (agentId !== "copilot" || !isAgentId(agentId)) return template;
+
+  let config: unknown;
+  try {
+    config = JSON.parse(template);
+  } catch {
+    return template;
+  }
+  if (!isRecord(config)) return template;
+
+  let changed = false;
+  for (const spec of listHookSpecs()) {
+    const enabled = explicitHookEnabled(fs, spec.id);
+    if (enabled === null) continue;
+    changed = true;
+    const event = hookEventKey(agentId, spec);
+    removeHookEntries(config, event, spec);
+    if (!enabled) {
+      deleteHookEventIfEmpty(config, event);
+      continue;
+    }
+    ensureHookEntries(config, event).push(copilotHookEntry(agent, spec));
+  }
+
+  if (!changed) return template;
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+/** Compare installed hook scripts against their workflow templates. */
 function compareHooks(
   fs: ReadonlyFS,
   templateRoot: string,
@@ -426,6 +599,7 @@ function compareHooks(
         });
         continue;
       }
+      const expected = expectedHookConfig(fs, agentId, agent, template);
       if (!fs.exists(installedRel)) {
         findings.push({
           kind: "missing",
@@ -436,7 +610,7 @@ function compareHooks(
       }
       const installed = fs.readFile(installedRel);
       if (installed === null) continue;
-      if (installed.trimEnd() !== template.trimEnd()) {
+      if (installed.trimEnd() !== expected.trimEnd()) {
         findings.push({
           kind: "content",
           path: installedRel,

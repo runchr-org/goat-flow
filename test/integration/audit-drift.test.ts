@@ -43,6 +43,13 @@ const SHARED_STUB = "# shared\nbody\n";
 const HOOK_STUB = "#!/usr/bin/env bash\n# deny hook stub\n";
 const COPILOT_HOOK_CONFIG_STUB =
   '{\n  "version": 1,\n  "hooks": { "preToolUse": [] }\n}\n';
+const COPILOT_GRUFF_HOOK_ENTRY = {
+  type: "command",
+  bash: ".github/hooks/gruff-code-quality.sh",
+  powershell:
+    'if (Get-Command bash -ErrorAction SilentlyContinue) { bash .github/hooks/gruff-code-quality.sh } else { Write-Output \'{"permissionDecision":"deny","permissionDecisionReason":"Bash, Git Bash, or WSL is required to run .github/hooks/gruff-code-quality.sh on Windows."}\' }',
+  timeoutSec: 30,
+};
 
 interface CommandResult {
   status: number | null;
@@ -571,6 +578,43 @@ describe("checkDrift: hook templates", () => {
             ),
         ),
         `expected Copilot hook-config drift, findings=${JSON.stringify(report.findings)}`,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("allows Copilot hook config entries for enabled optional hooks", () => {
+    const root = setupFixture();
+    try {
+      writeHookFixtures(root);
+      writeFileSync(
+        join(root, ".goat-flow", "config.yaml"),
+        "hooks:\n  gruff-code-quality:\n    enabled: true\n",
+      );
+      writeFileSync(
+        join(root, ".github", "hooks", "hooks.json"),
+        `${JSON.stringify(
+          {
+            version: 1,
+            hooks: {
+              preToolUse: [],
+              postToolUse: [COPILOT_GRUFF_HOOK_ENTRY],
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      const report = checkDrift({
+        fs: createFS(root),
+        projectPath: root,
+        templateRoot: root,
+      });
+      assert.equal(
+        report.status,
+        "pass",
+        `expected enabled optional Copilot hook to be drift-clean, findings=${JSON.stringify(report.findings)}`,
       );
     } finally {
       rmSync(root, { recursive: true, force: true });
