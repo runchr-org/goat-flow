@@ -1,6 +1,6 @@
 /**
- * Registrar that reconciles `.goat-flow/config.yaml` hook truth to every
- * hook-capable agent surface in the selected project.
+ * Registrar that reconciles `.goat-flow/config.yaml` hook truth to detected
+ * hook-capable agent surfaces in the selected project.
  */
 import {
   chmodSync,
@@ -110,6 +110,74 @@ function scriptExists(
   );
 }
 
+type AgentProfilePathKey =
+  | "instructionFile"
+  | "skillsDir"
+  | "settingsFile"
+  | "hookConfigFile"
+  | "hooksDir";
+
+function profilePathIsUnique(
+  profiles: AgentProfile[],
+  key: AgentProfilePathKey,
+  path: string | null,
+): boolean {
+  if (!path) return false;
+  return profiles.filter((profile) => profile[key] === path).length === 1;
+}
+
+function agentInstalledSurfaceExists(
+  projectPath: string,
+  agent: AgentProfile,
+  profiles: AgentProfile[],
+): boolean {
+  const uniqueOptionalMarkers = [
+    profilePathIsUnique(profiles, "instructionFile", agent.instructionFile)
+      ? agent.instructionFile
+      : null,
+    profilePathIsUnique(profiles, "skillsDir", agent.skillsDir)
+      ? agent.skillsDir
+      : null,
+  ];
+  const markers = [
+    agent.settingsFile,
+    agent.hookConfigFile,
+    agent.hooksDir,
+    ...uniqueOptionalMarkers,
+  ].filter((marker): marker is string => typeof marker === "string");
+  return markers.some((marker) => existsSync(join(projectPath, marker)));
+}
+
+function hookScriptResidueExists(
+  projectPath: string,
+  agent: AgentProfile,
+  spec: HookSpec,
+): boolean {
+  if (!agent.hooksDir) return false;
+  return spec.scriptFiles.some((script) =>
+    existsSync(scriptTarget(projectPath, agent, script)),
+  );
+}
+
+function shouldReconcileAgent(
+  projectPath: string,
+  agent: AgentProfile,
+  spec: HookSpec,
+  profiles: AgentProfile[],
+): boolean {
+  return (
+    agentInstalledSurfaceExists(projectPath, agent, profiles) ||
+    hookScriptResidueExists(projectPath, agent, spec)
+  );
+}
+
+function hookConfigExists(projectPath: string, agent: AgentProfile): boolean {
+  return (
+    agent.hookConfigFile !== null &&
+    existsSync(join(projectPath, agent.hookConfigFile))
+  );
+}
+
 function copyHookScripts(
   projectPath: string,
   agent: AgentProfile,
@@ -206,12 +274,16 @@ function reconcileHook(
   spec: HookSpec,
   enabled: boolean,
 ): void {
-  for (const agent of getAgentProfiles()) {
+  const profiles = getAgentProfiles();
+  for (const agent of profiles) {
     if (unsupportedReasonForSpec(spec, agent)) continue;
     if (!isSupportedAgent(agent)) continue;
+    if (!shouldReconcileAgent(projectPath, agent, spec, profiles)) continue;
     if (enabled) copyHookScripts(projectPath, agent, spec);
     else removeHookScripts(projectPath, agent, spec);
-    writeAgentHookState(projectPath, agent, spec, enabled);
+    if (enabled || hookConfigExists(projectPath, agent)) {
+      writeAgentHookState(projectPath, agent, spec, enabled);
+    }
   }
 }
 

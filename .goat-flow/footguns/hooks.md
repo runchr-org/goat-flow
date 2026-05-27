@@ -5,6 +5,24 @@ last_reviewed: 2026-05-27
 
 **Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: guardrails self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `guard-secret-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
 
+## Footgun: Hook toggles can scaffold uninstalled agent surfaces
+
+**Status:** active | **Created:** 2026-05-27 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Running a hook toggle against a clean target creates agent config and hook files for agents the target never opted into. That pollution can make setup and audit state look agent-aware when the project only asked to change one hook toggle.
+
+**Why it happens:** A registrar loop over supported agents treats support metadata as installation evidence. The hook config writer also treats a missing JSON config as `{}`, so an unguarded disable or enable can create `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.github/hooks/hooks.json`, and hook script directories from nothing.
+
+**Evidence:**
+- Pre-fix runtime probe: `node --import tsx src/cli/cli.ts hooks disable guard-secret-paths <clean-temp-dir>` created `.agents/hooks.json`, `.claude/settings.json`, `.codex/hooks.json`, `.github/hooks/hooks.json`, and `.goat-flow/config.yaml`.
+- Pre-fix runtime probe: `node --import tsx src/cli/cli.ts hooks enable guard-secret-paths <clean-temp-dir>` created hook scripts under `.agents/hooks/`, `.claude/hooks/`, `.codex/hooks/`, and `.github/hooks/`.
+- Current anchors: `src/cli/server/hook-registrar.ts` (search: `shouldReconcileAgent`) gates writes on detected installed surfaces or existing hook residue; `test/unit/hook-registrar.test.ts` (search: `does not scaffold uninstalled agent surfaces`) locks the clean-target regression.
+
+**Prevention:**
+1. Treat hook support and agent installation as different facts. Support comes from the manifest; installation must come from target-project surfaces.
+2. Do not count shared markers such as `AGENTS.md` or `.agents/skills/` as a concrete per-agent hook opt-in when multiple profiles share them.
+3. On disable, remove existing hook residue, but do not create a missing hook config file just to remove an entry from it.
+
 ## Footgun: Splitting a monolithic guardrail can drop parser coverage while preserving the headline checks
 
 **Status:** active | **Created:** 2026-05-26 | **Evidence:** ACTUAL_MEASURED

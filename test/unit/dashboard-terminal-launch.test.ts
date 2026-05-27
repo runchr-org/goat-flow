@@ -140,6 +140,9 @@ type LaunchContext = {
 };
 
 type HelperContext = {
+  TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS: number;
+  TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS: number;
+  TERMINAL_PASTE_SUBMIT_MAX_RETRIES: number;
   /**
    * Sends text through an existing terminal WebSocket, including bracketed-paste
    * and delayed-submit behaviour.
@@ -326,6 +329,9 @@ function loadHelpers(
   runInContext(
     `${js}
 globalThis.__helpers = {
+  TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS,
+  TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS,
+  TERMINAL_PASTE_SUBMIT_MAX_RETRIES,
   dashboardSendToTerminalSession,
   dashboardLaunchInTerminal,
   dashboardConnectTerminal,
@@ -1174,7 +1180,8 @@ describe("dashboard terminal launch flow", () => {
       "session-upload",
       "[Pasted text #1 +2 lines]",
     );
-    assert.equal(sent.length, 3);
+    assert.equal(sent.length, 2);
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
 
     assert.deepStrictEqual(JSON.parse(sent[2] ?? "{}"), {
       type: "input",
@@ -1237,18 +1244,148 @@ describe("dashboard terminal launch flow", () => {
       "session-upload",
       "[Pasted text #1 +2 lines]",
     );
-    timers.tick(1200);
+    assert.equal(sent.length, 1);
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
     });
     assert.equal(timers.pending(), 1);
 
-    timers.tick(2500);
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
     assert.deepStrictEqual(JSON.parse(sent[2] ?? "{}"), {
       type: "input",
       data: "\r",
     });
+    assert.equal(timers.pending(), 1);
+
+    ctx.sessions[0]!.outputTail = "Running quality assessment";
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("retries up to the cap while Claude composer stays parked at pasted-text", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+          outputTail:
+            "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: makeCapturingWebSocket(sent),
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Setup prompt\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "session-upload",
+      "[Pasted text #1 +2 lines]",
+    );
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
+
+    for (
+      let index = 0;
+      index < helpers.TERMINAL_PASTE_SUBMIT_MAX_RETRIES;
+      index += 1
+    ) {
+      timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
+    }
+
+    assert.equal(
+      sent.length,
+      1 + 1 + helpers.TERMINAL_PASTE_SUBMIT_MAX_RETRIES,
+    );
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("stops the Claude pasted-text retry loop once output advances", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+          outputTail:
+            "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: makeCapturingWebSocket(sent),
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Setup prompt\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    helpers.dashboardHandlePasteSubmitOutput(
+      ctx,
+      "session-upload",
+      "[Pasted text #1 +2 lines]",
+    );
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
+    ctx.sessions[0]!.outputTail = "Running quality assessment";
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
+
+    assert.equal(sent.length, 2);
     assert.equal(timers.pending(), 0);
   });
 
@@ -1347,7 +1484,8 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +2 lines]",
     );
 
-    assert.equal(sent.length, 2);
+    assert.equal(sent.length, 1);
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -1411,7 +1549,8 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted Text: 2 lines]",
     );
 
-    assert.equal(sent.length, 2);
+    assert.equal(sent.length, 1);
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -1549,6 +1688,8 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +1 lines]",
     );
 
+    assert.equal(sent.length, 1);
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
     assert.equal(sent.length, 3);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
@@ -1565,6 +1706,7 @@ describe("dashboard terminal launch flow", () => {
       "session-upload",
       "[Pasted text #2 +1 lines]",
     );
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[3] ?? "{}"), {
       type: "input",
       data: "\r",
@@ -3605,7 +3747,8 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted Text: 2 lines]",
     );
 
-    assert.equal(ctx.sent.length, 2);
+    assert.equal(ctx.sent.length, 1);
+    timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
 
     assert.deepStrictEqual(JSON.parse(ctx.sent[1] ?? "{}"), {
       type: "input",
@@ -3920,15 +4063,12 @@ describe("dashboard terminal launch flow", () => {
       /const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000/,
     );
     assert.match(source, /const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500/);
-    assert.match(source, /const TERMINAL_PASTE_COMMIT_DELAY_MS = 1200/);
+    assert.match(source, /const TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS = 300/);
     assert.match(
       source,
       /const TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS = 15000/,
     );
-    assert.match(
-      source,
-      /const TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS = 2500/,
-    );
+    assert.match(source, /const TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS = 500/);
     assert.match(source, /const TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS = 300/);
     assert.match(source, /body: JSON\.stringify\(\{\s+prompt: ""/);
     assert.match(

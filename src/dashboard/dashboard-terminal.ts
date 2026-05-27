@@ -9,10 +9,10 @@ const TERMINAL_INITIAL_FIT_DELAYS_MS = [50, 200, 500] as const;
 const TERMINAL_LAUNCH_PROMPT_NO_OUTPUT_FALLBACK_DELAY_MS = 6000; // Fallback delay: silent runner startup can precede the first composer prompt.
 const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000; // Fallback budget: after output appears, wait for a recognised composer marker.
 const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500; // Quiet budget: send after output pauses to avoid racing TUI redraws.
-const TERMINAL_PASTE_COMMIT_DELAY_MS = 1200; // Commit budget: Claude/Antigravity need a quiet window after pasted-text echoes.
+const TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS = 300; // Marker-settle budget: Claude Code v2.1.152 can swallow immediate Enter after fat pasted-text echoes; 300ms is the capped fallback until live Delta A is re-measured.
 const TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS = 15000; // Fallback budget: runners without paste echoes still need eventual Enter submission.
 const TERMINAL_PASTE_FALLBACK_RELEASE_DELAY_MS = 5000; // Release budget: do not hold queued paste state forever after fallback submission.
-const TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS = 2500; // Retry budget: pasted-text echoes can arrive after a fallback Enter.
+const TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS = 500; // Composer retry cadence: bounded re-Enter loop after a stuck pasted-text marker; distinct from websocket-write retry.
 const TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS = 300; // Retry budget: keep Enter retries responsive without flooding the PTY.
 const TERMINAL_PASTE_SUBMIT_MAX_RETRIES = 5; // Retry cap: bounded Enter retries avoid stuck composer state without spamming input.
 const AWAITING_INPUT_VISIBLE_DELAY_MS = 1200;
@@ -658,7 +658,7 @@ function dashboardArmPasteSubmitTimer(
   ctx: DashboardTerminalContext,
   sessionId: string,
   {
-    delayMs = TERMINAL_PASTE_COMMIT_DELAY_MS,
+    delayMs = TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS,
     retryCount = 0,
     keepAwaitingCommit = false,
     retryIfStillCommitted = false,
@@ -706,13 +706,13 @@ function dashboardReleaseFallbackPasteSubmit(
 function dashboardArmPasteSubmitRetryIfStillCommitted(
   ctx: DashboardTerminalContext,
   sessionId: string,
+  retryCount = 0,
 ): boolean {
   const refs = ctx._terminalRefs[sessionId];
   const target = ctx.sessions.find((session) => session.id === sessionId);
   if (!refs || typeof target?.outputTail !== "string") {
     return false;
   }
-  const outputSnapshot = target.outputTail;
   refs.pasteSubmitTimer = setTimeout(() => {
     const currentRefs = ctx._terminalRefs[sessionId];
     if (currentRefs) currentRefs.pasteSubmitTimer = undefined;
@@ -720,15 +720,22 @@ function dashboardArmPasteSubmitRetryIfStillCommitted(
       (session) => session.id === sessionId,
     );
     const currentTail = currentTarget?.outputTail ?? "";
-    if (
-      (currentTail === outputSnapshot &&
-        dashboardOutputLooksCommittedPaste(currentTail)) ||
-      dashboardOutputStillAtCommittedPaste(currentTail)
-    ) {
+    // The stuck-paste heuristic is the loop condition; snapshot equality was
+    // only a single-shot fallback and can fire on marker text that already moved.
+    if (dashboardOutputStillAtCommittedPaste(currentTail)) {
       dashboardSendTerminalSubmit(ctx, sessionId);
+      const nextRetryCount = retryCount + 1;
+      if (nextRetryCount < TERMINAL_PASTE_SUBMIT_MAX_RETRIES) {
+        dashboardArmPasteSubmitRetryIfStillCommitted(
+          ctx,
+          sessionId,
+          nextRetryCount,
+        );
+        return;
+      }
     }
     dashboardSendNextQueuedPaste(ctx, sessionId);
-  }, TERMINAL_PASTE_POST_SUBMIT_RETRY_DELAY_MS);
+  }, TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
   return true;
 }
 
@@ -847,16 +854,10 @@ function dashboardHandlePasteSubmitOutput(
     // spurious extra Enter.
     if (!hasPendingPaste) return;
     if (target?.runner === "claude" || target?.runner === "antigravity") {
-      const submitted = dashboardSubmitPendingPaste(ctx, sessionId, {
+      dashboardArmPasteSubmitTimer(ctx, sessionId, {
+        delayMs: TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS,
         retryIfStillCommitted: true,
       });
-      if (!submitted) {
-        dashboardArmPasteSubmitTimer(ctx, sessionId, {
-          delayMs: TERMINAL_PASTE_SUBMIT_RETRY_DELAY_MS,
-          retryCount: 1,
-          retryIfStillCommitted: true,
-        });
-      }
     } else {
       dashboardSubmitPendingPaste(ctx, sessionId);
     }
