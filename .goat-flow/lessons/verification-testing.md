@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-26
+last_reviewed: 2026-05-28
 ---
 
 ## Lesson: Cache-behaviour tests need observable contracts
@@ -35,9 +35,11 @@ last_reviewed: 2026-05-26
 
 **Root cause:** The unit tests modeled ideal timer order, not the real terminal output order from Claude Code inside xterm/WebSocket. I treated "timer sent Enter in a fake clock" as equivalent to "Claude accepted the prompt" before running the original browser reproduction.
 
-**Fix:** Keep a browser-use reproduction in the proof loop for terminal launch changes: click the real dashboard button, verify the prompt advances past `[Pasted text...]`, and then clean up the terminal session. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), `test/unit/dashboard-terminal-launch.test.ts` (search: `submits delayed Claude paste when the paste echo arrives after fallback`).
+**Fix:** Keep a browser-use reproduction in the proof loop for terminal launch changes: click the real dashboard button, verify the prompt advances past `[Pasted text...]`, and then clean up the terminal session. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), `test/unit/dashboard-terminal-launch.test.ts` (search: `ignores a late Claude paste echo after the no-marker fallback submitted`).
 
 **Prevention:** For terminal automation, unit tests must cover lost/late paste state, but the Definition of Done still requires live browser evidence against the runner that originally failed. Do not close on fake timers alone when xterm, WebSocket, or agent composer behavior is involved.
+
+**Recurrence 2026-05-28:** A fake-timer fix added `TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS = 1500` and the built bundle contained it, but live WebSocket probing still showed bracketed paste followed by xterm DA response `\x1b[?1;2c` and then no Enter. The missing test variable was xterm's own protocol replies through `term.onData`: they were forwarded like keystrokes and cleared the pending fallback timer. Future terminal-submit tests must model the actual browser input stream, not just helper timers. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardTerminalDataLooksProtocolResponse`), `test/unit/dashboard-terminal-launch.test.ts` (search: `keeps Claude no-marker fallback armed across xterm protocol replies`).
 
 ---
 
@@ -56,6 +58,8 @@ last_reviewed: 2026-05-26
 **Recurrence 2026-05-12:** While self-hosting xterm assets, `test/integration/dashboard-server.test.ts` fetched `/assets/xterm.js` successfully but failed because the assertion looked for `XTerm`, a string not present in the minified upstream bundle. The route was correct; the test anchor was wrong. For vendored/minified assets, assert route status/content type and stable feature strings observed in the actual bundle, such as `bracketedPasteMode`, not package names or branding text.
 
 **Recurrence 2026-05-16:** While moving setup instruction surfaces into manifest-backed agent capabilities, full `npm test` failed because `test/unit/preset-prompts.test.ts` still asserted literal `CLAUDE.md, .claude/settings.json` strings in `dashboard-setup-quality.ts`. The product change was correct; the test had become a stale parallel authority. For manifest-backed refactors, update source-grep tests to assert the data boundary (`workflow/manifest.json` plus injected fields) instead of the old duplicated literals.
+
+**Recurrence 2026-05-27:** While hardening dashboard paste-submit timing in `src/dashboard/dashboard-terminal.ts`, the focused terminal suite passed but `npx prettier --check src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` flagged `test/unit/dashboard-terminal-launch.test.ts` after long fake-timer assertions were added. Running Prettier on the touched TypeScript files fixed it before the final focused rerun. Prevention unchanged: run Prettier on changed dashboard classic-script tests before claiming verification is complete.
 
 ---
 

@@ -141,6 +141,7 @@ type LaunchContext = {
 
 type HelperContext = {
   TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS: number;
+  TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS: number;
   TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS: number;
   TERMINAL_PASTE_SUBMIT_MAX_RETRIES: number;
   /**
@@ -330,6 +331,7 @@ function loadHelpers(
     `${js}
 globalThis.__helpers = {
   TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS,
+  TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS,
   TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS,
   TERMINAL_PASTE_SUBMIT_MAX_RETRIES,
   dashboardSendToTerminalSession,
@@ -586,6 +588,7 @@ class FakeTerminal {
   cols = 80;
   rows = 24;
   _addonFit?: FakeFitAddon;
+  dataHandler?: (data: string) => void;
   written: string[] = [];
 
   /**
@@ -625,7 +628,16 @@ class FakeTerminal {
   /**
    * Tests drive input through dashboardSendToTerminalSession instead of xterm events.
    */
-  onData(): void {}
+  onData(handler: (data: string) => void): void {
+    this.dataHandler = handler;
+  }
+
+  /**
+   * Simulates xterm input events emitted toward the PTY.
+   */
+  emitData(data: string): void {
+    this.dataHandler?.(data);
+  }
 
   /**
    * Resize paths are triggered through the fake ResizeObserver when needed.
@@ -740,8 +752,10 @@ function makeCapturingWebSocket(sent: string[]): {
 function makeBrowserTerminalGlobals(): {
   globals: Record<string, unknown>;
   sockets: FakeDashboardWebSocket[];
+  terminals: FakeTerminal[];
 } {
   const sockets: FakeDashboardWebSocket[] = [];
+  const terminals: FakeTerminal[] = [];
   const WebSocketCtor = class extends FakeDashboardWebSocket {
     /**
      * Binds the browser-facing constructor to this test's socket registry.
@@ -750,11 +764,18 @@ function makeBrowserTerminalGlobals(): {
       super(url, sockets);
     }
   };
+  const TerminalCtor = class extends FakeTerminal {
+    constructor() {
+      super();
+      terminals.push(this);
+    }
+  };
   return {
     sockets,
+    terminals,
     globals: {
       window: {
-        Terminal: FakeTerminal,
+        Terminal: TerminalCtor,
         FitAddon: { FitAddon: FakeFitAddon },
         // Dashboard helpers register listeners, but these tests invoke events directly.
         addEventListener(): void {
@@ -1067,7 +1088,7 @@ describe("dashboard terminal launch flow", () => {
     });
   });
 
-  it("falls back to submitting pasted terminal text when no paste echo arrives", async () => {
+  it("falls back quickly for Claude pasted terminal text when no paste echo arrives", async () => {
     const timers = createFakeTimers();
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1111,17 +1132,160 @@ describe("dashboard terminal launch flow", () => {
     );
 
     assert.equal(sent.length, 1);
-    timers.tick(15000);
+    ctx.sessions[0]!.outputTail = "";
+    timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
     });
     assert.equal(timers.pending(), 1);
-    timers.tick(5000);
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
     assert.equal(timers.pending(), 0);
   });
 
-  it("submits delayed Claude paste when the paste echo arrives after fallback", async () => {
+  it("keeps Claude no-marker fallback armed across xterm protocol replies", () => {
+    const { globals, sockets, terminals } = makeBrowserTerminalGlobals();
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+      globals,
+    );
+    const ctx = makeContext({
+      activeSessionId: "session-protocol",
+      sessions: [
+        {
+          id: "session-protocol",
+          runner: "claude",
+          promptLabel: "Protocol reply test",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: false,
+          ended: false,
+          awaitingInput: false,
+          outputTail: "",
+          loadingPhase: "ready",
+          loadingShowSlowHint: false,
+          loadingShowRetry: false,
+          age: "",
+          presetId: null,
+        },
+      ],
+      _terminalRefs: { "session-protocol": {} },
+    });
+
+    helpers.dashboardConnectTerminal(
+      ctx,
+      "session-protocol",
+      "/ws/terminal/session-protocol",
+    );
+    const socket = sockets[0];
+    const term = terminals[0];
+    assert.ok(socket);
+    assert.ok(term);
+    socket.onopen?.();
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-protocol",
+        "Setup prompt\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+    term.emitData("\x1b[?1;2c");
+
+    const beforeFallbackInputs = socket.sent
+      .map((payload) => JSON.parse(payload) as { type: string; data?: string })
+      .filter((payload) => payload.type === "input")
+      .map((payload) => payload.data);
+    assert.deepStrictEqual(beforeFallbackInputs, [
+      "\x1b[200~Setup prompt\nsecond line\x1b[201~",
+      "\x1b[?1;2c",
+    ]);
+    assert.notEqual(
+      ctx._terminalRefs["session-protocol"]?.pasteSubmitTimer,
+      undefined,
+      "xterm protocol replies must not clear the pending Claude fallback",
+    );
+
+    timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
+
+    const afterFallbackInputs = socket.sent
+      .map((payload) => JSON.parse(payload) as { type: string; data?: string })
+      .filter((payload) => payload.type === "input")
+      .map((payload) => payload.data);
+    assert.deepStrictEqual(afterFallbackInputs.slice(-1), ["\r"]);
+  });
+
+  it("retries Claude fallback submit when the visible composer stays parked", async () => {
+    const timers = createFakeTimers();
+    const helpers = loadHelpers(
+      async () => ({ json: async () => ({}) }) as Response,
+      timers,
+    );
+    const sent: string[] = [];
+    const ctx = makeContext({
+      activeSessionId: "session-upload",
+      sessions: [
+        {
+          id: "session-upload",
+          runner: "claude",
+          promptLabel: "Upload target",
+          projectPath: "/tmp/example",
+          cwd: "/tmp/example",
+          targetPath: "/tmp/example",
+          startTime: Date.now(),
+          lastInputTime: 0,
+          connected: true,
+          ended: false,
+          awaitingInput: false,
+          age: "0s",
+          presetId: null,
+          outputTail:
+            "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
+        },
+      ],
+      _terminalRefs: {
+        "session-upload": {
+          ws: makeCapturingWebSocket(sent),
+        },
+      },
+    });
+
+    assert.equal(
+      helpers.dashboardSendToTerminalSession(
+        ctx,
+        "session-upload",
+        "Setup prompt\nsecond line",
+        { adapt: false },
+      ),
+      true,
+    );
+
+    assert.equal(sent.length, 1);
+    timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
+    assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
+    assert.deepStrictEqual(JSON.parse(sent[2] ?? "{}"), {
+      type: "input",
+      data: "\r",
+    });
+
+    ctx.sessions[0]!.outputTail = "Running quality assessment";
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("ignores a late Claude paste echo after the no-marker fallback submitted", async () => {
     const timers = createFakeTimers();
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
@@ -1165,14 +1329,15 @@ describe("dashboard terminal launch flow", () => {
     );
 
     assert.equal(sent.length, 1);
-    timers.tick(15000);
+    ctx.sessions[0]!.outputTail = "";
+    timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
     });
     assert.equal(
       ctx._terminalRefs["session-upload"]?.pasteSubmitAwaitingCommit,
-      true,
+      false,
     );
 
     helpers.dashboardHandlePasteSubmitOutput(
@@ -1182,15 +1347,9 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.equal(sent.length, 2);
     timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
 
-    assert.deepStrictEqual(JSON.parse(sent[2] ?? "{}"), {
-      type: "input",
-      data: "\r",
-    });
-    assert.equal(
-      ctx._terminalRefs["session-upload"]?.pasteSubmitAwaitingCommit,
-      false,
-    );
+    assert.equal(sent.length, 2);
     assert.equal(timers.pending(), 0);
   });
 
@@ -1605,18 +1764,16 @@ describe("dashboard terminal launch flow", () => {
 
     assert.equal(sent.length, 1);
     websocket.readyState = 0;
-    timers.tick(15000);
+    timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
     assert.equal(sent.length, 1);
     assert.equal(timers.pending(), 1);
 
     websocket.readyState = 1;
-    timers.tick(300);
+    timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
       data: "\r",
     });
-    assert.equal(timers.pending(), 1);
-    timers.tick(5000);
     assert.equal(timers.pending(), 0);
   });
 
@@ -4064,6 +4221,10 @@ describe("dashboard terminal launch flow", () => {
     );
     assert.match(source, /const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500/);
     assert.match(source, /const TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS = 300/);
+    assert.match(
+      source,
+      /const TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS = 1500/,
+    );
     assert.match(
       source,
       /const TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS = 15000/,

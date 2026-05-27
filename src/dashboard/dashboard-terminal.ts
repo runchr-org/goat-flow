@@ -10,6 +10,7 @@ const TERMINAL_LAUNCH_PROMPT_NO_OUTPUT_FALLBACK_DELAY_MS = 6000; // Fallback del
 const TERMINAL_LAUNCH_PROMPT_AFTER_OUTPUT_FALLBACK_DELAY_MS = 2000; // Fallback budget: after output appears, wait for a recognised composer marker.
 const TERMINAL_LAUNCH_PROMPT_QUIET_DELAY_MS = 500; // Quiet budget: send after output pauses to avoid racing TUI redraws.
 const TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS = 300; // Marker-settle budget: Claude Code v2.1.152 can swallow immediate Enter after fat pasted-text echoes; 300ms is the capped fallback until live Delta A is re-measured.
+const TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS = 1500; // Claude fallback: if the visible pasted-text marker is not detected, send Enter soon after the paste instead of waiting for the generic 15s safety net.
 const TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS = 15000; // Fallback budget: runners without paste echoes still need eventual Enter submission.
 const TERMINAL_PASTE_FALLBACK_RELEASE_DELAY_MS = 5000; // Release budget: do not hold queued paste state forever after fallback submission.
 const TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS = 500; // Composer retry cadence: bounded re-Enter loop after a stuck pasted-text marker; distinct from websocket-write retry.
@@ -449,6 +450,15 @@ function dashboardOutputLooksCommittedPaste(text: string): boolean {
   );
 }
 
+/** Return true for xterm-generated protocol replies, not deliberate user input. */
+function dashboardTerminalDataLooksProtocolResponse(data: string): boolean {
+  return (
+    /^\x1b\[(?:I|O)$/.test(data) ||
+    /^\x1b\[(?:\?|>)?[0-9;]*c$/.test(data) ||
+    /^\x1b\[\d+(?:;\d+)*[Rn]$/.test(data)
+  );
+}
+
 /** Heuristic for a long paste that is still parked in the runner composer. */
 function dashboardOutputStillAtCommittedPaste(text: string): boolean {
   const tail = dashboardPlainTerminalText(text)
@@ -775,7 +785,7 @@ function dashboardSubmitPendingPaste(
   }
   if (refs) {
     refs.pasteSubmitAwaitingCommit = false;
-    refs.pasteSubmitFallbackSubmitted = false;
+    refs.pasteSubmitFallbackSubmitted = retryIfStillCommitted;
   }
   if (
     retryIfStillCommitted &&
@@ -796,11 +806,16 @@ function dashboardSendBracketedPaste(
   if (!refs?.ws || refs.ws.readyState !== WebSocket.OPEN) return;
   refs.ws.send(JSON.stringify({ type: "input", data: paste.data }));
   if (paste.shouldDelaySubmit) {
+    const target = ctx.sessions.find((session) => session.id === sessionId);
+    const claudeNoMarkerFallback = target?.runner === "claude";
     refs.pasteSubmitAwaitingCommit = true;
     refs.pasteSubmitFallbackSubmitted = false;
     dashboardArmPasteSubmitTimer(ctx, sessionId, {
-      delayMs: TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS,
-      keepAwaitingCommit: true,
+      delayMs: claudeNoMarkerFallback
+        ? TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS
+        : TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS,
+      keepAwaitingCommit: !claudeNoMarkerFallback,
+      retryIfStillCommitted: claudeNoMarkerFallback,
     });
   } else if (dashboardSendTerminalSubmit(ctx, sessionId)) {
     dashboardSendNextQueuedPaste(ctx, sessionId);
@@ -846,7 +861,9 @@ function dashboardHandlePasteSubmitOutput(
     hasPendingPaste ? outputTail : output,
   );
   if (committedPaste) {
+    const alreadySubmitted = refs.pasteSubmitFallbackSubmitted === true;
     refs.pasteSubmitAwaitingCommit = false;
+    if (alreadySubmitted) return;
     refs.pasteSubmitFallbackSubmitted = false;
     // A "[Pasted text]" marker echoed back when nothing is awaiting submit
     // means the paste was already submitted (e.g. immediate-submit path for
@@ -1956,7 +1973,9 @@ function dashboardConnectTerminal(
         // accumulate over time, pushing the prompt content out of any bounded
         // tail window. The badge is now cleared only by signals that
         // unambiguously mean "user moved on":
-        //   1. `term.onData` - user typed in the dashboard xterm
+        //   1. `term.onData` - user typed in the dashboard xterm. Xterm
+        //      protocol replies such as focus-in/focus-out and DA responses
+        //      still go to the PTY but do not clear pending paste-submit state.
         //   2. Ctrl+V paste from `attachCustomKeyEventHandler` - clipboard
         //      input goes straight to the WebSocket and bypasses `term.onData`,
         //      so it shares `markUserInputSent()` with the keystroke path
@@ -2101,7 +2120,7 @@ function dashboardConnectTerminal(
   term.onData((data: string) => {
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: "input", data }));
-    markUserInputSent();
+    if (!dashboardTerminalDataLooksProtocolResponse(data)) markUserInputSent();
   });
   term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
     if (ws.readyState === WebSocket.OPEN)

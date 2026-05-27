@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-27
+last_reviewed: 2026-05-28
 ---
 
 ## Lesson: Agent proposed disabling gruff-ts rules to silence high-volume advisory findings
@@ -118,6 +118,18 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 **Prevention:** Build the first retrieval query from target area + symptom + named file/tool, not from milestone names or architecture abstractions. If the first pass is abstract, reword toward the concrete failure class before concluding miss.
 
 **Updated 2026-05-27:** The same failure class applies to learning-loop retrieval generally: roadmap phrases such as "support matrix" and "registry canonicality" miss entries because buckets store concrete incident language. Use the concrete symptom, platform, or file/tool name first, reword once, then record a retrieval miss instead of broad-loading the bucket.
+
+## Lesson: Recurring terminal bugs must start with learning-loop retrieval
+
+**Status:** active | **Created:** 2026-05-28
+
+**What happened:** While fixing the dashboard Workspace terminal bug where Claude Code received a large Quality prompt as `[Pasted text #N +... lines]` but did not auto-submit, multiple coding agents worked the browser terminal timing path before treating the learning loop as the first evidence source. The relevant dashboard footgun already documented earlier Claude pasted-text failures, marker timing, manual-Enter recovery, and the requirement for live runner proof. The user had to explicitly call out that agents were re-solving a known problem without first checking the existing learning-loop entries.
+
+**Root cause:** The agents treated the visible symptom as a fresh implementation problem instead of a recurrence in a known-risk area. That bypassed the repo's required grep-first memory check, so prior evidence in `.goat-flow/footguns/dashboard.md` and `.goat-flow/lessons/verification-testing.md` was not used to shape the first hypothesis set.
+
+**Why it matters:** Terminal automation failures are expensive because fake timers, xterm output, WebSocket frames, and runner composer behavior can all appear plausible. Skipping the learning loop repeats old failed fix shapes, wastes live reproduction time, and erodes user trust because the repo already had the exact family of incidents recorded.
+
+**Prevention:** For any dashboard terminal, runner prompt, pasted-text, WebSocket, xterm, or auto-submit bug, run learning-loop retrieval before proposing or editing code. Use concrete terms from the symptom first: `Pasted text`, `paste again to expand`, `manual Enter`, `dashboardHandlePasteSubmitOutput`, `Workspace terminal`, `Claude Code`, and the affected runner. If a matching footgun exists, map every hypothesis to that entry before changing `src/dashboard/dashboard-terminal.ts`; if no entry is found after one reword, state the retrieval miss explicitly. Evidence anchors: `.goat-flow/footguns/dashboard.md` (search: `Dashboard terminal prompts can be dropped before browser attachment`), `.goat-flow/lessons/verification-testing.md` (search: `Browser terminal fixes need live runner proof`), `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), and `test/unit/dashboard-terminal-launch.test.ts` (search: `falls back quickly for Claude pasted terminal text when no paste echo arrives`).
 
 ## Lesson: Quality assessors can reopen ADR-settled skill modes
 
