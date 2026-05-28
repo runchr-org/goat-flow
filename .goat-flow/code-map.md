@@ -90,7 +90,7 @@ globals.d.ts               # Global type declarations for the frontend bundle
 index.html                 # Dashboard HTML entry point
 preset-prompts.json        # Built-in prompt templates for quality and setup modes
 styles.css                 # Dashboard stylesheet
-views/                     # HTML view templates (about, coming-soon, home, plans, projects, prompts, quality, settings, setup, skills, workspace)
+views/                     # HTML view templates (about, coming-soon, home, hooks, plans, projects, prompts, quality, settings, setup, skills, workspace)
 ```
 
 ## workflow/ -- Setup templates, skills, and reference docs

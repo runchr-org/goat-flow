@@ -378,7 +378,7 @@ Do not blindly abstract test setup. A little explicit setup is often better than
 
 Never add no-op helpers, fake SUT calls, or meaningless wrappers just to satisfy a test-quality heuristic. Extraction is valid only when it improves the test's signal: clearer setup, isolated I/O, reusable fixtures, or a more direct assertion.
 
-When a mock-expectation test is flagged as assertion-free, remember that some gruff rules count only explicit assertion calls. To clear without weakening the test, capture collaborator arguments in a spy/callback and assert them outside the mock, or assert an externally observable return value/state.
+When a mock-expectation test is flagged as assertion-free, treat the warning as "no explicit assertion call found" - some gruff rules count only explicit assertion calls. To clear without weakening the test, capture collaborator arguments in a spy/callback and assert them outside the mock, or assert an externally observable return value/state.
 
 ## Mechanical Patterns
 

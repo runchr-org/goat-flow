@@ -322,7 +322,7 @@ phase_for() {
         "Agent Config Parity"|"Skill and Reference Versions"|"Version Consistency") printf 'CONFIG INTEGRITY' ;;
         "Skill Behavioral Contracts"|"Cross-Agent Consistency"|"Instruction Parity Contract"|"Instruction File Quality") printf 'CONTRACTS' ;;
         "Tests"|"Dependency Audit") printf 'TESTS' ;;
-        "GOAT Flow Audit"|"Learning-Loop Schema"|"Doc/Code Drift"|"Skill Reference + Playbooks Sync"|"Skill SKILL.md Parity") printf 'DRIFT' ;;
+        "GOAT Flow Audit"|"Learning-Loop Schema"|"Doc/Code Drift"|"Content Drift"|"Skill Reference + Playbooks Sync"|"Skill SKILL.md Parity") printf 'DRIFT' ;;
         "Path Integrity"|"Markdown Links"|"Package README Links") printf 'LINKS' ;;
         *) printf 'OTHER' ;;
     esac
@@ -345,6 +345,7 @@ display_for() {
         "Dependency Audit") printf 'Dependency audit' ;;
         "GOAT Flow Audit") printf 'GOAT flow audit' ;;
         "Learning-Loop Schema") printf 'Learning-loop schema' ;;
+        "Content Drift") printf 'Content drift' ;;
         "Doc/Code Drift") printf 'Doc/code drift' ;;
         "Skill Reference + Playbooks Sync") printf 'Skill reference sync' ;;
         "Skill SKILL.md Parity") printf 'Skill SKILL.md parity' ;;
@@ -372,6 +373,7 @@ collapsed_desc_for() {
         "Dependency Audit") printf 'npm audit' ;;
         "GOAT Flow Audit") printf 'all checks' ;;
         "Learning-Loop Schema") printf 'footguns + lessons valid' ;;
+        "Content Drift") printf 'cold-path content lint · view-name drift' ;;
         "Doc/Code Drift") printf 'arch counts · setup IDs · code-map' ;;
         "Skill Reference + Playbooks Sync") printf 'templates match installed' ;;
         "Skill SKILL.md Parity") printf 'all installed match' ;;
@@ -468,7 +470,7 @@ _compute_widths() {
         "Skill Behavioral Contracts" "Cross-Agent Consistency"
         "Instruction Parity Contract" "Instruction File Quality"
         "Tests"
-        "GOAT Flow Audit" "Learning-Loop Schema" "Doc/Code Drift"
+        "GOAT Flow Audit" "Learning-Loop Schema" "Content Drift" "Doc/Code Drift"
         "Skill Reference + Playbooks Sync" "Skill SKILL.md Parity"
         "Path Integrity" "Markdown Links" "Package README Links"
     )
@@ -1719,6 +1721,32 @@ if [[ -f dist/cli/cli.js ]]; then
     fi
 else
     skip "Learning-Loop Schema (dist/cli/cli.js not built)"
+fi
+
+# ── Content Drift ────────────────────────────────────────────────────
+# Sibling auditor: surface `audit --check-content` (cold-path content lint
+# + dashboard view-name drift) in the preflight gate so a green preflight
+# cannot hide warning-severity drift in code-map.md, docs/dashboard.md, or
+# skill-playbook prose.
+if [[ -f dist/cli/cli.js ]]; then
+    section "Content Drift"
+    content_output=$(node dist/cli/cli.js audit . --check-content --format text 2>&1) && content_exit=0 || content_exit=$?
+    if [[ "$content_exit" -eq 0 ]]; then
+        # exit 0 = no warning-severity drift. INFO findings (e.g.
+        # non-actionable-remember) are surfaced inside the audit text but
+        # do not gate preflight on their own.
+        info_count=$(printf '%s\n' "$content_output" | grep -cE '^\s*\[?(33mINFO|INFO)' || true)
+        if [[ "${info_count:-0}" -gt 0 ]]; then
+            pass "Cold-path content lint clean (${info_count} info)"
+        else
+            pass "Cold-path content lint clean"
+        fi
+    else
+        fail "audit --check-content reported drift (exit $content_exit)"
+        printf '%s\n' "$content_output" | grep -E 'WARN|FAIL|\[non-actionable-remember\]|drift' | head -8 | details_pipe
+    fi
+else
+    skip "Content Drift (dist/cli/cli.js not built)"
 fi
 
 # ── Doc/Code Drift ───────────────────────────────────────────────────

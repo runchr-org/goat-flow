@@ -243,6 +243,13 @@ function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
 }
 
+/** Detect a Markdown table separator row, e.g. `| --- | :---: | ---: |`.
+ *  A header row is identified by being immediately followed by such a separator;
+ *  cells in header rows are column labels, not instructional prose. */
+function isTableSeparatorLine(line: string): boolean {
+  return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(line);
+}
+
 /** Apply a PatternRule array to a line, accumulating any matches into findings. */
 function applyPatternRules(
   rules: PatternRule[],
@@ -330,6 +337,9 @@ export function scanContentQuality(
       continue;
     }
     if (inCodeBlock) continue;
+    if (line.includes("|") && isTableSeparatorLine(lines[i + 1] ?? "")) {
+      continue;
+    }
     scanLine(line, i + 1, path, findings, mode);
   }
   return findings;

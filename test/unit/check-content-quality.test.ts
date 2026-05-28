@@ -123,6 +123,34 @@ describe("scanContentQuality: non-actionable patterns", () => {
     );
   });
 
+  it("does not flag 'remember' in a Markdown table header row", () => {
+    const text = [
+      "| Tool | Rule | Mechanic to remember |",
+      "|---|---|---|",
+      "| gruff-ts | rule-x | filter on field y, not z |",
+    ].join("\n");
+    const findings = scanContentQuality("x.md", text);
+    assert.equal(
+      findings.filter((f) => f.rule === "non-actionable-remember").length,
+      0,
+      "table header cells are column labels, not instructional prose",
+    );
+  });
+
+  it("still flags 'remember' in a table data row", () => {
+    const text = [
+      "| Col1 | Col2 |",
+      "|---|---|",
+      "| foo | remember the answer |",
+    ].join("\n");
+    const findings = scanContentQuality("x.md", text);
+    assert.equal(
+      findings.filter((f) => f.rule === "non-actionable-remember").length,
+      1,
+      "data-row prose is in scope; only the header row is skipped",
+    );
+  });
+
   it("flags 'it's important' without 'to <verb>'", () => {
     const findings = scanContentQuality(
       "x.md",

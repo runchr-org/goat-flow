@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.9.0 - 2026-05-28
+
+Worktree-safe hook launchers - Claude and Antigravity guardrails now run correctly inside `git worktree add` checkouts.
+
+- **Guardrails work inside git worktrees** - The shipped Claude/Antigravity launcher resolved `$root` with `git rev-parse --show-toplevel`, which inside a worktree returns the worktree's working directory (e.g. `<project>/.claude/worktrees/<branch>/`) instead of the main repo. With `.claude/` (or `.agents/`) gitignored in most projects, `git worktree add` checked out no hook scripts and every Bash failed before any guard could run, with errors like `bash: <worktree>/.claude/hooks/<guard>.sh: No such file or directory`. Launchers in `workflow/hooks/agent-config/claude.json`, `workflow/hooks/agent-config/antigravity-hooks.json`, the dashboard hook writer in `src/cli/server/agent-hook-writer.ts`, and the installer template in `workflow/install-goat-flow.sh` now resolve via `git rev-parse --git-common-dir` (whose parent is the main repo root in both main and worktree checkouts) and fall back to `--show-toplevel` only when `--git-common-dir` returns a relative `.git` from the main checkout's working directory. Existing projects need to re-run `goat-flow setup` or `goat-flow hooks sync` to pick up the new launcher; their old `$(git rev-parse --show-toplevel)/...` launchers will keep failing inside worktrees until updated.
+- **Audit still recognises the registered script** - `normalizeHookPath` in `src/cli/facts/agent/hooks.ts` now strips both `$(...)/<path>.sh` (legacy) and `$root/<path>.sh` / `${root}/<path>.sh` (new) prefixes, so `goat-flow audit` and the dashboard report the canonical `.claude/hooks/<script>.sh` value across both launcher generations.
+- **Documented as a learning-loop footgun** - New entry in `.goat-flow/footguns/hooks.md` records the worktree symptom, the `--show-toplevel`-vs-`--git-common-dir` root cause, and the invariant any future launcher edit must satisfy. `workflow/hooks/README.md` is rewritten to describe the new resolution flow.
+
 ## v1.8.0 - 2026-05-28
 
 Antigravity replaces Gemini CLI as the third supported runner; the dashboard gains hook management with a guardrail split; report-only skills require a four-class proof tag on every finding; three new on-demand playbooks ship (observability, code comments, gruff code quality); and a wide learning-loop pass adds seven footguns, ten lessons, eight patterns, and two new ADRs.
