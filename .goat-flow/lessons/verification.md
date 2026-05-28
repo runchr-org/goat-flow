@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-29
 ---
 
 ## Lesson: Stryker sandboxes need local-state ignores and mutation-safe test selection
@@ -36,6 +36,16 @@ last_reviewed: 2026-05-28
 **Root cause:** I treated sibling gruff CLIs as interchangeable binaries but skipped two runtime surfaces that are part of the hook contract: schema-bearing project config files and wrapper-script dependencies inherited from the caller's normal `PATH`.
 
 **Prevention:** When testing `gruff-code-quality.sh` against sibling gruff implementations, copy or reference each project's real `.gruff-*.yaml`, preserve the normal `PATH` while prefixing local gruff binaries, and run both checks: direct `analyse --format json` schema probes and hook-shaped probes with changed ranges. Evidence anchors: `workflow/hooks/gruff-code-quality.sh` (search: `discover_binary`), `.goat-flow/tasks/1.8.0/M14-gruff-changed-line-hook-filter.md` (search: `gruff family hook probes`).
+
+## Lesson: docs.missing-internal-function-doc must not be silenced; baseline the residue
+
+**Status:** active | **Created:** 2026-05-29
+
+**What happened:** Gruff-ts reported 337 `docs.missing-internal-function-doc` findings across 73 files in goat-flow's TS surface (M00 baseline). The instinct response is to add a JSDoc comment to every flagged helper. That directly contradicts CLAUDE.md's "Default to writing no comments. Only add one when the WHY is non-obvious" and `code-comments.md`'s "Rewrite First" ladder. Adding boilerplate docstrings to short, name-clear helpers is gold-plating - exactly the anti-pattern the playbook forbids.
+
+**Root cause:** Two correct project rules collide on a single class of finding. `feedback_gruff_never_disable.md` forbids `enabled: false`. The rule has no `optionKeys` (verified via `gruff-ts list-rules --format json`) so there is no per-rule threshold or pattern allowlist to tune. The remaining honest moves are (a) FIX where a WHY genuinely needs surfacing, (b) RENAME where the function name is the missing comment, and (c) BASELINE the long tail with rationale.
+
+**Prevention:** Triage `docs.missing-internal-function-doc` in the three buckets named in `.goat-flow/skill-playbooks/gruff-code-quality.md` "docs.missing-internal-function-doc vs the 'no comment unless WHY is non-obvious' default" subsection. Do NOT add a comment to every flagged helper. Capture the policy in this lesson so future agents see it without re-reading the playbook. When `gruff-ts` ships `excludeWhenLinesUnder` / `excludeWhenNameMatches` for this rule, revisit and replace the baseline with tunes. Evidence anchors: `.goat-flow/skill-playbooks/gruff-code-quality.md` (search: `docs.missing-internal-function-doc vs the "no comment`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `docs.missing-internal-function-doc`), `scripts/preflight-checks.sh` (search: `Gruff Policy`) for the structural enforcement of "never disable."
 
 ## Lesson: RegExp constructor assertions need a real escape helper
 

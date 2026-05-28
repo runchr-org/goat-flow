@@ -32,7 +32,10 @@ describe("verification routing boundaries (ADR-018)", () => {
     const triggerLine = content
       .split("\n")
       .find((l) => l.includes("Standard mode (quick depth)"));
-    assertExists(triggerLine, "goat-qa should have a Standard-mode trigger line");
+    assertExists(
+      triggerLine,
+      "goat-qa should have a Standard-mode trigger line",
+    );
     assert.doesNotMatch(
       triggerLine,
       /"verify"/,

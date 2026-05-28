@@ -309,6 +309,18 @@ function collectAuditPaths(paths: string[]): string[] {
 
 Do not add `contract:` prefixes or other marker words as a substitute for meaning. If gruff still reports the comment, improve the comment around the real boundary the rule is asking for.
 
+### docs.missing-internal-function-doc vs the "no comment unless WHY is non-obvious" default
+
+This rule fires on every internal helper that lacks a leading maintainer comment. On a real codebase that follows the default in [`code-comments.md`](./code-comments.md) and CLAUDE.md ("Default to writing no comments. Only add one when the WHY is non-obvious"), the rule produces hundreds of findings on short, name-clear helpers - and "satisfying" each one by adding a docstring is gold-plating that the playbook explicitly forbids.
+
+Triage `docs.missing-internal-function-doc` in three buckets:
+
+1. **FIX (high-signal subset)** - the internal helper hides a non-obvious WHY: a tradeoff, a workaround, a threshold rationale, a side effect, or a contract that callers must respect. Add a single-line WHY comment following `code-comments.md`. These are the genuine misses the rule catches.
+2. **RENAME (most cases)** - the function name doesn't carry intent. `phaseFor` is clear; `processItem` is not. Renaming usually removes both the gruff finding and the maintainer burden, and is the preferred response per the "Rewrite First" ladder.
+3. **TUNE / BASELINE (the long tail)** - 2-3 line helpers whose name already states intent (`isFenceLine`, `displayFor`, `pushUniquePath`). The rule has no `optionKeys` to skip short or name-clear helpers, so the only honest option that respects `feedback_gruff_never_disable.md` is to baseline these with a per-cluster rationale - **never** `enabled: false`. Capture the project policy in a `.goat-flow/lessons/` entry naming the convention so a future agent doesn't try to satisfy each finding individually.
+
+Upstream: this rule would benefit from `excludeWhenLinesUnder: N` and `excludeWhenNameMatches: <pattern>` options. Track that ask wherever the project files gruff-ts feedback.
+
 ## Naming Findings
 
 Fix naming findings by making the code carry meaning:

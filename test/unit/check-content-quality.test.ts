@@ -48,7 +48,10 @@ describe("scanContentQuality: vague terms", () => {
     const findings = scanContentQuality("x.md", "Format the file properly.");
     const vague = findings.find((f) => f.rule === "vague-term");
     assertExists(vague, "expected vague-term finding");
-    assertExists(vague.suggestion, "vague-term finding should carry a suggestion");
+    assertExists(
+      vague.suggestion,
+      "vague-term finding should carry a suggestion",
+    );
     assert.match(vague.suggestion, /Prettier|style guide|indentation/i);
   });
 });
