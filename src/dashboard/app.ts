@@ -1534,7 +1534,7 @@ function app() {
           this.skillQualityReports[art.id] =
             payload as unknown as SkillQualityReport;
         } catch {
-          /* swallow per-artifact errors so one failure doesn't stop the rest */
+          /* per-artifact fetch is best effort; one failure must not affect the rest */
         }
       });
       await Promise.all(fetches);

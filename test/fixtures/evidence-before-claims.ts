@@ -15,6 +15,9 @@ export const INSTRUCTION_FILES = {
   copilot: ".github/copilot-instructions.md",
 } as const;
 
+// Test helper: a minimal instruction-file body that satisfies the
+// hallucination-red-flags parity checks (all four red-flags + the Excuse/Reality
+// pointer), titled as given, for asserting the audit passes on compliant docs.
 export function completeInstruction(title: string): string {
   return [
     `# ${title}`,

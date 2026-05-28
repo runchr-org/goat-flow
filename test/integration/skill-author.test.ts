@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { runSkillNew, SkillNewInputError } from "../../src/cli/skill-author.js";
+import { assertExists } from "../helpers/assert-exists.ts";
 
 function makeTempProject(): string {
   return mkdtempSync(join(tmpdir(), "goat-flow-skill-author-"));
@@ -24,13 +25,13 @@ describe("skill new - description mode", () => {
 
     assert.equal(result.candidacy.recommendedArtifact.type, "skill");
     assert.equal(result.written, true);
-    assert.ok(result.proposedPath !== null);
+    assertExists(result.proposedPath);
     assert.ok(
       result.proposedPath?.endsWith(".claude/skills/pg-index/SKILL.md"),
     );
-    assert.ok(existsSync(result.proposedPath!));
+    assert.ok(existsSync(result.proposedPath));
 
-    const content = readFileSync(result.proposedPath!, "utf-8");
+    const content = readFileSync(result.proposedPath, "utf-8");
     assert.match(content, /name: pg-index/);
     assert.match(content, /## Step 0/);
     assert.match(content, /## Verification/);
@@ -51,7 +52,8 @@ describe("skill new - description mode", () => {
       assert.equal(result.candidacy.recommendedArtifact.subtype, "report");
     }
     assert.ok(result.written);
-    const content = readFileSync(result.proposedPath!, "utf-8");
+    assertExists(result.proposedPath);
+    const content = readFileSync(result.proposedPath, "utf-8");
     assert.match(content, /## Quick Scan Path/);
   });
 
@@ -74,7 +76,8 @@ describe("skill new - description mode", () => {
     assert.ok(
       result.proposedPath?.endsWith(".goat-flow/skill-playbooks/lefthook.md"),
     );
-    const content = readFileSync(result.proposedPath!, "utf-8");
+    assertExists(result.proposedPath);
+    const content = readFileSync(result.proposedPath, "utf-8");
     assert.match(content, /## Availability Check/);
   });
 
@@ -120,8 +123,8 @@ describe("skill new - description mode", () => {
 
     assert.equal(result.candidacy.recommendedArtifact.type, "skill");
     assert.equal(result.written, false);
-    assert.ok(result.proposedPath !== null);
-    assert.ok(!existsSync(result.proposedPath!));
+    assertExists(result.proposedPath);
+    assert.ok(!existsSync(result.proposedPath));
   });
 
   it("rejects invalid skill names", async () => {
@@ -149,11 +152,11 @@ describe("skill new - description mode", () => {
       stdinAnswers: [],
     });
     assert.ok(result.written);
-    assert.ok(result.postScaffoldScore !== undefined);
-    assert.ok(result.postScaffoldScore!.totalScore > 0);
+    assertExists(result.postScaffoldScore);
+    assert.ok(result.postScaffoldScore.totalScore > 0);
     assert.ok(
-      result.postScaffoldScore!.totalScore <=
-        result.postScaffoldScore!.profileMax,
+      result.postScaffoldScore.totalScore <=
+        result.postScaffoldScore.profileMax,
     );
   });
 

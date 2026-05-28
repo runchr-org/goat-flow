@@ -202,7 +202,7 @@ function removeHookScripts(
   try {
     unlinkSync(target);
   } catch {
-    /* already absent */
+    /* target already gone — script removal is idempotent, missing file is fine */
   }
 }
 
@@ -308,6 +308,9 @@ function readHookState(hookId: string, projectPath: string): HookState {
   };
 }
 
+// Snapshots the current enabled/installed state of every known hook for one
+// project; reads settings + script presence, so the result reflects on-disk
+// reality, not the in-memory registry defaults.
 export function readAllHookStates(projectPath: string): HookState[] {
   return listHookSpecs().map((spec) => readHookState(spec.id, projectPath));
 }
@@ -326,6 +329,9 @@ export function applyHookState(
   return readHookState(spec.id, projectPath);
 }
 
+// Side-effecting: rewrites each togglable hook's installed files to match its
+// persisted desired state, repairing drift (e.g. after a manual settings edit),
+// then returns the refreshed snapshot. Non-togglable hooks are left untouched.
 export function syncHookStates(projectPath: string): HookState[] {
   for (const spec of listHookSpecs()) {
     if (!spec.togglable) continue;

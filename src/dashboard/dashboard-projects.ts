@@ -175,8 +175,11 @@ async function dashboardAddProject(
       if (idx >= 0) ctx.projectsList[idx] = result;
       dashboardRememberProjectIdentity(ctx, result);
     }
-  } catch {
-    /* silent */
+  } catch (err) {
+    // Surface, don't swallow: the project was added optimistically with an
+    // "Auditing..." placeholder, so a silent status-fetch failure would strand
+    // it in that state. Non-fatal — the row stays and a later refresh retries.
+    console.warn("[goat-flow] Failed to load status for added project:", err);
   }
   ctx.newProjectPath = "";
   ctx._saveProjectsList();
@@ -234,8 +237,11 @@ async function dashboardAuditAllProjects(
         .filter((project): project is ProjectEntry => project !== null);
       dashboardRememberProjectIdentities(ctx, ctx.projectsList);
     }
-  } catch {
-    /* silent */
+  } catch (err) {
+    // Surface, don't swallow: a failed status refresh previously vanished, so
+    // the projects list silently kept stale rows. Non-fatal — existing rows are
+    // left intact and the next refresh retries.
+    console.warn("[goat-flow] Failed to refresh project statuses:", err);
   }
   ctx.projectsAuditing = false;
 }

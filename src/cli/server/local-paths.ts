@@ -85,6 +85,9 @@ function toPosixPath(path: string): string {
   return normalized.length > 1 ? normalized.replace(/\/$/u, "") : normalized;
 }
 
+// Containment guard used before filesystem access: true when child resolves
+// inside parent (or equals it). Pure path arithmetic — it does NOT resolve
+// symlinks, so callers needing real-path safety must canonicalise first.
 export function isPathWithin(parent: string, child: string): boolean {
   const rel = relative(parent, child);
   if (rel === "") return true;
@@ -210,6 +213,9 @@ export function resolveLocalStatePath(
   );
 }
 
+// Security gate for terminal working directories: throws (via validateLocalPath)
+// unless projectPath clears the terminal-cwd policy, otherwise returns the
+// normalised absolute path safe to hand to a spawned shell.
 export function validateProjectPath(projectPath: string): string {
   return validateLocalPath(projectPath, "terminal-cwd").path;
 }

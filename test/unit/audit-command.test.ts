@@ -3,6 +3,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { assertExists } from "../helpers/assert-exists.ts";
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -513,9 +514,9 @@ function makeAuditScope(
   return {
     status,
     checks,
-    failures: checks
-      .filter((check) => check.status === "fail" && check.failure)
-      .map((check) => check.failure!),
+    failures: checks.flatMap((check) =>
+      check.status === "fail" && check.failure ? [check.failure] : [],
+    ),
     summary: {},
   };
 }
@@ -910,10 +911,10 @@ describe("audit fails on missing footguns directory", () => {
       }),
     });
     const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when footguns dir is missing");
+    assertExists(result, "Should fail when footguns dir is missing");
     assert.ok(
-      result!.message.includes("footguns"),
-      `Failure should mention missing dir: ${result!.message}`,
+      result.message.includes("footguns"),
+      `Failure should mention missing dir: ${result.message}`,
     );
   });
 });
@@ -985,10 +986,10 @@ describe("copilot install requires GitHub commit instructions", () => {
       }),
     );
 
-    assert.notEqual(result, null);
-    assert.equal(result!.check, "Agent instruction file");
-    assert.equal(result!.evidence, ".github/git-commit-instructions.md");
-    assert.match(result!.message, /required when \.github\/ exists/);
+    assertExists(result);
+    assert.equal(result.check, "Agent instruction file");
+    assert.equal(result.evidence, ".github/git-commit-instructions.md");
+    assert.match(result.message, /required when \.github\/ exists/);
   });
 
   it("agent-instruction does not require the bridge when .github is absent", () => {
@@ -1029,8 +1030,8 @@ describe("copilot install requires GitHub commit instructions", () => {
       }),
     );
 
-    assert.notEqual(result, null);
-    assert.equal(result!.evidence, ".github/git-commit-instructions.md");
+    assertExists(result);
+    assert.equal(result.evidence, ".github/git-commit-instructions.md");
   });
 });
 
@@ -1161,9 +1162,9 @@ describe("orphaned artifact detection refinement", () => {
       }),
     );
 
-    assert.notEqual(result, null, "should report orphaned artifacts");
-    assert.match(result!.message, /artifacts exist/i);
-    assert.match(result!.message, /claude/i);
+    assertExists(result, "should report orphaned artifacts");
+    assert.match(result.message, /artifacts exist/i);
+    assert.match(result.message, /claude/i);
   });
 });
 
@@ -1203,13 +1204,9 @@ describe("--agent filtering", () => {
       fs: fsWithMissingCodexSkills,
     });
     const resultWithCodex = check.run(ctxWithCodex);
-    assert.notEqual(
-      resultWithCodex,
-      null,
-      "Should fail when codex skill files missing",
-    );
+    assertExists(resultWithCodex, "Should fail when codex skill files missing");
     assert.ok(
-      resultWithCodex!.message.includes("codex:"),
+      resultWithCodex.message.includes("codex:"),
       "Failure should mention codex",
     );
 
@@ -1245,13 +1242,9 @@ describe("config validation failures", () => {
       },
     });
     const result = check.run(ctx);
-    assert.notEqual(
-      result,
-      null,
-      "config-parses should fail on invalid config",
-    );
-    assert.match(result!.message, /Validation error: toolchain\.test\[0\]/);
-    assert.equal(result!.evidence, ".goat-flow/config.yaml");
+    assertExists(result, "config-parses should fail on invalid config");
+    assert.match(result.message, /Validation error: toolchain\.test\[0\]/);
+    assert.equal(result.evidence, ".goat-flow/config.yaml");
   });
 });
 
@@ -1487,9 +1480,9 @@ describe("codex settings feature flags", () => {
     });
     const result = check.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /exact workspace-root paths/);
-    assert.match(result!.message, /\.env\.example/);
+    assertExists(result);
+    assert.match(result.message, /exact workspace-root paths/);
+    assert.match(result.message, /\.env\.example/);
   });
 
   it("fails agent-settings when Codex config still uses codex_hooks", () => {
@@ -1506,9 +1499,9 @@ describe("codex settings feature flags", () => {
       }),
     );
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /Deprecated Codex feature flag/);
-    assert.match(result!.howToFix ?? "", /goat-flow install \. --agent codex/);
+    assertExists(result);
+    assert.match(result.message, /Deprecated Codex feature flag/);
+    assert.match(result.howToFix ?? "", /goat-flow install \. --agent codex/);
   });
 
   it("fails agent-settings when Codex hooks are installed but hooks are not enabled", () => {
@@ -1520,9 +1513,9 @@ describe("codex settings feature flags", () => {
       }),
     );
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /\[features\]\.hooks = true/);
-    assert.match(result!.howToFix ?? "", /hooks = true/);
+    assertExists(result);
+    assert.match(result.message, /\[features\]\.hooks = true/);
+    assert.match(result.howToFix ?? "", /hooks = true/);
   });
 
   it("passes agent-settings when Codex hooks are installed and features.hooks is true", () => {
@@ -1556,10 +1549,10 @@ describe("audit fails on stale skill directory", () => {
       ],
     });
     const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when stale skill dir exists");
+    assertExists(result, "Should fail when stale skill dir exists");
     assert.ok(
-      result!.message.includes("goat-audit"),
-      `Failure should mention stale dir: ${result!.message}`,
+      result.message.includes("goat-audit"),
+      `Failure should mention stale dir: ${result.message}`,
     );
   });
 
@@ -1596,10 +1589,10 @@ describe("audit fails on stale skill directory", () => {
 
     const result = check.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /Unexpected stale skill reference files/);
-    assert.match(result!.message, /auth-authz\.md/);
-    assert.match(result!.howToFix ?? "", /goat-flow install \. --agent <id>/);
+    assertExists(result);
+    assert.match(result.message, /Unexpected stale skill reference files/);
+    assert.match(result.message, /auth-authz\.md/);
+    assert.match(result.howToFix ?? "", /goat-flow install \. --agent <id>/);
   });
 });
 
@@ -1630,11 +1623,7 @@ describe("audit --harness", () => {
     );
 
     // Concerns should be populated with pass/fail statuses
-    assert.notEqual(
-      report.concerns,
-      null,
-      "concerns should be populated with --harness",
-    );
+    assertExists(report.concerns, "concerns should be populated with --harness");
     for (const key of [
       "context",
       "constraints",
@@ -1643,12 +1632,12 @@ describe("audit --harness", () => {
       "feedback_loop",
     ] as const) {
       assert.ok(
-        report.concerns![key] !== undefined,
+        report.concerns[key] !== undefined,
         `${key} concern should exist`,
       );
       assert.ok(
-        report.concerns![key].status === "pass" ||
-          report.concerns![key].status === "fail",
+        report.concerns[key].status === "pass" ||
+          report.concerns[key].status === "fail",
         `${key} concern should have pass/fail status`,
       );
     }
@@ -1744,7 +1733,7 @@ describe("audit JSON contract", () => {
 
     assert.equal(report.harness, true);
     assert.notEqual(report.scopes.harness, null);
-    assert.notEqual(report.concerns, null);
+    assertExists(report.concerns);
 
     for (const key of [
       "context",
@@ -1753,7 +1742,7 @@ describe("audit JSON contract", () => {
       "recovery",
       "feedback_loop",
     ] as const) {
-      const c = report.concerns![key];
+      const c = report.concerns[key];
       assert.ok(
         c.status === "pass" || c.status === "fail",
         `${key}.status should be pass or fail`,
@@ -1791,11 +1780,11 @@ describe("build failure howToFix", () => {
       }),
     });
     const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when footguns dir is missing");
-    assert.ok(result!.howToFix, "Failure should include howToFix");
+    assertExists(result, "Should fail when footguns dir is missing");
+    assertExists(result.howToFix, "Failure should include howToFix");
     assert.ok(
-      result!.howToFix!.includes("mkdir"),
-      `howToFix should reference mkdir: ${result!.howToFix}`,
+      result.howToFix.includes("mkdir"),
+      `howToFix should reference mkdir: ${result.howToFix}`,
     );
   });
 });
@@ -2827,14 +2816,14 @@ describe("M01 scoring model", () => {
     const advisory = scope.checks.find(
       (c) => c.id === "deny-blocks-pipe-to-shell",
     )!;
-    assert.ok(advisory.failure, "advisory failure should have a failure obj");
+    assertExists(advisory.failure, "advisory failure should have a failure obj");
     assert.ok(
-      advisory.failure!.evidence?.includes("Advisory"),
-      `evidence should explain advisory framing: ${advisory.failure!.evidence}`,
+      advisory.failure.evidence?.includes("Advisory"),
+      `evidence should explain advisory framing: ${advisory.failure.evidence}`,
     );
     assert.ok(
-      advisory.failure!.evidence?.includes("deny-blocks-pipe-to-shell"),
-      `evidence should reference the check id: ${advisory.failure!.evidence}`,
+      advisory.failure.evidence?.includes("deny-blocks-pipe-to-shell"),
+      `evidence should reference the check id: ${advisory.failure.evidence}`,
     );
   });
 });

@@ -188,7 +188,7 @@ export function writeFileAtomic(
     try {
       unlinkSync(tempPath);
     } catch {
-      /* temp file may not exist */
+      /* temp file may be missing — best-effort cleanup before rethrow */
     }
     throw err;
   }

@@ -7,6 +7,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { assertExists } from "../helpers/assert-exists.ts";
 import {
   scanCountClaims,
   scanConcernCountClaims,
@@ -83,10 +84,10 @@ describe("scanCountClaims: skill count", () => {
       `We ship ${wrong} skills as of today.`,
     );
     const drift = findings.find((f) => f.rule === "skill-count-drift");
-    assert.ok(drift, "expected skill-count drift");
-    assert.equal(drift!.severity, "warning");
-    assert.match(drift!.message, new RegExp(`${wrong} skills`));
-    assert.match(drift!.message, new RegExp(`${actual}`));
+    assertExists(drift, "expected skill-count drift");
+    assert.equal(drift.severity, "warning");
+    assert.match(drift.message, new RegExp(`${wrong} skills`));
+    assert.match(drift.message, new RegExp(`${actual}`));
   });
 
   it("does not flag the correct skill count", () => {
@@ -164,9 +165,9 @@ describe("scanConcernCountClaims", () => {
       `- **Context** (${wrong}) - instruction file within limit, execution loop present`,
     );
     const drift = findings.find((f) => f.rule === "concern-count-drift-bullet");
-    assert.ok(drift, "expected bullet-style concern drift finding");
-    assert.match(drift!.message, /Context/);
-    assert.match(drift!.message, new RegExp(`${actual}`));
+    assertExists(drift, "expected bullet-style concern drift finding");
+    assert.match(drift.message, /Context/);
+    assert.match(drift.message, new RegExp(`${actual}`));
   });
 
   it("flags drift in **Context checks (N):** narrative prose", () => {
@@ -195,8 +196,8 @@ describe("scanConcernCountClaims", () => {
     const drift = findings.find(
       (f) => f.rule === "concern-sample-output-drift",
     );
-    assert.ok(drift, "expected sample-output drift finding from fenced block");
-    assert.equal(drift!.line, 3);
+    assertExists(drift, "expected sample-output drift finding from fenced block");
+    assert.equal(drift.line, 3);
   });
 
   it("does not flag matching concern counts", () => {
@@ -236,8 +237,8 @@ describe("scanRemovedCommands", () => {
       "Run `goat-flow quality capture --from-file <path>` after each review.",
     );
     assert.equal(findings.length, 1);
-    assert.equal(findings[0]!.rule, "removed-command-quality-capture");
-    assert.equal(findings[0]!.severity, "warning");
+    assert.equal(findings[0].rule, "removed-command-quality-capture");
+    assert.equal(findings[0].severity, "warning");
   });
 
   it("flags a dead CLI command inside a fenced code block", () => {
@@ -248,8 +249,8 @@ describe("scanRemovedCommands", () => {
     ].join("\n");
     const findings = scanRemovedCommands("docs/harness-quality.md", text);
     assert.equal(findings.length, 1);
-    assert.equal(findings[0]!.rule, "removed-command-quality-capture");
-    assert.equal(findings[0]!.line, 2);
+    assert.equal(findings[0].rule, "removed-command-quality-capture");
+    assert.equal(findings[0].line, 2);
   });
 
   it("does not flag unrelated content", () => {
@@ -270,8 +271,8 @@ describe("scanPathReferences", () => {
       stubCtx(fs),
     );
     assert.equal(findings.length, 1);
-    assert.equal(findings[0]!.severity, "info");
-    assert.equal(findings[0]!.rule, "path-ref-unresolved");
+    assert.equal(findings[0].severity, "info");
+    assert.equal(findings[0].rule, "path-ref-unresolved");
   });
 
   it("does not flag a resolvable path", () => {

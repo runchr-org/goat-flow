@@ -79,14 +79,20 @@ const HOOKS: HookSpec[] = [
 
 const HOOKS_BY_ID = new Map(HOOKS.map((hook) => [hook.id, hook]));
 
+// Returns a defensive copy so callers may sort or filter without mutating the
+// canonical registry that getHookSpec / readAllHookStates read from.
 export function listHookSpecs(): HookSpec[] {
   return [...HOOKS];
 }
 
+// Returns null (rather than throwing) for an unknown id so callers can treat a
+// missing hook as a 404-style branch instead of an exception path.
 export function getHookSpec(hookId: string): HookSpec | null {
   return HOOKS_BY_ID.get(hookId) ?? null;
 }
 
+// Guards an id before it is used as a filesystem-safe key and URL segment:
+// lowercase-kebab only, so it can never escape a directory or need encoding.
 export function isValidHookIdShape(hookId: string): boolean {
   return /^[a-z0-9][a-z0-9-]*$/u.test(hookId);
 }
