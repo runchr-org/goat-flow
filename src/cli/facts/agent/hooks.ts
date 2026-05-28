@@ -207,8 +207,11 @@ function normalizeHookPath(candidate: string): string | null {
   let path = candidate.trim();
   if (!path) return null;
   path = path.replace(/^['"`]|['"`]$/g, "");
-  // Common pattern across hook-supporting agents: bash "$(git rev-parse --show-toplevel)/.../script.sh"
-  const substitutionMatch = path.match(/\$\([^)]*\)\/(.*\.sh)$/);
+  // Hook launchers prefix the script path with a resolved repo root, either as
+  // an inline substitution ($(git rev-parse --show-toplevel)/...sh) or a shell
+  // variable ($root/...sh, $REPO/...sh) populated earlier in the command. Strip
+  // either prefix so callers see a repo-relative script path.
+  const substitutionMatch = path.match(/\$(?:\([^)]*\)|\{?\w+\}?)\/(.*\.sh)$/);
   if (substitutionMatch && substitutionMatch[1]) {
     path = substitutionMatch[1];
   }

@@ -1064,7 +1064,7 @@ if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/guard-repository-wri
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
     # shellcheck disable=SC2016
-    printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf '\''BLOCKED: Guard cannot start: git repository root unavailable.\\n'\'' >&2; exit 2; }; bash \"$root/.claude/hooks/guard-repository-writes.sh\""}]}'
+    printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"gcd=\"$(git rev-parse --git-common-dir 2>/dev/null)\" || { printf '\''BLOCKED: Guard cannot start: git repository root unavailable.\\n'\'' >&2; exit 2; }; case \"$gcd\" in /*) root=\"$(dirname \"$gcd\")\" ;; *) root=\"$(git rev-parse --show-toplevel)\" ;; esac; bash \"$root/.claude/hooks/guard-repository-writes.sh\""}]}'
   fi
   echo ""
 fi

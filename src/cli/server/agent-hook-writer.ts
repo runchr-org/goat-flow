@@ -85,10 +85,13 @@ function commandPath(agent: AgentProfile, script: string): string {
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
   if (agent.id === "codex") return path;
+  // dirname(--git-common-dir) is the main repo root in both main and worktree checkouts; --show-toplevel returns the worktree's working dir and would break worktree hooks.
+  const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"`;
+  const selectRoot = `case "$gcd" in /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel)" ;; esac`;
   if (agent.id === "antigravity") {
-    return `root="$(git rev-parse --show-toplevel 2>/dev/null)" || { printf '{"decision":"deny","reason":"Guard cannot start: git repository root unavailable."}\\n'; exit 0; }; bash "$root/${path}"`;
+    return `${resolveRoot} || { printf '{"decision":"deny","reason":"Guard cannot start: git repository root unavailable."}\\n'; exit 0; }; ${selectRoot}; bash "$root/${path}"`;
   }
-  return `root="$(git rev-parse --show-toplevel 2>/dev/null)" || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; bash "$root/${path}"`;
+  return `${resolveRoot} || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; ${selectRoot}; bash "$root/${path}"`;
 }
 
 function powershellCommand(agent: AgentProfile, spec: HookSpec): string {

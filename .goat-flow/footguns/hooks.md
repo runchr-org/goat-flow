@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-05-27
+last_reviewed: 2026-05-28
 ---
 
 **Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: guardrails self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `guard-secret-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
@@ -58,6 +58,24 @@ last_reviewed: 2026-05-27
 1. Treat configured-command replay as part of hook verification, not an optional integration smoke.
 2. Fail hard on exit 126/127 even if direct script self-tests pass.
 3. Keep command-shape differences documented: Claude and Antigravity resolve the git root and fail closed when unavailable; Codex and Copilot use direct project-local paths and require project-root cwd.
+
+## Footgun: Hook launchers using --show-toplevel resolve to the worktree, not the main repo
+
+**Status:** active | **Created:** 2026-05-28 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A Claude or Antigravity session running inside a `git worktree add` checkout fails every Bash with a PreToolUse error like `bash: /path/to/repo/.claude/worktrees/<branch>/.claude/hooks/<guard>.sh: No such file or directory`. Direct self-tests in the main repo pass; the same guards run fine outside the worktree. The same failure shape can appear after a hook rename if a stale launcher still references the old script name.
+
+**Why it happens:** Inside a worktree, `git rev-parse --show-toplevel` returns the worktree's working directory, not the main repo's working directory. The earlier Claude/Antigravity launcher resolved the script path against `--show-toplevel`, so it looked for `<worktree>/.claude/hooks/<guard>.sh`. That path only exists if `.claude/hooks/` is git-tracked — many projects gitignore `.claude/` entirely, so `git worktree add` checks out no hook scripts and every guard fails before its code starts. Goat-flow's own repo tracks `.claude/hooks/`, which masked the failure in development.
+
+**Evidence:**
+- Pre-fix runtime probe: a fresh worktree at `<project>/.claude/worktrees/feat+x/` with `.claude/` gitignored started every Bash with `bash: <worktree>/.claude/hooks/guard-destructive-shell.sh: No such file or directory`.
+- Pre-fix repro inside goat-flow itself succeeded only because `git ls-files | grep '^\.claude/hooks/'` lists all guard scripts; a freshly created worktree therefore inherited them via the branch checkout.
+- Current anchors: `workflow/hooks/agent-config/claude.json` (search: `git rev-parse --git-common-dir`), `workflow/hooks/agent-config/antigravity-hooks.json` (search: `git rev-parse --git-common-dir`), `workflow/install-goat-flow.sh` (search: `git rev-parse --git-common-dir`), and the normalizer at `src/cli/facts/agent/hooks.ts` (search: `Hook launchers prefix the script path`) which now strips both `$(...)` and `$var/` prefixes when extracting the script path for audit.
+
+**Prevention:**
+1. Hook launchers MUST resolve to the main repo root, not the current working tree. Use `git rev-parse --git-common-dir` and take its parent when the result is absolute (worktree) or fall back to `--show-toplevel` when relative (main checkout).
+2. When renaming or splitting a guard, regenerate every launcher string the installer writes, not just the hook script file. A stale launcher reproduces this failure mode even when the main repo has the new scripts.
+3. Add worktree coverage to any future configured-command smoke probe: run the literal launcher from a freshly created worktree, not just the main checkout, before claiming the launcher works.
 
 ## Footgun: Extension-based secret checks can confuse filenames with query syntax
 

@@ -32,7 +32,7 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
    - Copilot: `agent-config/copilot-hooks.json` -> `.github/hooks/hooks.json`
 3. `gruff-code-quality.sh` is opt-in through `.goat-flow/config.yaml`, the dashboard Hooks page, or `goat-flow hooks enable gruff-code-quality`.
 
-Claude and Antigravity hook commands resolve the repository root with `git rev-parse --show-toplevel` so they work from nested project directories. If the root cannot be resolved, the configured command fails closed before the hook script starts: Claude emits a stderr `BLOCKED:` message with exit 2, and Antigravity emits deny JSON with exit 0. Codex and Copilot hook commands use direct project-local script paths because their configs are expected to run from the selected project root.
+Claude and Antigravity hook commands resolve the repository root with `git rev-parse --git-common-dir` and take its parent directory, so the launcher always points at the main repo's `.claude/hooks/` (or `.agents/hooks/`) even inside a worktree at `.claude/worktrees/<branch>/`. The launcher falls back to `--show-toplevel` when `--git-common-dir` returns a relative `.git` path (i.e. the main checkout from its working directory). If neither resolution succeeds, the configured command fails closed before the hook script starts: Claude emits a stderr `BLOCKED:` message with exit 2, and Antigravity emits deny JSON with exit 0. Codex and Copilot hook commands use direct project-local script paths because their configs are expected to run from the selected project root.
 
 ## Failure Modes / Runtime Contracts
 
