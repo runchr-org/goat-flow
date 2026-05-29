@@ -9,6 +9,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { parseCLIArgs } from "../../src/cli/cli.js";
+import { withStubbedDate } from "../helpers/global-fixtures.js";
 import { composeQuality } from "../../src/cli/prompt/compose-quality.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
@@ -382,8 +383,7 @@ describe("quality prompt content", () => {
       }
     }
 
-    globalThis.Date = FakeDate as DateConstructor;
-    try {
+    withStubbedDate(FakeDate as DateConstructor, () => {
       const result = composeQuality({
         agent: "claude",
         projectPath: "/tmp/test-project",
@@ -397,9 +397,7 @@ describe("quality prompt content", () => {
         !result.prompt.includes('"run_date": "2026-04-19"'),
         "Default run_date should not fall back to UTC ISO day",
       );
-    } finally {
-      globalThis.Date = RealDate;
-    }
+    });
   });
 
   it("includes prior-report context and json contract guidance when history exists", () => {

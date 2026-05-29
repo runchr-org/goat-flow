@@ -1531,6 +1531,9 @@ function app() {
           ) {
             return;
           }
+          // /api/skill-quality returns this app's own SkillQualityReport shape;
+          // JsonRecord doesn't structurally overlap it, so TS requires the
+          // assertion go through `unknown` (TS2352). Source is same-origin.
           this.skillQualityReports[art.id] =
             payload as unknown as SkillQualityReport;
         } catch {
@@ -1590,6 +1593,8 @@ function app() {
           this.activeRunner === requestRunner &&
           this.skillQualitySelectedId === artifactId
         ) {
+          // Same server-owned /api/skill-quality payload; TS needs the unknown
+          // hop here too because JsonRecord and SkillQualityReport don't overlap.
           const report = payload as unknown as SkillQualityReport;
           this.skillQualityReport = report;
           this.skillQualityReports[artifactId] = report;

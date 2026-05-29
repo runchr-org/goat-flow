@@ -1,0 +1,38 @@
+---
+category: naming
+last_reviewed: 2026-05-30
+---
+
+## Lesson: Boundary payload names are not placeholder debt
+
+**Status:** active | **Created:** 2026-05-30
+
+**What happened:** During the M00 gruff cleanup, `naming.identifier-quality` reported 124 advisory findings. Most were `value` or `data` in decoders, validators, event readers, and safe JSON boundary code where the symbol intentionally represents an unknown inbound payload.
+
+**Root cause:** The default placeholder list treats `value`, `data`, and `item` as generic local names. That is useful in business logic, but too broad for goat-flow's boundary-heavy code, where validators often start with unknown input and narrow it by shape.
+
+**Prevention:** Keep `.gruff-ts.yaml` `placeholderNames` focused on throwaway placeholders (`foo`, `bar`, `baz`, `tmp`, `temp`, `thing`, `stuff`). Rename numbered or domain-ambiguous symbols case-by-case, but do not churn boundary validators away from `value` or `data` unless the narrower domain is already known. Evidence anchors: `.gruff-ts.yaml` (search: `placeholderNames`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `naming.identifier-quality`).
+
+---
+
+## Lesson: Accept abbreviations only when the domain is obvious
+
+**Status:** active | **Created:** 2026-05-30
+
+**What happened:** The M00 short-variable pass found a mix of real rename targets (`r`, `af`, `a`, `b`, `m`) and project-standard abbreviations (`md`, `ws`, `fd`, `ms`, `tc`, `rl`). Renaming all short symbols would have created churn, while accepting every one-letter test local would have hidden unclear code.
+
+**Root cause:** `naming.short-variable` is intentionally syntax-local. It cannot distinguish a throwaway `r` from a conventional `ws` WebSocket handle or `md` Markdown renderer without project vocabulary.
+
+**Prevention:** Keep `.gruff-ts.yaml` `acceptedAbbreviations` limited to domain-standard two-letter terms, and rename concentrated one-letter locals where a clearer name is obvious. Do not add broad one-letter names such as `r`, `a`, `b`, or `m` to the allowlist. Evidence anchors: `.gruff-ts.yaml` (search: `repo-standard short names`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `naming.short-variable`).
+
+---
+
+## Lesson: One-letter rename sweeps can corrupt regex flags
+
+**Status:** active | **Created:** 2026-05-30
+
+**What happened:** During the M00 short-variable pass, a mechanical `m`→`manifestJson` word-boundary rewrite in `test/unit/manifest.test.ts` also rewrote the `m` regex flag on manifest markdown assertions. The focused TypeScript test caught the syntax break before the milestone moved on.
+
+**Root cause:** Word-boundary replacement is not safe for one-letter identifiers in TypeScript source because regex flags, string literals, and other syntax-adjacent one-letter tokens can also sit on word boundaries.
+
+**Prevention:** For one-letter identifiers, inspect the local AST-shaped context or use a narrower pattern such as `const m =` plus explicit call-site replacements. Always run the focused test after the rename and before expanding the rename pattern to other files. Evidence anchors: `test/unit/manifest.test.ts` (search: `renderManifestMarkdown`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `naming.short-variable`).

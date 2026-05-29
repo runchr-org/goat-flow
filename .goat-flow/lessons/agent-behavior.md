@@ -75,7 +75,7 @@ The same surfaces also leaked third-party / competitor skill names (MySQL, Valyu
 3. **Apply the same rule to test files and code comments**, not just user-facing docs. Test fixtures and inline comments are read by contributors and shape future authoring habits.
 4. **When auditing docs, grep for both classes:** `rg -n "\.goat-flow/(scratchpad|tasks|logs)/" --glob '*.md' --glob '*.ts'` for gitignored citations, and a project-specific list of competitor names for vendor leakage. Add to the `docs-and-crossrefs` footgun resolution rounds when found.
 
-The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Round 4 (2026-05-11`) record the specific surfaces fixed.
+The Round 4 entries in `.goat-flow/footguns/docs-drift.md` (search: `Round 4 (2026-05-11`) record the specific surfaces fixed.
 
 ---
 

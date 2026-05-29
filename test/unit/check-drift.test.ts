@@ -60,44 +60,44 @@ describe("skillContentsEquivalent", () => {
   });
 
   it("frontmatter key reorder is equivalent (no false positive)", () => {
-    const a = "---\nname: x\ndescription: y\n---\n# body\n";
-    const b = "---\ndescription: y\nname: x\n---\n# body\n";
-    assert.equal(skillContentsEquivalent(a, b), true);
+    const firstRaw = "---\nname: x\ndescription: y\n---\n# body\n";
+    const secondRaw = "---\ndescription: y\nname: x\n---\n# body\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), true);
   });
 
   it("trailing-newline difference is equivalent (body normalized)", () => {
-    const a = "---\nname: x\n---\n# body";
-    const b = "---\nname: x\n---\n# body\n\n\n";
-    assert.equal(skillContentsEquivalent(a, b), true);
+    const firstRaw = "---\nname: x\n---\n# body";
+    const secondRaw = "---\nname: x\n---\n# body\n\n\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), true);
   });
 
   it("body content difference is not equivalent", () => {
-    const a = "---\nname: x\n---\n# body\n";
-    const b = "---\nname: x\n---\n# different body\n";
-    assert.equal(skillContentsEquivalent(a, b), false);
+    const firstRaw = "---\nname: x\n---\n# body\n";
+    const secondRaw = "---\nname: x\n---\n# different body\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), false);
   });
 
   it("frontmatter value difference is not equivalent", () => {
-    const a = "---\nname: x\n---\n# body\n";
-    const b = "---\nname: y\n---\n# body\n";
-    assert.equal(skillContentsEquivalent(a, b), false);
+    const firstRaw = "---\nname: x\n---\n# body\n";
+    const secondRaw = "---\nname: y\n---\n# body\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), false);
   });
 
   it("bare key (null) vs missing key is equivalent after null-strip", () => {
-    const a = "---\nname: x\ndescription:\n---\n# body\n";
-    const b = "---\nname: x\n---\n# body\n";
-    assert.equal(skillContentsEquivalent(a, b), true);
+    const firstRaw = "---\nname: x\ndescription:\n---\n# body\n";
+    const secondRaw = "---\nname: x\n---\n# body\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), true);
   });
 
   it("missing frontmatter is not equivalent to present frontmatter", () => {
-    const a = "---\nname: x\n---\n# body\n";
-    const b = "# body\n";
-    assert.equal(skillContentsEquivalent(a, b), false);
+    const firstRaw = "---\nname: x\n---\n# body\n";
+    const secondRaw = "# body\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), false);
   });
 
   it("leading blank lines in body do not cause false positive", () => {
-    const a = "---\nname: x\n---\n\n\n# body\n";
-    const b = "---\nname: x\n---\n# body\n";
-    assert.equal(skillContentsEquivalent(a, b), true);
+    const firstRaw = "---\nname: x\n---\n\n\n# body\n";
+    const secondRaw = "---\nname: x\n---\n# body\n";
+    assert.equal(skillContentsEquivalent(firstRaw, secondRaw), true);
   });
 });

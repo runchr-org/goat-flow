@@ -71,7 +71,9 @@ function agentArtifactsExist(
 
 /** Check whether the selected agent has its instruction file installed. */
 function checkInstructionPresent(ctx: AuditContext): AuditFailure | null {
-  const agentFacts = ctx.agents.find((af) => af.agent.id === ctx.agentFilter);
+  const agentFacts = ctx.agents.find(
+    (agentFacts) => agentFacts.agent.id === ctx.agentFilter,
+  );
   if (agentFacts?.instruction.exists) return null;
   // In --agent mode we look up the expected instruction path from the detected
   // structure so the failure message stays specific even when the file is absent.
@@ -92,8 +94,11 @@ function checkSupportedInstructionFilesPresent(
   ctx: AuditContext,
 ): AuditFailure | null {
   const missing = ctx.agents
-    .filter((af) => !af.instruction.exists)
-    .map((af) => `${af.agent.id} (${af.agent.instructionFile})`);
+    .filter((agentFacts) => !agentFacts.instruction.exists)
+    .map(
+      (agentFacts) =>
+        `${agentFacts.agent.id} (${agentFacts.agent.instructionFile})`,
+    );
   if (missing.length === 0) return null;
   return {
     check: "Agent instruction file",
@@ -121,7 +126,9 @@ function checkSelectedInstructionAvailable(
   checkName: string,
 ): AuditFailure | null {
   if (!ctx.agentFilter) return null;
-  const found = ctx.agents.find((af) => af.agent.id === ctx.agentFilter);
+  const found = ctx.agents.find(
+    (agentFacts) => agentFacts.agent.id === ctx.agentFilter,
+  );
   if (found?.instruction.exists) return null;
   const profile = ctx.structure.agents[ctx.agentFilter];
   const instructionFile =
@@ -132,6 +139,14 @@ function checkSelectedInstructionAvailable(
     evidence: instructionFile,
     howToFix: `Create ${instructionFile} by running \`goat-flow setup --agent ${ctx.agentFilter}\`, then rerun the audit.`,
   };
+}
+
+/** Return true when the Copilot commit-guide bridge is relevant for this audit scope. */
+function shouldCheckCopilotCommitInstructions(ctx: AuditContext): boolean {
+  if (ctx.agentFilter !== null && ctx.agentFilter !== "copilot") return false;
+  if (!ctx.fs.exists(".github")) return false;
+  if (ctx.agentFilter === "copilot") return true;
+  return ctx.structure.agents.copilot !== undefined;
 }
 
 /**
@@ -151,14 +166,7 @@ function checkSelectedInstructionAvailable(
 function checkCopilotCommitInstructionsPresent(
   ctx: AuditContext,
 ): AuditFailure | null {
-  if (ctx.agentFilter !== null && ctx.agentFilter !== "copilot") return null;
-  if (!ctx.fs.exists(".github")) return null;
-  if (
-    ctx.agentFilter !== "copilot" &&
-    ctx.structure.agents.copilot === undefined
-  ) {
-    return null;
-  }
+  if (!shouldCheckCopilotCommitInstructions(ctx)) return null;
   const copilotInstruction =
     ctx.structure.agents.copilot?.instruction_file ??
     ".github/copilot-instructions.md";
@@ -264,15 +272,15 @@ function checkCanonicalSkills(ctx: AuditContext): AuditFailure | null {
   const canonical = ctx.structure.skills.canonical;
   const missing: string[] = [];
   const references = ctx.structure.skills.references ?? {};
-  for (const af of ctx.agents) {
+  for (const agentFacts of ctx.agents) {
     for (const skill of canonical) {
       const referenceFiles = Array.isArray(references[skill])
         ? references[skill].filter((file) => typeof file === "string")
         : [];
       for (const relativeFile of ["SKILL.md", ...referenceFiles]) {
-        const skillPath = `${af.agent.skillsDir}/${skill}/${relativeFile}`;
+        const skillPath = `${agentFacts.agent.skillsDir}/${skill}/${relativeFile}`;
         if (!ctx.fs.exists(skillPath)) {
-          missing.push(`${af.agent.id}:${skill}:${relativeFile}`);
+          missing.push(`${agentFacts.agent.id}:${skill}:${relativeFile}`);
         }
       }
     }
@@ -303,9 +311,9 @@ function checkUnexpectedSkillReferences(
 ): AuditFailure | null {
   const unexpected: string[] = [];
 
-  for (const af of ctx.agents) {
+  for (const agentFacts of ctx.agents) {
     for (const skill of ctx.structure.skills.canonical) {
-      const skillRoot = `${af.agent.skillsDir}/${skill}`;
+      const skillRoot = `${agentFacts.agent.skillsDir}/${skill}`;
       const referencesDir = `${skillRoot}/references`;
       if (!ctx.fs.exists(referencesDir)) continue;
 
@@ -316,7 +324,7 @@ function checkUnexpectedSkillReferences(
           ? path.slice(prefix.length)
           : path;
         if (!expected.has(relativeFile)) {
-          unexpected.push(`${af.agent.id}:${skill}:${relativeFile}`);
+          unexpected.push(`${agentFacts.agent.id}:${skill}:${relativeFile}`);
         }
       }
     }
@@ -336,12 +344,12 @@ function checkUnexpectedSkillReferences(
 function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
   const noVersion: string[] = [];
   const mismatch: string[] = [];
-  for (const af of ctx.agents) {
-    for (const [name, version] of Object.entries(af.skills.versions)) {
+  for (const agentFacts of ctx.agents) {
+    for (const [name, version] of Object.entries(agentFacts.skills.versions)) {
       if (version === null) {
-        noVersion.push(`${af.agent.id}:${name}`);
+        noVersion.push(`${agentFacts.agent.id}:${name}`);
       } else if (version !== AUDIT_VERSION) {
-        mismatch.push(`${af.agent.id}:${name} (${version})`);
+        mismatch.push(`${agentFacts.agent.id}:${name} (${version})`);
       }
     }
   }
@@ -370,11 +378,11 @@ function checkSkillVersions(ctx: AuditContext): AuditFailure | null {
 function checkDeprecatedSkills(ctx: AuditContext): AuditFailure | null {
   const staleNames = new Set(ctx.structure.skills.stale_names);
   const found: string[] = [];
-  for (const af of ctx.agents) {
-    for (const dir of af.skills.installedDirs) {
+  for (const agentFacts of ctx.agents) {
+    for (const dir of agentFacts.skills.installedDirs) {
       const name = dir.split("/").pop() ?? "";
       if (staleNames.has(name)) {
-        found.push(`${af.agent.id}:${name}`);
+        found.push(`${agentFacts.agent.id}:${name}`);
       }
     }
   }
@@ -383,8 +391,8 @@ function checkDeprecatedSkills(ctx: AuditContext): AuditFailure | null {
   // remediation text points to concrete directories the user can remove.
   const paths = found.map((s) => {
     const [agent, name] = s.split(":");
-    const af = ctx.agents.find((a) => a.agent.id === agent);
-    return af ? `${af.agent.skillsDir}/${name}` : name;
+    const agentFacts = ctx.agents.find((a) => a.agent.id === agent);
+    return agentFacts ? `${agentFacts.agent.skillsDir}/${name}` : name;
   });
   return {
     check: "Agent skills",
@@ -437,14 +445,15 @@ function booleanSetting(parsed: unknown, key: string): boolean | null {
 }
 
 function checkCodexDeprecatedHooksFlag(ctx: AuditContext): AuditFailure | null {
-  for (const af of ctx.agents) {
-    if (af.agent.id !== "codex") continue;
-    if (!hasSettingsKey(af.settings.parsed, "features.codex_hooks")) continue;
+  for (const agentFacts of ctx.agents) {
+    if (agentFacts.agent.id !== "codex") continue;
+    if (!hasSettingsKey(agentFacts.settings.parsed, "features.codex_hooks"))
+      continue;
     return {
       check: "Agent settings",
       message:
         "Deprecated Codex feature flag in .codex/config.toml: [features].codex_hooks",
-      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      evidence: agentFacts.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
         "Replace `codex_hooks` with `hooks` under `[features]`, or run `goat-flow install . --agent codex` to migrate the setting.",
     };
@@ -453,17 +462,18 @@ function checkCodexDeprecatedHooksFlag(ctx: AuditContext): AuditFailure | null {
 }
 
 function checkCodexHooksEnabled(ctx: AuditContext): AuditFailure | null {
-  for (const af of ctx.agents) {
-    if (af.agent.id !== "codex") continue;
-    if (!af.hooks.denyExists && !af.hooks.denyIsRegistered) continue;
-    if (booleanSetting(af.settings.parsed, "features.hooks") === true) {
+  for (const agentFacts of ctx.agents) {
+    if (agentFacts.agent.id !== "codex") continue;
+    if (!agentFacts.hooks.denyExists && !agentFacts.hooks.denyIsRegistered)
+      continue;
+    if (booleanSetting(agentFacts.settings.parsed, "features.hooks") === true) {
       continue;
     }
     return {
       check: "Agent settings",
       message:
         "Codex hooks are installed but .codex/config.toml does not enable [features].hooks = true",
-      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      evidence: agentFacts.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
         "Add `hooks = true` under `[features]` in .codex/config.toml, or run `goat-flow install . --agent codex` to install the current Codex settings template.",
     };
@@ -598,15 +608,15 @@ function formatCodexWorkspaceRootInvalidGlobMessage(
 function checkCodexWorkspaceRootInvalidGlobs(
   ctx: AuditContext,
 ): AuditFailure | null {
-  for (const af of ctx.agents) {
-    if (af.agent.id !== "codex") continue;
-    const settings = settingsObject(af.settings.parsed);
+  for (const agentFacts of ctx.agents) {
+    if (agentFacts.agent.id !== "codex") continue;
+    const settings = settingsObject(agentFacts.settings.parsed);
     const defaultPermissions = settings?.default_permissions;
     if (typeof defaultPermissions !== "string" || defaultPermissions === "") {
       continue;
     }
     const { invalidGlobs, legacyAnchors } = collectCodexFilesystemFindings(
-      af.settings.parsed,
+      agentFacts.settings.parsed,
       defaultPermissions,
     );
     if (invalidGlobs.length === 0 && legacyAnchors.length === 0) continue;
@@ -616,7 +626,7 @@ function checkCodexWorkspaceRootInvalidGlobs(
         invalidGlobs,
         legacyAnchors,
       ),
-      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      evidence: agentFacts.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
         "Run `goat-flow install . --agent codex` (without --force) to migrate the .codex/config.toml filesystem block in place. The installer rewrites filename globs to canonical subtree denies (e.g. `secrets/**`, `.ssh/**`). Filename-level protections are covered by .codex/hooks/guard-secret-paths.sh.",
     };
@@ -627,15 +637,15 @@ function checkCodexWorkspaceRootInvalidGlobs(
 function checkCodexWorkspaceRootExactPaths(
   ctx: AuditContext,
 ): AuditFailure | null {
-  for (const af of ctx.agents) {
-    if (af.agent.id !== "codex") continue;
-    const settings = settingsObject(af.settings.parsed);
+  for (const agentFacts of ctx.agents) {
+    if (agentFacts.agent.id !== "codex") continue;
+    const settings = settingsObject(agentFacts.settings.parsed);
     const defaultPermissions = settings?.default_permissions;
     if (typeof defaultPermissions !== "string" || defaultPermissions === "") {
       continue;
     }
     const missing = collectCodexWorkspaceRootEntries(
-      af.settings.parsed,
+      agentFacts.settings.parsed,
       defaultPermissions,
     )
       .filter((entry) => isCodexExactWorkspaceRootPath(entry.pattern))
@@ -645,7 +655,7 @@ function checkCodexWorkspaceRootExactPaths(
     return {
       check: "Agent settings",
       message: `Codex permission profile lists exact workspace-root paths that do not exist: ${uniquePaths(missing).join(", ")}`,
-      evidence: af.agent.settingsFile ?? ".codex/config.toml",
+      evidence: agentFacts.agent.settingsFile ?? ".codex/config.toml",
       howToFix:
         "Remove absent exact entries from .codex/config.toml. Keep trailing `/**` subtree denies, and add exact `none`/`read` entries only for files that exist in this checkout.",
     };
@@ -667,9 +677,9 @@ const agentSettings: BuildCheck = {
     const blocked = checkSelectedInstructionAvailable(ctx, "Agent settings");
     if (blocked) return blocked;
     const invalid: string[] = [];
-    for (const af of ctx.agents) {
-      if (af.settings.exists && !af.settings.valid) {
-        invalid.push(af.agent.id);
+    for (const agentFacts of ctx.agents) {
+      if (agentFacts.settings.exists && !agentFacts.settings.valid) {
+        invalid.push(agentFacts.agent.id);
       }
     }
     if (invalid.length > 0) {
@@ -691,16 +701,16 @@ const agentSettings: BuildCheck = {
 // === 4. Agent Deny Mechanism ===
 
 function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
-  for (const af of ctx.agents) {
+  for (const agentFacts of ctx.agents) {
     // Capability-limited agents (e.g. Antigravity at v1.0.1) have no documented
     // deny mechanism upstream. The manifest records this as
     // `denyMechanism: null`; skip the check rather than producing a permanent
     // audit failure that downstream projects cannot fix.
-    if (af.agent.denyMechanism === null) continue;
-    if (!af.hooks.denyExists && !af.hooks.denyIsConfigBased) {
+    if (agentFacts.agent.denyMechanism === null) continue;
+    if (!agentFacts.hooks.denyExists && !agentFacts.hooks.denyIsConfigBased) {
       return {
         check: "Agent deny mechanism",
-        message: `Missing deny mechanism for ${af.agent.id}`,
+        message: `Missing deny mechanism for ${agentFacts.agent.id}`,
         howToFix:
           "Create a deny hook file or add deny patterns to the agent's settings file.",
       };
@@ -712,9 +722,9 @@ function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
 /** Check shell syntax for each installed agent hook script. */
 function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
   const failures: string[] = [];
-  for (const af of ctx.agents) {
-    if (!af.agent.hooksDir) continue;
-    const hooksDir = af.agent.hooksDir;
+  for (const agentFacts of ctx.agents) {
+    if (!agentFacts.agent.hooksDir) continue;
+    const hooksDir = agentFacts.agent.hooksDir;
     let files: string[];
     try {
       files = ctx.fs.listDir(hooksDir);
@@ -746,13 +756,13 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
 
 /** Check whether each agent has deny patterns registered somewhere. */
 function checkDenyPatterns(ctx: AuditContext): AuditFailure | null {
-  for (const af of ctx.agents) {
+  for (const agentFacts of ctx.agents) {
     // Skip agents with no documented project-local deny mechanism.
-    if (af.agent.denyMechanism === null) continue;
-    if (!af.settings.hasDenyPatterns && !af.hooks.denyExists) {
+    if (agentFacts.agent.denyMechanism === null) continue;
+    if (!agentFacts.settings.hasDenyPatterns && !agentFacts.hooks.denyExists) {
       return {
         check: "Agent deny mechanism",
-        message: `No deny patterns registered for ${af.agent.id}`,
+        message: `No deny patterns registered for ${agentFacts.agent.id}`,
         howToFix:
           "Register deny patterns in the agent's settings file or create a deny hook script in the agent's hooks directory.",
       };
@@ -778,9 +788,12 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
     "guard-repository-writes.sh",
     "guardrails-self-test.sh",
   ];
-  for (const af of ctx.agents) {
-    if (!af.agent.hooksDir) continue;
-    const denyRelPath = join(af.agent.hooksDir, "guard-repository-writes.sh");
+  for (const agentFacts of ctx.agents) {
+    if (!agentFacts.agent.hooksDir) continue;
+    const denyRelPath = join(
+      agentFacts.agent.hooksDir,
+      "guard-repository-writes.sh",
+    );
     if (ctx.fs.readFile(denyRelPath) === null) continue;
 
     for (const templateFile of templateFiles) {
@@ -792,22 +805,22 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
       } catch {
         continue;
       }
-      const installedRelPath = join(af.agent.hooksDir, templateFile);
+      const installedRelPath = join(agentFacts.agent.hooksDir, templateFile);
       const installed = ctx.fs.readFile(installedRelPath);
       if (installed === null) {
         return {
           check: "Agent deny mechanism",
-          message: `${templateFile} is missing for ${af.agent.id}`,
+          message: `${templateFile} is missing for ${agentFacts.agent.id}`,
           evidence: evidencePath(installedRelPath),
-          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook files.`,
+          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentFacts.agent.id}\` to update the hook files.`,
         };
       }
       if (installed.trimEnd() !== templateContent.trimEnd()) {
         return {
           check: "Agent deny mechanism",
-          message: `${templateFile} for ${af.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
+          message: `${templateFile} for ${agentFacts.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
           evidence: evidencePath(installedRelPath),
-          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${af.agent.id}\` to update the hook files.`,
+          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentFacts.agent.id}\` to update the hook files.`,
         };
       }
     }
@@ -817,9 +830,12 @@ function checkHookVersion(ctx: AuditContext): AuditFailure | null {
 
 /** Run each deny hook self-test when the script is present. */
 function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
-  for (const af of ctx.agents) {
-    if (!af.agent.hooksDir) continue;
-    const denyRelPath = join(af.agent.hooksDir, "guardrails-self-test.sh");
+  for (const agentFacts of ctx.agents) {
+    if (!agentFacts.agent.hooksDir) continue;
+    const denyRelPath = join(
+      agentFacts.agent.hooksDir,
+      "guardrails-self-test.sh",
+    );
     const content = ctx.fs.readFile(denyRelPath);
     // Config-based deny rules satisfy the deny-mechanism requirement, but only an
     // on-disk shell hook can run the registered self-test.
@@ -833,7 +849,7 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
     } catch {
       return {
         check: "Agent deny mechanism",
-        message: `guardrails-self-test.sh --self-test=smoke failed for ${af.agent.id}`,
+        message: `guardrails-self-test.sh --self-test=smoke failed for ${agentFacts.agent.id}`,
         evidence: evidencePath(denyRelPath),
         howToFix:
           "Run `bash <hooks-dir>/guardrails-self-test.sh --self-test=smoke` to see which cases fail.",
@@ -915,11 +931,12 @@ function runtimeSmokePayloadForScript(
 }
 
 function registeredDenyRelPath(
-  af: AuditContext["agents"][number],
+  agentFacts: AuditContext["agents"][number],
 ): string | null {
-  if (af.hooks.denyRegisteredPath) return af.hooks.denyRegisteredPath;
-  if (!af.agent.hooksDir) return null;
-  return join(af.agent.hooksDir, "guard-repository-writes.sh");
+  if (agentFacts.hooks.denyRegisteredPath)
+    return agentFacts.hooks.denyRegisteredPath;
+  if (!agentFacts.agent.hooksDir) return null;
+  return join(agentFacts.agent.hooksDir, "guard-repository-writes.sh");
 }
 
 const CONFIGURED_SMOKE_SCRIPTS = [
@@ -971,9 +988,10 @@ function collectNestedCommandValues(
 
 function configuredGuardCommands(
   ctx: AuditContext,
-  af: AuditContext["agents"][number],
+  agentFacts: AuditContext["agents"][number],
 ): ConfiguredHookCommand[] {
-  const configPath = af.agent.hookConfigFile ?? af.agent.settingsFile;
+  const configPath =
+    agentFacts.agent.hookConfigFile ?? agentFacts.agent.settingsFile;
   if (!configPath) return [];
   const rawConfig = ctx.fs.readFile(configPath);
   if (rawConfig === null) return [];
@@ -1017,11 +1035,11 @@ function runConfiguredCommand(
 
 function runConfiguredHookCommandSmoke(
   ctx: AuditContext,
-  af: AuditContext["agents"][number],
+  agentFacts: AuditContext["agents"][number],
   configured: ConfiguredHookCommand,
 ): { ok: boolean; message: string; evidence: string } {
   const smoke = runtimeSmokePayloadForScript(
-    af.agent.id,
+    agentFacts.agent.id,
     configured.scriptFile,
   );
   const result = runConfiguredCommand(ctx, configured.command, smoke.input);
@@ -1029,7 +1047,7 @@ function runConfiguredHookCommandSmoke(
   if (status === 126 || status === 127) {
     return {
       ok: false,
-      message: `${af.agent.id} configured hook command exited ${status}: ${configured.command}`,
+      message: `${agentFacts.agent.id} configured hook command exited ${status}: ${configured.command}`,
       evidence: configured.configPath,
     };
   }
@@ -1039,7 +1057,7 @@ function runConfiguredHookCommandSmoke(
   if (status !== smoke.expectedStatus || !smoke.expectedPattern.test(stream)) {
     return {
       ok: false,
-      message: `${af.agent.id} configured hook command did not deny ${configured.scriptFile}: ${configured.command}`,
+      message: `${agentFacts.agent.id} configured hook command did not deny ${configured.scriptFile}: ${configured.command}`,
       evidence: configured.configPath,
     };
   }
@@ -1048,10 +1066,10 @@ function runConfiguredHookCommandSmoke(
 
 function runDirectHookRuntimeSmoke(
   ctx: AuditContext,
-  af: AuditContext["agents"][number],
+  agentFacts: AuditContext["agents"][number],
   denyRelPath: string,
 ): boolean {
-  const smoke = runtimeSmokePayload(af.agent.id);
+  const smoke = runtimeSmokePayload(agentFacts.agent.id);
   const result = spawnSync("bash", [join(ctx.projectPath, denyRelPath)], {
     cwd: ctx.projectPath,
     encoding: "utf8",
@@ -1067,11 +1085,15 @@ function runDirectHookRuntimeSmoke(
 
 /** Run a runtime-shaped blocked payload through the installed deny hook. */
 function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
-  for (const af of ctx.agents) {
-    const configuredCommands = configuredGuardCommands(ctx, af);
+  for (const agentFacts of ctx.agents) {
+    const configuredCommands = configuredGuardCommands(ctx, agentFacts);
     if (configuredCommands.length > 0) {
       for (const configured of configuredCommands) {
-        const result = runConfiguredHookCommandSmoke(ctx, af, configured);
+        const result = runConfiguredHookCommandSmoke(
+          ctx,
+          agentFacts,
+          configured,
+        );
         if (result.ok) continue;
         return {
           check: "Agent deny mechanism",
@@ -1084,16 +1106,16 @@ function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
       continue;
     }
 
-    const denyRelPath = registeredDenyRelPath(af);
+    const denyRelPath = registeredDenyRelPath(agentFacts);
     if (denyRelPath === null) continue;
     const content = ctx.fs.readFile(denyRelPath);
     if (content === null) continue;
 
-    if (runDirectHookRuntimeSmoke(ctx, af, denyRelPath)) continue;
+    if (runDirectHookRuntimeSmoke(ctx, agentFacts, denyRelPath)) continue;
 
     return {
       check: "Agent deny mechanism",
-      message: `registered deny hook runtime smoke failed for ${af.agent.id}`,
+      message: `registered deny hook runtime smoke failed for ${agentFacts.agent.id}`,
       evidence: evidencePath(denyRelPath),
       howToFix:
         "Run the registered deny hook with a runtime-shaped Bash payload and confirm it denies `git push origin main`.",

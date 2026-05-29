@@ -196,7 +196,10 @@ describe("scanConcernCountClaims", () => {
     const drift = findings.find(
       (f) => f.rule === "concern-sample-output-drift",
     );
-    assertExists(drift, "expected sample-output drift finding from fenced block");
+    assertExists(
+      drift,
+      "expected sample-output drift finding from fenced block",
+    );
     assert.equal(drift.line, 3);
   });
 

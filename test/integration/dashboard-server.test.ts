@@ -18,6 +18,8 @@ import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
+
+import { setEnv } from "../helpers/global-fixtures.js";
 import {
   getAgentProfileMap,
   getKnownAgentIds,
@@ -998,8 +1000,7 @@ describe("dashboard /api/audit", () => {
   });
 
   it("with quality=true uses dashboard-summary facts without changing the shared report surface", async () => {
-    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
-    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    const restoreEnv = setEnv({ GOAT_FLOW_AUDIT_PROFILE: "1" });
     try {
       const baseline = await fetchJson(
         `/api/audit?path=${encodeURIComponent(PROJECT_PATH)}&quality=true&fresh=true`,
@@ -1061,20 +1062,16 @@ describe("dashboard /api/audit", () => {
         "dashboard-summary route should reuse shared facts for agent cards",
       );
     } finally {
-      if (originalProfileEnv === undefined) {
-        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
-      } else {
-        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
-      }
+      restoreEnv();
     }
   });
 
   it("serves cache hits under budget without rerunning audit computation", async () => {
     const project = await makeDashboardCacheProject();
-    const originalPackagedMode = process.env.GOAT_FLOW_PACKAGED_MODE;
-    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
-    process.env.GOAT_FLOW_PACKAGED_MODE = "1";
-    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    const restoreEnv = setEnv({
+      GOAT_FLOW_PACKAGED_MODE: "1",
+      GOAT_FLOW_AUDIT_PROFILE: "1",
+    });
     try {
       const fresh = await fetchProfiledAudit(project.root, "&fresh=true");
       assert.equal(fresh.body.cached, false);
@@ -1091,26 +1088,17 @@ describe("dashboard /api/audit", () => {
         "cache hit should not run audit computation",
       );
     } finally {
-      if (originalPackagedMode === undefined) {
-        delete process.env.GOAT_FLOW_PACKAGED_MODE;
-      } else {
-        process.env.GOAT_FLOW_PACKAGED_MODE = originalPackagedMode;
-      }
-      if (originalProfileEnv === undefined) {
-        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
-      } else {
-        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
-      }
+      restoreEnv();
       await project.cleanup();
     }
   });
 
   it("invalidates cached dashboard audits after instruction, hook, and lesson edits", async () => {
     const project = await makeDashboardCacheProject();
-    const originalPackagedMode = process.env.GOAT_FLOW_PACKAGED_MODE;
-    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
-    process.env.GOAT_FLOW_PACKAGED_MODE = "1";
-    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    const restoreEnv = setEnv({
+      GOAT_FLOW_PACKAGED_MODE: "1",
+      GOAT_FLOW_AUDIT_PROFILE: "1",
+    });
     try {
       await fetchProfiledAudit(project.root, "&fresh=true");
       assert.equal((await fetchProfiledAudit(project.root)).body.cached, true);
@@ -1155,16 +1143,7 @@ describe("dashboard /api/audit", () => {
         1,
       );
     } finally {
-      if (originalPackagedMode === undefined) {
-        delete process.env.GOAT_FLOW_PACKAGED_MODE;
-      } else {
-        process.env.GOAT_FLOW_PACKAGED_MODE = originalPackagedMode;
-      }
-      if (originalProfileEnv === undefined) {
-        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
-      } else {
-        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
-      }
+      restoreEnv();
       await project.cleanup();
     }
   });
@@ -1246,10 +1225,10 @@ describe("dashboard /api/audit", () => {
 
   it("keeps the dashboard audit cache as a gitignored local artifact", async () => {
     const project = await makeDashboardCacheProject();
-    const originalPackagedMode = process.env.GOAT_FLOW_PACKAGED_MODE;
-    const originalProfileEnv = process.env.GOAT_FLOW_AUDIT_PROFILE;
-    process.env.GOAT_FLOW_PACKAGED_MODE = "1";
-    process.env.GOAT_FLOW_AUDIT_PROFILE = "1";
+    const restoreEnv = setEnv({
+      GOAT_FLOW_PACKAGED_MODE: "1",
+      GOAT_FLOW_AUDIT_PROFILE: "1",
+    });
     try {
       commitDashboardCacheProject(project.root);
 
@@ -1264,16 +1243,7 @@ describe("dashboard /api/audit", () => {
       ]);
       assert.equal(status, "");
     } finally {
-      if (originalPackagedMode === undefined) {
-        delete process.env.GOAT_FLOW_PACKAGED_MODE;
-      } else {
-        process.env.GOAT_FLOW_PACKAGED_MODE = originalPackagedMode;
-      }
-      if (originalProfileEnv === undefined) {
-        delete process.env.GOAT_FLOW_AUDIT_PROFILE;
-      } else {
-        process.env.GOAT_FLOW_AUDIT_PROFILE = originalProfileEnv;
-      }
+      restoreEnv();
       await project.cleanup();
     }
   });

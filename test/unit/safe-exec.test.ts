@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
+import { withEnv } from "../helpers/global-fixtures.js";
+
 import {
   execSafely,
   SafeExecRejection,
@@ -138,27 +140,21 @@ describe("safe-exec/execSafely", () => {
   });
 
   it("does not inherit parent environment variables by default", async () => {
-    const previous = process.env.GOAT_SAFE_EXEC_SECRET;
-    process.env.GOAT_SAFE_EXEC_SECRET = "parent-secret";
-    try {
-      const result = await execSafely({
-        command: "node",
-        args: [
-          "-e",
-          'process.stdout.write(process.env.GOAT_SAFE_EXEC_SECRET ? process.env.GOAT_SAFE_EXEC_SECRET : "missing")',
-        ],
-        cwd: tmpdir(),
-        allowList: ["node"],
-        timeoutMs: 5_000,
-      });
-      assert.equal(result.stdout, "missing");
-    } finally {
-      if (previous === undefined) {
-        delete process.env.GOAT_SAFE_EXEC_SECRET;
-      } else {
-        process.env.GOAT_SAFE_EXEC_SECRET = previous;
-      }
-    }
+    const result = await withEnv(
+      { GOAT_SAFE_EXEC_SECRET: "parent-secret" },
+      () =>
+        execSafely({
+          command: "node",
+          args: [
+            "-e",
+            'process.stdout.write(process.env.GOAT_SAFE_EXEC_SECRET ? process.env.GOAT_SAFE_EXEC_SECRET : "missing")',
+          ],
+          cwd: tmpdir(),
+          allowList: ["node"],
+          timeoutMs: 5_000,
+        }),
+    );
+    assert.equal(result.stdout, "missing");
   });
 
   it("populates commandBasename from the command path", async () => {

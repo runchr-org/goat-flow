@@ -17,72 +17,72 @@ import { createFS } from "../../src/cli/facts/fs.js";
 
 describe("validateProvenance", () => {
   it("accepts a well-formed spec entry", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "spec",
       source_urls: ["https://example.com/spec"],
       verified_on: "2026-04-17",
       normative_level: "MUST",
     };
-    assert.deepEqual(validateProvenance(e), []);
+    assert.deepEqual(validateProvenance(evidence), []);
   });
 
   it("rejects source_type 'unknown' without a reason", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "unknown",
       source_urls: [],
       verified_on: "2026-04-17",
       normative_level: "BEST_PRACTICE",
     };
-    const errs = validateProvenance(e);
+    const errs = validateProvenance(evidence);
     assert.equal(errs.length, 1);
     assert.match(errs[0]!, /unknown.*reason/i);
   });
 
   it("accepts source_type 'unknown' with a non-empty reason", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "unknown",
       source_urls: [],
       verified_on: "2026-04-17",
       normative_level: "BEST_PRACTICE",
       reason: "Pre-dates v1.1.0 cleanup, original evidence not preserved.",
     };
-    assert.deepEqual(validateProvenance(e), []);
+    assert.deepEqual(validateProvenance(evidence), []);
   });
 
   it("rejects unknown with an empty-string reason", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "unknown",
       source_urls: [],
       verified_on: "2026-04-17",
       normative_level: "BEST_PRACTICE",
       reason: "   ",
     };
-    assert.equal(validateProvenance(e).length, 1);
+    assert.equal(validateProvenance(evidence).length, 1);
   });
 
   it("rejects a malformed verified_on date", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "spec",
       source_urls: ["https://example.com"],
       verified_on: "April 17 2026",
       normative_level: "MUST",
     };
-    assert.match(validateProvenance(e)[0]!, /verified_on/);
+    assert.match(validateProvenance(evidence)[0]!, /verified_on/);
   });
 
   it("accepts incident-typed evidence with only evidence_paths", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "incident",
       source_urls: [],
       verified_on: "2026-04-17",
       normative_level: "MUST",
       evidence_paths: [".goat-flow/lessons/verification.md"],
     };
-    assert.deepEqual(validateProvenance(e), []);
+    assert.deepEqual(validateProvenance(evidence), []);
   });
 
   it("accepts evidence split into framework and target path bases", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "incident",
       source_urls: [],
       verified_on: "2026-05-06",
@@ -90,30 +90,30 @@ describe("validateProvenance", () => {
       framework_evidence_paths: [".goat-flow/footguns/auditor.md"],
       target_evidence_paths: ["CLAUDE.md"],
     };
-    assert.deepEqual(validateProvenance(e), []);
+    assert.deepEqual(validateProvenance(evidence), []);
   });
 
   it("rejects non-unknown source_type with neither urls nor evidence_paths", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "spec",
       source_urls: [],
       verified_on: "2026-04-17",
       normative_level: "MUST",
     };
-    const errs = validateProvenance(e);
+    const errs = validateProvenance(evidence);
     assert.ok(errs.length >= 1);
     assert.match(errs[0]!, /source_url|evidence_path/i);
   });
 
   it("rejects missing evidence_paths when a filesystem resolver is provided", () => {
-    const e: CheckEvidence = {
+    const evidence: CheckEvidence = {
       source_type: "incident",
       source_urls: [],
       verified_on: "2026-04-18",
       normative_level: "MUST",
       evidence_paths: ["workflow/setup/definitely-missing.md"],
     };
-    const errs = validateProvenance(e, () => false);
+    const errs = validateProvenance(evidence, () => false);
     assert.ok(errs.some((err) => err.includes("evidence_path does not exist")));
   });
 });

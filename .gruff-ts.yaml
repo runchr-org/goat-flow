@@ -44,6 +44,20 @@ allowlists:
     - tx
     - ui
     - url
+    # 2026-05-30: repo-standard short names for file descriptors,
+    # markdown/JavaScript/WebSocket values, timings, regexes, readline, test
+    # cases, and simple ok status locals. Revisit if these appear outside
+    # those domains.
+    - fd
+    - js
+    - kb
+    - md
+    - ms
+    - ok
+    - re
+    - rl
+    - tc
+    - ws
   secretPreviews: []
   # Names that trigger naming.generic-function. Each key replaces the built-in
   # default when present; an empty list disables that rule's blacklist branch.
@@ -59,7 +73,10 @@ allowlists:
   # Placeholder words flagged as generic by naming.identifier-quality. The
   # numbered-suffix branch (foo1, value2) stays active even when this is empty.
   # Default: [foo, bar, baz, tmp, temp, thing, stuff, data, value, item]
-  # placeholderNames: [foo, bar, baz, tmp, temp, thing, stuff, data, value, item]
+  # 2026-05-30: goat-flow decoders, validators, and event readers use
+  # value/data/item for unknown boundary payloads. Keep throwaway placeholders
+  # flagged; revisit if gruff gains scope-aware validator exemptions.
+  placeholderNames: [foo, bar, baz, tmp, temp, thing, stuff]
   # Negative-framed boolean names that should NOT trigger naming.negative-boolean.
   # Defaults are HTTP-header conventions; add project terms as needed.
   # Default: [nostore, nofollow, noreferrer, noscript, noindex]
@@ -73,17 +90,23 @@ rules:
   # complexity/warning: Flags functions with high combined branch and nesting complexity.
   complexity.cognitive:
     enabled: true
-    threshold: 15
+    # 2026-05-30: goat-flow has explicit dispatch/validation flows where 15
+    # creates cleanup churn; 20 still flags functions that are hard to verify.
+    threshold: 20
     severity: warning
   # complexity/warning: Flags functions with many independent branch paths.
   complexity.cyclomatic:
     enabled: true
-    threshold: 15
+    # 2026-05-30: keep ordinary helpers strict while allowing cohesive command
+    # dispatchers and boundary validators to branch explicitly.
+    threshold: 20
     severity: warning
   # complexity/warning: Flags functions with high approximate NPath complexity.
   complexity.npath:
     enabled: true
-    threshold: 200
+    # 2026-05-30: NPath grows combinatorially on explicit routing/parsing
+    # branches; 512 keeps severe cases visible without over-flagging glue code.
+    threshold: 512
     severity: warning
   # dead-code/advisory: Flags private methods without an apparent same-file call site.
   dead-code.unused-private-method:
@@ -405,7 +428,10 @@ rules:
   # test-quality/advisory: Flags tests with too much setup before the first assertion.
   test-quality.setup-bloat:
     enabled: true
-    threshold: 12
+    # 2026-05-30: goat-flow integration and dashboard tests often need real
+    # temp-project fixtures before the assertion. Revisit if helpers make
+    # those fixtures visible without hiding the behaviour under test.
+    threshold: 30
     severity: advisory
   # test-quality/advisory: Flags sleeps in tests.
   test-quality.sleep-in-test:

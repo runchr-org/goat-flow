@@ -1623,7 +1623,10 @@ describe("audit --harness", () => {
     );
 
     // Concerns should be populated with pass/fail statuses
-    assertExists(report.concerns, "concerns should be populated with --harness");
+    assertExists(
+      report.concerns,
+      "concerns should be populated with --harness",
+    );
     for (const key of [
       "context",
       "constraints",
@@ -2816,7 +2819,10 @@ describe("M01 scoring model", () => {
     const advisory = scope.checks.find(
       (c) => c.id === "deny-blocks-pipe-to-shell",
     )!;
-    assertExists(advisory.failure, "advisory failure should have a failure obj");
+    assertExists(
+      advisory.failure,
+      "advisory failure should have a failure obj",
+    );
     assert.ok(
       advisory.failure.evidence?.includes("Advisory"),
       `evidence should explain advisory framing: ${advisory.failure.evidence}`,

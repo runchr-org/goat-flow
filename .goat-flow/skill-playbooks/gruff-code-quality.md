@@ -5,6 +5,8 @@ goat-flow-reference-version: "1.9.0"
 
 Use this when the user asks to run or fix findings from the gruff static-analysis family: `gruff-go`, `gruff-rs`, `gruff-ts`, `gruff-php`, or `gruff-py`. Gruff is a composite-score code-quality analyzer: it grades quality pillars and emits per-rule findings without executing the code.
 
+**Why gruff exists.** The goal is to force the agent to produce code a human can actually sign off on: legible enough to verify, secure where the eye fails, and tested for real rather than padded with low-signal ceremony. The findings are the lever, not the goal - a doc comment a reviewer can diff against the body, a name that carries intent, a security finding that catches what a reading review misses, a test that asserts behavior instead of just exercising mocks. Each closes the gap between code that *looks* done and code that *is* done; see [`code-comments.md`](./code-comments.md) for the verification-surface principle underneath.
+
 Gruff is not a correctness checker. It does not replace typecheckers, linters, test suites, or maintainer judgment. It also does not know every project convention; a short variable, repeated test setup, or public parameter name may be intentional.
 
 Composite score is a weak cleanup KPI during active work. High-count accepted-debt rules can dominate penalty weight, so report per-rule deltas for APPLY / APPLY-WITH-CHECK clusters instead of treating score movement as proof of progress.
@@ -48,7 +50,7 @@ For Node-installed `gruff-ts`, `npx` is also valid:
 npx gruff-ts --version
 ```
 
-Then confirm the command surface for the specific tool before relying on flags. The examples below were checked against local `gruff-ts` 0.1.1; substitute the target binary and verify the installed tool before assuming another gruff family member supports the same subcommands or flags.
+Then confirm the command surface for the specific tool before relying on flags. The examples below are illustrative; substitute the target binary and verify the installed tool before assuming another gruff family member or release supports the same subcommands or flags.
 
 ```bash
 gruff-ts --help
@@ -460,7 +462,7 @@ Use this shape:
 
 ```text
 Rule cluster fixed:
-- tool: gruff-ts 0.1.1
+- tool: gruff-ts <version>
 - docs.missing-error-behavior-doc: 12 -> 0 on src/payments
 - naming.short-variable: 9 -> 1 on test helpers
 

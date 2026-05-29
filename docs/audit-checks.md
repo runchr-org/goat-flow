@@ -69,7 +69,7 @@ Aggregate-mode nuance:
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
 | Verification | `hooks-registered` | `integrity` | Post-turn hook registrations and on-disk hook files stay in sync |
-| Verification | `commit-guidance` | `advisory` | Commit guidance exists at the canonical `docs/coding-standards/git-commit.md`; legacy `.github/git-commit-instructions.md` is flagged as misplaced |
+| Verification | `commit-guidance` | `advisory` | Commit guidance exists at the canonical `docs/coding-standards/git-commit.md`; old GitHub commit-guidance locations are flagged as misplaced |
 | Verification | `evidence-before-claims` | `metric` | Present instruction files carry the Hallucination red-flags clauses and Rationalisations-to-reject pointer |
 | Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof. Metric failures do not fail the harness scope, but they reduce the concern score. |
 | Recovery | `milestone-tracking` | `integrity` | `.goat-flow/tasks/` exists; task count, checkbox completion, milestone status, and roadmap progress are optional local workflow state |

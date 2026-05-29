@@ -49,7 +49,7 @@ interface JsYamlGlobal {
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 function parseFrontmatter(block: string): Record<string, unknown> | null {
-  const yaml = (window as unknown as { jsyaml?: JsYamlGlobal }).jsyaml;
+  const yaml = (window as { jsyaml?: JsYamlGlobal }).jsyaml;
   if (!yaml) return null;
   const parsed = yaml.load(block);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -62,8 +62,7 @@ function buildRenderer(): (
   text: string,
   opts?: RenderMarkdownOptions,
 ) => RenderMarkdownResult {
-  const md = (window as unknown as { markdownit?: MarkdownItGlobal })
-    .markdownit;
+  const md = (window as { markdownit?: MarkdownItGlobal }).markdownit;
   if (!md) {
     return () => ({
       html: '<pre class="gf-md-error">markdown-it not loaded</pre>',

@@ -13,7 +13,8 @@ import { dirname, join, resolve } from "node:path";
  * A docs path - not a bespoke .github file - because IDEs only auto-read .github/copilot-instructions.md;
  * the instruction file points here, so one doc serves humans and every agent. See ADR-031.
  */
-export const GIT_COMMIT_INSTRUCTIONS_PATH = "docs/coding-standards/git-commit.md";
+export const GIT_COMMIT_INSTRUCTIONS_PATH =
+  "docs/coding-standards/git-commit.md";
 
 type CommitSubjectKind = "conventional" | "ticket-prefixed" | "free-form";
 
