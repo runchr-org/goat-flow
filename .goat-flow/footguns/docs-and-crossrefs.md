@@ -1,7 +1,48 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-29
 ---
+
+## Footgun: Playbooks reference goat-flow repo-internal files absent from consumer installs
+
+**Status:** active | **Created:** 2026-05-29 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A playbook under `workflow/skills/playbooks/` (installed to `.goat-flow/skill-playbooks/` inside consumer projects) cites goat-flow's own repo-internal files - an ADR (`.goat-flow/decisions/ADR-NNN`), CLI source (`check-drift.ts`, `src/cli/...`), a learning-loop file (`.goat-flow/lessons|patterns|footguns`), roadmap jargon (`DESIGN_TARGET`, milestone ids), or a not-yet-existing file ("`conventional-comments.md` (when it exists)"). The reference resolves in this repo but is dead and confusing in a consumer install where those files never ship.
+
+**Why it happens:** Playbooks are dual-purpose - goat-flow's own working docs AND shipped artifacts installed into consumer projects. Anything that resolves in this repo but is not installed becomes a dead reference downstream. Only sibling playbooks (`observability.md`, `code-comments.md`) and the consumer's own instruction files (`CLAUDE.md` / `AGENTS.md` / `.github/copilot-instructions.md`) are present in both contexts. `check-drift.ts` enforces template-vs-installed byte parity but does NOT catch this: a repo-internal reference drifts identically in both copies and passes drift.
+
+**Evidence:** 2026-05-29 portability pass on `workflow/skills/playbooks/code-comments.md` (search: `Related References`) removed an ADR-024 pointer, `check-drift.ts`/`check-goat-flow.ts` source refs, `DESIGN_TARGET` jargon, and a "conventional-comments.md (when it exists)" entry. `workflow/skills/playbooks/gruff-code-quality.md` (search: `Project-specific anti-pattern scans`) had the same class: `.goat-flow/patterns|lessons|footguns` Related-References, a goat-flow-only `node --import tsx src/cli/cli.ts stats --check` gate, and a repo-historical `contract:` marker scan - all genericized or removed.
+
+**Prevention:** Keep playbook rules self-contained; reference only installed siblings (other playbooks) or the consumer's instruction files. Move goat-flow-repo-specific commands, scans, and ADR pointers to goat-flow's own instruction files, not the shipped playbook. Internal milestone files under `.goat-flow/tasks/` are exempt - they are repo-local. Before declaring a playbook done, grep it for `\.goat-flow/(decisions|lessons|patterns|footguns)|src/cli|ADR-|check-(drift|goat-flow)|stats --check|DESIGN_TARGET`.
+
+## Footgun: Flipping a doctrine in one playbook leaves siblings citing the old stance
+
+**Status:** active | **Created:** 2026-05-29 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A policy change in one doc passes its own review, but a sibling playbook or instruction file still encodes - and triages by - the OLD stance. The two cross-reference each other, so they now contradict. A sibling may even quote another file's stance that no longer exists. Structural checks (drift parity, path resolution) stay green because nothing moved or renamed; only the meaning changed.
+
+**Why it happens:** Doctrine lives in prose spread across densely cross-referencing docs. Changing the canonical statement does not update the docs that cite or depend on it, and no structural check compares *meaning*.
+
+**Evidence:** After `code-comments.md` flipped from "default no comments" to mandatory doc comments on every unit (2026-05-29), `gruff-code-quality.md` still triaged `docs.missing-internal-function-doc` as "gold-plating the playbook forbids" per the old "no comment unless WHY" default, and attributed that default to `CLAUDE.md` - which contains no such stance (grep of `CLAUDE.md` / `AGENTS.md` / `.github/copilot-instructions.md` returned zero comment-policy hits). Reconciled at `gruff-code-quality.md` (search: `docs.missing-internal-function-doc under the mandatory-doc rule`).
+
+**Prevention:** When you flip a doctrine, grep sibling playbooks, instruction files, and reference docs for the OLD stance's phrasing AND for any doc that cites the changed file by name; reconcile them in the same change. Grep the ACTUAL old wording, not a guessed token - the first cross-ref pass missed "Default to writing no comments" by grepping for "default-no-comment". Verify cross-file quotes: a doc that says `X says "..."` must actually match X.
+
+## Footgun: Adding an instruction-file section ripples across four section-list sources plus the line target
+
+**Status:** active | **Created:** 2026-05-29 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Adding one `## <Section>` heading to an instruction file (e.g. `## Commit Messages` in the 2026-05-29 commit-doc consolidation) fails seemingly-unrelated contracts: the instruction-parity script reports "canonical H2 order mismatch"; `instruction-quality-guards` fails "all live instruction files are under line_target" (live files cap at 125, hard limit 150); the setup-guide "policy-first order" check fails; the shared-skeleton "names every required hot-path section" check fails; and - if the heading is added to manifest `required_sections` - the harness `instruction-sections-present` check fails every stub instruction fixture that lacks it (`boundaryInstruction` / `completeInstruction`).
+
+**Why it happens:** The canonical instruction-file section set is declared in FOUR places that must agree, and a separate line-count contract caps the same files:
+- `scripts/check-instruction-parity.mjs` (search: `CANONICAL_SECTIONS`) - exact H2-order match across all 7 instruction files (3 live + 4 setup guides).
+- `workflow/manifest.json` (search: `"required_sections"`) - drives the harness `instruction-sections-present` check on EVERY audited project, including test stubs and downstream installs.
+- `test/contract/instruction-quality-guards.test.ts` (search: `CANONICAL_SETUP_SECTIONS`) - exact match for setup guides.
+- `workflow/setup/reference/execution-loop.md` (search: `Required Sections`) - the lettered skeleton each setup guide mirrors; a test asserts it names every section.
+Live instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) also cap at `line_target` 125 (search: `line_target`), so adding a section to an already-full file (they sit at ~124) overflows.
+
+**Evidence:** `scripts/check-instruction-parity.mjs` (search: `"Commit Messages"`), `test/contract/instruction-quality-guards.test.ts` (search: `"Commit Messages"`), and `workflow/setup/reference/execution-loop.md` (search: `e) Commit Messages`) gained the section in lock-step. `workflow/manifest.json` `required_sections` deliberately does NOT list it - adding it there failed `audit-command.test.ts` (search: `boundary guidance when every audited agent`) because the stub instructions lack the heading. Room was reclaimed by condensing the numbered Truth Order to one prose line (search: `User's explicit instruction (this session) >`).
+
+**Prevention:** To add a canonical instruction-file section, update the parity `CANONICAL_SECTIONS`, the test `CANONICAL_SETUP_SECTIONS`, and the skeleton `execution-loop.md` (with re-lettering) together, then add the section to all 7 instruction files. Leave manifest `required_sections` alone unless you also give every stub instruction fixture the heading - enforce instead via parity (own files) and setup templates (downstream). Budget the ~125-line live-file cap by condensing existing content. See ADR-031.
 
 ## Footgun: Agent capability metadata goes stale when upstream docs add hooks
 

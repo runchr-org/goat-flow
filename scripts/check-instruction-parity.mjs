@@ -30,6 +30,7 @@ const CANONICAL_SECTIONS = [
   "Truth Order",
   "Autonomy Tiers",
   "Hard Rules",
+  "Commit Messages",
   "Key Resources",
   "Essential Commands",
   "Execution Loop",

@@ -34,16 +34,20 @@ d) Hard Rules
    - No features, abstractions, or error handling beyond what was asked.
    - Ambiguous requirements: present interpretations; do not pick silently.
 
-e) Key Resources
+e) Commit Messages
+   - Summarise the project's commit conventions: subject format, any branch/issue prefix rule, and the weak-verb ban.
+   - Point to the full reference at `docs/coding-standards/git-commit.md`; the detector seeds that doc from git history (Step 02).
+
+f) Key Resources
    - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`.
    - **Tool playbooks**: `.goat-flow/skill-playbooks/README.md` is the full index (examples: `.goat-flow/skill-playbooks/browser-use.md`, `.goat-flow/skill-playbooks/page-capture.md`) - read BEFORE declaring a tool unavailable.
    - Add only first-action resources here. The Router Table remains exhaustive.
 
-f) Essential Commands
+g) Essential Commands
    - Include exact commands for lint, syntax/type checks, tests, release/preflight checks, and agent hook self-tests.
    - Keep common checks in a short code block; route situational checks to one terse line.
 
-g) Execution Loop: READ -> SCOPE -> ACT -> VERIFY
+h) Execution Loop: READ -> SCOPE -> ACT -> VERIFY
    When a goat-* skill is active, the skill's Step 0 replaces READ and selects the skill's mode/depth. SCOPE still applies before writes: a skill may write when its selected mode permits writes or the user explicitly approves them. `/goat-plan` File-Write may create gitignored milestone files without a separate approval gate; `/goat-debug` D3 still requires approval before fixes. Resume at ACT after Step 0 output or when a blocking gate releases.
    ### READ
    MUST read relevant files before changes. Never fabricate codebase facts. Check browser evidence first for URL, local HTML, localhost, screenshot, rendered UI, or browser-visible behaviour. Use grep-first retrieval across learning-loop dirs; include decisions for architecture, policy, or setup work. Before declaring any tool or capability unavailable, read the matching playbook in `.goat-flow/skill-playbooks/` (e.g. `browser-use.md`, `page-capture.md`) and run that doc's "Availability Check" section verbatim - project-local CLI tools at `~/.local/bin/` are valid; do not conflate "no harness/MCP tool" with "no tool".
@@ -55,13 +59,13 @@ g) Execution Loop: READ -> SCOPE -> ACT -> VERIFY
    Run required checks for changed files. Check cross-references after renames. Tick milestone checkboxes immediately. Do not claim checks passed without the literal pass/fail line from this session. Stop the line when tests break, builds fail, or behaviour regresses.
    If VERIFY caught a failure or you corrected course, update the learning loop before DoD.
 
-h) Definition of Done
+i) Definition of Done
    MUST confirm all six gates: lint/typecheck passes on changed files; no broken cross-references; no unapproved boundary changes; logs updated if tripped; working notes current; grep old pattern after renames.
 
-i) Artifact Routing
+j) Artifact Routing
    Map "add a footgun/lesson/decision/pattern" to `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/decisions/`, or `.goat-flow/patterns/`. These are documentation artifacts, not runtime code. Read the target directory's `README.md` before editing.
 
-j) Router Table
+k) Router Table
    MUST be the final section. Include at minimum:
    - Learning loop dirs (`.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`)
    - Skill reference (meta) (`.goat-flow/skill-reference/`)

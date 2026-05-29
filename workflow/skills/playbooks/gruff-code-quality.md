@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.8.0"
+goat-flow-reference-version: "1.9.0"
 ---
 # Gruff Code Quality
 
@@ -10,6 +10,16 @@ Gruff is not a correctness checker. It does not replace typecheckers, linters, t
 Composite score is a weak cleanup KPI during active work. High-count accepted-debt rules can dominate penalty weight, so report per-rule deltas for APPLY / APPLY-WITH-CHECK clusters instead of treating score movement as proof of progress.
 
 For comment-specific findings, load [`code-comments.md`](./code-comments.md) as the quality bar before editing source comments.
+
+## Gruff at a glance
+
+- **Loop:** measure -> pick one cohesive cluster -> fix the root cause -> rerun gruff on the touched paths -> run the project's normal verify.
+- **The targeted gruff rerun is the reproduction** - never claim a finding fixed from inspection alone.
+- **Fix, don't silence.** Rename, extract, or document to satisfy a finding; never `enabled: false`, and never baseline mid-cleanup.
+- **Triage high-volume rules first** (APPLY / APPLY-WITH-CHECK / CONFIGURE / BASELINE / LARGER-REFACTOR / SKIP-CODEBASE) before editing individual findings.
+- **Doc findings:** load `code-comments.md` as the quality bar - doc comments are mandatory there, so `docs.missing-*` is mostly FIX, not noise.
+- **API safety:** don't rename public/exported names to satisfy a rule; prefer config or accepted debt.
+- Gruff is not a correctness checker - it never replaces typecheck, tests, or judgment.
 
 ## Availability Check
 
@@ -81,10 +91,10 @@ Use the smallest command that answers the current question. Examples use `gruff-
 
 ```bash
 gruff-ts summary
-gruff-ts summary src/cli/audit
-gruff-ts analyse src/cli/audit/render.ts
+gruff-ts summary src/
+gruff-ts analyse src/payments/charge.ts
 gruff-ts analyse --diff working-tree
-gruff-ts analyse --format json src/cli/audit/render.ts
+gruff-ts analyse --format json src/payments/charge.ts
 gruff-ts list-rules
 ```
 
@@ -278,10 +288,10 @@ Gruff documentation rules often need explicit vocabulary near the declaration:
 
 Language conventions matter:
 
-- TypeScript: prefer JSDoc/TSDoc for exported contracts and non-obvious behavior; avoid type-only `@param` boilerplate that duplicates the signature.
+- TypeScript: prefer JSDoc/TSDoc; give every `@param`/`@returns` a real description (not a type-only restatement of the signature), per `code-comments.md`.
 - PHP: PHPDoc tags may be part of local static-analysis and IDE contracts; verify project convention before deleting tags.
-- Go: exported identifiers normally need godoc comments even when the generic project stance is "comment only the non-obvious."
-- Rust: use rustdoc `///` or `//!` for public items and keep parameter facts in the type signature when possible.
+- Go: all identifiers, exported and internal, need godoc comments per `code-comments.md` - not just exported ones.
+- Rust: use rustdoc `///` or `//!` for items (public and internal) and keep parameter facts in the type signature when possible.
 - Python: use PEP 257 docstrings for caller-visible contracts and type hints for type facts.
 
 Bad:
@@ -309,17 +319,15 @@ function collectAuditPaths(paths: string[]): string[] {
 
 Do not add `contract:` prefixes or other marker words as a substitute for meaning. If gruff still reports the comment, improve the comment around the real boundary the rule is asking for.
 
-### docs.missing-internal-function-doc vs the "no comment unless WHY is non-obvious" default
+### docs.missing-internal-function-doc under the mandatory-doc rule
 
-This rule fires on every internal helper that lacks a leading maintainer comment. On a real codebase that follows the default in [`code-comments.md`](./code-comments.md) and CLAUDE.md ("Default to writing no comments. Only add one when the WHY is non-obvious"), the rule produces hundreds of findings on short, name-clear helpers - and "satisfying" each one by adding a docstring is gold-plating that the playbook explicitly forbids.
+This rule fires on every internal helper that lacks a leading maintainer comment. Under [`code-comments.md`](./code-comments.md)'s mandatory-doc rule - every function/method carries a doc comment - these findings are mostly genuine, not noise: the helper is missing a contract it is required to have. Default response is FIX, not suppress.
 
-Triage `docs.missing-internal-function-doc` in three buckets:
+Triage `docs.missing-internal-function-doc`:
 
-1. **FIX (high-signal subset)** - the internal helper hides a non-obvious WHY: a tradeoff, a workaround, a threshold rationale, a side effect, or a contract that callers must respect. Add a single-line WHY comment following `code-comments.md`. These are the genuine misses the rule catches.
-2. **RENAME (most cases)** - the function name doesn't carry intent. `phaseFor` is clear; `processItem` is not. Renaming usually removes both the gruff finding and the maintainer burden, and is the preferred response per the "Rewrite First" ladder.
-3. **TUNE / BASELINE (the long tail)** - 2-3 line helpers whose name already states intent (`isFenceLine`, `displayFor`, `pushUniquePath`). The rule has no `optionKeys` to skip short or name-clear helpers, so the only honest option that respects `feedback_gruff_never_disable.md` is to baseline these with a per-cluster rationale - **never** `enabled: false`. Capture the project policy in a `.goat-flow/lessons/` entry naming the convention so a future agent doesn't try to satisfy each finding individually.
-
-Upstream: this rule would benefit from `excludeWhenLinesUnder: N` and `excludeWhenNameMatches: <pattern>` options. Track that ask wherever the project files gruff-ts feedback.
+1. **FIX (default)** - add the doc comment `code-comments.md` requires. A trivial, name-clear helper gets a single tight contract line; a helper hiding a non-obvious WHY (tradeoff, workaround, threshold rationale, side effect, caller obligation) gets that orientation too. Both satisfy the rule.
+2. **RENAME first where it helps** - a better name (`phaseFor` over `processItem`) makes the required doc comment shorter, per the "Rewrite First" ladder. Renaming does not remove the requirement: the mandate stands regardless of name clarity.
+3. **Never baseline `docs.missing-*` as accepted noise** - under the mandate there is no name-clear-helper tail to write off; those get a one-line doc comment too. Do not set `enabled: false`, and do not baseline these away to dodge the work - satisfy them.
 
 ## Naming Findings
 
@@ -441,7 +449,7 @@ Use this shape:
 ```text
 Rule cluster fixed:
 - tool: gruff-ts 0.1.1
-- docs.missing-error-behavior-doc: 12 -> 0 on src/cli/server
+- docs.missing-error-behavior-doc: 12 -> 0 on src/payments
 - naming.short-variable: 9 -> 1 on test helpers
 
 Remaining accepted/larger-refactor:
@@ -478,17 +486,7 @@ Before claiming gruff work is done, show current-session evidence for the univer
 - Lint or formatter checks when code style changed.
 - Existing project linter configs checked before overriding gruff findings; when project lint explicitly allows a pattern, decide CONFIGURE/SKIP-CODEBASE rather than churn.
 
-Project-specific anti-pattern scans may also apply. In goat-flow, scan for the historical low-value `contract:` comment marker across TypeScript, Markdown, shell, and agent files:
-
-```bash
-rg -n '^\s*(?://|/\*+|\*|#)\s*contract:\s' src test .goat-flow workflow
-```
-
-For goat-flow itself, also run learning-loop stats after adding lessons, footguns, patterns, or decisions:
-
-```bash
-node --import tsx src/cli/cli.ts stats --check
-```
+Project-specific anti-pattern scans may also apply: run any comment-marker scans, learning-loop, or housekeeping checks your project defines after the fix, so analyzer-driven edits don't reintroduce a banned pattern.
 
 ## Troubleshooting
 
@@ -504,6 +502,3 @@ node --import tsx src/cli/cli.ts stats --check
 
 - [`code-comments.md`](./code-comments.md) - comment quality bar for documentation findings.
 - [`observability.md`](./observability.md) - logging, metrics, and span guidance when a gruff fix touches instrumentation.
-- `.goat-flow/patterns/workflow.md` (search: `Gruff docs cleanup is a tight analyzer loop`) - project-local pattern from previous gruff cleanup work.
-- `.goat-flow/lessons/verification.md` (search: `Gruff comment fixes must satisfy both humans and the analyzer`) - project-local lesson on analyzer wording and verification.
-- `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Adding a skill-playbook requires lock-step updates`) - maintainer note for editing this playbook without drifting its mirrors and audit surfaces.

@@ -35,15 +35,7 @@ Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `
 
 ## Commit Messages
 
-Conventional format: `type(scope): subject` - lowercase, imperative, ≤72 chars, no trailing
-period; one observable change per subject, one scope per commit. **Read the branch first**: on a
-`feat/<digits>` branch the subject MUST start with `#<digits> ` (e.g.
-`#123 feat(audit): add drift cache`), taken from the branch name only; otherwise no `#` prefix.
-
-**Avoid weak verbs that paraphrase the diff** (*enhance, improve, streamline, clarify, update,
-tweak*); use concrete verbs (*add, remove, replace, rename, fix, deny, gate, harden, cache*). Add a
-body naming the *why* when the subject spans more than one axis or has a non-obvious motivation.
-Full rules, `type` table, and bad→good rewrites: `docs/coding-standards/git-commit.md`.
+Conventional `type(scope): subject` - imperative, ≤72 chars, concrete verbs not weak ones (*enhance, improve, update*); one change per subject. On a `feat/<digits>` branch the subject starts `#<digits> ` (e.g. `#123 feat(audit): add drift cache`), from the branch name only; otherwise no prefix. Full rules + bad→good rewrites: `docs/coding-standards/git-commit.md`.
 
 ## Key Resources
 

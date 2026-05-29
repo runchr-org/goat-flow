@@ -29,6 +29,13 @@
 - Use `apply_patch` for edits in Codex guidance, not Edit/Write tool prose.
 - goat-flow does not use Codex compaction hooks for recovery; continuity stays file-based through tasks and session logs.
 
+## Commit Messages
+
+Summarise the target project's commit conventions here - subject format, any branch/issue prefix
+rule, and the weak-verb ban - then point to the full reference at `docs/coding-standards/git-commit.md`.
+Keep it to a few lines: the detector seeds that doc from git history (Step 02) and the full rules
+live there, not inline.
+
 ## Key Resources
 
 - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`

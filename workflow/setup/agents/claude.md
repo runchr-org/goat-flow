@@ -27,6 +27,13 @@
 - If the project uses a formatter, ignore `.goat-flow/**/*.md` and verify YAML examples keep `---` delimiters.
 - Ambiguous existing instruction content: preserve first, ask before deleting.
 
+## Commit Messages
+
+Summarise the target project's commit conventions here - subject format, any branch/issue prefix
+rule, and the weak-verb ban - then point to the full reference at `docs/coding-standards/git-commit.md`.
+Keep it to a few lines: the detector seeds that doc from git history (Step 02) and the full rules
+live there, not inline.
+
 ## Key Resources
 
 - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`

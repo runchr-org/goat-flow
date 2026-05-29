@@ -28,6 +28,13 @@
 - Keep a single Copilot hook config file at `.github/hooks/hooks.json`; do not split one file per event.
 - Do not create `.github/agents/` unless a future concrete gap justifies it.
 
+## Commit Messages
+
+Summarise the target project's commit conventions here - subject format, any branch/issue prefix
+rule, and the weak-verb ban - then point to the full reference at `docs/coding-standards/git-commit.md`.
+Keep it to a few lines: the detector seeds that doc from git history (Step 02) and the full rules
+live there, not inline.
+
 ## Key Resources
 
 - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`

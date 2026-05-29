@@ -16,19 +16,31 @@ This is a discipline reference, not a runnable tool. Load it when:
 - Authoring a TODO / FIXME / HACK marker.
 - Reviewing a diff that adds or changes comments.
 
-Enforcement is two-layered: a static analyzer (`check-goat-flow.ts`) checks the mechanical rules (marker date format, suppression rationale present, doc-comment present, line width), and an LLM-judge scores the semantic WHY-not-WHAT calls against the Verification Gate at review time.
+Enforcement is partial. Where the gruff analyzer is installed (see `gruff-code-quality.md`) it flags some of the `[static]` items - notably missing doc comments, as `docs.missing-*` findings - but it isn't on every project and doesn't cover the `[judge]` semantic checks. So verify at review time against the Verification Gate below: the gate is the spec, gruff enforces the mechanical slice it can, and a reviewer or review-judge owns the rest. Don't claim more enforcement than the project actually runs.
 
 ## Intent
 
-When a human maintainer opens a file you wrote, what helps them follow the code? That's the only question this playbook answers.
+You are a coding agent, and a human who didn't write this code has to read, review, and trust it. This playbook optimises for that - governing AI-generated code so a reviewer can verify it does what was asked - not for minimal human-authored documentation. Your job is to write comments that let that reviewer follow the code and check your intent against your implementation. When a rule here is stricter than a hand-written codebase would need (mandatory doc comments on every unit, the verification gate), that goal is why.
 
 The project default is: no INLINE comment unless the WHY is non-obvious. Most "explanatory" inline comments are restating what the code already says, or recording details that will rot the moment the surrounding code shifts. Doc comments on functions/methods and classes/files are the standing exception - those are always written; see "Docstring vs Inline".
 
-For inline comments, this playbook covers what to do when the WHY *is* non-obvious - how to write the small number that earn their place, and how to recognise the much larger number that don't. (Doc comments are governed separately and are mandatory - see "Docstring vs Inline".) Audience is coding agents; customer is the human who has to follow and extend the code six months later.
+For inline comments, this playbook covers what to do when the WHY *is* non-obvious - how to write the small number that earn their place, and how to recognise the much larger number that don't.
 
 If uncertain whether an *inline* comment materially helps the next maintainer, omit it - slightly under-commented code is easier to work with than narrated code. This omit-by-default applies to inline comments only; doc comments are required regardless.
 
 If a comment no longer matches the code, delete or rewrite it immediately. An incorrect comment is worse than a missing one - the next reader will trust it and act on it.
+
+## Rules at a glance
+
+Apply these directly; the sections below give the examples and rationale.
+
+- **Doc comment REQUIRED** on every function/method and class/file: contract + orientation, 1-5 lines for a function, 3-10 for a class/file, blank ` *` line before the tags.
+- **Inline comment ONLY for** a hidden constraint, subtle invariant, workaround, or surprising behaviour - otherwise rewrite (rename / extract / simplify) or omit.
+- **Prefer a test or assertion** over a comment when it can carry the invariant (the Enforce rung).
+- **Tags:** `@param name - description` / `@returns value - description` - real descriptions, never restated types.
+- **Wrap ~110 chars** (hard max 120); **`YYYY-MM-DD`** date or a trigger on every TODO / FIXME / HACK.
+- **Never:** markdown/emoji, commented-out code, secrets/PII/hostnames, or position/line-number references.
+- **Why it's strict:** the comment is a verification surface - state intent so a reviewer can diff it against the code.
 
 ## Rewrite First
 
@@ -95,7 +107,7 @@ Good (same code, comment names what the reader can't see):
 for (const user of users) sendEmail(user);
 ```
 
-The first restates the loop. The second names a constraint visible nowhere in the code.
+The second names a constraint visible nowhere in the code.
 
 A useful shape for the WHY: **Because [constraint], we do [choice]; prevents [failure], removable when [condition].** Not every comment needs all four clauses, but the strongest ones name the constraint and the failure they prevent.
 
@@ -104,6 +116,22 @@ Rank the WHY by how hard it is to recover. **Business, domain, legal, compliance
 ## Docstring vs Inline
 
 The default-no-comment stance governs INLINE comments. Doc comments are the standing exception: every function/method and every class/file carries one. They are mandatory, not earn-their-place - the orientation they give is how a maintainer understands a unit without reading its whole body. Size the description block to what it documents: 1-5 lines for a function/method, 3-10 lines for a class/file (which carries more - its role in the system, when to use it, and the broader context). Trivial units (obvious getters, one-line pure helpers) still get a doc comment - keep it to a single tight line stating the contract; the mandate is to always orient, not to pad.
+
+Why mandatory, even on a private one-liner: a doc comment is not only documentation, it is a verification surface. Coding agents routinely produce code that superficially works while misunderstanding the requirement. Forcing the agent to state intent, usage, contract, and failure behaviour in prose gives a reviewer something to check the implementation against - a mismatch between the doc comment and the code is a signal the change needs a deeper look. That is why the rule is strict, and why "keep it tight" is the tension-breaker, not an exemption: a private helper gets a one-line contract (orientation), never a padded block.
+
+What this looks like when it fires:
+```ts
+/**
+ * Returns the user's active subscriptions, sorted by renewal date (soonest first).
+ *
+ * @param userId - account to look up
+ * @returns active subscriptions; empty array when the user has none
+ */
+function activeSubscriptions(userId: string): Subscription[] {
+  return subs.filter(s => s.userId === userId && s.status === "active");
+}
+```
+The doc comment promises a sort by renewal date; the code never sorts. That mismatch is the catch - either the requirement included ordering and the implementation is wrong, or the comment overstates the contract, and either way it is the signal to review before merging. A reviewer reading only the code might assume order wasn't required; the doc comment is what makes the gap visible. That is the verification surface doing its job, and it is why the comment has to state intent even when the code "looks done".
 
 A doc comment does two jobs - state the contract and orient the reader:
 
@@ -123,7 +151,11 @@ Wrap every comment line - doc or inline - at about 110 characters. Padding to 50
 Docstring:
 ```python
 def parse_iso_date(value: str) -> date:
-    """Parse an ISO 8601 date. Raises ValueError on malformed input."""
+    """Parse a date-only ISO 8601 string (`YYYY-MM-DD`) from trusted internal input.
+
+    Raises ValueError on anything it can't parse - callers treat that as a hard
+    input error, not a missing value. Not a general datetime parser.
+    """
     return date.fromisoformat(value)
 ```
 
@@ -177,7 +209,7 @@ Good:
 parsed = datetime.strptime(value, "%Y-%m-%d")
 ```
 
-The bad one restates `strptime`. The good one names the upstream contract.
+The good one names the upstream contract the code can't encode.
 
 ### Subtle invariant
 
@@ -197,7 +229,7 @@ def median_response_time(samples: list[float]) -> float:
     return samples[len(samples) // 2]
 ```
 
-The bad one paraphrases the index expression. The good one names the load-bearing assumption the signature doesn't show. An assertion would be more durable than prose (the Enforce rung) - but here `assert samples == sorted(samples)` would re-sort and defeat the very hot-path point the comment makes, so the comment is the right tool. Reach for Enforce only when the check is affordable.
+The good one names the load-bearing assumption the signature doesn't show. An assertion would be more durable than prose (the Enforce rung) - but here `assert samples == sorted(samples)` would re-sort and defeat the very hot-path point the comment makes, so the comment is the right tool. Reach for Enforce only when the check is affordable.
 
 ### Workaround
 
@@ -216,7 +248,7 @@ Good:
 await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 ```
 
-The bad one says nothing. The good one names the cause and the removal condition.
+The good one names the cause and the removal condition.
 
 ### Surprising behaviour
 
@@ -235,7 +267,7 @@ Good:
 normalizeInPlace(buffer);
 ```
 
-The bad one is decoration. The good one tells the next reader "this looks wrong, but here's why it's intentional" - defending the code against a well-meaning later refactor.
+The good one tells the next reader "this looks wrong, but here's why it's intentional" - defending the code against a well-meaning later refactor.
 
 ## TODO / FIXME / HACK Markers
 
@@ -261,7 +293,7 @@ The next reader can't use these. Don't write them; if you see them while you're 
 - **Tombstones.** `// removed the old caching layer.` The diff records the removal; the comment confuses the next reader.
 - **Archaeological comments.** `// legacy.` `// temporary.` `// migrated from X.` `// new implementation.` Six months on, nobody knows what "new" meant. Explain the current constraint, not the history.
 - **Position references.** `// see function below.` `// the loop above handles X.` Lines and order shift; the reference rots. Refer by symbol name.
-- **Line-number references.** Same rot mechanism. See ADR-024 in the local `.goat-flow/decisions/` directory.
+- **Line-number references.** Same rot mechanism - line numbers shift on every edit. Refer by symbol name.
 - **Suppression markers without rationale.** `// eslint-disable-next-line` alone is noise. The rule is the rationale, not the suppression.
 - **Ephemeral task / PR / issue references.** `// fixed in PR #234.` PR numbers age out of useful context. If the link matters, it belongs in the commit message.
 - **Markdown or emoji.** No bold, headers, bullet glyphs, or emoji in code comments - plain prose only. They render as noise in source.
@@ -292,7 +324,7 @@ The WHEN and WHY rules above are portable across languages. Core SYNTAX is not -
 
 - **TypeScript / JavaScript.** JSDoc when documenting contracts; plain `//` inline.
 - **Python.** PEP 257 for docstrings; `#` inline.
-- **Go.** godoc syntax for all identifiers, exported AND private; `//` inline. Go's culture documents only exported names - but gate item 6 mandates a doc comment on every unit, so apply this playbook's broader rule, not Go's default.
+- **Go.** godoc syntax for all identifiers, exported AND private; `//` inline. Go's culture documents only exported names - but this playbook's doc-comment mandate ("Docstring vs Inline") requires one on every unit, so apply the broader rule, not Go's default.
 - **Rust.** rustdoc (`///` and `//!` are doc comments) for all items, public AND private; `//` inline.
 - **Shell.** `#` only. No standardised docstring; put contract details in a heredoc help block at the top of the script.
 
@@ -324,21 +356,19 @@ If you find any of these in existing comments while editing, redact - don't leav
 
 ## Verification Gate
 
-Before claiming a code change is done, walk the new and changed comments against these checks:
+Before claiming a code change is done, walk the new and changed comments against these checks. Each is tagged by the enforcement layer that owns it: **[static]** = mechanical, checkable by a linter; **[judge]** = semantic, for a review-judge or a human reviewer.
 
-1. **Each INLINE comment satisfies one of the four valid reasons** (hidden constraint, subtle invariant, workaround, surprising behaviour). If you can't name which, delete the comment. Doc comments on functions/methods and classes/files are required regardless - this check is for inline comments only.
-2. **Each comment would survive renaming a variable or reordering functions** in the surrounding code. If a refactor would invalidate it, the content belongs in code, not prose.
-3. **Each TODO / FIXME / HACK marker carries an expiry** (date or trigger) and an issue link when one exists. Bare markers are future bugs.
-4. **No comment contains secrets, customer identifiers, internal URLs, or production hostnames.** Comments ship with the code.
-5. **Existing comments edited or left untouched are still accurate.** A stale comment from before your edit is now your responsibility if you noticed it.
-6. **Every function/method and class/file carries a doc comment** with orientation (when-to-use, big-picture fit, null/edge context, footguns) and a real description for each parameter and return, with a blank doc-comment line separating the description block from the tags. The description block runs 1-5 lines for a function/method and 3-10 lines for a class/file. This is required regardless of the four-reasons check in item 1, which governs inline comments only.
-7. **Each comment line wraps at about 110 characters** - not padded short to 50-70, and not run past 120.
+1. **[judge] Each INLINE comment satisfies one of the four valid reasons** (hidden constraint, subtle invariant, workaround, surprising behaviour), and when it states a WHY it prefers business/domain/legal/vendor rationale over pure implementation rationale a reader could reconstruct. If you can't name a reason, delete the comment. Doc comments on functions/methods and classes/files are required regardless - this check is for inline comments only.
+2. **[judge] Each comment would survive renaming a variable or reordering functions** in the surrounding code (the Half-Life Test). If a refactor would invalidate it, the content belongs in code, not prose.
+3. **[static] Each TODO / FIXME / HACK marker carries an expiry** (a `YYYY-MM-DD` date or a trigger) and an issue link when one exists. Bare markers are future bugs.
+4. **[static] No comment contains secrets, internal URLs, or production hostnames** (pattern-matchable); customer/patient identifiers may need **[judge]**. Comments ship with the code.
+5. **[judge] Existing comments edited or left untouched are still accurate.** A stale comment from before your edit is now your responsibility if you noticed it.
+6. **[static] presence + [judge] quality: Every function/method and class/file carries a doc comment** - presence, the blank separator line, and the 1-5 (function) / 3-10 (class/file) line counts are mechanical; whether the orientation (when-to-use, big-picture fit, null/edge context, footguns) and the per-parameter/return descriptions are *real* and not restated types is semantic. Required regardless of the inline four-reasons check, which governs inline comments only.
+7. **[static] Each comment line wraps at about 110 characters** - not padded short to 50-70, and not run past 120.
 
-If a comment fails any of these, fix it before merging.
+If a comment fails any of these, fix it before merging. This gate is the spec for the two enforcement layers: the **[static]** items map to a linter, the **[judge]** items to a review-judge - keep the tags accurate so the boundary stays clear if those checks are built.
 
 ## Related References
 
-- `observability.md` - sibling discipline playbook; same documentary structure.
-- `.goat-flow/decisions/ADR-024-semantic-anchors-over-line-numbers.md` - the durability principle (line numbers and ephemeral positions rot) applies to comments too.
-- Project instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) - may declare a comment-policy section that points here as the canonical source. This playbook expands on whatever default the project's instruction file sets.
-- `conventional-comments.md` (when it exists) - review-comment taxonomy for PR threads. Different audience, different surface; do not confuse with this playbook, which is about comments inside source files.
+- `observability.md` - sibling discipline playbook installed alongside this one; shares the scaffold (Availability Check, Anti-patterns, Verification Gate, Related References) with a topic-specific body.
+- Your project's instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) - may declare a comment-policy section that points here as the canonical source. This playbook expands on whatever default they set.

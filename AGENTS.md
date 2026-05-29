@@ -7,10 +7,7 @@ This repo is the goat-flow controlling workspace. When the dashboard or CLI oper
 
 ## Truth Order
 
-1. User's explicit instruction (this session)
-2. Instruction file (AGENTS.md)
-3. Architecture (.goat-flow/architecture.md)
-4. Skills / templates (on-demand context)
+User's explicit instruction (this session) > AGENTS.md > `.goat-flow/architecture.md` > skills / templates (on-demand).
 
 ## Autonomy Tiers
 
@@ -33,6 +30,10 @@ Boundaries: instruction files (`AGENTS.md`, `CLAUDE.md`, `.github/copilot-instru
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 - No features, abstractions, or error handling beyond what was asked. Gold-plating is scope creep.
 - Ambiguous requirements: present interpretations, don't pick silently.
+
+## Commit Messages
+
+Conventional `type(scope): subject` - imperative, ≤72 chars, concrete verbs not weak ones (*enhance, improve, update*); one change per subject. On a `feat/<digits>` branch the subject starts `#<digits> ` (e.g. `#123 feat(audit): add drift cache`), from the branch name only; otherwise no prefix. Full rules + bad→good rewrites: `docs/coding-standards/git-commit.md`.
 
 ## Key Resources
 
