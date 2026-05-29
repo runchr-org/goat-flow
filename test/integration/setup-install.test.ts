@@ -265,7 +265,7 @@ describe("setup --apply installer", () => {
       assert.equal(result.status, 0, result.stderr || result.stdout);
 
       const guidance = readFileSync(
-        join(root, ".github", "git-commit-instructions.md"),
+        join(root, "docs", "coding-standards", "git-commit.md"),
         "utf-8",
       );
       assert.match(guidance, /generated from recent git history/);

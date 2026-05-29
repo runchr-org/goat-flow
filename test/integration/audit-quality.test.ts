@@ -118,13 +118,13 @@ describe("commit-guidance harness check", () => {
     (c) => c.id === "commit-guidance",
   );
 
-  it("passes when commit guidance is in the .github canonical path", () => {
+  it("passes when commit guidance is in the docs canonical path", () => {
     assert.ok(commitGuidanceCheck, "commit-guidance check must exist");
     const shared = makeSharedFacts();
     shared.gitCommitInstructions = {
       exists: true,
-      path: ".github/git-commit-instructions.md",
-      requiredPath: ".github/git-commit-instructions.md",
+      path: "docs/coding-standards/git-commit.md",
+      requiredPath: "docs/coding-standards/git-commit.md",
       misplacedPaths: [],
     };
 
@@ -140,18 +140,18 @@ describe("commit-guidance harness check", () => {
     assert.equal(result.status, "pass");
     assert.match(
       result.findings.join("\n"),
-      /\.github\/git-commit-instructions\.md/,
+      /docs\/coding-standards\/git-commit\.md/,
     );
   });
 
-  it("fails when a .github project keeps commit guidance only in docs", () => {
+  it("fails when commit guidance is only in a legacy .github location", () => {
     assert.ok(commitGuidanceCheck, "commit-guidance check must exist");
     const shared = makeSharedFacts();
     shared.gitCommitInstructions = {
       exists: false,
       path: null,
-      requiredPath: ".github/git-commit-instructions.md",
-      misplacedPaths: ["docs/coding-standards/git-commit.md"],
+      requiredPath: "docs/coding-standards/git-commit.md",
+      misplacedPaths: [".github/git-commit-instructions.md"],
     };
 
     const result = commitGuidanceCheck.run(
@@ -166,11 +166,11 @@ describe("commit-guidance harness check", () => {
     assert.equal(result.status, "fail");
     assert.match(
       result.findings.join("\n"),
-      /belongs at \.github\/git-commit-instructions\.md/,
+      /belongs at docs\/coding-standards\/git-commit\.md/,
     );
     assert.match(
       result.howToFix?.join("\n") ?? "",
-      /docs\/coding-standards\/git-commit\.md/,
+      /\.github\/git-commit-instructions\.md/,
     );
   });
 });

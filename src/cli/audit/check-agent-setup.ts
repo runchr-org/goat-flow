@@ -134,26 +134,44 @@ function checkSelectedInstructionAvailable(
   };
 }
 
-/** Check whether Copilot's required commit instruction bridge is installed. */
+/**
+ * Check whether the Copilot instruction file bridges to the canonical commit guide.
+ *
+ * IDEs (VS Code, JetBrains) auto-read .github/copilot-instructions.md but not
+ * docs/coding-standards/git-commit.md, so commit conventions only reach Copilot when the auto-read
+ * instruction file references the canonical doc. Returns null - no failure - when the .github/ dir
+ * is absent, when Copilot is not a configured agent in aggregate mode (a Claude/Codex project that
+ * happens to ship GitHub config must not be forced to add it), when the Copilot instruction file
+ * itself is missing (the broader instruction-file check owns that failure), or when the reference
+ * is already present.
+ *
+ * @param ctx - Audit context exposing the read-only filesystem, agent filter, and resolved structure.
+ * @returns An AuditFailure when the instruction file omits the commit-guide reference, otherwise null.
+ */
 function checkCopilotCommitInstructionsPresent(
   ctx: AuditContext,
 ): AuditFailure | null {
   if (ctx.agentFilter !== null && ctx.agentFilter !== "copilot") return null;
   if (!ctx.fs.exists(".github")) return null;
+  if (
+    ctx.agentFilter !== "copilot" &&
+    ctx.structure.agents.copilot === undefined
+  ) {
+    return null;
+  }
   const copilotInstruction =
     ctx.structure.agents.copilot?.instruction_file ??
     ".github/copilot-instructions.md";
-  if (ctx.agentFilter === null && !ctx.fs.exists(copilotInstruction)) {
+  if (!ctx.fs.exists(copilotInstruction)) return null;
+  const commitGuide = "docs/coding-standards/git-commit.md";
+  if ((ctx.fs.readFile(copilotInstruction) ?? "").includes(commitGuide)) {
     return null;
   }
-  if (ctx.fs.exists(".github/git-commit-instructions.md")) return null;
   return {
     check: "Agent instruction file",
-    message:
-      "Missing: copilot (.github/git-commit-instructions.md required when .github/ exists)",
-    evidence: ".github/git-commit-instructions.md",
-    howToFix:
-      "Create .github/git-commit-instructions.md with the project's commit rules, then rerun `goat-flow audit --agent copilot`.",
+    message: `Missing: copilot (${copilotInstruction} must reference ${commitGuide})`,
+    evidence: copilotInstruction,
+    howToFix: `Add a ## Commit Messages section to ${copilotInstruction} that references ${commitGuide}, then rerun \`goat-flow audit --agent copilot\`.`,
   };
 }
 
@@ -202,12 +220,12 @@ function agentInstructionProvenance(
   if (profile?.instruction_file) paths.push(profile.instruction_file);
   if (
     agentId === "copilot" ||
-    failure?.evidence === ".github/git-commit-instructions.md"
+    failure?.evidence === ".github/copilot-instructions.md"
   ) {
     paths.push(
       "workflow/setup/agents/copilot.md",
       ".github/copilot-instructions.md",
-      ".github/git-commit-instructions.md",
+      "docs/coding-standards/git-commit.md",
     );
   }
   return specProvenance(uniquePaths(paths));

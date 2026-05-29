@@ -19,6 +19,15 @@ export interface AgentHookReadState {
 
 type JsonObject = Record<string, unknown>;
 
+/**
+ * Type guard for a JSON object - the only shape we can safely read keyed properties off. Excludes the two
+ * `typeof x === "object"` footguns, `null` and arrays, so callers can treat untrusted `JSON.parse` output
+ * as a record without crashing on `null.foo` or silently mis-reading an array as a map. Centralised because
+ * the writer parses pre-existing agent config files that may legally contain any JSON value.
+ *
+ * @param value - parsed JSON of unknown shape (e.g. JSON.parse output) to test
+ * @returns true - when value is a non-null, non-array object, narrowed to JsonObject
+ */
 function isObject(value: unknown): value is JsonObject {
   return (
     value !== null &&

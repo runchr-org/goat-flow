@@ -160,8 +160,8 @@ describe("evidence-before-claims harness metric", () => {
             ...baseFacts.shared,
             gitCommitInstructions: {
               exists: true,
-              path: ".github/git-commit-instructions.md",
-              requiredPath: ".github/git-commit-instructions.md",
+              path: "docs/coding-standards/git-commit.md",
+              requiredPath: "docs/coding-standards/git-commit.md",
               misplacedPaths: [],
             },
           },

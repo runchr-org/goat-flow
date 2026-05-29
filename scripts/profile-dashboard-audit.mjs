@@ -316,10 +316,11 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
     mkdirSync(join(root, ".github", "skills", "goat"), { recursive: true });
     writeFileSync(
       join(root, ".github", "copilot-instructions.md"),
-      "# Copilot Instructions\n\nSynthetic.\n",
+      "# Copilot Instructions\n\nSynthetic. Commit rules: `docs/coding-standards/git-commit.md`.\n",
     );
+    mkdirSync(join(root, "docs", "coding-standards"), { recursive: true });
     writeFileSync(
-      join(root, ".github", "git-commit-instructions.md"),
+      join(root, "docs", "coding-standards", "git-commit.md"),
       "# Git Commit Instructions\n\nSynthetic.\n",
     );
     writeFileSync(

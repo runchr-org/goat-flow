@@ -380,7 +380,7 @@ function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
         gitCommitInstructions: {
           exists: false,
           path: null,
-          requiredPath: ".github/git-commit-instructions.md",
+          requiredPath: "docs/coding-standards/git-commit.md",
           misplacedPaths: [],
         },
         localInstructionsLineCount: 0,
@@ -945,7 +945,7 @@ describe("copilot install requires GitHub commit instructions", () => {
       );
       assert.ok(
         !result.provenance.evidence_paths?.includes(
-          ".github/git-commit-instructions.md",
+          "docs/coding-standards/git-commit.md",
         ),
       );
     }
@@ -968,28 +968,30 @@ describe("copilot install requires GitHub commit instructions", () => {
     );
     assert.ok(
       result.provenance.evidence_paths?.includes(
-        ".github/git-commit-instructions.md",
+        "docs/coding-standards/git-commit.md",
       ),
     );
   });
 
-  it("agent-instruction fails when .github exists without .github/git-commit-instructions.md", () => {
+  it("agent-instruction fails when copilot-instructions.md omits the commit-guide reference", () => {
     const check = BUILD_CHECKS.find((c) => c.id === "agent-instruction")!;
     const result = check.run(
       makeCtx({
         agentFilter: "copilot",
         agents: [stubAgentFacts({ agent: PROFILES.copilot })],
         fs: stubFS({
-          exists: (path: string) =>
-            path !== ".github/git-commit-instructions.md",
+          readFile: () => "# Copilot Instructions\n(no commit reference)\n",
         }),
       }),
     );
 
     assertExists(result);
     assert.equal(result.check, "Agent instruction file");
-    assert.equal(result.evidence, ".github/git-commit-instructions.md");
-    assert.match(result.message, /required when \.github\/ exists/);
+    assert.equal(result.evidence, ".github/copilot-instructions.md");
+    assert.match(
+      result.message,
+      /must reference docs\/coding-standards\/git-commit\.md/,
+    );
   });
 
   it("agent-instruction does not require the bridge when .github is absent", () => {
@@ -999,8 +1001,7 @@ describe("copilot install requires GitHub commit instructions", () => {
         agentFilter: "copilot",
         agents: [stubAgentFacts({ agent: PROFILES.copilot })],
         fs: stubFS({
-          exists: (path: string) =>
-            path !== ".github" && path !== ".github/git-commit-instructions.md",
+          exists: (path: string) => path !== ".github",
         }),
       }),
     );
@@ -1024,14 +1025,13 @@ describe("copilot install requires GitHub commit instructions", () => {
           },
         },
         fs: stubFS({
-          exists: (path: string) =>
-            path !== ".github/git-commit-instructions.md",
+          readFile: () => "# Copilot Instructions\n(no commit reference)\n",
         }),
       }),
     );
 
     assertExists(result);
-    assert.equal(result.evidence, ".github/git-commit-instructions.md");
+    assert.equal(result.evidence, ".github/copilot-instructions.md");
   });
 });
 
@@ -2610,8 +2610,8 @@ describe("M01 scoring model", () => {
           ...baseFacts.shared,
           gitCommitInstructions: {
             exists: true,
-            path: ".github/git-commit-instructions.md",
-            requiredPath: ".github/git-commit-instructions.md",
+            path: "docs/coding-standards/git-commit.md",
+            requiredPath: "docs/coding-standards/git-commit.md",
             misplacedPaths: [],
           },
         },

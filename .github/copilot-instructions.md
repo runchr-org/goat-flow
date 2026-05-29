@@ -28,9 +28,22 @@ Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 - No features, abstractions, or error handling beyond what was asked. Gold-plating is scope creep.
 - Ambiguous requirements: present interpretations, don't pick silently.
+- Commit format: see **## Commit Messages** below; full rules in `docs/coding-standards/git-commit.md`.
 - Use current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
 - Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/guard-*.sh`, `.github/hooks/guardrails-self-test.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
 - `.github/agents/` is intentionally out of scope; CI/CD, hooks, prompts, or skills work should prefer `goat-security` or `goat-review`.
+
+## Commit Messages
+
+Conventional format: `type(scope): subject` - lowercase, imperative, ≤72 chars, no trailing
+period; one observable change per subject, one scope per commit. **Read the branch first**: on a
+`feat/<digits>` branch the subject MUST start with `#<digits> ` (e.g.
+`#123 feat(audit): add drift cache`), taken from the branch name only; otherwise no `#` prefix.
+
+**Avoid weak verbs that paraphrase the diff** (*enhance, improve, streamline, clarify, update,
+tweak*); use concrete verbs (*add, remove, replace, rename, fix, deny, gate, harden, cache*). Add a
+body naming the *why* when the subject spans more than one axis or has a non-obvious motivation.
+Full rules, `type` table, and bad→good rewrites: `docs/coding-standards/git-commit.md`.
 
 ## Key Resources
 

@@ -434,7 +434,7 @@ skills:
   await writeProjectFile(root, ".goat-flow/tasks/.gitignore", "*\n");
   await writeProjectFile(
     root,
-    ".github/git-commit-instructions.md",
+    "docs/coding-standards/git-commit.md",
     "# Git Commit Instructions\n",
   );
   await writeProjectFile(

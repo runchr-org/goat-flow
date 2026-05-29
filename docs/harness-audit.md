@@ -101,7 +101,7 @@ Verification loops are consistently reported as the single highest-impact harnes
 **Verification checks (4):**
 
 - `hooks-registered` - hook registrations and hook files are in sync (no registered-but-missing, no exists-but-unregistered) for each agent
-- `commit-guidance` - commit guidance is present. When `.github/` exists, the guidance must live at `.github/git-commit-instructions.md`; otherwise a local git-commit guidance doc can satisfy the check.
+- `commit-guidance` - commit guidance is present at the canonical `docs/coding-standards/git-commit.md`. Legacy locations (`.github/git-commit-instructions.md`, `.github/instructions/git-commit.md`) are reported as misplaced with a prompt to move the content.
 - `evidence-before-claims` - metric. Present agent instruction files carry the Hallucination red-flags clauses and the pointer to `.goat-flow/skill-reference/skill-preamble.md` (search: `Rationalisations to reject`). Missing coverage lowers the concern score but does not fail the harness scope in v1.7.0.
 - `post-turn-hook-integrity` - metric. If a post-turn hook exists, reports whether it runs validation and whether it exits 0 unconditionally (advisory mode). Absence means there is no hook-based validation evidence; it is not runtime proof. Metric failures do not fail the harness scope, but they do lower the concern score so limited evidence is not displayed as 100%.
 
