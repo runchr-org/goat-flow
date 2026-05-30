@@ -561,6 +561,18 @@ process_file() {
     return 0
   fi
   if ! valid_gruff_json "$output"; then
+    # gruff returned no JSON. $output holds gruff's merged stdout+stderr, which
+    # on current builds is usually a config-schema rejection: the project's
+    # `.<binary>.yaml` lacks the required `schemaVersion:` line, so `analyse`
+    # exits non-zero with an error instead of findings. Relay gruff's own words
+    # (which name its fix, e.g. `<binary> init --force`) to the agent on stdout
+    # so the cause is visible, not buried under a generic note. The hook never
+    # edits the project's gruff config; that file is the project's to own.
+    if [[ "$output" == *schemaVersion* ]]; then
+      printf 'gruff-code-quality: %s could not analyse - its project config (.%s.yaml) was rejected. gruff reported:\n' "$binary" "$binary"
+      printf '%s\n' "$output" | awk 'NR <= 12 { print "  " $0 }'
+      return 0
+    fi
     printf 'gruff-code-quality: %s produced non-JSON output; changed-line filtering skipped\n' "$binary" >&2
     return 0
   fi

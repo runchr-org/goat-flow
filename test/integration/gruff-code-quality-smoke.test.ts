@@ -106,6 +106,44 @@ function runHook(
   });
 }
 
+/**
+ * Install a mock gruff binary that rejects the project config the way a real
+ * gruff does when `.gruff-*.yaml` lacks the required `schemaVersion:` line:
+ * it prints a config error naming `schemaVersion` and `init --force` to stderr
+ * and exits non-zero, emitting no JSON. Used to assert the hook relays gruff's
+ * real reason instead of the generic "produced non-JSON output" note.
+ */
+function writeSchemaErrorMockGruff(root: string): string {
+  const binDir = join(root, "bin");
+  mkdirSync(binDir, { recursive: true });
+  const bin = join(binDir, "gruff-ts");
+  writeFileSync(
+    bin,
+    `#!/usr/bin/env bash
+if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
+  cat <<'HELP'
+Usage: mock-gruff analyse [options] [paths...]
+Options:
+  --format <format>
+  --fail-on <severity>
+HELP
+  exit 0
+fi
+
+cat >&2 <<'ERR'
+gruff-ts: config error
+  Config must include \`schemaVersion: gruff-ts.config.v0.1\` at the top.
+
+Suggested fix:
+  Run \`gruff-ts init --force\` to regenerate the config from current defaults.
+ERR
+exit 1
+`,
+  );
+  chmodSync(bin, 0o755);
+  return binDir;
+}
+
 /** Read the files passed to the mock gruff binary across hook invocations. */
 function readInvocations(root: string): string[] {
   try {
@@ -368,5 +406,39 @@ describe("gruff-code-quality hook", () => {
     );
     assert.equal(noConfig.status, 0, noConfig.stderr);
     assert.equal(noConfig.stdout, "");
+  });
+
+  it("relays gruff config-schema rejection with an actionable message", () => {
+    const root = makeRoot();
+    initGit(root);
+    writeSchemaErrorMockGruff(root);
+    // Config without schemaVersion: real gruff rejects it and exits non-zero.
+    writeFileSync(
+      join(root, ".gruff-ts.yaml"),
+      "paths:\n  ignore:\n    - 'dist/**'\n",
+    );
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(
+      join(root, "src", "example.ts"),
+      "const existingDebt = true;\nconst unchanged = 1;\nconst touched = 'before';\n",
+    );
+    git(root, ["add", "src/example.ts"]);
+    writeFileSync(
+      join(root, "src", "example.ts"),
+      "const existingDebt = true;\nconst unchanged = 1;\nconst touched = 'after';\n",
+    );
+
+    const result = runHook(
+      root,
+      { tool_name: "Edit", tool_input: { file_path: "src/example.ts" } },
+      "/usr/bin:/bin",
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    // The agent sees gruff's real cause and fix on stdout, not the generic note.
+    assert.match(result.stdout, /schemaVersion/);
+    assert.match(result.stdout, /gruff-ts init --force/);
+    assert.match(result.stdout, /\.gruff-ts\.yaml/);
+    assert.doesNotMatch(result.stdout, /produced non-JSON output/);
   });
 });

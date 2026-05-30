@@ -512,6 +512,8 @@ Project-specific anti-pattern scans may also apply: run any comment-marker scans
 
 **The global summary still looks bad after the cluster is fixed.** Report both the global state and the targeted state. A cluster can be clean while unrelated debt remains.
 
+**`analyse` exits non-zero with no findings and an error mentioning `schemaVersion`.** Recent gruff releases require a `schemaVersion:` line at the top of the project config (`.gruff-<lang>.yaml`); without it `analyse` fails closed instead of scanning, so any wrapper that only reads `.findings` sees empty or non-JSON output. The error names the expected value (for example `gruff-ts.config.v0.1`). Fix by regenerating the config: `gruff-<lang> init --force` rewrites it with the required `schemaVersion` while preserving your existing `paths.ignore` and severity entries (plain `init` refuses to overwrite an existing file). Do not hand-invent the version string or strip the field - run `init` so the value matches the installed binary.
+
 ## Related References
 
 - [`code-comments.md`](./code-comments.md) - comment quality bar for documentation findings.

@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-30
 ---
 
 ## Lesson: Agent proposed disabling gruff-ts rules to silence high-volume advisory findings
@@ -286,7 +286,9 @@ The Round 4 entries in `.goat-flow/footguns/docs-drift.md` (search: `Round 4 (20
 
 **Root cause:** Closing rules fire after the primary work feels done, so the agent's attention shifts to reporting instead of executing the remaining gate.
 
-**Prevention:** Make closing gates part of the deliverable, not an optional afterword. After completing milestone tasks, run the named testing gate before summary. Report what was done and stop; do not offer commits, pushes, PRs, or follow-on git writes unless the user asked.
+**Recurrence update 2026-05-30:** After completing the deny-dangerous hook consolidation, the user asked "whats next". The agent responded with `git add` / `git commit` command sequences and a PR follow-up path, even though the user had not asked to commit, stage, push, or open a PR. No commit was executed, but the answer still violated the intent of the hot-path instruction rule `AGENTS.md` (search: `Commit unless asked`) by steering the user into a commit workflow as the default next action.
+
+**Prevention:** Make closing gates part of the deliverable, not an optional afterword. After completing milestone tasks, run the named testing gate before summary. Report what was done and stop; do not offer commits, pushes, PRs, staging commands, or follow-on git write workflows unless the user explicitly asks for that workflow. If the user asks "what's next" after verified work, default to non-mutating options: review the diff, inspect a specific file, or wait for the user's requested handoff. Providing a commit message is allowed only when asked for a commit message; providing `git add` / `git commit` commands is not.
 
 ---
 
