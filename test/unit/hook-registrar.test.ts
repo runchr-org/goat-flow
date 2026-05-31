@@ -1,3 +1,6 @@
+/**
+ * Unit tests for dashboard hook registration, drift detection, and script materialization.
+ */
 import assert from "node:assert/strict";
 import {
   existsSync,

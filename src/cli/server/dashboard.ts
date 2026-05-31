@@ -32,6 +32,7 @@ const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 const PACKAGE_VERSION = getPackageVersion();
 const DASHBOARD_TOKEN_HEADER = "x-goat-flow-dashboard-token";
 
+/** Request-body limits and error text used by JSON POST handlers. */
 interface ReadBodyOptions {
   maxBytes?: number;
   tooLargeMessage?: string;
@@ -176,7 +177,12 @@ function tokenMatches(expected: string, actual: string | null): boolean {
   return timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
-/** Start the local dashboard server and expose its API endpoints. */
+/**
+ * Start the local dashboard server and expose its API endpoints.
+ *
+ * @param options - selected project path plus optional dev-mode/dashboard configuration
+ * @returns running dashboard handle with URL, token, and close method
+ */
 export function serveDashboard(
   options: DashboardOptions,
 ): Promise<DashboardServer> {
@@ -478,9 +484,10 @@ export function serveDashboard(
       }
     });
 
-    // Gracefully stop any live terminal sessions before the process exits.
+    // Shutdown joins HTTP, WebSocket, watcher, and terminal cleanup so callers
+    // can await one idempotent close even when signals and tests race.
     let closePromise: Promise<void> | null = null;
-    /** Close the dashboard server, watchers, and terminal sessions cleanly. */
+    /** Close the dashboard server, watchers, and terminal sessions through one promise because signals can race. */
     async function closeServer(): Promise<void> {
       if (closePromise) return closePromise;
 

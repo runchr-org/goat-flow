@@ -1,3 +1,6 @@
+/**
+ * Unit tests for terminal image upload validation, limits, and persistence.
+ */
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +18,7 @@ import { join, resolve as resolvePath } from "node:path";
 
 /** Symlink with EPERM-skip for Windows hosts that block unprivileged symlinks. */
 function symlinkOrSkip(
-  t: TestContext,
+  testContext: TestContext,
   target: string,
   link: string,
   type?: "dir" | "file" | "junction",
@@ -28,7 +31,7 @@ function symlinkOrSkip(
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "EPERM"
     ) {
-      t.skip(
+      testContext.skip(
         "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
       );
       return false;
@@ -193,14 +196,14 @@ describe("uploadDirForSession", () => {
     );
   });
 
-  it("rejects upload paths that escape through symlinked components", (t) => {
+  it("rejects upload paths that escape through symlinked components", (testContext) => {
     const target = mkdtempSync(join(tmpdir(), "gf-upload-target-"));
     const outside = mkdtempSync(join(tmpdir(), "gf-upload-outside-"));
     try {
       mkdirSync(join(target, ".goat-flow", "logs"), { recursive: true });
       if (
         !symlinkOrSkip(
-          t,
+          testContext,
           outside,
           join(target, ".goat-flow", "logs", "uploads"),
           "dir",
@@ -223,9 +226,9 @@ describe("uploadDirForSession", () => {
 
 describe("persistUploads", () => {
   it("writes accepted PNGs to the upload directory and rejects non-images", () => {
-    const tmp = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
     try {
-      const dir = uploadDirForSession(tmp, "sess1");
+      const dir = uploadDirForSession(tempDir, "sess1");
       const png = makeFakeImage(PNG_HEADER);
       const text = Buffer.from("not an image");
       const result = persistUploads(dir, [
@@ -248,14 +251,14 @@ describe("persistUploads", () => {
       const onDisk = readFileSync(savedPath);
       assert.deepEqual(new Uint8Array(onDisk), new Uint8Array(png));
     } finally {
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it("does not create the upload directory when every file is rejected", () => {
-    const tmp = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
     try {
-      const dir = uploadDirForSession(tmp, "sess2");
+      const dir = uploadDirForSession(tempDir, "sess2");
       const result = persistUploads(dir, [
         { name: "bad.txt", data: Buffer.from("hi").toString("base64") },
       ]);
@@ -263,7 +266,7 @@ describe("persistUploads", () => {
       assert.equal(result.rejected.length, 1);
       assert.throws(() => statSync(dir.absPath), /ENOENT/);
     } finally {
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 });
@@ -312,6 +315,7 @@ describe("buildAttachmentNote", () => {
 
 describe("upload count limit", () => {
   it("exposes the documented max-files constant", () => {
-    assert.equal(TERMINAL_UPLOAD_MAX_FILES, 5);
+    const expectedUploadMaxFiles = 5;
+    assert.equal(TERMINAL_UPLOAD_MAX_FILES, expectedUploadMaxFiles);
   });
 });

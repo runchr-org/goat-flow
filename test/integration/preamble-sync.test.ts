@@ -122,12 +122,12 @@ const TOPICAL_PAIRS = TOPICAL_FILES.map((name) => ({
 }));
 
 /** Spawns quiet diff so sync contracts can assert parity without printing bodies. */
-function diffQuiet(a: string, b: string): number {
-  const r = spawnSync("diff", ["-q", a, b], {
+function diffQuiet(expectedPath: string, actualPath: string): number {
+  const result = spawnSync("diff", ["-q", expectedPath, actualPath], {
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
   });
-  return r.status ?? -1;
+  return result.status ?? -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,38 +306,38 @@ describe("preamble/conventions sync: regression detection", () => {
       return;
     }
 
-    const tmp = mkdtempSync(join(tmpdir(), "goat-flow-preamble-sync-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "goat-flow-preamble-sync-"));
     try {
-      const tmpTemplate = join(tmp, "template-preamble.md");
-      const tmpInstalled = join(tmp, "installed-preamble.md");
-      copyFileSync(TEMPLATE_PREAMBLE, tmpTemplate);
-      copyFileSync(INSTALLED_PREAMBLE, tmpInstalled);
+      const templateCopy = join(tempDir, "template-preamble.md");
+      const installedCopy = join(tempDir, "installed-preamble.md");
+      copyFileSync(TEMPLATE_PREAMBLE, templateCopy);
+      copyFileSync(INSTALLED_PREAMBLE, installedCopy);
 
       // Sanity: tmp copies match before divergence
       assert.equal(
-        diffQuiet(tmpTemplate, tmpInstalled),
+        diffQuiet(templateCopy, installedCopy),
         0,
         "Tmp copies should match before induced divergence",
       );
 
       // Diverge the tmp installed copy
-      const original = readFileSync(tmpInstalled);
-      writeFileSync(tmpInstalled, original + "\n# DIVERGED\n");
+      const original = readFileSync(installedCopy);
+      writeFileSync(installedCopy, original + "\n# DIVERGED\n");
 
       // diff should now report non-zero
       assert.notEqual(
-        diffQuiet(tmpTemplate, tmpInstalled),
+        diffQuiet(templateCopy, installedCopy),
         0,
         "Diff should detect divergence",
       );
 
       assert.notDeepStrictEqual(
-        readFileSync(tmpTemplate),
-        readFileSync(tmpInstalled),
+        readFileSync(templateCopy),
+        readFileSync(installedCopy),
         "Files should differ after modification",
       );
     } finally {
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 });

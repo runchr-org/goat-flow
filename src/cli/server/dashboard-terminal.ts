@@ -38,6 +38,7 @@ type JsonResponder = (
   body: unknown,
 ) => void;
 
+/** Request-body limits used by terminal create and upload endpoints. */
 interface BodyReadOptions {
   maxBytes?: number;
   tooLargeMessage?: string;
@@ -48,6 +49,7 @@ type BodyReader = (
   options?: BodyReadOptions,
 ) => Promise<string>;
 
+/** Dependencies injected by the dashboard server so terminal handlers stay route-local and testable. */
 interface DashboardTerminalDependencies {
   absDefault: string;
   validRunners: ReadonlySet<string>;
@@ -57,6 +59,7 @@ interface DashboardTerminalDependencies {
   idleTimeoutMinutes?: number;
 }
 
+/** Validated terminal launch request after path, runner, and prompt decoding. */
 interface DecodedTerminalCreate {
   prompt: string;
   projectPath: string;
@@ -64,7 +67,12 @@ interface DecodedTerminalCreate {
   runner: Runner;
 }
 
-/** Build the terminal-only dashboard handlers for one server instance. */
+/**
+ * Build the terminal-only dashboard handlers for one server instance.
+ *
+ * @param deps - server-local dependencies and limits shared by terminal routes
+ * @returns terminal route handlers plus the shutdown hook for active sessions
+ */
 export function createDashboardTerminalHandlers(
   deps: DashboardTerminalDependencies,
 ): {
@@ -215,7 +223,7 @@ export function createDashboardTerminalHandlers(
       : 500;
   }
 
-  /** Emit the terminal-unavailable startup warning once. */
+  /** Emit the terminal-unavailable startup warning once; swallows health probe failures after logging. */
   function logStartupNotice(): void {
     void getManager()
       .then((manager) => manager.health())
@@ -368,7 +376,7 @@ export function createDashboardTerminalHandlers(
   }
 
   /** Accept dragged image files for the active terminal session. */
-  // eslint-disable-next-line complexity -- explicit ingress validation: each branch maps to one rejection class (path / id / decode / session lookup / state / target)
+  // eslint-disable-next-line complexity -- intentional ingress validation; each branch maps to one rejection class.
   async function handleTerminalUploadRequest(
     req: IncomingMessage,
     url: URL,
@@ -542,7 +550,7 @@ export function createDashboardTerminalHandlers(
     return true;
   }
 
-  /** Close terminal resources, including any active manager and WebSocket server. */
+  /** Close terminal resources with one shared promise because shutdown can be triggered from tests and signals. */
   async function close(): Promise<void> {
     if (closePromise) return closePromise;
     closePromise = (async () => {

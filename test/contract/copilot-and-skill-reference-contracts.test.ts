@@ -1,3 +1,6 @@
+/**
+ * Contract tests for Copilot instruction templates and generated skill-reference consistency.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";

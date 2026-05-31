@@ -391,7 +391,7 @@ function validateLegacyAgentsField(
   warnings: ValidationIssue[],
   _errors: ValidationIssue[],
 ): void {
-  if ("agents" in raw && raw.agents !== null && raw.agents !== undefined) {
+  if (raw.agents != null) {
     pushWarning(
       warnings,
       "agents",
@@ -683,7 +683,14 @@ function validateConfig(raw: unknown): ValidationResult {
   return { valid: errors.length === 0, warnings, errors };
 }
 
-/** Load, parse, validate, and normalize `.goat-flow/config.yaml`. */
+/**
+ * Load, parse, validate, and normalize `.goat-flow/config.yaml`; malformed YAML never throws and
+ * instead returns a structured invalid config.
+ *
+ * @param projectRoot - repository root whose `.goat-flow/config.yaml` should be loaded
+ * @param fs - optional filesystem adapter for tests and audit facts
+ * @returns parsed config state, including defaults when the file is absent or invalid
+ */
 export function loadConfig(projectRoot: string, fs?: ReadonlyFS): LoadedConfig {
   const content = readConfigText(projectRoot, fs);
   if (content === null) {

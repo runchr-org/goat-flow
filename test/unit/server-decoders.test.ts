@@ -206,14 +206,20 @@ describe("decodeClientMessage", () => {
   });
 
   it("decodes resize messages with numeric cols/rows", () => {
+    const expectedColumns = 80;
+    const expectedRows = 24;
     const result = decodeClientMessage(
-      JSON.stringify({ type: "resize", cols: 80, rows: 24 }),
+      JSON.stringify({
+        type: "resize",
+        cols: expectedColumns,
+        rows: expectedRows,
+      }),
     );
     assert.equal(result.ok, true);
     if (!result.ok) return;
     if (result.value.type === "resize") {
-      assert.equal(result.value.cols, 80);
-      assert.equal(result.value.rows, 24);
+      assert.equal(result.value.cols, expectedColumns);
+      assert.equal(result.value.rows, expectedRows);
     }
   });
 

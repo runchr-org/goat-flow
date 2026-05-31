@@ -1,3 +1,6 @@
+/**
+ * Unit tests for browser-side markdown rendering, YAML stripping, and fallback behavior.
+ */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -7,6 +10,7 @@ import { describe, it } from "node:test";
 import { load } from "js-yaml";
 import MarkdownIt from "markdown-it";
 
+/** Rendered markdown plus optional frontmatter returned by the browser helper. */
 interface RenderMarkdownResult {
   html: string;
   frontmatter: Record<string, unknown> | null;
@@ -17,6 +21,7 @@ type RenderMarkdown = (
   opts?: { frontmatter?: "strip" | "passthrough"; breaks?: boolean },
 ) => RenderMarkdownResult;
 
+/** Mocked browser global shape used to load a fresh markdown renderer instance. */
 interface MarkdownTestWindow {
   markdownit: typeof MarkdownIt;
   jsyaml: { load: typeof load };

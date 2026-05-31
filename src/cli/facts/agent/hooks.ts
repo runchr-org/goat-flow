@@ -303,7 +303,7 @@ function readHookCommand(hookObj: Record<string, unknown>): string | null {
     : null;
 }
 
-/** Extract command from hook. */
+/** Extract the shell command from supported hook payload shapes. */
 function extractCommandFromHook(hook: unknown): string | null {
   if (!hook || typeof hook !== "object") return null;
   const hookObj = hook as Record<string, unknown>;
@@ -622,7 +622,16 @@ function findAbsolutePathHooks(
   return absolutePathHooks;
 }
 
-/** Extract all hook-related facts: deny hooks, post-turn, compaction. */
+/**
+ * Extract all hook-related facts: deny hooks, post-turn, and compaction registration.
+ *
+ * @param fs - project filesystem adapter used to inspect installed hook files
+ * @param agent - agent profile whose hook locations and event model are being read
+ * @param settingsParsed - parsed agent settings object, or null/unknown when parsing failed
+ * @param hasDenyPatterns - whether settings-level deny patterns cover dangerous operations
+ * @param settingsValid - whether the agent settings file parsed cleanly
+ * @returns hook facts excluding secret-pattern coverage, which settings extraction owns
+ */
 export function extractHookFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

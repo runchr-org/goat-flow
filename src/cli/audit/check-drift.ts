@@ -484,7 +484,7 @@ function ensureHookEntries(
   return next;
 }
 
-/** Read explicit hook toggles from project config, returning null when config is absent or invalid. */
+/** Read explicit hook toggles from project config, returning null as the fallback when config is absent or invalid. */
 function readExplicitHooks(fs: ReadonlyFS): Record<string, unknown> | null {
   const config = fs.readFile(".goat-flow/config.yaml");
   if (config === null) return null;

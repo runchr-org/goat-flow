@@ -35,7 +35,13 @@ function parseSections(content: string): Map<string, string> {
   return sections;
 }
 
-/** Extract the body text of a named markdown section, or null if not found. */
+/**
+ * Extract the body text of a named markdown section, or null if not found.
+ *
+ * @param content - markdown instruction file content to search
+ * @param sectionName - case-insensitive heading fragment that identifies the target section
+ * @returns section body text without the heading, or null when the section is absent
+ */
 export function extractSection(
   content: string,
   sectionName: string,
@@ -67,7 +73,13 @@ export function extractSection(
 
 // ─── Focused extraction functions ────────────────────────────────────
 
-/** Extract instruction file facts: existence, content, line count, and parsed sections. */
+/**
+ * Extract instruction file facts: existence, content, line count, and parsed sections.
+ *
+ * @param fs - project filesystem adapter used to read the instruction file
+ * @param agent - agent profile that names the instruction file path
+ * @returns instruction-file facts used by setup and harness checks
+ */
 export function extractInstructionFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

@@ -47,8 +47,8 @@ function extractDecisionsFacts(
   const fileCount = files.length;
   // Require at least one ADR with substantive Context and Decision sections.
   let hasRealContent = false;
-  for (const f of files) {
-    const content = fs.readFile(`${path}/${f}`);
+  for (const fileName of files) {
+    const content = fs.readFile(`${path}/${fileName}`);
     if (!content) continue;
     const hasContext =
       /^## (?:Context|Background|Problem)\s*\n([\s\S]{50,}?)(?=^## |$)/m.test(
@@ -100,7 +100,13 @@ function extractGitCommitInstructionFacts(
   };
 }
 
-/** Extract project-wide shared facts from docs, CI, and config files. */
+/**
+ * Extract project-wide shared facts from docs, CI, and config files.
+ *
+ * @param fs - project filesystem adapter used by shared fact extractors
+ * @param configState - parsed goat-flow config state to expose beside filesystem facts
+ * @returns shared project facts consumed by setup, audit, and dashboard surfaces
+ */
 export function extractSharedFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,

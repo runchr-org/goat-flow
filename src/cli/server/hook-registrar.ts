@@ -43,6 +43,7 @@ const LEGACY_DENY_DANGEROUS_SCRIPT_NAMES = [
 
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
 
+/** Per-agent hook installation/config state for one registry hook. */
 interface HookAgentState {
   supported: boolean;
   installed: boolean;
@@ -52,6 +53,7 @@ interface HookAgentState {
   reason?: string;
 }
 
+/** Dashboard-facing hook state including defaults, drift, and per-agent registration status. */
 export interface HookState {
   id: string;
   name: string;
@@ -63,6 +65,7 @@ export interface HookState {
   agents: Record<AgentId, HookAgentState>;
 }
 
+/** HTTP-safe hook registrar failure with the status code routes should return. */
 export class HookRegistrarError extends Error {
   constructor(
     message: string,
@@ -73,7 +76,7 @@ export class HookRegistrarError extends Error {
   }
 }
 
-/** Validate and resolve a hook id into the registry spec used by state readers and writers. */
+/** Validate and resolve a hook id into the registry spec; bad ids throw 400 and unknown ids throw 404. Throws on invalid input. */
 function resolveSpec(hookId: string): HookSpec {
   if (!isValidHookIdShape(hookId)) {
     throw new HookRegistrarError("Invalid hook id", 400);
@@ -99,7 +102,7 @@ function unsupportedReasonForSpec(
   return spec.unsupportedAgents?.[agent.id] ?? null;
 }
 
-/** Block hook script writes that would escape the selected project root. */
+/** Block hook script writes that would escape the selected project root; throws a 400 registrar error. */
 function assertWithinProject(projectPath: string, targetPath: string): void {
   const root = resolve(projectPath);
   const target = resolve(targetPath);

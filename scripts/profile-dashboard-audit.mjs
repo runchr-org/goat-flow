@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/**
+ * Profiles dashboard audit reads against a synthetic project to expose filesystem hot paths.
+ */
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -17,7 +20,7 @@ const CODEX_CONFIG = [
   "",
 ].join("\n");
 
-/** Parse CLI flags into the profile options that select project, endpoint, and synthetic fixtures. */
+/** Parse CLI flags; throws on unknown or malformed options because profiling must not guess intent. */
 function parseArgs(argv) {
   const args = {
     project: process.cwd(),
@@ -77,7 +80,7 @@ Options:
 `);
 }
 
-/** Fail before profiling when dashboard imports would resolve to missing built runtime files. */
+/** Fail before profiling when dashboard imports would resolve to missing built runtime files; throws with rebuild hint. */
 function ensureBuiltRuntime() {
   const required = [
     "dist/cli/server/dashboard.js",
@@ -98,7 +101,7 @@ function distUrl(relative) {
   return pathToFileURL(join(REPO_ROOT, relative)).href;
 }
 
-/** Build a span collector for timings that are not exposed by the dashboard endpoint profile. */
+/** Build a span collector because dashboard endpoint timings do not expose lower-level filesystem costs. */
 function createProfiler() {
   const spans = [];
   return {
@@ -118,7 +121,9 @@ function createProfiler() {
   };
 }
 
-/** Wrap the project filesystem so profile output can include call counts, timings, and glob patterns. */
+/**
+ * Wrap the project filesystem because cold-path profile runs otherwise hide repeated file probes behind one elapsed-time total.
+ */
 function createCountingFS(base) {
   const counts = {
     glob: 0,
@@ -148,31 +153,34 @@ function createCountingFS(base) {
     patterns[name].set(pattern, existing);
   };
   /** Create a counted filesystem method wrapper while preserving the base method's return value. */
-  const wrap = (name) =>
+  function wrapInstrumentedMethod(methodName) {
     /** Count and time one filesystem method call, including glob-pattern detail when present. */
-    function countedMethod(...args) {
-      counts[name] += 1;
+    return function countedMethod(...args) {
+      counts[methodName] += 1;
       const start = performance.now();
       try {
-        return base[name](...args);
+        return base[methodName](...args);
       } finally {
         const durationMs = performance.now() - start;
-        timings[name] = Number((timings[name] + durationMs).toFixed(3));
-        if ((name === "glob" || name === "existsGlob") && args[0]) {
-          recordPattern(name, String(args[0]), durationMs);
+        timings[methodName] = Number(
+          (timings[methodName] + durationMs).toFixed(3),
+        );
+        if ((methodName === "glob" || methodName === "existsGlob") && args[0]) {
+          recordPattern(methodName, String(args[0]), durationMs);
         }
       }
     };
+  }
 
   return {
     fs: {
       ...base,
-      glob: wrap("glob"),
-      exists: wrap("exists"),
-      readFile: wrap("readFile"),
-      readJson: wrap("readJson"),
-      listDir: wrap("listDir"),
-      existsGlob: wrap("existsGlob"),
+      glob: wrapInstrumentedMethod("glob"),
+      exists: wrapInstrumentedMethod("exists"),
+      readFile: wrapInstrumentedMethod("readFile"),
+      readJson: wrapInstrumentedMethod("readJson"),
+      listDir: wrapInstrumentedMethod("listDir"),
+      existsGlob: wrapInstrumentedMethod("existsGlob"),
     },
     counts,
     timings,
@@ -180,7 +188,7 @@ function createCountingFS(base) {
   };
 }
 
-/** Collapse raw span events into totals sorted by the slowest profiled work. */
+/** Collapse raw span events into a deterministic slowest-first summary contract. */
 function summarizeSpans(spans) {
   const summary = new Map();
   for (const span of spans) {
@@ -258,7 +266,7 @@ async function fetchAudit(baseUrl, token, projectPath, fresh) {
   });
 }
 
-/** Writes a temporary goat-flow project large enough to stress dashboard audit discovery paths. */
+/** Writes a temporary goat-flow project because profiling needs a repeatable large-repo audit fixture. */
 function writeSyntheticProject(fileCount, agents = ["codex"]) {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-profile-"));
   mkdirSync(join(root, ".goat-flow", "footguns"), { recursive: true });

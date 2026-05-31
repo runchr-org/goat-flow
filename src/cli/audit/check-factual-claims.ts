@@ -76,9 +76,7 @@ interface CountClaimCheck {
   scopedTo?: string[];
 }
 
-/** Per-concern count check: pattern has TWO capture groups - the concern name
- *  (used to look up the authoritative count) and the claimed number. Lets one
- *  entry cover all five concerns with a single regex instead of five. */
+/** Per-concern count-check schema; regex must capture concern label then claimed number. */
 interface ConcernCountCheck {
   rule: string;
   /** Regex with TWO capturing groups: (1) concern label, (2) claimed number. */
@@ -616,7 +614,7 @@ function driftCodeMapClassifyState(
   ];
 }
 
-/** Extract comma-separated dashboard view names from the code-map views line. */
+/** Extract comma-separated dashboard view names from the code-map views line with deterministic sorting. */
 function readCodeMapDashboardViews(codeMap: string): string[] | null {
   const line = codeMap
     .split(/\r?\n/)
@@ -630,7 +628,7 @@ function readCodeMapDashboardViews(codeMap: string): string[] | null {
     .sort();
 }
 
-/** Read live dashboard view files, falling back to manifest facts in stubs. */
+/** Read live dashboard view files with a stable manifest fallback for filesystem stubs. */
 function readDashboardViewFiles(ctx: AuditContext): string[] {
   const files = ctx.fs.glob("src/dashboard/views/*.html");
   if (files.length === 0)
@@ -668,7 +666,7 @@ function driftCodeMapDashboardViews(
   ];
 }
 
-/** Top-level committed playbooks, excluding README.md because it is the index. */
+/** Top-level committed playbooks, excluding README.md because it is the index; output is stable sorted. */
 function readTopLevelSkillPlaybooks(ctx: AuditContext): string[] {
   return ctx.fs
     .listDir(".goat-flow/skill-playbooks")
@@ -737,7 +735,7 @@ function driftDashboardSessions(
   return findings;
 }
 
-/** Drift: docs/dashboard.md view headings don't match manifest dashboard views. */
+/** Drift contract: docs/dashboard.md view headings must match manifest dashboard views. */
 function driftDashboardViewNames(dashboard: string): ContentFinding[] {
   const lines = dashboard.split(/\r?\n/);
   const start = lines.findIndex((line) => /^## Views\s*$/u.test(line));

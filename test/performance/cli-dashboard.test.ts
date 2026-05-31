@@ -28,6 +28,7 @@ const BUDGET_SCALE = Number.parseFloat(
 const budgetScale =
   Number.isFinite(BUDGET_SCALE) && BUDGET_SCALE > 0 ? BUDGET_SCALE : 1;
 
+/** Stable timing summary contract used by performance budget assertions. */
 interface DurationStats {
   samples: number[];
   mean: number;
@@ -35,6 +36,7 @@ interface DurationStats {
   max: number;
 }
 
+/** Minimal server handle imported dynamically from the built dashboard server. */
 interface DashboardServerHandle {
   port: number;
   url: string;
@@ -46,7 +48,7 @@ function budget(ms: number): number {
   return ms * budgetScale;
 }
 
-/** Summarize repeated timings with the p95 value used by assertions. */
+/** Summarize repeated timings with a stable p95 contract used by assertions. */
 function summarize(samples: number[]): DurationStats {
   assert.ok(samples.length > 0, "duration samples should not be empty");
   const sorted = [...samples].sort((a, b) => a - b);
@@ -95,7 +97,7 @@ async function measure(
   }
 
   const stats = summarize(samples);
-  console.log(formatStats(label, stats));
+  process.stdout.write(`${formatStats(label, stats)}\n`);
   return stats;
 }
 
@@ -188,7 +190,7 @@ describe("performance: dashboard", { skip: PERF_SKIP }, () => {
     startupMs = performance.now() - start;
     baseUrl = `http://127.0.0.1:${server.port}`;
     dashboardToken = new URL(server.url).searchParams.get("token") ?? "";
-    console.log(`dashboard startup: ${startupMs.toFixed(1)}ms`);
+    process.stdout.write(`dashboard startup: ${startupMs.toFixed(1)}ms\n`);
   });
 
   after(async () => {

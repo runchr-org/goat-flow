@@ -1,3 +1,6 @@
+/**
+ * Unit tests for skill candidacy scoring across draft and description inputs.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 

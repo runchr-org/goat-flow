@@ -2610,7 +2610,11 @@ export function createDashboardRouteHandlers(
           });
           return true;
         }
-        const { mkdir, rm, writeFile } = await import("node:fs/promises");
+        const {
+          mkdir,
+          rm: remove,
+          writeFile,
+        } = await import("node:fs/promises");
         const previousState = await loadDashboardState();
         const validatedProjectPaths = decoded.value.paths.map(
           (path) => validateLocalPath(path, "write-local-state").path,
@@ -2633,7 +2637,7 @@ export function createDashboardRouteHandlers(
         ).length;
         await mkdir(dirname(dashboardStateFile), { recursive: true });
         await writeFile(dashboardStateFile, JSON.stringify(nextState, null, 2));
-        await rm(legacyProjectsListFile, { force: true });
+        await remove(legacyProjectsListFile, { force: true });
         recordDashboardEvent(absDefault, "project.save", {
           project_count: nextState.paths.length,
           favorite_count: nextState.favorites.length,

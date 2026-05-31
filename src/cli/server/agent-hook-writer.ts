@@ -11,6 +11,7 @@ import type { AgentProfile } from "../types.js";
 import { writeFileAtomic } from "./safe-exec.js";
 import type { HookSpec } from "./hooks-registry.js";
 
+/** Result of reading an agent hook config without mutating it. */
 export interface AgentHookReadState {
   installed: boolean;
   configMissing?: boolean;
@@ -51,7 +52,7 @@ function isObject(value: unknown): value is JsonObject {
   );
 }
 
-/** Resolve the agent hook config file and fail early for profiles that do not support hook writes. */
+/** Resolve the agent hook config file; throws when the profile does not support hook writes. */
 function configPath(projectPath: string, agent: AgentProfile): string {
   if (!agent.hookConfigFile) {
     throw new Error(`${agent.id} has no hook config file`);
@@ -59,7 +60,7 @@ function configPath(projectPath: string, agent: AgentProfile): string {
   return join(projectPath, agent.hookConfigFile);
 }
 
-/** Read an existing agent hook config while distinguishing missing files from invalid JSON. */
+/** Read an existing agent hook config; malformed JSON uses an empty-object fallback with `invalid=true`. */
 function readJsonFile(path: string): {
   value: JsonObject;
   missing: boolean;
@@ -107,7 +108,7 @@ function matcherParts(matcher: string): string[] {
     .filter(Boolean);
 }
 
-/** Build the repo-relative hook script path stored in agent config files. */
+/** Build the repo-relative hook script path stored in agent config files; throws for unsupported agents. */
 function commandPath(agent: AgentProfile, script: string): string {
   if (!agent.hooksDir) throw new Error(`${agent.id} has no hooks dir`);
   return `${agent.hooksDir}/${script}`.replace(/\/+/gu, "/");

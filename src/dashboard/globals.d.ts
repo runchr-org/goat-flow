@@ -241,6 +241,7 @@ interface TaskState {
 
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
 
+/** Per-agent hook installation and drift state delivered to the browser. */
 interface HookAgentState {
   supported: boolean;
   installed: boolean;
@@ -250,6 +251,7 @@ interface HookAgentState {
   reason?: string;
 }
 
+/** Browser-side hook state used by the Hooks view and confirmation dialog. */
 interface HookState {
   id: string;
   name: string;

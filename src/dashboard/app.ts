@@ -777,7 +777,7 @@ function app() {
       if (!items || items.length === 0) return false;
       for (let index = 0; index < items.length; index += 1) {
         const item = items[index];
-        if (item && item.kind === "file" && item.type.startsWith("image/"))
+        if (item?.kind === "file" && item.type.startsWith("image/"))
           return true;
       }
       return false;
@@ -1711,10 +1711,13 @@ function app() {
     skillsWithWarningsCount(): number {
       let count = 0;
       for (const id in this.skillQualityReports) {
-        const r = this.skillQualityReports[id];
-        if (!r) continue;
+        const report = this.skillQualityReports[id];
+        if (!report) continue;
         if (
-          r.metrics.some((m) => m.severity === "warn" || m.severity === "fail")
+          report.metrics.some(
+            (metric) =>
+              metric.severity === "warn" || metric.severity === "fail",
+          )
         )
           count++;
       }
@@ -1725,7 +1728,7 @@ function app() {
       const reports = Object.values(this.skillQualityReports);
       if (reports.length === 0) return 0;
       let sum = 0;
-      for (const r of reports) sum += this.skillReportPct(r);
+      for (const report of reports) sum += this.skillReportPct(report);
       return sum / reports.length;
     },
     /**
@@ -1742,10 +1745,10 @@ function app() {
       if (!report) return { title: "", desc: "", severity: "warn" };
       const pct = this.skillReportPct(report);
       const warnCount = report.metrics.filter(
-        (m) => m.severity === "warn",
+        (metric) => metric.severity === "warn",
       ).length;
       const failCount = report.metrics.filter(
-        (m) => m.severity === "fail",
+        (metric) => metric.severity === "fail",
       ).length;
       const rec = report.recommendation;
       if (failCount > 0) {
@@ -1798,10 +1801,10 @@ function app() {
       const shapeMismatch =
         report.shapeMismatch ?? detectedShape !== report.subtype;
       const failCount = report.metrics.filter(
-        (m) => m.severity === "fail",
+        (metric) => metric.severity === "fail",
       ).length;
       const warnCount = report.metrics.filter(
-        (m) => m.severity === "warn",
+        (metric) => metric.severity === "warn",
       ).length;
       const isHardVerdict =
         report.recommendation === "retire" ||
@@ -1874,15 +1877,15 @@ function app() {
         severity: SkillQualityMetricSeverity;
         tips: SkillEvaluateTip[];
       }> = [];
-      for (const m of report.metrics) {
-        const tips = tipsByMetric.get(m.metric);
+      for (const metric of report.metrics) {
+        const tips = tipsByMetric.get(metric.metric);
         if (!tips || tips.length === 0) continue;
         groups.push({
-          metric: m.metric,
-          label: m.label,
-          score: m.score,
-          maxScore: m.maxScore,
-          severity: m.severity,
+          metric: metric.metric,
+          label: metric.label,
+          score: metric.score,
+          maxScore: metric.maxScore,
+          severity: metric.severity,
           tips,
         });
       }
@@ -1928,40 +1931,43 @@ function app() {
      *  clipboard. The format mirrors what the engine itself emits so the
      *  result can be pasted into PR descriptions or session notes. */
     async copySkillEvaluatorReport() {
-      const r = this.skillEvaluatorResult;
-      if (!r) return;
+      const result = this.skillEvaluatorResult;
+      if (!result) return;
       const lines: string[] = [];
-      const pct = Math.round(this.skillReportPct(r) * 100);
-      const grade = this.skillLetterGrade(this.skillReportPct(r));
-      lines.push(`# ${r.artifact.name} - ${grade} ${pct}%`);
-      lines.push(`Slug: \`${this.skillEvaluatorSlug(r)}\``);
+      const pct = Math.round(this.skillReportPct(result) * 100);
+      const grade = this.skillLetterGrade(this.skillReportPct(result));
+      lines.push(`# ${result.artifact.name} - ${grade} ${pct}%`);
+      lines.push(`Slug: \`${this.skillEvaluatorSlug(result)}\``);
       lines.push(
-        `Subtype: ${r.subtype} (${Math.round(r.classification.confidence * 100)}% ${r.classification.detectedSubtype})`,
+        `Subtype: ${result.subtype} (${Math.round(result.classification.confidence * 100)}% ${result.classification.detectedSubtype})`,
       );
-      if (r.shapeMismatch && r.detectedShape) {
+      if (result.shapeMismatch && result.detectedShape) {
         lines.push(
-          `Detected shape: ${r.detectedShape} (${Math.round((r.shapeConfidence ?? 0) * 100)}%)`,
+          `Detected shape: ${result.detectedShape} (${Math.round((result.shapeConfidence ?? 0) * 100)}%)`,
         );
       }
-      lines.push(`Verdict: \`${r.recommendation}\``);
-      lines.push(`Score: ${r.totalScore} / ${r.profileMax}`);
+      lines.push(`Verdict: \`${result.recommendation}\``);
+      lines.push(`Score: ${result.totalScore} / ${result.profileMax}`);
       lines.push("");
       lines.push("## Structural metrics");
-      for (const m of r.metrics) {
-        const score = m.severity === "n/a" ? "n/a" : `${m.score}/${m.maxScore}`;
-        lines.push(`- ${m.label}: ${score} (${m.severity})`);
+      for (const metric of result.metrics) {
+        const score =
+          metric.severity === "n/a"
+            ? "n/a"
+            : `${metric.score}/${metric.maxScore}`;
+        lines.push(`- ${metric.label}: ${score} (${metric.severity})`);
       }
-      if (r.tips.length > 0) {
+      if (result.tips.length > 0) {
         lines.push("");
         lines.push("## Improvement tips");
-        for (const tip of r.tips) {
+        for (const tip of result.tips) {
           lines.push(`- [${tip.metric}] ${tip.message}`);
         }
       }
-      if (r.composedFrom.length > 0) {
+      if (result.composedFrom.length > 0) {
         lines.push("");
         lines.push("## Composed from");
-        for (const src of r.composedFrom) {
+        for (const src of result.composedFrom) {
           lines.push(`- ${src}`);
         }
       }
@@ -2380,26 +2386,28 @@ function app() {
     // -- Helpers --
     formatTimeAgo(date: string | Date | null): string {
       if (!date) return "";
-      const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-      if (s < 60) return "just now";
-      const m = Math.floor(s / 60);
-      if (m < 60) return `${m}m ago`;
-      const h = Math.floor(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.floor(h / 24)}d ago`;
+      const seconds = Math.floor(
+        (Date.now() - new Date(date).getTime()) / 1000,
+      );
+      if (seconds < 60) return "just now";
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      return `${Math.floor(hours / 24)}d ago`;
     },
     formatAuditAge(date: string | Date | null): string {
       if (!date) return "just now";
-      const s = Math.max(
+      const seconds = Math.max(
         0,
         Math.floor((Date.now() - new Date(date).getTime()) / 1000),
       );
-      if (s < 60) return "just now";
-      const m = Math.floor(s / 60);
-      if (m < 60) return `${m}m ago`;
-      const h = Math.floor(m / 60);
-      if (h < 72) return `${h}h ago`;
-      return `${Math.floor(h / 24)}d ago`;
+      if (seconds < 60) return "just now";
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 72) return `${hours}h ago`;
+      return `${Math.floor(hours / 24)}d ago`;
     },
   };
 }

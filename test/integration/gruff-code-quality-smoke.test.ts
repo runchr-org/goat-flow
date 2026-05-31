@@ -1,3 +1,6 @@
+/**
+ * Integration smoke tests for the gruff-code-quality hook's changed-line filtering behavior.
+ */
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -111,7 +114,8 @@ function runHook(
  * gruff does when `.gruff-*.yaml` lacks the required `schemaVersion:` line:
  * it prints a config error naming `schemaVersion` and `init --force` to stderr
  * and exits non-zero, emitting no JSON. Used to assert the hook relays gruff's
- * real reason instead of the generic "produced non-JSON output" note.
+ * real reason instead of the generic "produced non-JSON output" note. Writes
+ * an executable mock binary into the temp root.
  */
 function writeSchemaErrorMockGruff(root: string): string {
   const binDir = join(root, "bin");
@@ -144,7 +148,7 @@ exit 1
   return binDir;
 }
 
-/** Read the files passed to the mock gruff binary across hook invocations. */
+/** Read the files passed to the mock gruff binary; missing invocation logs use an empty-list fallback. */
 function readInvocations(root: string): string[] {
   try {
     const content = readFileSync(
@@ -321,8 +325,11 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture writes two gruff binaries because extension routing must select PHP when TS is also available.
   it("selects the gruff binary from the edited file extension", () => {
     const root = makeRoot();
+    // Fixture installs multiple language binaries so extension routing proves it
+    // chooses gruff-php for .php even when gruff-ts is also available.
     writeMockGruffBinary(root, "vendor/bin", "gruff-php", "php.rule");
     writeMockGruffBinary(root, "node_modules/.bin", "gruff-ts", "ts.rule");
     writeMockGruffBinary(

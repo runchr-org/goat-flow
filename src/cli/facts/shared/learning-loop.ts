@@ -606,7 +606,7 @@ function extractEntryDate(
 /** Return the first markdown heading, or a stable filename fallback. */
 function firstHeadingTitle(content: string, fallback: string): string {
   const heading = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
-  return heading && heading.length > 0 ? heading : fallback;
+  return heading?.length ? heading : fallback;
 }
 
 /** Return the last slash-delimited path segment. */

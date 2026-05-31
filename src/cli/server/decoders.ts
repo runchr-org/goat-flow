@@ -214,7 +214,12 @@ export function decodeProjectsListBody(
   };
 }
 
-/** Decode POST /api/hooks/:hookId/toggle. */
+/**
+ * Decode POST /api/hooks/:hookId/toggle.
+ *
+ * @param body - raw JSON request body from the dashboard route
+ * @returns decoded hook toggle payload or a field-specific validation error
+ */
 export function decodeHookToggleBody(
   body: string,
 ): DecodeResult<HookToggleBody> {

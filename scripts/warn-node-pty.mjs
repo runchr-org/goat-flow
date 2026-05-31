@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const userAgent = process.env.npm_config_user_agent ?? "";
 const isPnpmInstall = userAgent.includes("pnpm/");
 
-/** Probe optional node-pty availability without making installation fail. */
+/** Probe optional node-pty availability with a false fallback so installation never fails. */
 function hasNodePty() {
   try {
     require("node-pty");

@@ -156,8 +156,11 @@ describe("setup --apply installer", () => {
     assert.match(result.stdout, /removed stale hook/);
   });
 
+  // Fixture writes the 1.8.0 split-hook layout because upgrade pruning must collapse files and registrations.
   it("prunes 1.8.0 split guard hook files and registrations during upgrades", () => {
     const root = makeTempProject();
+    // Fixture recreates the old split-hook layout so upgrade pruning proves both
+    // files and registrations collapse to the single dispatcher.
     mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
     mkdirSync(join(root, ".goat-flow"), { recursive: true });
     for (const file of [

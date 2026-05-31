@@ -193,6 +193,7 @@ describe("custom prompt helpers", () => {
   it("saves, loads, edits, duplicates, and deletes custom prompts locally", () => {
     const { helpers } = loadHelpers();
     const ctx = makeContext(helpers);
+    const expectedDuplicatedPromptCount = 2;
 
     helpers.dashboardOpenNewCustomPrompt(ctx);
     ctx.customPromptDraft.name = "Review target";
@@ -219,12 +220,12 @@ describe("custom prompt helpers", () => {
 
     helpers.dashboardDuplicateCustomPrompt(ctx, ctx.selectedPreset);
     helpers.dashboardSaveCustomPrompt(ctx);
-    assert.equal(ctx.customPrompts.length, 2);
+    assert.equal(ctx.customPrompts.length, expectedDuplicatedPromptCount);
     assert.notEqual(ctx.customPrompts[0]!.id, ctx.customPrompts[1]!.id);
 
     const reloaded = makeContext(helpers);
     helpers.dashboardLoadCustomPrompts(reloaded);
-    assert.equal(reloaded.customPrompts.length, 2);
+    assert.equal(reloaded.customPrompts.length, expectedDuplicatedPromptCount);
 
     reloaded.selectedPreset = helpers.dashboardCustomPromptToPreset(
       reloaded.customPrompts[1]!,
@@ -480,6 +481,7 @@ describe("custom prompt helpers", () => {
 
   it("loads older saved custom prompts with safe metadata defaults", () => {
     const { helpers, storage } = loadHelpers();
+    const expectedStoredPromptCount = 2;
     storage.set(
       "goat-flow-custom-prompts",
       JSON.stringify([
@@ -503,7 +505,7 @@ describe("custom prompt helpers", () => {
 
     helpers.dashboardLoadCustomPrompts(ctx);
 
-    assert.equal(ctx.customPrompts.length, 2);
+    assert.equal(ctx.customPrompts.length, expectedStoredPromptCount);
     assert.equal(ctx.customPrompts[0]!.artifactRequired, false);
     assert.equal(ctx.customPrompts[0]!.globalSafe, true);
     assert.equal(ctx.customPrompts[1]!.artifactRequired, false);

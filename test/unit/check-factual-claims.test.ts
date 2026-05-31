@@ -248,6 +248,7 @@ describe("scanRemovedCommands", () => {
   });
 
   it("flags a dead CLI command inside a fenced code block", () => {
+    const expectedCommandLine = 2;
     const text = [
       "```bash",
       "goat-flow quality capture --from-stdin",
@@ -256,7 +257,7 @@ describe("scanRemovedCommands", () => {
     const findings = scanRemovedCommands("docs/harness-quality.md", text);
     assert.equal(findings.length, 1);
     assert.equal(findings[0].rule, "removed-command-quality-capture");
-    assert.equal(findings[0].line, 2);
+    assert.equal(findings[0].line, expectedCommandLine);
   });
 
   it("does not flag unrelated content", () => {
@@ -388,6 +389,7 @@ describe("scanLifetimeClaimEvidence", () => {
   });
 
   it("flags TTL, ceiling, max-of, and limit-of variants", () => {
+    const expectedLifetimeClaimCount = 4;
     const text = [
       "TTL 7 days for ephemera.",
       "Ceiling of 60 chars for slugs.",
@@ -395,7 +397,7 @@ describe("scanLifetimeClaimEvidence", () => {
       "Limit of 100 lines per file.",
     ].join("\n");
     const findings = scanLifetimeClaimEvidence("docs/example.md", text);
-    assert.equal(findings.length, 4);
+    assert.equal(findings.length, expectedLifetimeClaimCount);
     for (const finding of findings) {
       assert.equal(finding.rule, "lifetime-claim-evidence-missing");
     }

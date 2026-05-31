@@ -91,6 +91,7 @@ describe("parseQualityReport", () => {
 
   it("accepts v2 reports (with evidence_method) and preserves the value", () => {
     const report = makeRawReport();
+    const expectedEvidenceWarningCount = 25;
     const parsed = parseQualityReport({
       ...report,
       prior_report_id: "2026-04-15-1000-claude-bbbbb",
@@ -104,7 +105,7 @@ describe("parseQualityReport", () => {
           evidence_command: "node --import tsx src/cli/cli.ts stats . --check",
           evidence_exit_code: 0,
           evidence_summary: '"status": "pass"',
-          evidence_warning_count: 25,
+          evidence_warning_count: expectedEvidenceWarningCount,
           evidence_excerpt:
             "decision-metadata warnings for ADR-001 through ADR-025",
         },
@@ -117,8 +118,11 @@ describe("parseQualityReport", () => {
     assert.equal(parsed.report.quality_mode, "agent-setup");
     assert.equal(parsed.report.prior_report_id, "2026-04-15-1000-claude-bbbbb");
     assert.equal(parsed.report.findings[0]!.evidence_method, "runtime-probe");
+    assert.equal(
+      parsed.report.findings[0]!.evidence_warning_count,
+      expectedEvidenceWarningCount,
+    );
     assert.equal(parsed.report.findings[0]!.evidence_exit_code, 0);
-    assert.equal(parsed.report.findings[0]!.evidence_warning_count, 25);
     assert.equal(parsed.report.findings[0]!.delta_tag, "new");
   });
 

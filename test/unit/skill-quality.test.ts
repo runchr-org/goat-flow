@@ -1,3 +1,6 @@
+/**
+ * Unit tests for skill quality scoring, evidence parsing, and report shaping.
+ */
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -11,9 +14,12 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-/** Symlink helper that skips the surrounding test if the host (Windows
- *  without Developer Mode) blocks unprivileged symlink creation. */
-function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
+/** Symlink helper that skips blocked Windows fixtures and throws for unexpected symlink failures. */
+function symlinkOrSkip(
+  testContext: TestContext,
+  target: string,
+  link: string,
+): boolean {
   try {
     symlinkSync(target, link);
     return true;
@@ -22,7 +28,7 @@ function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "EPERM"
     ) {
-      t.skip(
+      testContext.skip(
         "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
       );
       return false;
@@ -45,6 +51,15 @@ import {
 } from "../../src/cli/quality/quality-config.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
+const FULL_DISPATCHER_WORKFLOW_SCORE = 5;
+const FULL_TOOL_DEPENDENCY_SCORE = 10;
+const MIN_HUMAN_STOP_GATE_SCORE = 10;
+const FULL_GATE_QUALITY_SCORE = 10;
+const MIN_PLAYBOOK_TOOL_SCORE = 8;
+const FALLBACK_CLASSIFICATION_CONFIDENCE = 0.3;
+const EXPECTED_METRIC_COUNT = 9;
+const FULL_TRIGGER_CLARITY_SCORE = 15;
+const ARTIFACT_TRUNCATION_BYTES = 262_144;
 const SNAPSHOT_FIXTURE = resolve(
   PROJECT_ROOT,
   "test/fixtures/skill-quality/expected-scores.json",
@@ -214,7 +229,7 @@ describe("artifact discovery", () => {
     ]);
   });
 
-  it("skips symlink entries in skill walk roots", (t) => {
+  it("skips symlink entries in skill walk roots", (testContext) => {
     const projectRoot = makeTempProject();
     mkdirSync(join(projectRoot, ".claude/skills/real"), { recursive: true });
     writeFileSync(
@@ -230,7 +245,7 @@ describe("artifact discovery", () => {
     );
     if (
       !symlinkOrSkip(
-        t,
+        testContext,
         join(projectRoot, ".claude/skills/real"),
         join(projectRoot, ".claude/skills/link"),
       )
@@ -481,7 +496,9 @@ describe("skill scoring", () => {
     const artifact = findArtifact(projectRoot, "skill:oversized")!;
     const report = scoreArtifact(projectRoot, artifact);
     assert.ok(
-      report.fitNotes.includes("artifact truncated at 262144 bytes"),
+      report.fitNotes.includes(
+        `artifact truncated at ${ARTIFACT_TRUNCATION_BYTES} bytes`,
+      ),
       report.fitNotes.join("\n"),
     );
   });
@@ -493,8 +510,8 @@ describe("skill scoring", () => {
       (m) => m.metric === "workflow-completeness",
     )!;
     assert.equal(report.subtype, "dispatcher");
-    assert.equal(workflow.maxScore, 5);
-    assert.equal(workflow.score, 5);
+    assert.equal(workflow.maxScore, FULL_DISPATCHER_WORKFLOW_SCORE);
+    assert.equal(workflow.score, FULL_DISPATCHER_WORKFLOW_SCORE);
   });
 
   it("detects artifact subtypes and profile maxes", () => {
@@ -660,8 +677,8 @@ describe("gate vocabulary", () => {
     it(`recognises ${label} as a human-stop signal`, () => {
       const score = gateScoreFor(frontmatterSkill(body));
       assert.ok(
-        score >= 10,
-        `expected gate score >= 10 (full credit) for ${label}, got ${score}`,
+        score >= MIN_HUMAN_STOP_GATE_SCORE,
+        `expected gate score >= ${MIN_HUMAN_STOP_GATE_SCORE} (full credit) for ${label}, got ${score}`,
       );
     });
   }
@@ -671,7 +688,7 @@ describe("gate vocabulary", () => {
     const report = scoreArtifact(PROJECT_ROOT, artifact);
     const gate = report.metrics.find((m) => m.metric === "gate-quality")!;
     assert.equal(gate.score, gate.maxScore);
-    assert.equal(gate.score, 10);
+    assert.equal(gate.score, FULL_GATE_QUALITY_SCORE);
   });
 });
 
@@ -780,7 +797,7 @@ describe("recommendation gates", () => {
     const artifact = findArtifact(projectRoot, "skill:which-prose")!;
     const report = scoreArtifact(projectRoot, artifact);
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
-    assert.equal(tool.score, 10);
+    assert.equal(tool.score, FULL_TOOL_DEPENDENCY_SCORE);
   });
 
   it("does not score reference version frontmatter as a tool dependency", () => {
@@ -801,7 +818,7 @@ describe("recommendation gates", () => {
       ].join("\n"),
     });
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
-    assert.equal(tool.score, 10, tool.detail);
+    assert.equal(tool.score, FULL_TOOL_DEPENDENCY_SCORE, tool.detail);
   });
 
   it("does not score ordinary shell/runtime commands as tool dependencies", () => {
@@ -832,7 +849,7 @@ describe("recommendation gates", () => {
     const artifact = findArtifact(projectRoot, "skill:ordinary-command")!;
     const report = scoreArtifact(projectRoot, artifact);
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
-    assert.equal(tool.score, 10, tool.detail);
+    assert.equal(tool.score, FULL_TOOL_DEPENDENCY_SCORE, tool.detail);
   });
 
   it("scores browser MCP commands as tool dependencies requiring availability and fallback", () => {
@@ -896,7 +913,10 @@ describe("recommendation gates", () => {
     const artifact = findArtifact(projectRoot, "skill:tool-skill")!;
     const report = scoreArtifact(projectRoot, artifact);
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
-    assert.ok(tool.score >= 8, `expected tool score >= 8, got ${tool.score}`);
+    assert.ok(
+      tool.score >= MIN_PLAYBOOK_TOOL_SCORE,
+      `expected tool score >= ${MIN_PLAYBOOK_TOOL_SCORE}, got ${tool.score}`,
+    );
   });
 
   it("inherits tool dependency handling from a referenced playbook", () => {
@@ -939,7 +959,10 @@ describe("recommendation gates", () => {
     const artifact = findArtifact(projectRoot, "skill:playbook-delegator")!;
     const report = scoreArtifact(projectRoot, artifact);
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;
-    assert.ok(tool.score >= 8, `expected tool score >= 8, got ${tool.score}`);
+    assert.ok(
+      tool.score >= MIN_PLAYBOOK_TOOL_SCORE,
+      `expected tool score >= ${MIN_PLAYBOOK_TOOL_SCORE}, got ${tool.score}`,
+    );
     assert.ok(report.composedFrom.includes("references/browser-use.md"));
   });
 
@@ -958,8 +981,12 @@ describe("recommendation gates", () => {
       (artifact) =>
         artifact.kind === "shared-reference" && artifact.name === "browser-use",
     );
-    assert.equal(refs.length, 2);
-    assert.equal(new Set(refs.map((artifact) => artifact.id)).size, 2);
+    const expectedReferenceVariants = 2;
+    assert.equal(refs.length, expectedReferenceVariants);
+    assert.equal(
+      new Set(refs.map((artifact) => artifact.id)).size,
+      expectedReferenceVariants,
+    );
     assert.ok(
       refs.some((artifact) =>
         artifact.id.includes("goat-flow-skill-reference"),
@@ -1195,7 +1222,10 @@ describe("classification", () => {
     const artifact = findArtifact(projectRoot, "skill:fallback-only")!;
     const report = scoreArtifact(projectRoot, artifact, config);
     assert.equal(report.classification.detectedSubtype, "workflow");
-    assert.equal(report.classification.confidence, 0.3);
+    assert.equal(
+      report.classification.confidence,
+      FALLBACK_CLASSIFICATION_CONFIDENCE,
+    );
     assert.ok(
       report.classification.reasoning.some((reason) =>
         reason.includes("fallback"),
@@ -1462,8 +1492,8 @@ describe("metric completeness", () => {
     for (const report of reports) {
       assert.equal(
         report.metrics.length,
-        9,
-        `${report.artifact.id} has ${report.metrics.length} metrics, expected 9`,
+        EXPECTED_METRIC_COUNT,
+        `${report.artifact.id} has ${report.metrics.length} metrics, expected ${EXPECTED_METRIC_COUNT}`,
       );
     }
   });
@@ -1554,7 +1584,11 @@ describe("workflow-summary description detection (M10 §4)", () => {
     });
     const tc = result.metrics.find((m) => m.metric === "trigger-clarity");
     assert.ok(tc);
-    assert.equal(tc.score, 15, "trigger-clarity should remain at full score");
+    assert.equal(
+      tc.score,
+      FULL_TRIGGER_CLARITY_SCORE,
+      "trigger-clarity should remain at full score",
+    );
     assert.equal(tc.severity, "ok", "severity should remain ok");
   });
 

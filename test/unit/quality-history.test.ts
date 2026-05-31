@@ -102,8 +102,11 @@ describe("loadQualityHistory", () => {
     );
   });
 
+  // Fixture writes null-line fingerprint collisions because one saved report must preserve both records.
   it("keeps distinct null-line findings instead of rejecting positional id collisions", () => {
     const root = makeTempProject();
+    // Fixture duplicates null-line findings at one path so positional IDs must
+    // preserve both records instead of treating them as a collision.
     const source = JSON.parse(
       readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
     );
@@ -328,8 +331,11 @@ describe("buildQualityDiff", () => {
     );
   });
 
+  // Fixture writes a stable duplicate-count regression across saved reports.
   it("persists a null-line finding when duplicate count changes between reports", () => {
     const root = makeTempProject();
+    // Fixture changes duplicate count across reports so persistence verifies
+    // stable IDs do not depend on the current batch size alone.
     const first = JSON.parse(
       readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
     );

@@ -1,6 +1,6 @@
 ---
 category: naming
-last_reviewed: 2026-05-30
+last_reviewed: 2026-05-31
 ---
 
 ## Lesson: Boundary payload names are not placeholder debt
@@ -48,3 +48,15 @@ last_reviewed: 2026-05-30
 **Root cause:** `naming.boolean-prefix` enforces an `is/has/can`-style grammar, but goat-flow has two other boolean naming grammars: UI state (`show*`, `loading*`, `selected*`, `terminal*`) and CLI/API flag names that intentionally match query params, JSON fields, or argv switches. Renaming those mechanically would make boundary code less traceable.
 
 **Prevention:** Keep `.gruff-ts.yaml` `booleanPrefixes` extended for camelCase state and protocol prefixes used across dashboard and CLI surfaces. Do not use the prefix list to hide exact lowercase flag names; those remain fix-or-baseline candidates because gruff's prefix matcher requires an uppercase boundary after the prefix. Evidence anchors: `.gruff-ts.yaml` (search: `dashboard state and CLI option DTOs`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `naming.boolean-prefix`).
+
+---
+
+## Lesson: Test-file rename sweeps need a focused test rerun
+
+**Status:** active | **Created:** 2026-05-31
+
+**What happened:** During the gruff cleanup, a local `c`→`concern` rename in `test/unit/audit-command.test.ts` updated the first two assertions but left three later `c.*` references in the same loop. `npm run typecheck` completed with exit code 0 because the repo typecheck does not cover test files, and `npm test` later failed with `ReferenceError: c is not defined`.
+
+**Root cause:** I treated the rename as a simple local cleanup and relied on source typecheck before running the touched test. The old identifier was still valid JavaScript syntax, so only executing the test surfaced the missed references.
+
+**Prevention:** After renaming identifiers inside test files, run a focused test for the touched file before the full suite, and grep the local block for the old identifier when it is not too generic. Evidence anchors: `test/unit/audit-command.test.ts` (search: `has correct shape for harness mode`), failing output (search: `ReferenceError: c is not defined`).

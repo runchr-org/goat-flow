@@ -47,7 +47,12 @@ function buildFindingId(
   return `${location}:${slugFindingText(finding.summary)}`;
 }
 
-/** Attach finding IDs. */
+/**
+ * Attach stable finding IDs while preserving duplicate findings at the same location.
+ *
+ * @param report - raw quality report whose findings need deterministic ids
+ * @returns saved-report shape, or a validation error when an id collision remains ambiguous
+ */
 export function attachFindingIds(
   report: QualityReport,
 ): { ok: true; report: SavedQualityReport } | { ok: false; error: string } {

@@ -91,9 +91,14 @@ describe("scanContentQuality: non-actionable patterns", () => {
       "x.md",
       "Remember: paths are absolute.",
     );
-    const na = findings.find((f) => f.rule === "non-actionable-remember");
-    assertExists(na, "expected non-actionable-remember finding");
-    assert.equal(na.severity, "info");
+    const nonActionableFinding = findings.find(
+      (finding) => finding.rule === "non-actionable-remember",
+    );
+    assertExists(
+      nonActionableFinding,
+      "expected non-actionable-remember finding",
+    );
+    assert.equal(nonActionableFinding.severity, "info");
   });
 
   it("does not flag 'remember to run tests' (has 'to <verb>')", () => {
@@ -162,13 +167,16 @@ describe("scanContentQuality: non-actionable patterns", () => {
       "x.md",
       "It's important that readers pay attention.",
     );
-    const na = findings.find((f) => f.rule === "non-actionable-important");
-    assert.ok(na);
+    const nonActionableFinding = findings.find(
+      (finding) => finding.rule === "non-actionable-important",
+    );
+    assert.ok(nonActionableFinding);
   });
 });
 
 describe("scanContentQuality: code-block state tracking", () => {
   it("resumes matching after a closed code block", () => {
+    const expectedOutsideBlockLine = 5;
     const text = [
       "```",
       "follow best practices",
@@ -183,14 +191,15 @@ describe("scanContentQuality: code-block state tracking", () => {
       1,
       "only the outside-block occurrence should match",
     );
-    assert.equal(warnings[0]!.line, 5);
+    assert.equal(warnings[0]!.line, expectedOutsideBlockLine);
   });
 
   it("handles nested pseudo-fences correctly (single toggle per fence line)", () => {
+    const expectedOutsideBlockLine = 4;
     const text = ["```", "properly", "```", "properly"].join("\n");
     const findings = scanContentQuality("x.md", text);
     assert.equal(findings.length, 1, "one finding outside the block");
-    assert.equal(findings[0]!.line, 4);
+    assert.equal(findings[0]!.line, expectedOutsideBlockLine);
   });
 });
 

@@ -28,11 +28,13 @@ function configFS(content: string | null): ReadonlyFS {
 // ---------------------------------------------------------------------------
 describe("config defaults when file is missing", () => {
   it("returns defaults with exists=false", () => {
+    const expectedDefaultLineTarget = 125;
+    const expectedDefaultLineLimit = 150;
     const result = loadConfig("/tmp", configFS(null));
     assert.equal(result.exists, false);
     assert.equal(result.valid, true);
-    assert.equal(result.config.lineLimits.target, 125);
-    assert.equal(result.config.lineLimits.limit, 150);
+    assert.equal(result.config.lineLimits.target, expectedDefaultLineTarget);
+    assert.equal(result.config.lineLimits.limit, expectedDefaultLineLimit);
     assert.equal(result.config.userRole, "developer");
     assert.deepStrictEqual(result.config.toolchain.test, []);
     assert.equal(result.config.learningLoop.autoCapture.enabled, false);

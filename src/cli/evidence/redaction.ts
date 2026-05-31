@@ -7,6 +7,7 @@
  */
 import { createHash } from "node:crypto";
 
+/** Hash-only representation of sensitive evidence text safe for local persistence. */
 export interface RedactedEvidenceValue {
   kind: "redacted";
   label: string;
@@ -14,7 +15,13 @@ export interface RedactedEvidenceValue {
   length: number;
 }
 
-/** Return a deterministic hash/length summary for sensitive text. */
+/**
+ * Return a deterministic hash/length summary for sensitive text.
+ *
+ * @param label - human-readable evidence field name being redacted
+ * @param value - sensitive text to hash without storing raw content
+ * @returns redacted evidence metadata that can compare same/different values
+ */
 export function redactEvidenceText(
   label: string,
   value: string,
@@ -28,7 +35,12 @@ export function redactEvidenceText(
   };
 }
 
-/** Runtime guard used by envelope payload validation. */
+/**
+ * Runtime guard used by envelope payload validation.
+ *
+ * @param value - unknown JSON value from an evidence envelope payload
+ * @returns true when the value matches the redacted evidence shape
+ */
 export function isRedactedEvidenceValue(
   value: unknown,
 ): value is RedactedEvidenceValue {

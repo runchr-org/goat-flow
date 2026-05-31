@@ -903,7 +903,7 @@ function scoreShapeMatch(
   content: string,
   subtype: ArtifactSubtype,
 ): SubtypeMatchScore {
-  const hasStep0 = hasSection(content, /##\s+Step 0/i);
+  const hasStepZero = hasSection(content, /##\s+Step 0/i);
   const hasCheckpoint = /\bCHECKPOINT\b/i.test(content);
   const hasModeSystem =
     /\b(?:Read-Only|File-Write)\b|\bPlan\b.*\bmode\b|\bImplement\b.*\bmode\b/i.test(
@@ -954,7 +954,7 @@ function scoreShapeMatch(
 
   if (subtype === "workflow") {
     return scoreFromSignals(subtype, [
-      [hasStep0, 3, "Step 0 intake"],
+      [hasStepZero, 3, "Step 0 intake"],
       [hasCheckpoint, 3, "CHECKPOINT gates"],
       [hasModeSystem, 2, "mode system"],
       [hasPhaseHeadings, 2, "phase headings"],
@@ -1172,7 +1172,7 @@ const workflowCompleteness: MetricScorer = (input) => {
   const notes: string[] = [];
 
   if (artifact.kind === "skill") {
-    const hasStep0 = hasSection(content, /##\s+Step 0/i);
+    const hasStepZero = hasSection(content, /##\s+Step 0/i);
     const phaseCount = countHeadings(content, 2) + countHeadings(content, 3);
     // Accept any human-stop vocabulary the gate scorer recognises
     // (CHECKPOINT, BLOCKING GATE, Human Verification, approval, ...).
@@ -1187,7 +1187,7 @@ const workflowCompleteness: MetricScorer = (input) => {
       if (hasRouteMap) score += 5;
       else notes.push("missing dispatcher Route Map");
     } else {
-      if (hasStep0 || hasQuickScan) score += 5;
+      if (hasStepZero || hasQuickScan) score += 5;
       else notes.push("missing Step 0 intake");
       if (phaseCount >= 4) score += 5;
       else notes.push(`only ${phaseCount} sections (expected 4+)`);

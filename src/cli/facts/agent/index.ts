@@ -8,7 +8,13 @@ import { extractSkillFacts } from "./skills.js";
 import { extractRouterFacts } from "./routing.js";
 import { extractHookFacts } from "./hooks.js";
 
-/** Collect all facts for a single agent by delegating to sub-extractors. */
+/**
+ * Collect all facts for a single agent by delegating to sub-extractors.
+ *
+ * @param fs - project filesystem adapter used by every agent fact extractor
+ * @param agent - agent profile whose instruction, settings, skills, and hooks are inspected
+ * @returns complete agent fact bundle consumed by audit checks and dashboard summaries
+ */
 export function extractAgentFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

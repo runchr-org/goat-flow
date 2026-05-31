@@ -246,7 +246,7 @@ async function fetchJson(
   return { res, body: await res.json() };
 }
 
-/** Read all emitted evidence envelopes from a temporary project log directory. */
+/** Read emitted evidence envelopes with a stable empty-array fallback when the temp log directory is absent. */
 async function readEventEnvelopes(root: string): Promise<EvidenceEnvelope[]> {
   const dir = join(root, ".goat-flow", "logs", "events");
   let files: string[];
@@ -1828,7 +1828,8 @@ describe("dashboard /api/skill-quality", () => {
     assert.ok(typeof data.totalScore === "number");
     assert.ok(typeof data.maxTotalScore === "number");
     assert.equal(data.subtype, "workflow");
-    assert.equal(data.profileMax, 100);
+    const expectedWorkflowProfileMax = 100;
+    assert.equal(data.profileMax, expectedWorkflowProfileMax);
     assert.ok(Array.isArray(data.composedFrom));
     assert.ok(typeof data.recommendation === "string");
     assert.ok(Array.isArray(data.metrics));

@@ -1,3 +1,6 @@
+/**
+ * Unit tests for hook-enabled config reads and managed hook-block writes.
+ */
 import assert from "node:assert/strict";
 import {
   mkdirSync,

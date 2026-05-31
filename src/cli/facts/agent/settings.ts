@@ -3,7 +3,13 @@
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
 
-/** Check whether the agent's deny mechanism blocks git commit and/or git push. */
+/**
+ * Check whether the agent's deny mechanism blocks git commit and/or git push.
+ *
+ * @param fs - project filesystem adapter used to read settings or hook scripts
+ * @param agent - agent profile whose deny mechanism should be inspected
+ * @returns git operation coverage detected from the agent's configured guardrail path
+ */
 export function checkDenyPatterns(
   fs: ReadonlyFS,
   agent: AgentProfile,
@@ -64,7 +70,7 @@ export function checkDenyPatterns(
 }
 
 /** Extract settings facts from supported agent config formats. */
-// eslint-disable-next-line complexity -- multi-format settings extraction (JSON, TOML, Starlark) requires branching
+// eslint-disable-next-line complexity -- intentional multi-format settings extraction requires branching.
 export function extractSettingsFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
@@ -208,6 +214,7 @@ function checkCodexPermissionProfileCoversSecrets(
   );
 }
 
+/** Workspace-root permission entry parsed from Codex TOML settings. */
 export interface CodexWorkspaceRootEntry {
   pattern: string;
   mode: string;

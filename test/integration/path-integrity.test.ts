@@ -15,12 +15,12 @@ const SCRIPT = join(PROJECT_ROOT, "scripts", "check-path-integrity.sh");
 
 /** Spawns the path-integrity script against an isolated project fixture. */
 function runScript(projectRoot: string): { ok: boolean; output: string } {
-  const r = spawnSync("bash", [SCRIPT, projectRoot], {
+  const result = spawnSync("bash", [SCRIPT, projectRoot], {
     encoding: "utf-8",
     timeout: 10000,
   });
-  const output = (r.stderr ?? "") + (r.stdout ?? "");
-  return { ok: r.status === 0, output };
+  const output = (result.stderr ?? "") + (result.stdout ?? "");
+  return { ok: result.status === 0, output };
 }
 
 /** Writes the minimum goat-flow filesystem layout required by path-integrity checks. */

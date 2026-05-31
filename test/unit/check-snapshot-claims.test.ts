@@ -343,10 +343,11 @@ describe("parseChangelogSections", () => {
   });
 
   it("captures the correct startLine for each section header", () => {
+    const expectedSectionStartLine = 4;
     const text = ["# Log", "", "", "## v1.2.3", "content"].join("\n");
     const sections = parseChangelogSections(text);
     assert.equal(sections.length, 1);
-    assert.equal(sections[0]!.startLine, 4);
+    assert.equal(sections[0]!.startLine, expectedSectionStartLine);
   });
 
   it("returns an empty array when no version headers are present", () => {

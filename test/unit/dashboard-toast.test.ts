@@ -1,3 +1,6 @@
+/**
+ * Unit tests for dashboard toast markup and browser helper wiring.
+ */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";

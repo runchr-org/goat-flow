@@ -1,6 +1,13 @@
+/**
+ * Local path validation for dashboard browsing, terminal launch, state writes, and uploads.
+ *
+ * These guards keep browser-supplied paths inside the selected project or the allowed goat-flow
+ * state area before server routes touch the filesystem.
+ */
 import { existsSync, lstatSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
+/** Allowed local-path use cases, each with a different filesystem trust boundary. */
 export type LocalPathPurpose =
   | "browse"
   | "project-read"
@@ -15,6 +22,7 @@ type LocalPathValidationClass =
   | "blocked-descendant"
   | "state-path-escape";
 
+/** Resolved path plus the realpath used for symlink escape checks. */
 export interface ValidatedLocalPath {
   path: string;
   realPath: string;
@@ -26,6 +34,7 @@ type LocalStatePathPurpose = Extract<
   "write-local-state" | "upload"
 >;
 
+/** Structured validation failure returned to dashboard callers as a safe rejection. */
 export class LocalPathValidationError extends Error {
   readonly validationClass: LocalPathValidationClass;
   readonly purpose: LocalPathPurpose | "state-path";
@@ -152,8 +161,8 @@ export function validateLocalPath(
 }
 
 /** Return existing path components so symlink checks only touch filesystem entries that exist. */
-function existingPathComponents(from: string, to: string): string[] {
-  const rel = relative(from, to);
+function existingPathComponents(from: string, target: string): string[] {
+  const rel = relative(from, target);
   if (rel === "") return [from];
   if (isAbsolute(rel) || rel.startsWith("..")) return [];
   const components = rel.split(/[\\/]/u).filter(Boolean);

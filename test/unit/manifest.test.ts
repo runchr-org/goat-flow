@@ -124,13 +124,17 @@ function fixtureAgent(
 describe("composeManifest", () => {
   it("derives skill facts from observed SKILL_NAMES", () => {
     const json = fixtureJson();
+    const observedSkills = ["goat", "goat-debug", "goat-qa"];
     const observed = fixtureObserved({
-      skills: ["goat", "goat-debug", "goat-qa"],
+      skills: observedSkills,
     });
     const manifestJson = composeManifest(json, observed);
-    assert.equal(manifestJson.facts.skills.total, 3);
+    assert.equal(manifestJson.facts.skills.total, observedSkills.length);
     assert.equal(manifestJson.facts.skills.dispatcher, "goat");
-    assert.equal(manifestJson.facts.skills.functional_count, 2);
+    assert.equal(
+      manifestJson.facts.skills.functional_count,
+      observedSkills.length - 1,
+    );
     assert.deepEqual(
       [...manifestJson.facts.skills.names],
       ["goat", "goat-debug", "goat-qa"],
@@ -139,38 +143,49 @@ describe("composeManifest", () => {
 
   it("sums check counts and exposes them under facts.checks", () => {
     const json = fixtureJson();
+    const setupCheckCount = 12;
+    const agentCheckCount = 4;
+    const harnessCheckCount = 16;
     const observed = fixtureObserved({
-      setupChecks: 12,
-      agentChecks: 4,
-      harnessChecks: 16,
+      setupChecks: setupCheckCount,
+      agentChecks: agentCheckCount,
+      harnessChecks: harnessCheckCount,
     });
     const manifestJson = composeManifest(json, observed);
-    assert.equal(manifestJson.facts.checks.setup, 12);
-    assert.equal(manifestJson.facts.checks.agent, 4);
-    assert.equal(manifestJson.facts.checks.harness, 16);
-    assert.equal(manifestJson.facts.checks.total, 32);
+    assert.equal(manifestJson.facts.checks.setup, setupCheckCount);
+    assert.equal(manifestJson.facts.checks.agent, agentCheckCount);
+    assert.equal(manifestJson.facts.checks.harness, harnessCheckCount);
+    assert.equal(
+      manifestJson.facts.checks.total,
+      setupCheckCount + agentCheckCount + harnessCheckCount,
+    );
   });
 
   it("sorts dashboard view names and exposes count", () => {
     const json = fixtureJson({
       dashboard_views: ["workspace", "home", "quality"],
     });
+    const observedViews = ["quality", "home", "workspace"];
     const observed = fixtureObserved({
-      views: ["quality", "home", "workspace"],
+      views: observedViews,
     });
     const manifestJson = composeManifest(json, observed);
     assert.deepEqual(
       [...manifestJson.facts.dashboard_views.names],
       ["home", "quality", "workspace"],
     );
-    assert.equal(manifestJson.facts.dashboard_views.count, 3);
+    assert.equal(
+      manifestJson.facts.dashboard_views.count,
+      observedViews.length,
+    );
   });
 
   it("derives preset count from the observed preset catalog size", () => {
     const json = fixtureJson();
-    const observed = fixtureObserved({ presetsCount: 7 });
+    const expectedPresetCount = 7;
+    const observed = fixtureObserved({ presetsCount: expectedPresetCount });
     const manifestJson = composeManifest(json, observed);
-    assert.equal(manifestJson.facts.presets.count, 7);
+    assert.equal(manifestJson.facts.presets.count, expectedPresetCount);
   });
 
   it("passes through stale_names from manifest.skills", () => {
@@ -361,7 +376,8 @@ describe("validateManifest (drifted count)", () => {
       assert.fail("expected throw");
     } catch (err) {
       assert.ok(err instanceof ManifestValidationError);
-      assert.equal(err.findings.length, 2);
+      const expectedDriftFindingCount = 2;
+      assert.equal(err.findings.length, expectedDriftFindingCount);
     }
   });
 
@@ -392,7 +408,8 @@ describe("loadManifest (real repo)", () => {
     assert.equal(manifestJson.facts.checks.setup, SETUP_CHECKS.length);
     assert.equal(manifestJson.facts.checks.agent, AGENT_CHECKS.length);
     assert.equal(manifestJson.facts.checks.harness, HARNESS_CHECKS.length);
-    assert.equal(manifestJson.facts.presets.count, 26);
+    const expectedLivePresetCount = 26;
+    assert.equal(manifestJson.facts.presets.count, expectedLivePresetCount);
     assert.equal(
       manifestJson.facts.checks.total,
       SETUP_CHECKS.length + AGENT_CHECKS.length + HARNESS_CHECKS.length,
@@ -401,9 +418,9 @@ describe("loadManifest (real repo)", () => {
 
   it("is memoised - repeated calls return the same object", () => {
     resetManifestCache();
-    const m1 = loadManifest();
-    const m2 = loadManifest();
-    assert.strictEqual(m1, m2);
+    const firstManifest = loadManifest();
+    const secondManifest = loadManifest();
+    assert.strictEqual(firstManifest, secondManifest);
   });
 });
 

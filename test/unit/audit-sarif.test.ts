@@ -43,6 +43,7 @@ const BASE_PROVENANCE: CheckEvidence = {
   normative_level: "MUST",
 };
 
+/** Parsed SARIF schema subset asserted by the audit SARIF renderer tests. */
 interface ParsedSarifLog {
   version: string;
   $schema: string;
@@ -232,6 +233,7 @@ describe("renderAuditSarif", () => {
   });
 
   it("maps drift and content findings to SARIF results with file locations", () => {
+    const expectedAgentFindingLine = 42;
     const sarif = parseSarif(
       makeReport({
         drift: {
@@ -252,7 +254,7 @@ describe("renderAuditSarif", () => {
               severity: "warning",
               rule: "vague-term",
               path: "AGENTS.md",
-              line: 42,
+              line: expectedAgentFindingLine,
               message: "Instruction uses vague wording.",
               suggestion: "Name the concrete command.",
             },
@@ -289,7 +291,7 @@ describe("renderAuditSarif", () => {
     );
     assert.equal(
       results[2].locations?.[0].physicalLocation.region?.startLine,
-      42,
+      expectedAgentFindingLine,
     );
   });
 

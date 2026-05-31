@@ -1,3 +1,6 @@
+/**
+ * Unit tests that keep the dashboard Hooks view markup aligned with hook behavior.
+ */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

@@ -1,3 +1,6 @@
+/**
+ * Contract tests that keep goat-review skills aligned with shared review-mode requirements.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

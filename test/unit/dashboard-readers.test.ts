@@ -17,12 +17,9 @@ const READERS_PATH = resolve(
 );
 
 type HelperContext = {
-  /** Read runner ids through the VM-loaded dashboard helper. */
-  readRunnerId(value: unknown): string | null;
-  /** Read injected agent metadata through the VM-loaded dashboard helper. */
-  readInjectedSupportedAgents(): SupportedAgent[];
-  /** Read audit reports through the VM-loaded dashboard helper. */
-  readDashboardReport(value: unknown): {
+  readRunnerId: (_value: unknown) => string | null;
+  readInjectedSupportedAgents: () => SupportedAgent[];
+  readDashboardReport: (_value: unknown) => {
     scopes: {
       setup: {
         checks: {
@@ -71,8 +68,7 @@ type HelperContext = {
       } | null;
     }[];
   };
-  /** Read plan/task payloads through the VM-loaded dashboard helper. */
-  readTaskState(value: unknown): {
+  readTaskState: (_value: unknown) => {
     taskRoot: string;
     exists: boolean;
     active: string | null;
@@ -352,7 +348,8 @@ describe("dashboard payload readers", () => {
         checks.length) *
         100,
     );
-    assert.equal(score, 50);
+    const expectedTwoPassesOutOfFourScore = 50;
+    assert.equal(score, expectedTwoPassesOutOfFourScore);
   });
 
   it("preserves advisory enforcement matrix rows", () => {
@@ -412,8 +409,9 @@ describe("dashboard payload readers", () => {
     });
 
     const enforcement = report.agentScores[0]?.enforcement;
+    const expectedCapabilityCount = 2;
     assert.equal(enforcement?.agent, "claude");
-    assert.equal(enforcement?.capabilities.length, 2);
+    assert.equal(enforcement?.capabilities.length, expectedCapabilityCount);
     assert.equal(enforcement?.capabilities[1]?.status, "unknown");
     assert.deepEqual(enforcement?.capabilities[0]?.sources, ["local-hook"]);
     assert.equal(enforcement?.summary.hard, 1);
@@ -459,15 +457,18 @@ describe("dashboard payload readers", () => {
       ],
     });
 
+    const expectedMilestoneCount = 2;
+    const expectedMilestoneTaskTotal = 13;
+    const expectedCompletedTasks = 4;
     assert.equal(state.taskRoot, "/repo/.goat-flow/tasks");
     assert.equal(state.active, "1.7.0");
     assert.equal(state.activeExists, true);
     assert.equal(state.selectedPlan, "1.7.0");
-    assert.equal(state.plans[0]?.milestoneCount, 2);
+    assert.equal(state.plans[0]?.milestoneCount, expectedMilestoneCount);
     assert.equal(state.plans[0]?.active, true);
     assert.equal(state.milestones[0]?.status, "in-progress");
     assert.equal(state.milestones[0]?.objective, "Build the side menu.");
-    assert.equal(state.milestones[0]?.completedTasks, 4);
-    assert.equal(state.milestones[0]?.totalTasks, 13);
+    assert.equal(state.milestones[0]?.completedTasks, expectedCompletedTasks);
+    assert.equal(state.milestones[0]?.totalTasks, expectedMilestoneTaskTotal);
   });
 });

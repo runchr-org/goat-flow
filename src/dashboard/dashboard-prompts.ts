@@ -18,6 +18,7 @@ const PRESET_CATEGORY_ACCENTS: Record<string, string> = {
   custom: "var(--accent)",
 };
 
+/** Dashboard state contract required by preset, custom-prompt, and favorite helpers. */
 interface DashboardPromptsContext {
   presets: Preset[];
   customPrompts: CustomPrompt[];
@@ -78,8 +79,8 @@ function dashboardSelectPresetByOffset(
   if (!next) return;
   ctx.selectedPreset = next;
   requestAnimationFrame(() => {
-    const el = document.getElementById(`preset-row-${nextId}`);
-    if (el) el.scrollIntoView({ block: "nearest" });
+    const rowElement = document.getElementById(`preset-row-${nextId}`);
+    if (rowElement) rowElement.scrollIntoView({ block: "nearest" });
   });
 }
 
@@ -116,7 +117,7 @@ function dashboardPresetCats(ctx: DashboardPromptsContext): PresetCategory[] {
   ];
 }
 
-/** Return compact prerequisite/fit badges for one preset. */
+/** Return compact prerequisite/fit badges for one preset because the card layout cannot show full metadata. */
 function dashboardPresetBadges(preset: Preset): PresetBadge[] {
   const badges: PresetBadge[] = [];
   if (preset.internalOnly) {
@@ -253,12 +254,12 @@ function dashboardFilteredPresets(ctx: DashboardPromptsContext): Preset[] {
         : browsable.filter((p) => p.cat === ctx.presetFilter);
   }
   if (ctx.presetSearch.trim()) {
-    const q = ctx.presetSearch.toLowerCase();
+    const query = ctx.presetSearch.toLowerCase();
     list = list.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.desc.toLowerCase().includes(q) ||
-        p.prompt.toLowerCase().includes(q),
+        p.name.toLowerCase().includes(query) ||
+        p.desc.toLowerCase().includes(query) ||
+        p.prompt.toLowerCase().includes(query),
     );
   } else if (ctx.presetFilter !== "favorites") {
     const favSet = new Set(ctx.presetFavorites);
@@ -338,9 +339,9 @@ function dashboardAdaptPrompt(
   prompt: string,
   runner?: RunnerId,
 ): string {
-  const r = runner ?? ctx.activeRunner;
+  const selectedRunner = runner ?? ctx.activeRunner;
   const style =
-    ctx.supportedAgents.find((agent) => agent.id === r)
+    ctx.supportedAgents.find((agent) => agent.id === selectedRunner)
       ?.promptInvocationStyle ?? "slash";
   if (style === "dollar") return prompt.replace(/^\/goat\b/, "$goat");
   return prompt;

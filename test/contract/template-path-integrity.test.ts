@@ -37,9 +37,7 @@ describe("manifest.json paths", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Skill template source files don't embed workflow/ paths in user-facing content
-// ---------------------------------------------------------------------------
+/** Walk markdown template files with an empty-output fallback for optional directories. */
 function walkMarkdown(dir: string): string[] {
   const results: string[] = [];
   let entries: string[];

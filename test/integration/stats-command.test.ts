@@ -28,7 +28,7 @@ import type {
   GoatFlowConfig,
 } from "../../src/cli/config/types.js";
 
-/** Build a valid loaded config with targeted overrides for stats fixtures. */
+/** Build a valid loaded config because stats fixtures only need a few targeted overrides. */
 function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
   return {
     exists: true,
@@ -124,6 +124,8 @@ function loadReportWithoutLoopDirs() {
 
 describe("goat-flow stats - happy path", () => {
   it("reports per-bucket freshness and live entry counts", () => {
+    const expectedFootgunEntries = 2;
+    const expectedLessonFreshnessDays = 30;
     const report = loadReport({
       footguns: {
         "hooks.md":
@@ -135,11 +137,14 @@ describe("goat-flow stats - happy path", () => {
       },
     });
 
-    assert.equal(report.footguns.totalEntries, 2);
+    assert.equal(report.footguns.totalEntries, expectedFootgunEntries);
     assert.equal(report.footguns.buckets[0].freshnessBand, "fresh");
     assert.equal(report.footguns.buckets[0].freshnessDays, 0);
     assert.equal(report.lessons.totalEntries, 1);
-    assert.equal(report.lessons.buckets[0].freshnessDays, 30);
+    assert.equal(
+      report.lessons.buckets[0].freshnessDays,
+      expectedLessonFreshnessDays,
+    );
     assert.equal(report.lessons.buckets[0].freshnessBand, "fresh");
 
     const text = renderStatsText(report);
@@ -148,7 +153,7 @@ describe("goat-flow stats - happy path", () => {
     assert.ok(text.includes("verification.md"));
 
     const json = JSON.parse(renderStatsJson(report));
-    assert.equal(json.footguns.totalEntries, 2);
+    assert.equal(json.footguns.totalEntries, expectedFootgunEntries);
   });
 });
 
@@ -170,6 +175,7 @@ describe("goat-flow stats --check", () => {
   });
 
   it("passes with warnings for fresh empty learning-loop directories", () => {
+    const expectedEmptyLoopWarningCount = 2;
     const report = loadReport({
       footguns: {},
       lessons: {},
@@ -178,7 +184,7 @@ describe("goat-flow stats --check", () => {
 
     assert.equal(verdict.status, "pass");
     assert.deepEqual(verdict.findings, []);
-    assert.equal(verdict.warnings.length, 2);
+    assert.equal(verdict.warnings.length, expectedEmptyLoopWarningCount);
     assert.ok(
       verdict.warnings.some(
         (warning) =>

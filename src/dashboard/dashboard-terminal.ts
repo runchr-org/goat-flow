@@ -545,7 +545,7 @@ function dashboardSetTerminalLoadingPhase(
   dashboardMutateLocalSession(ctx, sessionId, fallback, (target) => {
     target.loadingPhase = phase;
     if (phase === "error") {
-      target.loadingError = error || "Could not start session.";
+      target.loadingError = error ?? "Could not start session.";
       target.loadingShowRetry = true;
     } else {
       target.loadingError = undefined;
@@ -1845,10 +1845,10 @@ function dashboardConnectTerminal(
   for (const delay of TERMINAL_INITIAL_FIT_DELAYS_MS) {
     setTimeout(doFit, delay);
   }
-  const ro = new ResizeObserver(() => {
+  const resizeObserver = new ResizeObserver(() => {
     doFit();
   });
-  ro.observe(container);
+  resizeObserver.observe(container);
   /** Handle browser resizes for the active terminal. */
   const resizeHandler = (): void => {
     doFit();
@@ -2128,7 +2128,7 @@ function dashboardConnectTerminal(
   });
   /** Tear down dashboard resources before the page unloads. */
   const cleanup = (): void => {
-    ro.disconnect();
+    resizeObserver.disconnect();
     window.removeEventListener("resize", resizeHandler);
     if (ageInterval) clearInterval(ageInterval);
     dashboardClearAwaitingInputTimer(ctx, sessionId);

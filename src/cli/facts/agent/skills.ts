@@ -12,27 +12,27 @@ import { getSkillFiles } from "../../manifest/manifest.js";
 import { extractSection } from "./instruction.js";
 
 /** Compute Jaccard similarity between two strings by comparing word sets. */
-function jaccardSimilarity(a: string, b: string): number {
-  const wordsA = new Set(
-    a
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
-      .split(/\s+/)
-      .filter((w) => w.length > 2),
-  );
-  const wordsB = new Set(
-    b
+function jaccardSimilarity(firstText: string, secondText: string): number {
+  const firstWords = new Set(
+    firstText
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, "")
       .split(/\s+/)
       .filter((word) => word.length > 2),
   );
-  if (wordsA.size === 0 && wordsB.size === 0) return 1;
+  const secondWords = new Set(
+    secondText
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter((word) => word.length > 2),
+  );
+  if (firstWords.size === 0 && secondWords.size === 0) return 1;
   let intersection = 0;
-  for (const word of wordsA) {
-    if (wordsB.has(word)) intersection++;
+  for (const word of firstWords) {
+    if (secondWords.has(word)) intersection++;
   }
-  const union = new Set([...wordsA, ...wordsB]).size;
+  const union = new Set([...firstWords, ...secondWords]).size;
   return union === 0 ? 1 : intersection / union;
 }
 
@@ -267,12 +267,12 @@ function countUnadaptedSkills(
     }
     if (!installed || !template) continue;
 
-    const installedStep0 = extractSection(installed, "Step 0");
-    const templateStep0 = extractSection(template, "Step 0");
+    const installedStepZero = extractSection(installed, "Step 0");
+    const templateStepZero = extractSection(template, "Step 0");
     if (
-      installedStep0 &&
-      templateStep0 &&
-      jaccardSimilarity(installedStep0, templateStep0) > 0.9
+      installedStepZero &&
+      templateStepZero &&
+      jaccardSimilarity(installedStepZero, templateStepZero) > 0.9
     ) {
       unadaptedCount++;
     }
@@ -281,7 +281,13 @@ function countUnadaptedSkills(
   return unadaptedCount;
 }
 
-/** Extract skill presence, version drift, and quality facts for one agent. */
+/**
+ * Extract skill presence, version drift, and quality facts for one agent.
+ *
+ * @param fs - project filesystem adapter used to inspect installed skills
+ * @param agent - agent profile whose skill directory and manifest expectations are checked
+ * @returns skill installation, drift, and unadapted-content facts for audit checks
+ */
 export function extractSkillFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,

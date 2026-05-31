@@ -8,6 +8,7 @@ import type { AgentId } from "../types.js";
 
 type HookEvent = "PreToolUse" | "PostToolUse";
 
+/** Static manifest for one shipped hook and how agents register it. */
 export interface HookSpec {
   id: string;
   displayName: string;

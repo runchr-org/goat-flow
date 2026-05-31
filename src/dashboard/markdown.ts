@@ -24,16 +24,19 @@ interface RenderMarkdownOptions {
   breaks?: boolean;
 }
 
+/** Rendered markdown plus optional parsed frontmatter used by dashboard prompt previews. */
 interface RenderMarkdownResult {
   html: string;
   frontmatter: Record<string, unknown> | null;
 }
 
+/** Minimal markdown-it instance contract used after loading the browser global. */
 interface MarkdownItInstance {
   /** Render markdown text to sanitized HTML according to the configured markdown-it options. */
   render(text: string): string;
 }
 
+/** Browser global factory installed by markdown-it for dashboard rendering. */
 interface MarkdownItGlobal {
   (options?: {
     html?: boolean;
@@ -43,6 +46,7 @@ interface MarkdownItGlobal {
   }): MarkdownItInstance;
 }
 
+/** Browser global installed by js-yaml for optional frontmatter parsing. */
 interface JsYamlGlobal {
   /** Parse YAML frontmatter into JavaScript data for the dashboard metadata panel. */
   load(text: string): unknown;

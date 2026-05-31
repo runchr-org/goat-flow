@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+/** Preset catalog row shape loaded from the dashboard prompt fixture JSON. */
 interface PresetPrompt {
   id: string;
   name: string;

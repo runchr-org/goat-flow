@@ -81,6 +81,7 @@ function concern(
 
 describe("Home harness summary", () => {
   it("does not show Passing when high-score agents have hard harness failures", () => {
+    const expectedHarnessAverage = 93;
     const harnessChecks = Array.from({ length: 14 }, (_, index) => ({
       id: `check-${index}`,
       status: index === 0 ? "fail" : "pass",
@@ -110,7 +111,7 @@ describe("Home harness summary", () => {
       ],
     });
 
-    assert.equal(home.harnessAverage(), 93);
+    assert.equal(home.harnessAverage(), expectedHarnessAverage);
     assert.equal(home.harnessPillValue(), "Needs work");
     assert.equal(home.harnessPillTone(), "bad");
     assert.equal(
@@ -124,6 +125,7 @@ describe("Home harness summary", () => {
   });
 
   it("surfaces score-only metric warnings in headline scoring and summaries", () => {
+    const expectedScoreOnlyAgentScore = 67;
     const agent = {
       id: "claude",
       name: "Claude Code",
@@ -161,7 +163,7 @@ describe("Home harness summary", () => {
       agentScores: [agent],
     });
 
-    assert.equal(home.agentScore(agent), 67);
+    assert.equal(home.agentScore(agent), expectedScoreOnlyAgentScore);
     assert.equal(home.recommendationSummary(agent), "1 score warning");
     assert.equal(home.agentAllConcernsPassing(agent), false);
     assert.equal(
@@ -171,6 +173,7 @@ describe("Home harness summary", () => {
   });
 
   it("exposes advisory enforcement rows for the detail panel", () => {
+    const expectedEnforcementRows = 2;
     const agent = {
       id: "claude",
       name: "Claude Code",
@@ -205,7 +208,7 @@ describe("Home harness summary", () => {
     });
 
     const rows = home.enforcementRows(agent);
-    assert.equal(rows.length, 2);
+    assert.equal(rows.length, expectedEnforcementRows);
     assert.equal(home.enforcementBadge(rows[0]!), "Hard");
     assert.equal(home.enforcementBadgeClass(rows[0]!), "pass");
     assert.equal(home.enforcementBadge(rows[1]!), "Unk");

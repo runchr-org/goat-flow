@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { getPackageVersion } from "./paths.js";
 import { getTemplatePath } from "./paths.js";
 
+/** Minimal manifest schema contract needed to derive canonical and stale skill names. */
 interface SkillsManifestShape {
   skills?: {
     canonical?: unknown;
@@ -20,7 +21,7 @@ function readSkillsManifest(): SkillsManifestShape {
   return JSON.parse(readFileSync(path, "utf-8")) as SkillsManifestShape;
 }
 
-/** List skill template directories that contain a `SKILL.md` file. */
+/** List skill template directories that contain a `SKILL.md` file with deterministic ordering. */
 function readObservedSkillDirs(): string[] {
   const root = getTemplatePath("workflow/skills");
   return readdirSync(root, { withFileTypes: true })
@@ -32,7 +33,7 @@ function readObservedSkillDirs(): string[] {
     .sort();
 }
 
-/** Read the manifest canonical skill list and validate it against the template dirs. */
+/** Read the manifest canonical skill list; throws when manifest/schema or template dirs drift. */
 function readCanonicalSkillNames(): readonly string[] {
   const manifest = readSkillsManifest();
   const canonical = manifest.skills?.canonical;
@@ -64,7 +65,7 @@ function readCanonicalSkillNames(): readonly string[] {
   return canonical;
 }
 
-/** Read the manifest stale skill-name list. */
+/** Read the manifest stale skill-name list; throws when the manifest schema stops being an array of strings. */
 function readStaleSkillNames(): readonly string[] {
   const manifest = readSkillsManifest();
   const staleNames = manifest.skills?.stale_names;

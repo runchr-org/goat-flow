@@ -7,8 +7,8 @@
 
 import { parseArgs } from "node:util";
 import { resolve, dirname, join, basename, delimiter } from "node:path";
-import { fileURLToPath } from "node:url";
 import { writeFileSync, mkdirSync, realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import type { CLIOptions, AgentId, ProjectFacts } from "./types.js";
@@ -33,7 +33,7 @@ const PACKAGE_VERSION = getPackageVersion();
 class CLIError extends Error {
   constructor(
     message: string,
-    public exitCode: number,
+    public readonly exitCode: number,
   ) {
     super(message);
   }

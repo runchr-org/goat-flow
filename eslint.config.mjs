@@ -1,3 +1,6 @@
+/**
+ * ESLint configuration for TypeScript source, tests, scripts, and dashboard browser code.
+ */
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(

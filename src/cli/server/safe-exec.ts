@@ -159,6 +159,10 @@ function isWithinProject(projectRoot: string, targetPath: string): boolean {
  * The temp file lives beside the destination so `rename` stays atomic on the
  * same filesystem. Existing destination content is replaced only after the
  * temp file is flushed and closed.
+ *
+ * @param targetPath - destination path to replace atomically
+ * @param content - complete file contents to write
+ * @param projectRoot - project boundary that targetPath must stay within
  */
 export function writeFileAtomic(
   targetPath: string,

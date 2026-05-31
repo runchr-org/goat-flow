@@ -1133,7 +1133,9 @@ describe("dashboard terminal launch flow", () => {
       true,
     );
 
-    assert.equal(sent.length, 1);
+    const expectedInitialPasteSendCount = 1;
+    const expectedFallbackSendCount = 2;
+    assert.equal(sent.length, expectedInitialPasteSendCount);
     ctx.sessions[0]!.outputTail = "";
     timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
@@ -1269,7 +1271,9 @@ describe("dashboard terminal launch flow", () => {
       true,
     );
 
-    assert.equal(sent.length, 1);
+    const expectedInitialPasteSendCount = 1;
+    const expectedFallbackSendCount = 2;
+    assert.equal(sent.length, expectedInitialPasteSendCount);
     timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -1330,7 +1334,9 @@ describe("dashboard terminal launch flow", () => {
       true,
     );
 
-    assert.equal(sent.length, 1);
+    const expectedInitialPasteSendCount = 1;
+    const expectedFallbackSendCount = 2;
+    assert.equal(sent.length, expectedInitialPasteSendCount);
     ctx.sessions[0]!.outputTail = "";
     timers.tick(helpers.TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
@@ -1347,11 +1353,11 @@ describe("dashboard terminal launch flow", () => {
       "session-upload",
       "[Pasted text #1 +2 lines]",
     );
-    assert.equal(sent.length, 2);
+    assert.equal(sent.length, expectedFallbackSendCount);
     timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
     timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
 
-    assert.equal(sent.length, 2);
+    assert.equal(sent.length, expectedFallbackSendCount);
     assert.equal(timers.pending(), 0);
   });
 
@@ -1405,7 +1411,8 @@ describe("dashboard terminal launch flow", () => {
       "session-upload",
       "[Pasted text #1 +2 lines]",
     );
-    assert.equal(sent.length, 1);
+    const expectedInitialPasteSendCount = 1;
+    assert.equal(sent.length, expectedInitialPasteSendCount);
     timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -1546,7 +1553,8 @@ describe("dashboard terminal launch flow", () => {
     ctx.sessions[0]!.outputTail = "Running quality assessment";
     timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
 
-    assert.equal(sent.length, 2);
+    const expectedPasteAndSubmitSendCount = 2;
+    assert.equal(sent.length, expectedPasteAndSubmitSendCount);
     assert.equal(timers.pending(), 0);
   });
 
@@ -1637,7 +1645,8 @@ describe("dashboard terminal launch flow", () => {
       type: "input",
       data: "\x1b[200~Setup prompt\nsecond line\x1b[201~",
     });
-    assert.equal(sent.length, 1);
+    const expectedQueuedInitialSendCount = 1;
+    assert.equal(sent.length, expectedQueuedInitialSendCount);
 
     helpers.dashboardHandlePasteSubmitOutput(
       ctx,
@@ -1645,7 +1654,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +2 lines]",
     );
 
-    assert.equal(sent.length, 1);
+    assert.equal(sent.length, expectedQueuedInitialSendCount);
     timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
@@ -1831,7 +1840,8 @@ describe("dashboard terminal launch flow", () => {
       true,
     );
 
-    assert.equal(sent.length, 1);
+    const expectedQueuedInitialSendCount = 1;
+    assert.equal(sent.length, expectedQueuedInitialSendCount);
     assert.deepStrictEqual(JSON.parse(sent[0] ?? "{}"), {
       type: "input",
       data: "\x1b[200~First\nprompt\x1b[201~",
@@ -1847,9 +1857,10 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +1 lines]",
     );
 
-    assert.equal(sent.length, 1);
+    assert.equal(sent.length, expectedQueuedInitialSendCount);
     timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
-    assert.equal(sent.length, 3);
+    const expectedQueuedFlushSendCount = 3;
+    assert.equal(sent.length, expectedQueuedFlushSendCount);
 
     assert.deepStrictEqual(JSON.parse(sent[1] ?? "{}"), {
       type: "input",
@@ -1998,13 +2009,14 @@ describe("dashboard terminal launch flow", () => {
   it("coalesces bursty terminal session refreshes behind one fetch", async () => {
     const timers = createFakeTimers();
     let fetchCount = 0;
+    const expectedServerMaxSessions = 4;
     const helpers = loadHelpers(async (input) => {
       fetchCount += 1;
       assert.equal(String(input), "/api/terminal/sessions");
       return {
         json: async () => ({
           activeCount: 2,
-          maxSessions: 4,
+          maxSessions: expectedServerMaxSessions,
           sessions: [],
         }),
       } as Response;
@@ -2020,14 +2032,17 @@ describe("dashboard terminal launch flow", () => {
     timers.tick(1);
     await Promise.all([first, second]);
 
-    assert.equal(fetchCount, 1);
-    assert.equal(ctx.terminalSessionCount, 2);
-    assert.equal(ctx.serverMaxSessions, 4);
+    const expectedCoalescedFetchCount = 1;
+    const expectedRefreshedSessionCount = 2;
+    assert.equal(fetchCount, expectedCoalescedFetchCount);
+    assert.equal(ctx.terminalSessionCount, expectedRefreshedSessionCount);
+    assert.equal(ctx.serverMaxSessions, expectedServerMaxSessions);
 
     const third = helpers.dashboardUpdateSessionCount(ctx);
     timers.tick(50);
     await third;
-    assert.equal(fetchCount, 2);
+    const expectedSecondRefreshFetchCount = 2;
+    assert.equal(fetchCount, expectedSecondRefreshFetchCount);
   });
 
   it("marks disconnected local sessions ended when refresh proves they are gone", async () => {
@@ -3512,12 +3527,12 @@ describe("dashboard terminal launch flow", () => {
         presetId: null,
       };
     }
-    const sA = makeAwaitingSession("multi-a", "claude");
-    const sB = makeAwaitingSession("multi-b", "codex");
-    const sC = makeAwaitingSession("multi-c", "claude");
+    const firstSession = makeAwaitingSession("multi-a", "claude");
+    const secondSession = makeAwaitingSession("multi-b", "codex");
+    const thirdSession = makeAwaitingSession("multi-c", "claude");
     const ctx = makeContext({
       activeSessionId: "multi-a",
-      sessions: [sA, sB, sC],
+      sessions: [firstSession, secondSession, thirdSession],
       _terminalRefs: {
         "multi-a": {},
         "multi-b": {},
@@ -3542,18 +3557,22 @@ describe("dashboard terminal launch flow", () => {
       });
     }
     timers.tick(1500);
-    assert.equal(sA.awaitingInput, true, "A fires");
-    assert.equal(sB.awaitingInput, true, "B fires");
-    assert.equal(sC.awaitingInput, true, "C fires");
+    assert.equal(firstSession.awaitingInput, true, "A fires");
+    assert.equal(secondSession.awaitingInput, true, "B fires");
+    assert.equal(thirdSession.awaitingInput, true, "C fires");
 
     // Clear only session B's badge by sending input there.
     const ok = helpers.dashboardSendToTerminalSession(ctx, "multi-b", "1", {
       adapt: false,
     });
     assert.equal(ok, true);
-    assert.equal(sB.awaitingInput, false, "B cleared by its own input");
-    assert.equal(sA.awaitingInput, true, "A unaffected by B's input");
-    assert.equal(sC.awaitingInput, true, "C unaffected by B's input");
+    assert.equal(
+      secondSession.awaitingInput,
+      false,
+      "B cleared by its own input",
+    );
+    assert.equal(firstSession.awaitingInput, true, "A unaffected by B's input");
+    assert.equal(thirdSession.awaitingInput, true, "C unaffected by B's input");
   });
 
   it("session exit message clears the awaitingInput badge", () => {
@@ -4034,7 +4053,8 @@ describe("dashboard terminal launch flow", () => {
       type: "input",
       data: "\r",
     });
-    assert.equal(ctx.sent.length, 2);
+    const expectedPromptAndSubmitSendCount = 2;
+    assert.equal(ctx.sent.length, expectedPromptAndSubmitSendCount);
     assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
     assert.equal(
       ctx._terminalRefs["launch-session"]?.launchPromptQuietTimer,
@@ -4077,7 +4097,8 @@ describe("dashboard terminal launch flow", () => {
       type: "input",
       data: "\r",
     });
-    assert.equal(ctx.sent.length, 2);
+    const expectedCappedFallbackSendCount = 2;
+    assert.equal(ctx.sent.length, expectedCappedFallbackSendCount);
     assert.equal(ctx._terminalRefs["launch-session"]?.launchPrompt, undefined);
   });
 
@@ -4207,7 +4228,7 @@ describe("dashboard terminal launch flow", () => {
     const source = readFileSync(DASHBOARD_APP_PATH, "utf-8");
     assert.match(
       source,
-      /dashboardSendToTerminalSession\(this, sessionId, note, \{\s+adapt: false,\s+\}\)/,
+      /dashboardSendToTerminalSession\(ctx, sessionId, result\.note, \{\s+adapt: false,\s+\}\)/,
     );
   });
 
@@ -4245,7 +4266,7 @@ describe("dashboard terminal launch flow", () => {
     const source = readFileSync(DASHBOARD_APP_PATH, "utf-8");
     assert.match(
       source,
-      /item\.kind === "file" && item\.type\.startsWith\("image\/"\)/,
+      /item\?\.kind === "file" && item\.type\.startsWith\("image\/"\)/,
     );
   });
 

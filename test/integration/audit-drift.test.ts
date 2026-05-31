@@ -52,6 +52,7 @@ const COPILOT_GRUFF_HOOK_ENTRY = {
   timeoutSec: 30,
 };
 
+/** Captured subprocess result used by install-roundtrip drift assertions. */
 interface CommandResult {
   status: number | null;
   stdout: string;
@@ -277,7 +278,7 @@ function writeHookFixtures(root: string): void {
   );
 }
 
-/** Clone the repo into a temp fixture while reusing node_modules for speed. */
+/** Clone the repo into a temp fixture; writes a full install target while reusing node_modules for speed. */
 function setupInstallRoundTripFixture(): string {
   const parent = mkdtempSync(join(tmpdir(), "goat-flow-install-roundtrip-"));
   const root = join(parent, "repo");

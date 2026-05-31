@@ -5,11 +5,13 @@
  */
 import type { SharedFacts, ReadonlyFS } from "../../types.js";
 
+/** Active local instruction directory and which convention selected it. */
 interface LocalInstructionDir {
   location: "ai" | "github";
   dir: string;
 }
 
+/** Feature flags inferred from local instruction filenames. */
 interface LocalInstructionFlags {
   hasConventions: boolean;
   hasFrontend: boolean;
@@ -18,6 +20,7 @@ interface LocalInstructionFlags {
   hasGitCommit: boolean;
 }
 
+/** Router-table validation result for local instruction link targets. */
 interface RouterValidation {
   hasValidRouter: boolean;
   routerNeedsFix: string | null;
@@ -219,7 +222,12 @@ function resolveRouterValidation(
   return { hasRouter, routerValidation };
 }
 
-/** Extract local-instruction facts from the project instruction surface. */
+/**
+ * Extract local-instruction facts from the project instruction surface.
+ *
+ * @param fs - project filesystem adapter used to inspect local instruction files
+ * @returns local instruction presence, flags, router status, and validation details
+ */
 export function extractLocalInstructions(
   fs: ReadonlyFS,
 ): SharedFacts["localInstructions"] {

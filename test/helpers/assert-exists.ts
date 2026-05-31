@@ -1,3 +1,6 @@
+/**
+ * Assertion helper that narrows nullable values after test fixture lookups.
+ */
 import assert from "node:assert/strict";
 
 export function assertExists<T>(

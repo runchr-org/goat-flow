@@ -1,3 +1,6 @@
+/**
+ * Unit tests for terminal spawn specs and terminal input chunking.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 

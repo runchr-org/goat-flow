@@ -30,11 +30,13 @@ const CANONICAL_SETUP_SECTIONS = [
   "Artifact Routing",
   "Router Table",
 ];
+const EXPECTED_LINE_TARGET = 125;
+const EXPECTED_LINE_LIMIT = 150;
 
 /** Extract H2 headings with stable naming for versioned execution-loop variants. */
 function h2Sections(content: string): string[] {
-  return Array.from(content.matchAll(/^##\s+(.+)$/gm), (m) => {
-    const heading = m[1].trim();
+  return Array.from(content.matchAll(/^##\s+(.+)$/gm), (match) => {
+    const heading = match[1].trim();
     return /^Execution Loop\b/i.test(heading) ? "Execution Loop" : heading;
   });
 }
@@ -45,8 +47,8 @@ describe("instruction file line-count guard", () => {
   const lineLimit = manifest.instruction_file.line_limit;
 
   it("reads thresholds from manifest", () => {
-    assert.equal(lineTarget, 125);
-    assert.equal(lineLimit, 150);
+    assert.equal(lineTarget, EXPECTED_LINE_TARGET);
+    assert.equal(lineLimit, EXPECTED_LINE_LIMIT);
   });
 
   it("all live instruction files are under line_target", () => {
@@ -63,14 +65,14 @@ describe("instruction file line-count guard", () => {
   });
 
   it("detects a file over line_limit", () => {
-    const tmp = mkdtempSync(join(tmpdir(), "goat-line-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "goat-line-"));
     try {
       const over = Array.from(
         { length: lineLimit + 5 },
         (_, i) => `line ${i}`,
       ).join("\n");
-      writeFileSync(join(tmp, "OVER.md"), over);
-      const count = execSync(`wc -l < "${join(tmp, "OVER.md")}"`)
+      writeFileSync(join(tempDir, "OVER.md"), over);
+      const count = execSync(`wc -l < "${join(tempDir, "OVER.md")}"`)
         .toString()
         .trim();
       assert.ok(
@@ -78,7 +80,7 @@ describe("instruction file line-count guard", () => {
         `fixture should exceed line_limit (${count} > ${lineLimit})`,
       );
     } finally {
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 });
@@ -187,7 +189,7 @@ describe("encyclopedia guard", () => {
 });
 
 describe("Router Table path parity", () => {
-  /** Extract router-table paths while preserving directory coverage semantics. */
+  /** Extract router-table paths while preserving directory coverage semantics because directories cover children. */
   function extractRouterPaths(content: string): Set<string> {
     const lines = content.split(/\r?\n/);
     let inSection = false;
@@ -199,18 +201,18 @@ describe("Router Table path parity", () => {
       }
       if (inSection && /^##\s/.test(line)) break;
       if (!inSection) continue;
-      for (const m of line.matchAll(/`([^`]+)`/g)) {
-        const raw = m[1];
+      for (const match of line.matchAll(/`([^`]+)`/g)) {
+        const raw = match[1];
         const wasDir = raw.endsWith("/");
-        const p = raw.replace(/\/+$/, "");
-        if (/^\.(claude|github|agents|codex)\//.test(p)) continue;
+        const path = raw.replace(/\/+$/, "");
+        if (/^\.(claude|github|agents|codex)\//.test(path)) continue;
         if (
-          p.includes("/") ||
-          p.endsWith(".md") ||
-          p.endsWith(".yaml") ||
+          path.includes("/") ||
+          path.endsWith(".md") ||
+          path.endsWith(".yaml") ||
           wasDir
         )
-          paths.add(p);
+          paths.add(path);
       }
     }
     return paths;
@@ -236,9 +238,11 @@ describe("Router Table path parity", () => {
       "## Next Section",
     ].join("\n");
     const paths = extractRouterPaths(fixture);
-    assert.ok(paths.has(".goat-flow/architecture.md"));
-    assert.ok(paths.has("src/cli"));
-    assert.equal(paths.size, 2);
+    const expectedPaths = [".goat-flow/architecture.md", "src/cli"];
+    for (const path of expectedPaths) {
+      assert.ok(paths.has(path));
+    }
+    assert.equal(paths.size, expectedPaths.length);
   });
 
   it("parent directory covers child paths", () => {
@@ -287,20 +291,25 @@ describe("Router Table path parity", () => {
     }
 
     const allPaths = new Set<string>();
-    for (const f of files) for (const p of f.paths) allPaths.add(p);
+    for (const file of files) {
+      for (const path of file.paths) allPaths.add(path);
+    }
 
     const majority = Math.ceil(files.length / 2);
     const gaps: string[] = [];
-    for (const p of allPaths) {
-      const present = files.filter((f) => hasCoverage(f.paths, p)).length;
+    for (const path of allPaths) {
+      const present = files.filter((file) =>
+        hasCoverage(file.paths, path),
+      ).length;
       if (present >= majority && present < files.length) {
         const missing = files
-          .filter((f) => !hasCoverage(f.paths, p))
-          .map((f) => f.name);
-        for (const m of missing) {
-          const basename = manifest.agents[m]?.instruction_file || m;
-          if (p === basename || p.endsWith("/" + basename)) continue;
-          gaps.push(`${p} missing from ${m}`);
+          .filter((file) => !hasCoverage(file.paths, path))
+          .map((file) => file.name);
+        for (const missingAgent of missing) {
+          const basename =
+            manifest.agents[missingAgent]?.instruction_file || missingAgent;
+          if (path === basename || path.endsWith("/" + basename)) continue;
+          gaps.push(`${path} missing from ${missingAgent}`);
         }
       }
     }

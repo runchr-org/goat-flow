@@ -1,3 +1,6 @@
+/**
+ * Unit tests for git commit-convention detection and prompt rendering guidance.
+ */
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -68,7 +71,10 @@ function commit(root: string, subject: string, body?: string): void {
 describe("commit guidance detector", { skip: !gitAvailable }, () => {
   it("detects dominant conventional-commit history and renders observed metadata", () => {
     const root = makeRepo();
-    for (let i = 0; i < 8; i += 1) {
+    const featureCommitCount = 8;
+    const expectedConventionalCommitCount = 10;
+    const expectedRenderedTypeCount = 3;
+    for (let i = 0; i < featureCommitCount; i += 1) {
       commit(root, `feat(cli): add command ${i}`);
     }
     commit(
@@ -80,13 +86,15 @@ describe("commit guidance detector", { skip: !gitAvailable }, () => {
 
     const detection = detectCommitConventions(root);
     assert.equal(detection.status, "conventional");
-    assert.equal(detection.total, 10);
-    assert.equal(detection.counts.conventional, 10);
-    assert.deepEqual(detection.conventionalTypes.slice(0, 3), [
-      "feat",
-      "docs",
-      "fix",
-    ]);
+    assert.equal(detection.total, expectedConventionalCommitCount);
+    assert.equal(
+      detection.counts.conventional,
+      expectedConventionalCommitCount,
+    );
+    assert.deepEqual(
+      detection.conventionalTypes.slice(0, expectedRenderedTypeCount),
+      ["feat", "docs", "fix"],
+    );
     assert.equal(detection.signedOffBy, true);
 
     const rendered = renderGitCommitInstructions(detection);
@@ -137,12 +145,13 @@ describe("commit guidance detector", { skip: !gitAvailable }, () => {
 
   it("renders an insufficient-history stub for short histories", () => {
     const root = makeRepo();
+    const expectedShortHistoryCount = 2;
     commit(root, "feat: first commit");
     commit(root, "fix: second commit");
 
     const detection = detectCommitConventions(root);
     assert.equal(detection.status, "insufficient-history");
-    assert.equal(detection.total, 2);
+    assert.equal(detection.total, expectedShortHistoryCount);
 
     const rendered = renderGitCommitInstructions(detection);
     assert.match(

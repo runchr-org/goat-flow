@@ -181,6 +181,7 @@ function renderHarnessCardPass(
 
 type SetupPromptScope = "full" | "harness-card";
 
+/** Options that narrow setup prompt output for a full prompt or dashboard harness card. */
 interface ComposeSetupOptions {
   promptScope?: SetupPromptScope;
   denyMechanismEvidenceLevel?: DenyMechanismEvidenceLevel;
@@ -308,10 +309,7 @@ function renderAuditFail(
   return lines.join("\n");
 }
 
-// ----------------------------------------------------------------
-// Mode: Upgrade redirect (v0.9 or outdated projects)
-// ----------------------------------------------------------------
-
+/** Select only setup failures because upgrade prompts should not include passing or warning checks. */
 function failedInstallChecks(auditReport: AuditReport): CheckResult[] {
   return [
     ...auditReport.scopes.setup.checks.filter((c) => c.status === "fail"),
@@ -415,10 +413,7 @@ function renderUpgradeRedirect(
   return lines.join("\n");
 }
 
-// ----------------------------------------------------------------
-// Mode: Full setup (bare or partial projects)
-// ----------------------------------------------------------------
-
+/** Render the full setup prompt for bare/partial projects because no targeted repair path exists yet. */
 function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
   const profile = PROFILES[agentId];
   const setupFile = displayTemplatePath(SETUP_FILES[agentId]);
@@ -493,7 +488,15 @@ function renderFullSetup(facts: ProjectFacts, agentId: AgentId): string {
 const FULL_SETUP_STATES = new Set(["bare", "partial", "error"]);
 const UPGRADE_STATES = new Set(["v0.9", "outdated"]);
 
-/** Compose the setup prompt that matches the project's current install state. */
+/**
+ * Compose the setup prompt that matches the project's current install state.
+ *
+ * @param auditReport - current audit result used to select failure/upgrade/full setup copy
+ * @param facts - project facts used to derive installed state and prompt paths
+ * @param agentId - agent whose setup instructions should be rendered
+ * @param options - optional output scope and deny-mechanism evidence hint
+ * @returns setup prompt text, or null when no setup action applies
+ */
 export function composeSetup(
   auditReport: AuditReport,
   facts: ProjectFacts,

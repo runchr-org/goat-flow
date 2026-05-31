@@ -1,3 +1,6 @@
+/**
+ * Unit tests for quality configuration defaults, validation, and profile overrides.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -92,6 +95,7 @@ describe("loadQualityConfig", () => {
 
   it("accepts a custom subtype profile", () => {
     const projectRoot = makeTempProject();
+    const customProfileScore = 20;
     writeYaml(
       projectRoot,
       [
@@ -99,13 +103,19 @@ describe("loadQualityConfig", () => {
         "  subtypes:",
         "    workflow:",
         "      profile:",
-        "        trigger-clarity: 20",
-        "        workflow-completeness: 20",
+        `        trigger-clarity: ${customProfileScore}`,
+        `        workflow-completeness: ${customProfileScore}`,
       ].join("\n"),
     );
     const config = loadQualityConfig(projectRoot);
-    assert.equal(config.subtypes.workflow.profile["trigger-clarity"], 20);
-    assert.equal(config.subtypes.workflow.profile["workflow-completeness"], 20);
+    assert.equal(
+      config.subtypes.workflow.profile["trigger-clarity"],
+      customProfileScore,
+    );
+    assert.equal(
+      config.subtypes.workflow.profile["workflow-completeness"],
+      customProfileScore,
+    );
     assert.equal(
       config.subtypes.workflow.profile["gate-quality"],
       DEFAULT_QUALITY_CONFIG.subtypes.workflow.profile["gate-quality"],

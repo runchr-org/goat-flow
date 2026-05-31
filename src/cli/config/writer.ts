@@ -54,7 +54,7 @@ function normalizeHookId(hookId: string): string {
   return HOOK_ID_ALIASES.get(hookId) ?? hookId;
 }
 
-/** Parse explicitly configured hook states while ignoring malformed or non-boolean hook entries. */
+/** Parse explicitly configured hook states; malformed YAML uses an empty-map fallback. */
 function readRawHooks(text: string): HookConfigMap {
   let parsed: unknown;
   try {
@@ -128,7 +128,14 @@ function readHookConfig(projectPath: string): HookConfigMap {
   return readRawHooks(readConfigText(projectPath));
 }
 
-/** Return one hook's desired enabled state using the registry default on absence. */
+/**
+ * Return one hook's desired enabled state using the registry default on absence.
+ *
+ * @param projectPath - project whose goat-flow config stores hook overrides
+ * @param hookId - canonical hook id to read
+ * @param defaultEnabled - registry default to use when config omits the hook
+ * @returns configured enabled state, or the registry default when absent
+ */
 export function readHookEnabled(
   projectPath: string,
   hookId: string,
@@ -137,7 +144,13 @@ export function readHookEnabled(
   return readHookConfig(projectPath)[hookId]?.enabled ?? defaultEnabled;
 }
 
-/** Set one hook's desired enabled state in `.goat-flow/config.yaml`. */
+/**
+ * Set one hook's desired enabled state in `.goat-flow/config.yaml`.
+ *
+ * @param projectPath - project whose goat-flow config should be written
+ * @param hookId - canonical hook id to update
+ * @param enabled - desired enabled state to persist
+ */
 export function setHookEnabled(
   projectPath: string,
   hookId: string,

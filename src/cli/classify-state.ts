@@ -105,7 +105,7 @@ const AGENT_INSTRUCTION_FILE = Object.fromEntries(
 );
 
 /** Classify a project's GOAT Flow adoption state. */
-// eslint-disable-next-line complexity -- intentionally branchy state machine
+// eslint-disable-next-line complexity -- intentional branchy state machine; each branch maps one adoption state.
 export function classifyProjectState(
   fs: StateFS,
   agentId?: string,

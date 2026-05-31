@@ -1,3 +1,6 @@
+/**
+ * Copies dashboard static assets into the package dist directory during builds.
+ */
 import { cpSync, mkdirSync, rmSync } from "node:fs";
 
 mkdirSync("dist/dashboard", { recursive: true });

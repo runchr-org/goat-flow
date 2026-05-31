@@ -99,13 +99,13 @@ function renderAuditSummary(report: AuditReport): string {
     ["agent", "Agent Setup"],
   ];
   for (const [scope, label] of scopes) {
-    const s = report.scopes[scope as keyof typeof report.scopes];
-    if (!s) continue;
-    const status = s.status === "pass" ? "PASS" : "FAIL";
+    const scopeReport = report.scopes[scope as keyof typeof report.scopes];
+    if (!scopeReport) continue;
+    const status = scopeReport.status === "pass" ? "PASS" : "FAIL";
     lines.push(`- **${label}**: ${status}`);
-    if (s.failures.length > 0) {
-      for (const f of s.failures) {
-        lines.push(`  - ${f.check}: ${f.message}`);
+    if (scopeReport.failures.length > 0) {
+      for (const failure of scopeReport.failures) {
+        lines.push(`  - ${failure.check}: ${failure.message}`);
       }
     }
   }

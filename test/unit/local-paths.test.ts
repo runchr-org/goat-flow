@@ -1,3 +1,6 @@
+/**
+ * Unit tests for local path validation and symlink escape protection.
+ */
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -19,7 +22,7 @@ import {
 } from "../../src/cli/server/local-paths.js";
 
 function symlinkOrSkip(
-  t: TestContext,
+  testContext: TestContext,
   target: string,
   link: string,
   type?: "dir" | "file" | "junction",
@@ -32,7 +35,7 @@ function symlinkOrSkip(
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "EPERM"
     ) {
-      t.skip(
+      testContext.skip(
         "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
       );
       return false;
@@ -104,13 +107,13 @@ describe("validateLocalPath", () => {
     assert.equal(result.path, resolve("/"));
   });
 
-  it("rejects symlinks that resolve into blocked roots for terminal use", (t) => {
+  it("rejects symlinks that resolve into blocked roots for terminal use", (testContext) => {
     if (process.platform === "win32") return;
 
     const root = mkdtempSync(join(tmpdir(), "gf-local-path-"));
     const link = join(root, "etc-link");
     try {
-      if (!symlinkOrSkip(t, "/etc", link, "dir")) return;
+      if (!symlinkOrSkip(testContext, "/etc", link, "dir")) return;
       assertLocalPathError(
         () => validateLocalPath(link, "terminal-cwd"),
         "blocked-root",
@@ -147,12 +150,12 @@ describe("resolveLocalStatePath", () => {
     }
   });
 
-  it("allows a project root symlink when the real target is allowed", (t) => {
+  it("allows a project root symlink when the real target is allowed", (testContext) => {
     const root = mkdtempSync(join(tmpdir(), "gf-local-state-real-"));
     const linkParent = mkdtempSync(join(tmpdir(), "gf-local-state-link-"));
     const link = join(linkParent, "project-link");
     try {
-      if (!symlinkOrSkip(t, root, link, "dir")) return;
+      if (!symlinkOrSkip(testContext, root, link, "dir")) return;
       assert.equal(
         resolveLocalStatePath(link, "tasks/.active"),
         join(link, ".goat-flow", "tasks", ".active"),
@@ -163,12 +166,19 @@ describe("resolveLocalStatePath", () => {
     }
   });
 
-  it("rejects state paths that escape through symlinked components", (t) => {
+  it("rejects state paths that escape through symlinked components", (testContext) => {
     const root = mkdtempSync(join(tmpdir(), "gf-local-state-"));
     const outside = mkdtempSync(join(tmpdir(), "gf-local-state-outside-"));
     try {
       mkdirSync(join(root, ".goat-flow"), { recursive: true });
-      if (!symlinkOrSkip(t, outside, join(root, ".goat-flow", "logs"), "dir")) {
+      if (
+        !symlinkOrSkip(
+          testContext,
+          outside,
+          join(root, ".goat-flow", "logs"),
+          "dir",
+        )
+      ) {
         return;
       }
 

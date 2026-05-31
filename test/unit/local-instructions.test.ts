@@ -60,6 +60,7 @@ describe("extractLocalInstructions", () => {
   });
 
   it("detects .github/instructions files, flags, content, and line counts", () => {
+    const expectedInstructionFileCount = 3;
     const content = conventionsContent();
     const fs = stubFS(
       {
@@ -82,7 +83,7 @@ describe("extractLocalInstructions", () => {
     assert.equal(facts.dirExists, true);
     assert.equal(facts.location, "github");
     assert.equal(facts.githubDirExists, true);
-    assert.equal(facts.fileCount, 3);
+    assert.equal(facts.fileCount, expectedInstructionFileCount);
     assert.equal(facts.hasConventions, true);
     assert.equal(facts.conventionsHasContent, true);
     assert.equal(facts.hasFrontend, true);

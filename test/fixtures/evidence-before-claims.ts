@@ -1,3 +1,6 @@
+/**
+ * Fixture text used by verification tests that reject evidence-free completion claims.
+ */
 export const RATIONALISATIONS_PREAMBLE = [
   "# Skill Preamble",
   "",

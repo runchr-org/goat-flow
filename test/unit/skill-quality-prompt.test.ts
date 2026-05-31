@@ -1,3 +1,6 @@
+/**
+ * Unit tests for artifact quality prompt composition from structured skill reports.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 

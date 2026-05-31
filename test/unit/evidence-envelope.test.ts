@@ -18,8 +18,8 @@ import {
   createEvidenceEnvelope,
   tailEvidenceEvents,
   validateEvidenceEnvelope,
-  type EvidenceEnvelope,
 } from "../../src/cli/evidence/envelope.js";
+import type { EvidenceEnvelope } from "../../src/cli/evidence/envelope.js";
 import { redactEvidenceText } from "../../src/cli/evidence/redaction.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");

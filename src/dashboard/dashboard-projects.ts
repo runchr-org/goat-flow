@@ -3,6 +3,7 @@
  * Loaded as a classic script and called by thin Alpine methods in app.ts.
  */
 
+/** Dashboard state contract required by project-list, browser, title, and persistence helpers. */
 interface DashboardProjectsContext {
   projectPath: string;
   showBrowser: boolean;
@@ -223,9 +224,9 @@ function dashboardSortedProjectsList(
   const key = ctx.projectsSortKey;
   const dir = ctx.projectsSortAsc ? 1 : -1;
   return [...ctx.projectsList].sort((a, b) => {
-    const av = key === "name" ? ctx.displayNameFor(a.path) : a[key];
-    const bv = key === "name" ? ctx.displayNameFor(b.path) : b[key];
-    return av.localeCompare(bv) * dir;
+    const firstValue = key === "name" ? ctx.displayNameFor(a.path) : a[key];
+    const secondValue = key === "name" ? ctx.displayNameFor(b.path) : b[key];
+    return firstValue.localeCompare(secondValue) * dir;
   });
 }
 
@@ -333,7 +334,7 @@ async function dashboardLoadSavedDashboardState(
   }
 }
 
-/** Persist the current dashboard state to localStorage and the server store. */
+/** Persist the current dashboard state to localStorage and the server store; swallows storage failures. */
 function dashboardSaveDashboardState(ctx: DashboardProjectsContext): void {
   const paths = [
     ...new Set(

@@ -141,7 +141,7 @@ function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   return fs;
 }
 
-/** Build a valid loaded-config fixture with overrideable config fields. */
+/** Build a valid loaded-config fixture because audit checks only need targeted config overrides. */
 function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
   return {
     exists: true,
@@ -292,7 +292,7 @@ const STUB_STRUCTURE: ProjectStructure = {
   agents: {},
 };
 
-/** Build an audit context fixture with valid defaults for focused checks. */
+/** Build an audit context fixture because focused checks should override only the facts under test. */
 function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
   return {
     projectPath: "/tmp/test-project",
@@ -1713,13 +1713,13 @@ describe("audit JSON contract", () => {
 
     // Scopes structure
     for (const scope of ["setup", "agent"] as const) {
-      const s = report.scopes[scope];
+      const scopeReport = report.scopes[scope];
       assert.ok(
-        ["pass", "fail"].includes(s.status),
+        ["pass", "fail"].includes(scopeReport.status),
         `${scope}.status should be pass or fail`,
       );
       assert.ok(
-        Array.isArray(s.failures),
+        Array.isArray(scopeReport.failures),
         `${scope}.failures should be an array`,
       );
     }
@@ -1756,22 +1756,25 @@ describe("audit JSON contract", () => {
       "recovery",
       "feedback_loop",
     ] as const) {
-      const c = report.concerns[key];
+      const concern = report.concerns[key];
       assert.ok(
-        c.status === "pass" || c.status === "fail",
+        concern.status === "pass" || concern.status === "fail",
         `${key}.status should be pass or fail`,
       );
       assert.ok(
-        Array.isArray(c.findings),
+        Array.isArray(concern.findings),
         `${key}.findings should be an array`,
       );
-      assert.ok(Array.isArray(c.limits), `${key}.limits should be an array`);
       assert.ok(
-        Array.isArray(c.recommendations),
+        Array.isArray(concern.limits),
+        `${key}.limits should be an array`,
+      );
+      assert.ok(
+        Array.isArray(concern.recommendations),
         `${key}.recommendations should be an array`,
       );
       assert.ok(
-        Array.isArray(c.howToFix),
+        Array.isArray(concern.howToFix),
         `${key}.howToFix should be an array`,
       );
     }
@@ -2601,13 +2604,14 @@ describe("M01 scoring model", () => {
     });
     const { scope, concerns } = computeHarness(ctx);
     const secrets = scope.checks.find((c) => c.id === "deny-covers-secrets");
+    const expectedFullConstraintScore = 100;
 
     assert.equal(secrets?.status, "pass");
     assert.equal(secrets?.displayStatus, "info");
     assert.equal(secrets?.impact, "none");
     assert.equal(secrets?.assurance, "limited");
     assert.equal(concerns.constraints.status, "pass");
-    assert.equal(concerns.constraints.score, 100);
+    assert.equal(concerns.constraints.score, expectedFullConstraintScore);
     assert.ok(
       concerns.constraints.findings.some((finding) =>
         finding.includes("file-read deny is unavailable"),
@@ -2642,14 +2646,22 @@ describe("M01 scoring model", () => {
     const metric = scope.checks.find(
       (c) => c.id === "post-turn-hook-integrity",
     )!;
+    const expectedVerificationMetricCount = 2;
+    const expectedScoreOnlyVerificationScore = 75;
     assert.equal(metric.status, "fail");
     assert.equal(metric.displayStatus, "warn");
     assert.equal(metric.impact, "score-only");
     assert.match(metric.failure?.evidence ?? "", /Metric/);
-    assert.equal(concerns.verification.metrics, 2);
+    assert.equal(
+      concerns.verification.metrics,
+      expectedVerificationMetricCount,
+    );
     assert.equal(concerns.verification.advisoryFail, 0);
     assert.equal(concerns.verification.status, "pass");
-    assert.equal(concerns.verification.score, 75);
+    assert.equal(
+      concerns.verification.score,
+      expectedScoreOnlyVerificationScore,
+    );
     assert.ok(
       concerns.verification.limits.some((limit) =>
         limit.includes("No post-turn hooks installed"),

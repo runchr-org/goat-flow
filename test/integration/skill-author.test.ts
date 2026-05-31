@@ -1,3 +1,6 @@
+/**
+ * Integration tests for `goat-flow skill new` filesystem output and input validation.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";

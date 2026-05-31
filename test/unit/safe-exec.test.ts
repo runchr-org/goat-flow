@@ -1,3 +1,6 @@
+/**
+ * Unit tests for safe process execution and project-bounded atomic file writes.
+ */
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { tmpdir } from "node:os";
@@ -88,15 +91,16 @@ describe("safe-exec/execSafely", () => {
   });
 
   it("reports exit code non-zero as ok:false", async () => {
+    const failingExitCode = 7;
     const result = await execSafely({
       command: "node",
-      args: ["-e", "process.exit(7)"],
+      args: ["-e", `process.exit(${failingExitCode})`],
       cwd: tmpdir(),
       allowList: ["node"],
       timeoutMs: 5_000,
     });
     assert.equal(result.ok, false);
-    assert.equal(result.exitCode, 7);
+    assert.equal(result.exitCode, failingExitCode);
   });
 
   it("kills long-running processes on timeout", async () => {

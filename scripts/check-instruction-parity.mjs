@@ -170,8 +170,8 @@ function requirePhrases(path, sectionName, section, phrases, label, failures) {
   }
 }
 
-/** Validate that setup and live instruction files preserve the shared contract surface. */
-function run() {
+/** Validate shared instruction contracts because parity errors need a complete mismatch list before it exits. */
+function validateInstructionParity() {
   const failures = [];
 
   for (const file of ALL_FILES) {
@@ -199,9 +199,9 @@ function run() {
     }
 
     const executionLoop = sectionBodies.get("Execution Loop") ?? "";
-    const loopH3 = h3Sections(executionLoop);
+    const executionLoopHeadings = h3Sections(executionLoop);
     assertEqualArray(
-      loopH3.slice(0, H3_LOOP_SECTIONS.length),
+      executionLoopHeadings.slice(0, H3_LOOP_SECTIONS.length),
       H3_LOOP_SECTIONS,
       label,
       "Execution Loop H3 order",
@@ -264,4 +264,4 @@ function run() {
   );
 }
 
-run();
+validateInstructionParity();

@@ -1,6 +1,6 @@
 ---
 category: gruff-cleanup
-last_reviewed: 2026-05-30
+last_reviewed: 2026-05-31
 ---
 
 ## Lesson: Do not convert a fix request into threshold tuning
@@ -22,3 +22,13 @@ last_reviewed: 2026-05-30
 **Root cause:** Conflated two gruff-ts invocation modes. Config `paths.ignore` filters files discovered during directory/project traversal; it does not suppress a file the user names directly on the command line (the same distinction the `--include-ignored` flag notes when it says config ignores still apply only to discovered paths).
 
 **Prevention:** Verify a path-ignore the way it is actually consumed - a directory or project scan (`gruff-ts analyse <dir>`), then confirm the file appears under `paths.ignoredPaths` and produces no findings. Never verify by passing the ignored file as an explicit argument; that path is analysed unconditionally and will read like a broken ignore. Evidence anchor: `.gruff-ts.yaml` (search: `**/*.css`); reproduction: `gruff-ts analyse src/dashboard --format json` -> `ignoredPaths: ["src/dashboard/styles.css"]`, zero `size.stylesheet-length` findings.
+
+## Lesson: Confirm gruff unused-import findings before deleting imports
+
+**Status:** active | **Created:** 2026-05-31
+
+**What happened:** During the gruff findings cleanup, I treated `waste.unused-import` findings as safe mechanical removals. Removing `realpathSync` / `fileURLToPath` from `src/cli/cli.ts` broke `npm run typecheck`, and removing `rename` / `TERMINAL_UPLOAD_MAX_BODY_BYTES` from `test/integration/dashboard-server.test.ts` broke the focused dashboard-server test.
+
+**Root cause:** The analyzer reported imports as unused even though the symbols were referenced later in large files. I trusted the finding before doing a local symbol search or running the focused test.
+
+**Prevention:** For every gruff `waste.unused-import` finding, run `rg "<symbol>" <file>` before editing. Delete the import only when the import specifier is the sole hit, then run the focused typecheck or test that covers the file. Evidence anchors: `src/cli/cli.ts` (search: `realpathSync(fileURLToPath(import.meta.url))`), `test/integration/dashboard-server.test.ts` (search: `TERMINAL_UPLOAD_MAX_BODY_BYTES + 1`), failing output (search: `ReferenceError: rename is not defined`).

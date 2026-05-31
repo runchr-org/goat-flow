@@ -61,7 +61,7 @@ function runCLI(
   };
 }
 
-/** Extract the first ```json fenced block from a prompt string. */
+/** Extract the first ```json fenced block from a prompt string; throws when the fixture lacks one. */
 function extractExampleJson(prompt: string): string {
   const match = prompt.match(/```json\n([\s\S]*?)\n```/);
   if (!match) throw new Error("no ```json fenced block found in prompt");

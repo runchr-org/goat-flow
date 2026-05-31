@@ -1,3 +1,6 @@
+/**
+ * Unit tests for agent registry lookup, ordering, and supported-agent metadata.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {

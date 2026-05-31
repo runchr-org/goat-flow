@@ -208,13 +208,19 @@ function renderStatsCheckPass(check: StatsCheckReport): string {
   ].join("\n");
 }
 
-/** Render a failing check with actionable findings first and advisory warnings second. */
+/**
+ * Render a failing check with actionable findings first and advisory warnings second.
+ *
+ * Contract: when frontmatter metadata is the reason for failure, append the
+ * stats maintenance command because reviewers cannot infer the remediation from
+ * the raw rule names alone.
+ */
 function renderStatsCheckFailure(check: StatsCheckReport): string {
   const lines = [
     `stats --check: FAIL (${plural(check.findings.length, "finding")}${check.warnings.length > 0 ? `, ${plural(check.warnings.length, "warning")}` : ""})`,
   ];
-  for (const f of check.findings) {
-    lines.push(`  - [${f.rule}] ${f.message}`);
+  for (const finding of check.findings) {
+    lines.push(`  - [${finding.rule}] ${finding.message}`);
   }
   for (const w of check.warnings) {
     lines.push(`  - [${w.rule}] ${w.message}`);

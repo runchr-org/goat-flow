@@ -22,6 +22,7 @@ const DEFAULT_EXISTING_ARTIFACTS: ExistingArtifacts = {
 const QUALITY_HISTORY_LOAD_DELAY_MS = 50;
 const SETUP_PROMPT_LOAD_DELAY_MS = 50;
 
+/** Dashboard state contract shared by setup-prompt and quality-report helpers. */
 interface DashboardSetupQualityContext {
   projectPath: string;
   supportedAgents: SupportedAgent[];
@@ -56,6 +57,7 @@ interface DashboardSetupQualityContext {
   generateQualityHistory(): Promise<void>;
 }
 
+/** Options that choose fast/fresh quality generation behavior from UI controls. */
 interface DashboardQualityGenerateOptions {
   fast?: boolean;
   fresh?: boolean;
