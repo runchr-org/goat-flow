@@ -382,12 +382,7 @@ describe("gruff-code-quality hook", () => {
     // chooses gruff-php for .php even when gruff-ts is also available.
     writeMockGruffBinary(root, "vendor/bin", "gruff-php", "php.rule");
     writeMockGruffBinary(root, "node_modules/.bin", "gruff-ts", "ts.rule");
-    writeMockGruffBinary(
-      root,
-      "strands_agents/.venv/bin",
-      "gruff-py",
-      "py.rule",
-    );
+    writeMockGruffBinary(root, ".venv/bin", "gruff-py", "py.rule");
     writeFileSync(join(root, ".gruff-php.yaml"), "rules: {}\n");
     writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
     writeFileSync(join(root, ".gruff-py.yaml"), "rules: {}\n");
@@ -403,6 +398,28 @@ describe("gruff-code-quality hook", () => {
       { file: "assets/example.ts", expectedRule: "ts.rule" },
       { file: "strands_agents/example.py", expectedRule: "py.rule" },
     ]);
+  });
+
+  it("does not discover binaries from the removed glob or build-output paths", () => {
+    const root = makeRoot();
+    // Security (ADR-032): discovery must not auto-execute a name-matched binary
+    // from an arbitrary `*/.venv/bin` subtree or `target/debug` build output.
+    writeMockGruffBinary(root, "nested/.venv/bin", "gruff-ts", "glob.rule");
+    writeMockGruffBinary(root, "target/debug", "gruff-ts", "debug.rule");
+    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "example.ts"), "const value = 1;\n");
+
+    const result = runHook(
+      root,
+      { tool_name: "Write", tool_input: { file_path: "src/example.ts" } },
+      "/usr/bin:/bin",
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    // No binary on a supported path -> hook fails soft and stays silent.
+    assert.equal(result.stdout, "");
+    assert.deepEqual(readInvocations(root), []);
   });
 
   it("exits silently for fail-soft skip cases", () => {

@@ -208,10 +208,12 @@ file_paths_for_payload() {
   git_changed_supported_paths "$root"
 }
 
-# Discovery covers package-manager installs, sibling gruff checkouts, root and
-# one-level nested virtualenv/debug builds, user-local installs, and finally
-# PATH. The nested virtualenv case supports project layouts such as
-# `strands_agents/.venv/bin/gruff-py`.
+# Discovery covers each ecosystem's standard install location - package-manager
+# bin dirs (vendor/bin for composer, node_modules/.bin for npm), an in-repo bin/,
+# the root virtualenv (.venv/bin), user-local installs (~/.local/bin), and finally
+# PATH. It deliberately excludes a `*/.venv/bin` subdirectory glob and the
+# `target/debug` build-output dir: auto-executing a name-matched binary from an
+# arbitrary subtree or build artifact on every edit is RCE-shaped for little gain.
 discover_binary() {
   local root="$1"
   local binary="$2"
@@ -221,8 +223,6 @@ discover_binary() {
     "$root/node_modules/.bin/$binary" \
     "$root/bin/$binary" \
     "$root/.venv/bin/$binary" \
-    "$root"/*/.venv/bin/"$binary" \
-    "$root/target/debug/$binary" \
     "${HOME:-}/.local/bin/$binary"
   do
     if [[ -n "$candidate" && -x "$candidate" ]]; then
