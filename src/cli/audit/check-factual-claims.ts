@@ -303,7 +303,7 @@ export function scanRemovedCommands(
  * @param checks Numeric claim checks to apply.
  * @returns Content findings for count claims that disagree with live code.
  */
-export function scanCountClaims(
+function scanCountClaims(
   path: string,
   text: string,
   checks: CountClaimCheck[] = COUNT_CHECKS,
@@ -387,7 +387,7 @@ function matchConcernCheckOnLine(
  * @param checks Concern-count checks to apply.
  * @returns Content findings for concern counts that disagree with live code.
  */
-export function scanConcernCountClaims(
+function scanConcernCountClaims(
   path: string,
   text: string,
   checks: ConcernCountCheck[] = CONCERN_CHECKS,
@@ -417,7 +417,7 @@ export function scanConcernCountClaims(
  * @param ctx Audit context used for target filesystem existence checks.
  * @returns Informational findings for unresolved repo-local path references.
  */
-export function scanPathReferences(
+function scanPathReferences(
   path: string,
   text: string,
   ctx: AuditContext,
@@ -482,7 +482,7 @@ const EVIDENCE_ANCHOR_RE =
  * @param text Markdown content to scan.
  * @returns Informational findings for lifetime claims without evidence anchors.
  */
-export function scanLifetimeClaimEvidence(
+function scanLifetimeClaimEvidence(
   path: string,
   text: string,
 ): ContentFinding[] {

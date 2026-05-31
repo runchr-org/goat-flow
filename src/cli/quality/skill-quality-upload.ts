@@ -44,9 +44,9 @@ interface EvaluateInput {
   /** Raw markdown content (uploaded file or pasted text). */
   content: string;
   /** Optional name; falls back to a generic placeholder. */
-  suggestedName?: string;
+  suggestedName?: string | undefined;
   /** Optional explicit kind; otherwise inferred from frontmatter. */
-  kind?: ArtifactKind;
+  kind?: ArtifactKind | undefined;
 }
 
 /**
@@ -418,8 +418,8 @@ interface EvaluateBundleFile {
  */
 interface EvaluateBundleInput {
   files: EvaluateBundleFile[];
-  suggestedName?: string;
-  kind?: ArtifactKind;
+  suggestedName?: string | undefined;
+  kind?: ArtifactKind | undefined;
 }
 
 /**

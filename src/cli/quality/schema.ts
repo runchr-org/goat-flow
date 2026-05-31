@@ -11,7 +11,4 @@ export {
   type SavedQualityFinding,
   type SavedQualityReport,
 } from "./schema-types.js";
-export {
-  parseQualityReport,
-  parseSavedQualityReport,
-} from "./schema-parser.js";
+export { parseQualityReport } from "./schema-parser.js";

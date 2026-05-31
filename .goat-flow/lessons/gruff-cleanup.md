@@ -51,7 +51,7 @@ last_reviewed: 2026-05-31
 
 **Root cause:** I verified the target gruff rule and typecheck first, then jumped to the expensive full suite before running the cheap local style gates that the round-trip preflight also enforces.
 
-**Prevention:** After broad gruff edits, run `npx eslint src/cli src/dashboard` and `npm run format:check` before full tests or preflight. Treat any non-null assertion introduced during naming cleanup as unfinished parsing code; bind the typed value once and branch on it. Evidence anchors: `src/cli/cli-parser.ts` (search: `skillDraftValue`), `test/contract/instruction-quality-guards.test.ts` (search: `assertNoEncyclopediaContent`).
+**Prevention:** After broad gruff edits, run `npx eslint src/cli src/dashboard` and `npm run format:check` before full tests or preflight. Treat any non-null assertion introduced during naming cleanup as unfinished parsing code; bind the typed value once and branch on it. Evidence anchors: `src/cli/cli-parser.ts` (search: `skillDraftValue`), `scripts/check-instruction-parity.mjs` (search: `CANONICAL_SECTIONS`).
 
 ## Lesson: Size refactors must preserve browser script load graphs in tests
 
@@ -59,11 +59,11 @@ last_reviewed: 2026-05-31
 
 **What happened:** While splitting dashboard and terminal classic-script files to clear gruff `size` findings, the first focused terminal-launch suite failed because the VM test helper still loaded only the old monolithic browser files. Production HTML loaded the new fragment files, but the test harness had its own source bundle list.
 
-**Same-session recurrence:** The standalone dashboard-reader test later failed the same way: it evaluated `dashboard-readers.ts` without the split `dashboard-readers-extra.ts`, so `readInjectedSupportedAgents` was undefined in the VM context.
+**Same-session recurrence:** The standalone dashboard-reader test later failed the same way: it evaluated `dashboard-readers.ts` without the split `dashboard-model-readers.ts`, so `readInjectedSupportedAgents` was undefined in the VM context.
 
 **Root cause:** I treated a browser classic-script split like a TypeScript module split. These files do not import each other; the HTML script order is the dependency graph, and VM tests must mirror that graph explicitly.
 
-**Prevention:** After splitting dashboard classic scripts, update `src/dashboard/index.html` and every VM helper source list in the same patch. Run the focused VM suites before expanding the refactor. Evidence anchors: `src/dashboard/index.html` (search: `dashboard-app-fragment-merge.js`), `test/unit/dashboard-terminal-launch/helpers.ts` (search: `readDashboardAppSource`), `test/unit/dashboard-readers.test.ts` (search: `READERS_EXTRA_PATH`).
+**Prevention:** After splitting dashboard classic scripts, update `src/dashboard/index.html` and every VM helper source list in the same patch. Run the focused VM suites before expanding the refactor. Evidence anchors: `src/dashboard/index.html` (search: `dashboard-app-merge.js`), `test/unit/dashboard-terminal-launch/helpers.ts` (search: `readDashboardAppSource`), `test/unit/dashboard-readers.test.ts` (search: `MODEL_READERS_PATH`).
 
 ## Lesson: Dashboard asset renames need a clean dist build
 
@@ -95,4 +95,4 @@ last_reviewed: 2026-05-31
 
 **Prevention:** After splitting any test file, run the whole new file glob, not just one renamed slice. Add explicit imports before trusting the split, even when the old parent already imported the same helpers. Evidence anchors: `test/integration/audit-drift.helpers.ts` (search: `export {`), `test/integration/audit-drift-checkdrift-hook-templates.test.ts` (search: `COPILOT_GRUFF_HOOK_ENTRY`).
 
-**Recurrence 2026-05-31:** Full preflight later found the same standalone-module failure in the setup installer split, plus contract tests still reading old unsplit dashboard/CLI files instead of the new owners. Evidence anchors: `test/integration/setup-install.helpers.ts` (search: `runCliInstaller`), `test/contract/cross-agent-consistency.test.ts` (search: `dashboardRouteTypes`), `test/unit/dashboard-custom-prompts.test.ts` (search: `CUSTOM_PROMPTS_ACTIONS_PATH`), `test/unit/preset-prompts.test.ts` (search: `readDashboardSources`), `test/unit/dashboard-navigation.test.ts` (search: `readAppSource`), `test/unit/quality-subcommands.test.ts` (search: `quality-command.ts`).
+**Recurrence 2026-05-31:** Full preflight later found the same standalone-module failure in the setup installer split, plus contract tests still reading old unsplit dashboard/CLI files instead of the new owners. Evidence anchors: `test/integration/setup-install.helpers.ts` (search: `runCliInstaller`), `test/unit/dashboard-custom-prompts.test.ts` (search: `CUSTOM_PROMPTS_ACTIONS_PATH`), `src/dashboard/index.html` (search: `dashboard-app-merge.js`), `test/unit/quality-subcommands.test.ts` (search: `quality-command.ts`).

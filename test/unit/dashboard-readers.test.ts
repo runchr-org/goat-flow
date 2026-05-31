@@ -15,11 +15,11 @@ const READERS_PATH = resolve(
   "dashboard",
   "dashboard-readers.ts",
 );
-const READERS_EXTRA_PATH = resolve(
+const MODEL_READERS_PATH = resolve(
   PROJECT_ROOT,
   "src",
   "dashboard",
-  "dashboard-readers-extra.ts",
+  "dashboard-model-readers.ts",
 );
 
 type HelperContext = {
@@ -130,7 +130,7 @@ function supportedAgent(
 function loadHelpers(
   windowOverrides: Record<string, unknown> = {},
 ): HelperContext {
-  const js = [READERS_EXTRA_PATH, READERS_PATH]
+  const js = [MODEL_READERS_PATH, READERS_PATH]
     .map(
       (path) =>
         transpileModule(readFileSync(path, "utf-8"), {

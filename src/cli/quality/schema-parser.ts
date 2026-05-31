@@ -686,19 +686,3 @@ export function parseQualityReport(
   if (!result.ok) return result;
   return { ok: true, report: result.report };
 }
-
-/**
- * Parse a persisted quality report that already includes finding IDs.
- *
- * @param raw - Unknown JSON value to validate.
- * @param options - Optional strictness override for legacy compatibility.
- * @returns Parsed saved quality report or a path-specific schema error.
- */
-export function parseSavedQualityReport(
-  raw: unknown,
-  options: QualityReportParseOptions = {},
-): ParseResult<SavedQualityReport> {
-  const result = parseReportInternal(raw, true, options);
-  if (!result.ok) return result;
-  return { ok: true, report: result.report as SavedQualityReport };
-}

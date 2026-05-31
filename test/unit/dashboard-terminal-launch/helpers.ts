@@ -25,14 +25,9 @@ const DASHBOARD_TERMINAL_SOURCE_PATHS = [
 ];
 const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
 const DASHBOARD_APP_SOURCE_PATHS = [
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-merge.ts"),
+  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-merge.ts"),
   resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-init.ts"),
-  resolve(
-    PROJECT_ROOT,
-    "src",
-    "dashboard",
-    "dashboard-app-state-fragments.ts",
-  ),
+  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-state-fragments.ts"),
   resolve(
     PROJECT_ROOT,
     "src",

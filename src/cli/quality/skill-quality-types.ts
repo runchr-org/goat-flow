@@ -96,7 +96,7 @@ export interface MetricResult {
   maxScore: number;
   severity: MetricSeverity;
   detail: string;
-  signals?: MetricSignals;
+  signals?: MetricSignals | undefined;
 }
 
 /**

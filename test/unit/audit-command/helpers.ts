@@ -12,8 +12,8 @@ import {
   runAudit,
   computeHarness,
   runAuditBatch,
+  createAuditFactsView,
 } from "../../../src/cli/audit/audit.js";
-import { createAuditFactsView } from "../../../src/cli/audit/audit-facts-view.js";
 import {
   renderAuditJson,
   renderAuditMarkdown,

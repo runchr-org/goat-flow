@@ -1,6 +1,6 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-31
 ---
 
 ## Lesson: Prove hook capability before marking an agent unsupported
@@ -87,11 +87,11 @@ last_reviewed: 2026-05-28
 
 **Status:** active | **Created:** 2026-05-21
 
-**What happened:** While fixing Prompts custom-editor selection, the first focused `test/unit/preset-prompts.test.ts` run failed because a new HTML source test searched for `<div class="gf-validation-summary"` even though the template puts `x-show` and `x-cloak` before the `class` attribute. The product change was correct; the test anchor assumed attribute order.
+**What happened:** While fixing Prompts custom-editor selection, the first focused prompt-source test failed because it searched for `<div class="gf-validation-summary"` even though the template puts Alpine attributes before the `class` attribute. The product change was correct; the test anchor assumed attribute order.
 
 **Root cause:** I used a tag-prefix source regex for a formatter-owned HTML template instead of anchoring on the semantic class/id token that mattered.
 
-**Prevention:** For dashboard HTML source tests, anchor on stable class/id tokens or parse a scoped slice instead of requiring tag attribute order. Evidence anchors: `test/unit/preset-prompts.test.ts` (search: `keeps custom prompt save actions in the form header`), `src/dashboard/views/prompts.html` (search: `gf-custom-form-actions`).
+**Prevention:** For dashboard HTML source tests, anchor on stable class/id tokens or parse a scoped slice instead of requiring tag attribute order. Evidence anchors: `src/dashboard/views/prompts.html` (search: `gf-validation-summary`), `src/dashboard/views/prompts.html` (search: `gf-custom-form-actions`).
 
 ---
 

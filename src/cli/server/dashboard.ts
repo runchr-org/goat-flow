@@ -94,62 +94,17 @@ interface DashboardServer {
   url: string;
 }
 
-/** Route inventory for the local privileged dashboard control plane.
- *  Exported for the route-classification test. */
-export const DASHBOARD_ROUTE_INVENTORY = [
-  { method: "GET", path: "/", class: "bootstrap" },
-  { method: "GET", path: "/assets/*", class: "static" },
-  { method: "GET", path: "/api/health", class: "privileged-read" },
-  { method: "GET", path: "/api/audit", class: "privileged-read" },
-  { method: "GET", path: "/api/setup/detect", class: "privileged-read" },
-  { method: "GET", path: "/api/setup", class: "privileged-read" },
-  { method: "GET", path: "/api/quality", class: "privileged-read" },
-  { method: "GET", path: "/api/quality/history", class: "privileged-read" },
-  { method: "GET", path: "/api/browse", class: "privileged-read" },
-  { method: "GET", path: "/api/agents/installed", class: "privileged-read" },
-  { method: "GET", path: "/api/tasks", class: "privileged-read" },
-  { method: "POST", path: "/api/tasks", class: "side-effectful" },
-  { method: "GET", path: "/api/hooks", class: "privileged-read" },
-  {
-    method: "POST",
-    path: "/api/hooks/:hookId/toggle",
-    class: "side-effectful",
-  },
-  { method: "GET", path: "/api/projects/list", class: "privileged-read" },
-  { method: "POST", path: "/api/projects/list", class: "side-effectful" },
-  { method: "GET", path: "/api/projects/status", class: "privileged-read" },
-  { method: "POST", path: "/api/quality/evaluate", class: "side-effectful" },
-  // Deprecated alias for /api/quality/evaluate. Same handler, response carries
-  // Deprecation + Link headers. Slated for removal one release after the
-  // dashboard-side migration completes.
-  { method: "POST", path: "/api/quality/analyse", class: "side-effectful" },
-  { method: "POST", path: "/api/terminal/create", class: "side-effectful" },
-  { method: "GET", path: "/api/terminal/list", class: "privileged-read" },
-  { method: "GET", path: "/api/terminal/sessions", class: "privileged-read" },
-  { method: "DELETE", path: "/api/terminal/:id", class: "side-effectful" },
-  {
-    method: "POST",
-    path: "/api/terminal/:id/upload-image",
-    class: "side-effectful",
-  },
-  { method: "GET", path: "/ws/terminal/:id", class: "privileged-websocket" },
-] as const;
-
 /**
  * Side-effectful API route registry.
  *
  * Every POST/DELETE handler that mutates local state, executes a command, or
  * could be CSRF-bait MUST appear in this set. The Origin/CSRF check fires via
- * `isSideEffectfulApiRoute → SIDE_EFFECTFUL_EXACT_API_ROUTES.has(routeKey)`;
- * adding `class: "side-effectful"` to `DASHBOARD_ROUTE_INVENTORY` alone does
- * NOT enable enforcement.
+ * `isSideEffectfulApiRoute → SIDE_EFFECTFUL_EXACT_API_ROUTES.has(routeKey)`.
  *
  * Convention: register the exact route key `"<METHOD> <path>"` here whenever
- * you add a side-effectful endpoint. The companion test
- * `test/unit/route-classification.test.ts` flags drift between this set and
- * the inventory at CI time.
+ * you add a side-effectful endpoint.
  */
-export const SIDE_EFFECTFUL_EXACT_API_ROUTES = new Set([
+const SIDE_EFFECTFUL_EXACT_API_ROUTES = new Set([
   "POST /api/projects/list",
   "POST /api/tasks",
   "POST /api/quality/evaluate",

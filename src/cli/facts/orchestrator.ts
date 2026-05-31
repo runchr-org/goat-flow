@@ -27,7 +27,7 @@ interface ExtractOptions {
   /** Skip expensive setup-time stack detection for dashboard summary audits. */
   includeStack?: boolean;
   /** Optional development/test profiler for extraction timing. */
-  profile?: FactExtractionProfiler;
+  profile?: FactExtractionProfiler | undefined;
 }
 
 function span<T>(

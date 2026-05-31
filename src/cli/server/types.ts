@@ -70,22 +70,24 @@ export interface DashboardReport {
         displayStatus: CheckDisplayStatus;
         impact: CheckImpact;
         type?: HarnessCheckType;
-        evidenceKind?: CheckEvidenceKind;
-        assurance?: CheckAssurance;
-        acknowledged?: boolean;
+        evidenceKind?: CheckEvidenceKind | undefined;
+        assurance?: CheckAssurance | undefined;
+        acknowledged?: boolean | undefined;
         provenance: CheckEvidence;
-        failure?: {
-          check: string;
-          message: string;
-          evidence?: string;
-          howToFix?: string;
-        };
+        failure?:
+          | {
+              check: string;
+              message: string;
+              evidence?: string | undefined;
+              howToFix?: string | undefined;
+            }
+          | undefined;
       }[];
       failures: {
         check: string;
         message: string;
-        evidence?: string;
-        howToFix?: string;
+        evidence?: string | undefined;
+        howToFix?: string | undefined;
       }[];
       summary: Record<string, string>;
     };
@@ -98,21 +100,23 @@ export interface DashboardReport {
         displayStatus: CheckDisplayStatus;
         impact: CheckImpact;
         type?: HarnessCheckType;
-        evidenceKind?: CheckEvidenceKind;
-        acknowledged?: boolean;
+        evidenceKind?: CheckEvidenceKind | undefined;
+        acknowledged?: boolean | undefined;
         provenance: CheckEvidence;
-        failure?: {
-          check: string;
-          message: string;
-          evidence?: string;
-          howToFix?: string;
-        };
+        failure?:
+          | {
+              check: string;
+              message: string;
+              evidence?: string | undefined;
+              howToFix?: string | undefined;
+            }
+          | undefined;
       }[];
       failures: {
         check: string;
         message: string;
-        evidence?: string;
-        howToFix?: string;
+        evidence?: string | undefined;
+        howToFix?: string | undefined;
       }[];
       summary: Record<string, string>;
     } | null;
@@ -147,22 +151,24 @@ export interface DashboardReport {
         displayStatus?: CheckDisplayStatus;
         impact?: CheckImpact;
         type?: HarnessCheckType;
-        acknowledged?: boolean;
-        evidenceKind?: CheckEvidenceKind;
-        assurance?: CheckAssurance;
+        acknowledged?: boolean | undefined;
+        evidenceKind?: CheckEvidenceKind | undefined;
+        assurance?: CheckAssurance | undefined;
         provenance: CheckEvidence;
-        failure?: {
-          check: string;
-          message: string;
-          evidence?: string;
-          howToFix?: string;
-        };
+        failure?:
+          | {
+              check: string;
+              message: string;
+              evidence?: string | undefined;
+              howToFix?: string | undefined;
+            }
+          | undefined;
       }[];
       failures: {
         check: string;
         message: string;
-        evidence?: string;
-        howToFix?: string;
+        evidence?: string | undefined;
+        howToFix?: string | undefined;
       }[];
       summary: Record<string, string>;
     }
@@ -201,7 +207,7 @@ export interface HealthResponse {
   /** CLI runners detected on the system PATH */
   availableRunners: Runner[];
   /** Host platform for install guidance when node-pty is unavailable */
-  platformHint?: "linux" | "darwin" | "win32";
+  platformHint?: "linux" | "darwin" | "win32" | undefined;
   /** Configured idle timeout in minutes (0 = never) */
   idleTimeoutMinutes: number;
 }

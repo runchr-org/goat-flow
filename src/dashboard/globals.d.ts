@@ -309,9 +309,9 @@ interface ServerSessionInfo {
   targetPath: string;
   runner: RunnerId;
   lastInputAt: number;
-  age?: number;
-  idleDuration?: number;
-  projectName?: string;
+  age?: number | undefined;
+  idleDuration?: number | undefined;
+  projectName?: string | undefined;
 }
 
 /** Local terminal session tracked by the frontend Alpine state. */
@@ -333,7 +333,7 @@ interface LocalSession
   outputTail?: string;
   /** Loading overlay state: create/mount -> connecting, ws open -> loading, first output -> ready, pre-output failure -> error. */
   loadingPhase: TerminalLoadingPhase;
-  loadingError?: string;
+  loadingError?: string | undefined;
   loadingShowSlowHint?: boolean;
   loadingShowRetry?: boolean;
   age: string;
@@ -345,23 +345,25 @@ interface TerminalRefs {
   ws?: WebSocket;
   xterm?: XTermInstance;
   cleanup?: () => void;
-  ageInterval?: ReturnType<typeof setInterval>;
-  awaitingInputTimer?: ReturnType<typeof setTimeout>;
-  pasteSubmitTimer?: ReturnType<typeof setTimeout>;
-  pasteSubmitQueue?: Array<{ data: string; shouldDelaySubmit: boolean }>;
-  pasteSubmitOutputTail?: string;
+  ageInterval?: ReturnType<typeof setInterval> | undefined;
+  awaitingInputTimer?: ReturnType<typeof setTimeout> | undefined;
+  pasteSubmitTimer?: ReturnType<typeof setTimeout> | undefined;
+  pasteSubmitQueue?:
+    | Array<{ data: string; shouldDelaySubmit: boolean }>
+    | undefined;
+  pasteSubmitOutputTail?: string | undefined;
   pasteSubmitAwaitingCommit?: boolean;
   pasteSubmitFallbackSubmitted?: boolean;
-  launchPrompt?: string;
+  launchPrompt?: string | undefined;
   retryPrompt?: string;
   retryPromptLabel?: string | null;
   retryPresetId?: string | null;
   retryCwdPath?: string | null;
   retryTargetPath?: string | null;
-  loadingSlowTimer?: ReturnType<typeof setTimeout>;
-  loadingRetryTimer?: ReturnType<typeof setTimeout>;
-  launchPromptFallbackTimer?: ReturnType<typeof setTimeout>;
-  launchPromptQuietTimer?: ReturnType<typeof setTimeout>;
+  loadingSlowTimer?: ReturnType<typeof setTimeout> | undefined;
+  loadingRetryTimer?: ReturnType<typeof setTimeout> | undefined;
+  launchPromptFallbackTimer?: ReturnType<typeof setTimeout> | undefined;
+  launchPromptQuietTimer?: ReturnType<typeof setTimeout> | undefined;
   launchPromptOutputSeen?: boolean;
 }
 
@@ -386,24 +388,24 @@ interface Preset {
   desc: string;
   prompt: string;
   cat: string;
-  route?: string;
-  source?: string;
-  globalSafe?: boolean;
-  internalOnly?: boolean;
-  qualityMode?: boolean;
-  requiresGh?: boolean;
-  requiresPrOrIssue?: boolean;
-  requiresLocalDiff?: boolean;
-  requiresUiApp?: boolean;
-  requiresDependencyFiles?: boolean;
-  requiresGoatFlowInstall?: boolean;
-  mayCheckoutBranch?: boolean;
-  requiresCleanWorktree?: boolean;
-  mayWriteFiles?: boolean;
-  artifactRequired?: boolean;
-  bestTargetSurfaces?: string[];
-  fallbackPrompt?: string;
-  costTier?: "low" | "medium" | "high";
+  route?: string | undefined;
+  source?: string | undefined;
+  globalSafe?: boolean | undefined;
+  internalOnly?: boolean | undefined;
+  qualityMode?: boolean | undefined;
+  requiresGh?: boolean | undefined;
+  requiresPrOrIssue?: boolean | undefined;
+  requiresLocalDiff?: boolean | undefined;
+  requiresUiApp?: boolean | undefined;
+  requiresDependencyFiles?: boolean | undefined;
+  requiresGoatFlowInstall?: boolean | undefined;
+  mayCheckoutBranch?: boolean | undefined;
+  requiresCleanWorktree?: boolean | undefined;
+  mayWriteFiles?: boolean | undefined;
+  artifactRequired?: boolean | undefined;
+  bestTargetSurfaces?: string[] | undefined;
+  fallbackPrompt?: string | undefined;
+  costTier?: "low" | "medium" | "high" | undefined;
 }
 
 /** Compact compatibility badge shown for preset prerequisites and fit. */
@@ -574,9 +576,9 @@ interface QualityModeOption {
   label: string;
   desc: string;
   source: "api" | "preset" | "registry";
-  presetId?: string;
+  presetId?: string | undefined;
   targetScope: string;
-  prompt?: string;
+  prompt?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------

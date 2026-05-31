@@ -23,8 +23,8 @@ export interface DashboardProjectIdentity {
   identity: string;
   identitySource: ProjectIdentitySource;
   currentPath: string;
-  remoteUrlHash?: string;
-  markerId?: string;
+  remoteUrlHash?: string | undefined;
+  markerId?: string | undefined;
 }
 
 /**
@@ -32,7 +32,7 @@ export interface DashboardProjectIdentity {
  */
 interface DashboardProjectRecord extends DashboardProjectIdentity {
   paths: string[];
-  title?: string;
+  title?: string | undefined;
 }
 
 /**

@@ -45,7 +45,7 @@ export interface QualityInput {
   agent: AgentId;
   projectPath: string;
   auditReport: AuditReport | null;
-  auditUnavailableReason?: AuditUnavailableReason;
+  auditUnavailableReason?: AuditUnavailableReason | undefined;
   priorReport?: QualityHistoryEntry | null;
   qualityMode?: QualityMode;
   selectedProjectPath?: string;

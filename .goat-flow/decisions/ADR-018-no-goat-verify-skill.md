@@ -47,7 +47,7 @@ External pattern mining (superpowers/verification-before-completion, systematic-
 
 6. **Capture the one genuinely new behavioural insight as a lesson.** Rationalization anti-patterns ("Confidence ≠ evidence", "Just this once", "Partial check is enough", etc.) go into `.goat-flow/lessons/verification.md` as a new `## Lesson:` entry. This is the excuse-pattern catalog the red-flags do not explicitly enumerate.
 
-7. **Deterministic text-contract tests.** Extend `test/integration/preamble-sync.test.ts` to assert the `## Proof Gate` heading exists in both preamble copies. Add `test/integration/verification-boundaries.test.ts` to pin: goat-qa trigger does not claim raw `"verify"`; the `/goat` dispatcher route map says "verification planning"; every canonical skill references "Proof Gate".
+7. **Deterministic text-contract tests.** Extend `test/integration/preamble-sync.test.ts` to assert the `## Proof Gate` heading exists in both preamble copies. Keep route-map and skill-hardening coverage pinned to the surviving contract surfaces: goat-qa trigger does not claim raw `"verify"`; the `/goat` dispatcher route map says "verification planning"; every canonical skill references "Proof Gate".
 
 ## Consequences
 
@@ -74,6 +74,6 @@ If any precondition fires, the new ADR's implementation must touch the 3 hardcod
 - `workflow/skills/goat-qa/SKILL.md` - trigger "verify" → "verify coverage"; expanded NOT-this-skill routing.
 - `workflow/skills/{goat, goat-plan, goat-review, goat-critique, goat-security}/SKILL.md` - Proof Gate one-line references.
 - `.goat-flow/lessons/verification.md` - new `## Lesson: Verification rationalization anti-patterns` entry.
-- `test/integration/preamble-sync.test.ts`, `test/integration/verification-boundaries.test.ts` - contract tests.
+- `test/integration/preamble-sync.test.ts` and `test/contract/skill-hardening-contracts.test.ts` - contract tests.
 - Precedent: ADR-002, ADR-005, ADR-009, plus the earlier shared-preamble cleanup that retired `RULES.md`.
 - Drift-risk motivation: `.goat-flow/footguns/skills.md` (search: `punctuation-only edits`).

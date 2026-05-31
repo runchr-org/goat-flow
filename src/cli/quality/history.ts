@@ -313,27 +313,6 @@ export function loadQualityHistoryWindow(
   return { entries, warnings };
 }
 
-/**
- * Return the latest history entry for one agent and optional quality mode.
- *
- * @param entries - Pre-sorted quality-history entries.
- * @param agent - Agent whose latest report should be selected.
- * @param qualityMode - Optional mode filter; `null` accepts any mode.
- * @returns The newest matching entry, or `null` when no report matches.
- */
-export function getLatestQualityHistoryEntry(
-  entries: QualityHistoryEntry[],
-  agent: AgentId,
-  qualityMode: QualityMode | null = null,
-): QualityHistoryEntry | null {
-  return (
-    entries.find(
-      (entry) =>
-        entry.agent === agent && matchesQualityMode(entry, qualityMode),
-    ) ?? null
-  );
-}
-
 /** Try to load and validate one history file. Returns the entry or null + a warning. */
 function tryParseHistoryFile(
   dir: string,

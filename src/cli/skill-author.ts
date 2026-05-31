@@ -230,15 +230,15 @@ const TEMPLATES_BY_SUBTYPE: Record<string, string> = {
 /** Input contract for the three mutually exclusive `skill new` modes. */
 interface SkillNewOptions {
   /** A natural-language description of the skill (description mode). */
-  description?: string;
+  description?: string | undefined;
   /** Path to an existing markdown draft (draft-validation mode). */
-  draftPath?: string;
+  draftPath?: string | undefined;
   /** Open the interactive prompt flow even when other inputs are provided. */
   shouldUseInteractivePrompt?: boolean;
   /** Skip the y/n confirmation prompt before writing (used by tests). */
   shouldSkipConfirm?: boolean;
   /** Override the skill name (otherwise prompts in interactive mode). */
-  name?: string;
+  name?: string | undefined;
   /** Project root for path resolution (default: process.cwd()). */
   projectRoot?: string;
   /** Pre-supplied stdin lines (used by tests in place of readline). */
@@ -253,7 +253,7 @@ interface SkillNewResult extends Record<"written", boolean> {
   /** Filled scaffold content. */
   scaffold: string | null;
   /** Quality score after scaffold (skill kind only). */
-  postScaffoldScore?: { totalScore: number; profileMax: number };
+  postScaffoldScore?: { totalScore: number; profileMax: number } | undefined;
   /** Human-readable lines for terminal output. */
   output: string[];
 }

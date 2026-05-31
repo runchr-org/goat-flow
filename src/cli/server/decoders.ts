@@ -50,9 +50,9 @@ export interface EvaluateBody {
   content?: string;
   files?: { name: string; content: string }[];
   /** Optional filename or display name; used as the analyzed artifact name. */
-  suggestedName?: string;
+  suggestedName?: string | undefined;
   /** Optional explicit kind override; otherwise inferred from frontmatter. */
-  kind?: "skill" | "shared-reference";
+  kind?: "skill" | "shared-reference" | undefined;
 }
 
 /** Hook-toggle payload accepted by POST /api/hooks/:hookId/toggle. */
@@ -367,8 +367,8 @@ function utf8ByteLength(text: string): number {
  * report identical path errors for `suggestedName` and `kind`.
  */
 function decodeEvaluateOptionals(obj: Record<string, unknown>): DecodeResult<{
-  suggestedName?: string;
-  kind?: "skill" | "shared-reference";
+  suggestedName?: string | undefined;
+  kind?: "skill" | "shared-reference" | undefined;
 }> {
   let suggestedName: string | undefined;
   if (obj.suggestedName !== undefined) {

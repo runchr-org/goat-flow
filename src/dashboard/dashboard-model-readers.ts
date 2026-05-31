@@ -1,5 +1,6 @@
 /**
- * Supplemental dashboard payload readers for presets, projects, sessions, and quality APIs.
+ * Dashboard model readers for injected shell data and API payloads that feed
+ * presets, projects, sessions, quality views, and task state.
  */
 function readSupportedAgent(rawAgent: unknown): SupportedAgent | null {
   if (!isRecord(rawAgent)) return null;

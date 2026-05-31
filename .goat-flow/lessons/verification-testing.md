@@ -11,7 +11,9 @@ last_reviewed: 2026-05-31
 
 **Root cause:** I treated "direct implementation import for gruff" and "facade import for Knip/API stability" as mutually exclusive, and one endpoint test asserted incidental filesystem ordering instead of selecting the record that carried the behavior under test.
 
-**Prevention:** When direct imports are needed to prove a nearby implementation module, keep stable facade exports exercised with explicit alignment assertions in existing nearby tests. For endpoint arrays that do not declare a sort contract, select records by semantic identifier before asserting fields. Evidence anchors: `test/unit/audit-command/batch-fact-reuse.test.ts` (search: `keeps the audit facade fact-view export aligned`), `test/unit/skill-quality/skill-scoring.test.ts` (search: `keeps the skill-quality facade score export aligned`), `test/integration/dashboard-tasks-api.test.ts` (search: `milestoneByFilename`).
+**Recurrence 2026-05-31:** Deleting 25 low-quality tests produced the same shape from the other direction: `npx knip` flagged production exports that only deleted tests imported, `npm run typecheck` caught the route inventory left behind for the deleted route-classification test, and the installer round-trip preflight caught hidden `.goat-flow` anchors that still cited deleted test paths.
+
+**Prevention:** When direct imports are needed to prove a nearby implementation module, keep stable facade exports exercised with explicit alignment assertions in existing nearby tests. For endpoint arrays that do not declare a sort contract, select records by semantic identifier before asserting fields. Evidence anchors: `src/cli/audit/audit.ts` (search: `createAuditFactsView`), `src/cli/quality/skill-quality.ts` (search: `scoreAllArtifacts`), `test/integration/dashboard-tasks-api.test.ts` (search: `milestoneByFilename`).
 
 ---
 
@@ -31,11 +33,11 @@ last_reviewed: 2026-05-31
 
 **Status:** active | **Created:** 2026-05-30
 
-**What happened:** During `docs.missing-internal-function-doc` cleanup, the combined focused command `node --import tsx --test test/smoke/dashboard-endpoints.test.ts test/unit/dashboard-setup-quality.test.ts test/unit/audit-command.test.ts` failed `uses the fallback deadline when runner output keeps updating`: `spawned.writes` was still `[]` at the 5600ms assertion. The touched code was comment-only. Rerunning `node --import tsx --test test/smoke/dashboard-endpoints.test.ts` immediately afterward passed with `# pass 15` / `# fail 0`; the two edited unit files also passed in isolated runs.
+**What happened:** During `docs.missing-internal-function-doc` cleanup, a combined focused command that grouped the dashboard smoke test with heavier unit suites failed `uses the fallback deadline when runner output keeps updating`: `spawned.writes` was still `[]` at the 5600ms assertion. The touched code was comment-only. Rerunning `node --import tsx --test test/smoke/dashboard-endpoints.test.ts` immediately afterward passed with `# pass 15` / `# fail 0`; the two edited unit files also passed in isolated runs.
 
-**Root cause:** The terminal smoke test uses real timers to assert a fallback deadline, while `audit-command.test.ts` performs CPU-heavy repo audits in the same Node test process. Grouping them made the timer-sensitive assertion fail like a product regression even though the smoke file passed alone.
+**Root cause:** The terminal smoke test uses real timers to assert a fallback deadline, while heavy audit-command coverage performs CPU-heavy repo audits in the same Node test process. Grouping them made the timer-sensitive assertion fail like a product regression even though the smoke file passed alone.
 
-**Prevention:** When `test/smoke/dashboard-endpoints.test.ts` is in focused verification, run it as its own `node --import tsx --test` command. Run heavy audit suites separately, and treat a combined-run fallback-deadline failure as an invocation-shape suspect until the isolated smoke file fails too. Evidence anchors: `test/smoke/dashboard-endpoints.test.ts` (search: `uses the fallback deadline when runner output keeps updating`), `test/unit/audit-command/batch-fact-reuse.test.ts` (search: `runs full-profile batch fact extraction once`).
+**Prevention:** When `test/smoke/dashboard-endpoints.test.ts` is in focused verification, run it as its own `node --import tsx --test` command. Run heavy audit suites separately, and treat a combined-run fallback-deadline failure as an invocation-shape suspect until the isolated smoke file fails too. Evidence anchors: `test/smoke/dashboard-endpoints.test.ts` (search: `uses the fallback deadline when runner output keeps updating`), `src/cli/audit/audit.ts` (search: `runAuditBatch`).
 
 ---
 
@@ -105,9 +107,11 @@ last_reviewed: 2026-05-31
 
 **Recurrence 2026-05-12:** While self-hosting xterm assets, `test/integration/dashboard-server.test.ts` fetched `/assets/xterm.js` successfully but failed because the assertion looked for `XTerm`, a string not present in the minified upstream bundle. The route was correct; the test anchor was wrong. For vendored/minified assets, assert route status/content type and stable feature strings observed in the actual bundle, such as `bracketedPasteMode`, not package names or branding text.
 
-**Recurrence 2026-05-16:** While moving setup instruction surfaces into manifest-backed agent capabilities, full `npm test` failed because `test/unit/preset-prompts.test.ts` still asserted literal `CLAUDE.md, .claude/settings.json` strings in `dashboard-setup-quality.ts`. The product change was correct; the test had become a stale parallel authority. For manifest-backed refactors, update source-grep tests to assert the data boundary (`workflow/manifest.json` plus injected fields) instead of the old duplicated literals.
+**Recurrence 2026-05-16:** While moving setup instruction surfaces into manifest-backed agent capabilities, full `npm test` failed because a source-grep prompt test still asserted literal `CLAUDE.md, .claude/settings.json` strings in `dashboard-setup-quality.ts`. The product change was correct; the test had become a stale parallel authority. For manifest-backed refactors, update source-grep tests to assert the data boundary (`workflow/manifest.json` plus injected fields) instead of the old duplicated literals.
 
 **Recurrence 2026-05-27:** While hardening dashboard paste-submit timing in `src/dashboard/dashboard-terminal.ts`, the focused terminal suite passed but `npx prettier --check src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` flagged `test/unit/dashboard-terminal-launch.test.ts` after long fake-timer assertions were added. Running Prettier on the touched TypeScript files fixed it before the final focused rerun. Prevention unchanged: run Prettier on changed dashboard classic-script tests before claiming verification is complete.
+
+**Recurrence 2026-05-31:** While renaming dashboard classic-script files, `npx prettier --check ... test/unit/dashboard-terminal-launch/helpers.ts` failed after the source-list edit. Running Prettier on the touched helper before rerunning focused tests fixed the formatter-owned diff. Prevention unchanged: format changed dashboard classic-script tests before claiming verification is complete.
 
 ---
 
@@ -286,7 +290,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 
 **Status:** active | **Created:** 2026-04-25
 
-**What happened:** While removing one forbidden phrase and changing dashboard quality report ownership, the first full `npm test` run failed two contract-style checks: `test/contract/skill-hardening-contracts.test.ts` still required the established "hardening debt" evidence language, and `test/unit/preset-prompts.test.ts` still asserted the old relative quality-report path message.
+**What happened:** While removing one forbidden phrase and changing dashboard quality report ownership, the first full `npm test` run failed two contract-style checks: `test/contract/skill-hardening-contracts.test.ts` still required the established "hardening debt" evidence language, and a dashboard prompt-source assertion still expected the old relative quality-report path message.
 
 **Root cause:** I treated wording cleanup and path-semantics changes as local edits, but these surfaces are intentionally pinned by tests because agents consume the exact phrasing.
 
@@ -368,7 +372,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 
 **Root cause:** I edited a shell regex directly inside `[[ ... =~ ... ]]` instead of moving the pattern to a variable, which is safer for regex metacharacters that the Bash parser can see. I also forgot the existing VM cross-realm lesson when adding a new classic-script helper test.
 
-**Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `workflow/hooks/hook-lib/patterns-writes.sh` (search: `is_git_push`), `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `sudo git push`), `test/unit/dashboard-setup-quality.test.ts` (search: `qualityHistoryRows.length`).
+**Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `workflow/hooks/hook-lib/patterns-writes.sh` (search: `is_git_push`), `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `sudo git push`), `src/dashboard/views/quality.html` (search: `qualityHistoryRows.length`).
 
 ---
 

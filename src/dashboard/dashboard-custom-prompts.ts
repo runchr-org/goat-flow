@@ -139,8 +139,8 @@ const CUSTOM_PROMPT_FLAG_GROUPS: CustomPromptFlagGroup[] = [
 
 /** Prompt metadata subset used to apply the same global-safety gate to drafts and stored prompts. */
 interface PromptGlobalSafetyInput {
-  requiresGoatFlowInstall?: boolean;
-  globalSafe?: boolean;
+  requiresGoatFlowInstall?: boolean | undefined;
+  globalSafe?: boolean | undefined;
 }
 
 /** Goat-flow-installed prompts are target-local because external targets may not carry the harness. */

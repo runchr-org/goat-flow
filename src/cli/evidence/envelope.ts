@@ -68,7 +68,7 @@ export interface CreateEvidenceEnvelopeInput {
   actor: EvidenceActor;
   projectRoot: string;
   timestamp?: string | Date;
-  payload?: EvidencePayload;
+  payload?: EvidencePayload | undefined;
   provenance?: Partial<
     Pick<
       CheckEvidence,
@@ -89,7 +89,7 @@ export interface AppendEvidenceEnvelopeResult extends Record<"ok", boolean> {
 
 /** Optional warning sink used by tests and dashboard routes instead of direct stderr writes. */
 export interface EvidenceEnvelopeWriteOptions {
-  onWarning?: (message: string) => void;
+  onWarning?: ((message: string) => void) | undefined;
 }
 
 type EvidencePathExists = (path: string) => boolean;

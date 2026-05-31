@@ -21,8 +21,8 @@ import type { CheckEvidence } from "./provenance-types.js";
 export interface AuditFailure {
   check: string;
   message: string;
-  evidence?: string;
-  howToFix?: string;
+  evidence?: string | undefined;
+  howToFix?: string | undefined;
 }
 
 /** Stable per-check JSON shape consumed by CLI renderers, dashboard readers, and SARIF. */
@@ -35,19 +35,19 @@ export interface CheckResult {
   /** Whether this result affects audit status, concern score only, or neither. */
   impact: CheckImpact;
   provenance: CheckEvidence;
-  failure?: AuditFailure;
+  failure?: AuditFailure | undefined;
   /** Harness-check classification; absent for build checks. */
   type?: HarnessCheckType;
   /** True when an advisory failure is silenced by `harness.acknowledge` in config. */
-  acknowledged?: boolean;
+  acknowledged?: boolean | undefined;
   /** Evidence strength label for smoke checks that prove structure, not content semantics. */
-  evidenceKind?: CheckEvidenceKind;
+  evidenceKind?: CheckEvidenceKind | undefined;
   /** Assurance label for checks that pass with a known platform limitation. */
-  assurance?: CheckAssurance;
+  assurance?: CheckAssurance | undefined;
   /** Structured per-check detail. Forwarded verbatim from
    *  `HarnessCheckResult.details`; absent for build checks and for harness
    *  checks that haven't been extended yet. */
-  details?: HarnessCheckDetails;
+  details?: HarnessCheckDetails | undefined;
 }
 
 /** Scope aggregate plus the original checks used to build it. */
@@ -212,7 +212,7 @@ export interface AuditContext {
   /** Fact extraction profile backing this context. Summary contexts omit stack facts. */
   factProfile?: AuditFactProfile;
   /** Optional downgrade for expensive per-agent summary checks used by dashboard routes. */
-  denyMechanismEvidenceLevel?: "full" | "static" | "present-only";
+  denyMechanismEvidenceLevel?: "full" | "static" | "present-only" | undefined;
 }
 
 /** Build-check scopes that exist before optional harness checks are requested. */

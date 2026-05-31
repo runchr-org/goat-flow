@@ -52,7 +52,7 @@ import {
 import {
   scoreArtifact,
   scoreAllArtifacts,
-} from "../../../src/cli/quality/skill-quality-score.js";
+} from "../../../src/cli/quality/skill-quality.js";
 import {
   evaluateContent,
   evaluateUploadedBundle,
