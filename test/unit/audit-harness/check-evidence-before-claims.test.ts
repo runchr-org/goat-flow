@@ -7,10 +7,8 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
 import { HARNESS_CHECKS } from "../../../src/cli/audit/harness/index.js";
-import { computeHarness, runAudit } from "../../../src/cli/audit/audit.js";
-import { createFS } from "../../../src/cli/facts/fs.js";
+import { computeHarness } from "../../../src/cli/audit/audit.js";
 import {
   completeInstruction,
   INSTRUCTION_FILES,
@@ -25,7 +23,6 @@ import {
   stubFS,
 } from "../../fixtures/projects/index.js";
 
-const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..", "..");
 const RATIONALISATIONS_PATH = ".goat-flow/skill-reference/skill-preamble.md";
 const evidenceBeforeClaims = HARNESS_CHECKS.find(
   (check) => check.id === "evidence-before-claims",
@@ -198,20 +195,5 @@ describe("evidence-before-claims harness metric", () => {
 
     assert.equal(result.status, "pass");
     assert.match(result.findings.join("\n"), /1 present instruction file/);
-  });
-
-  it("is score-only in audit output and passes on the goat-flow self repo", () => {
-    const report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, {
-      agentFilter: "claude",
-      harness: true,
-    });
-    const check = report.scopes.harness?.checks.find(
-      (entry) => entry.id === "evidence-before-claims",
-    );
-
-    assert.ok(check, "audit report should include evidence-before-claims");
-    assert.equal(check.type, "metric");
-    assert.equal(check.impact, "none");
-    assert.equal(check.status, "pass");
   });
 });

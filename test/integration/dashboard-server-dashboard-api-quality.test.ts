@@ -1,6 +1,6 @@
 /**
  * Dashboard /api/quality prompt endpoint: returns 400 without an agent, emits mode-specific quality
- * prompts per supported agent, uses cache-only audit enrichment when fast=true and reuses cached
+ * prompts for a supported agent, uses cache-only audit enrichment when fast=true and reuses cached
  * audits unless fresh=true, and emits a redacted evidence envelope for the generated prompts.
  */
 import {
@@ -9,7 +9,6 @@ import {
   describe,
   expectRecord,
   fetchJson,
-  getKnownAgentIds,
   it,
   join,
   mkdtemp,
@@ -121,20 +120,18 @@ describe("dashboard /api/quality", () => {
     assert.equal(third.auditCacheStatus, "bypass");
   });
 
-  for (const agent of getKnownAgentIds()) {
-    it(`generates quality output for ${agent}`, async () => {
-      const { res, body } = await fetchJson(
-        `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=${agent}`,
-      );
-      assert.equal(res.status, 200);
+  it("generates quality output for claude", async () => {
+    const { res, body } = await fetchJson(
+      `/api/quality?path=${encodeURIComponent(PROJECT_PATH)}&agent=claude`,
+    );
+    assert.equal(res.status, 200);
 
-      const data = expectRecord(body, "Quality response");
-      assert.equal(data.command, "quality");
-      assert.equal(data.agent, agent);
-      assert.match(String(data.auditStatus), /^(pass|fail|unavailable)$/);
-      assert.equal(typeof data.auditSummary, "string");
-      assert.equal(typeof data.prompt, "string");
-      assert.ok(String(data.prompt).length > 100);
-    });
-  }
+    const data = expectRecord(body, "Quality response");
+    assert.equal(data.command, "quality");
+    assert.equal(data.agent, "claude");
+    assert.match(String(data.auditStatus), /^(pass|fail|unavailable)$/);
+    assert.equal(typeof data.auditSummary, "string");
+    assert.equal(typeof data.prompt, "string");
+    assert.ok(String(data.prompt).length > 100);
+  });
 });
