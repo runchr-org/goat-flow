@@ -2,6 +2,21 @@
  * checkDrift clean-fixture baseline: with templates and installed copies identical, asserts a pass
  * with zero findings and that `checked` equals the exact expected skill-file plus shared-file count.
  */
+import {
+  after,
+  assert,
+  before,
+  checkDrift,
+  createFS,
+  describe,
+  getInstalledSkillRoots,
+  getSkillFiles,
+  it,
+  rmSync,
+  setupFixture,
+  SKILL_NAMES,
+} from "./audit-drift.helpers.ts";
+
 describe("checkDrift: clean fixture", () => {
   let root: string;
   before(() => {

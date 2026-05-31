@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-01
 ---
 
 ## Lesson: Gruff-driven direct imports must preserve facade proof

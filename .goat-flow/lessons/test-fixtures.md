@@ -1,6 +1,18 @@
 ---
 category: test-fixtures
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-01
+---
+
+## Lesson: CI must use package test scripts after suite splits
+
+**Status:** active | **Created:** 2026-06-01
+
+**What happened:** PR #45 split the audit-drift and dashboard integration tests into standalone files and updated `package.json` so fast tests exclude stateful dashboard suites while `test:slow` runs them serially. The GitHub Actions `Test` step still invoked the raw `node --import tsx --test --test-reporter=spec test/*/*.test.ts` glob, so CI bypassed the split-suite contract and failed on `test/integration/audit-drift.test.ts` with `ReferenceError: describe is not defined`. A local raw-glob rerun also exposed dashboard state cross-contamination in `dashboard /api/projects`.
+
+**Root cause:** I updated the npm test scripts as the canonical suite entry points but did not update CI to call them, leaving Actions on an older invocation shape that no longer matched the test layout.
+
+**Prevention:** After splitting, renaming, or serialising test files, compare `.github/workflows/ci.yml` against `package.json` test scripts before trusting local runs. CI should call the package script that encodes exclusions/concurrency instead of duplicating a raw test glob. Evidence anchors: `.github/workflows/ci.yml` (search: `npm run test:full`), `package.json` (search: `"test:slow": "npm run build && node --import tsx --test --test-concurrency=1`), `test/integration/audit-drift.helpers.ts` (search: `export {`), `test/integration/dashboard-server.helpers.ts` (search: `DASHBOARD_STATE_PATH`).
+
 ---
 
 ## Lesson: Workflow parser refactors need both fixture coverage and typecheck
