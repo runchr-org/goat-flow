@@ -1,7 +1,7 @@
 ---
 category: index
 bucket: footguns
-last_reviewed: 2026-05-30
+last_reviewed: 2026-06-01
 generated: false
 ---
 
@@ -48,6 +48,7 @@ Prototype index for active footgun entries. Each line links to the bucket file a
 - [Hook toggles can scaffold uninstalled agent surfaces](hooks.md) (search: "## Footgun: Hook toggles can scaffold uninstalled agent surfaces") - Hook toggles can create configs for agents the target project never installed.
 - [Splitting a monolithic guardrail can drop parser coverage while preserving the headline checks](hooks.md) (search: "## Footgun: Splitting a monolithic guardrail can drop parser coverage while preserving the headline checks") - Small split hooks can pass smoke tests while losing wrapper, parser, and false-positive coverage.
 - [Hook command strings can fail before guard code starts](hooks.md) (search: "## Footgun: Hook command strings can fail before guard code starts") - Configured launch strings can fail with 126/127 even when direct hook self-tests pass.
+- [Hook sync can copy required policy files into ignored paths](hooks.md) (search: "## Footgun: Hook sync can copy required policy files into ignored paths") - Hook enable/sync can leave required `.goat-flow/hook-lib/` files local-only under stale gitignore templates.
 - [Hook launchers using --show-toplevel resolve to the worktree, not the main repo](hooks.md) (search: "## Footgun: Hook launchers using --show-toplevel resolve to the worktree, not the main repo") - Worktree sessions can resolve hook paths against the worktree instead of the main repo.
 - [Extension-based secret checks can confuse filenames with query syntax](hooks.md) (search: "## Footgun: Extension-based secret checks can confuse filenames with query syntax") - Broad `.key`/`.pem` matching can block jq/yq fields or comment text.
 - [File-read deny does not bind Bash shell reads of secret files](hooks.md) (search: "## Footgun: File-read deny does not bind Bash shell reads of secret files") - Read-tool deny patterns do not stop Bash commands such as `cat .env`.

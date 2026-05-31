@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-01
 ---
 
 **Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: deny-dangerous self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `patterns-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
@@ -51,6 +51,7 @@ last_reviewed: 2026-05-31
 
 **Evidence:**
 - Current preflight and audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Evidence anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`) and `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configuredGuardCommands`).
+- 2026-06-01 release-review recurrence: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runConfiguredHookCommandSmoke`) parses the configured command but launches `bash` against `configured.scriptPath`, so a broken `$root` resolver, stale wrapper, shell syntax error, or direct executable-bit failure can still pass audit while the configured agent command fails before guard startup.
 - `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case, and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case.
 - Runtime contract anchors: `workflow/hooks/README.md` (search: `Failure Modes / Runtime Contracts`) and `src/cli/server/agent-hook-writer.ts` (search: `Guard cannot start: git repository root unavailable`).
 
@@ -58,6 +59,25 @@ last_reviewed: 2026-05-31
 1. Treat configured guard-script replay as part of hook verification, not an optional integration smoke.
 2. Fail hard on exit 126/127 even if direct script self-tests pass.
 3. Keep command-shape differences documented: Claude and Antigravity resolve the git root and fail closed when unavailable; Codex and Copilot use direct project-local paths and require project-root cwd.
+4. Runtime smoke must execute the configured command string, or a parser-backed equivalent that validates every wrapper component. Do not replace a configured command with `bash <scriptPath>` when the command contains resolver logic or direct executable invocation.
+
+## Footgun: Hook sync can copy required policy files into ignored paths
+
+**Status:** active | **Created:** 2026-06-01 | **Evidence:** OBSERVED
+
+**Symptoms:** `goat-flow hooks enable deny-dangerous` or `goat-flow hooks sync` repairs local hook files and the agent config, and local runtime checks pass in that working tree. After committing and cloning, the dispatcher starts without `.goat-flow/hook-lib/` because the copied policy modules were still ignored by a stale `.goat-flow/.gitignore`.
+
+**Why it happens:** `src/cli/server/hook-registrar.ts` (search: `copyHookScripts`) writes `.goat-flow/hook-lib/` for `deny-dangerous` but does not apply the installer's `ensure_gitignore_entry` step. Pre-1.9 `.goat-flow/.gitignore` templates use a leading `*`, so new `.goat-flow/hook-lib/*` paths remain untracked unless `!hook-lib/` and `!hook-lib/**` are added.
+
+**Evidence:**
+- `src/cli/server/hook-registrar.ts` (search: `copyHookScripts`) writes each `DENY_DANGEROUS_HOOK_LIB_FILES` entry into `.goat-flow/hook-lib/` during `applyHookState` and `syncHookStates`.
+- `workflow/install-goat-flow.sh` (search: `ensure_gitignore_entry ".goat-flow/.gitignore" "!hook-lib/"`) handles the same files during install by appending both `!hook-lib/` and `!hook-lib/**`.
+- `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Filesystem-backed validation can miss untracked or ignored replacement files`) records the broader validation trap: filesystem checks can pass with `.goat-flow/*` files that remain ignored.
+
+**Prevention:**
+1. Any CLI/dashboard path that writes required committed files under `.goat-flow/` must update `.goat-flow/.gitignore` in the same operation, not rely on `install`.
+2. Add a regression fixture with a pre-1.9 `.goat-flow/.gitignore` that starts with `*`; after `hooks enable` / `sync`, verify `! git check-ignore -q .goat-flow/hook-lib/patterns-shell.sh`.
+3. Before release, test the clone path: commit hook config plus hook-lib, clone a fresh checkout, then run `.goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke`.
 
 ## Footgun: Hook launchers using --show-toplevel resolve to the worktree, not the main repo
 
