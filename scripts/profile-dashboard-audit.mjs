@@ -266,108 +266,6 @@ async function fetchAudit(baseUrl, token, projectPath, fresh) {
   });
 }
 
-/** Writes a temporary goat-flow project because profiling needs a repeatable large-repo audit fixture. */
-function writeSyntheticProject(fileCount, agents = ["codex"]) {
-  const root = mkdtempSync(join(tmpdir(), "goat-flow-profile-"));
-  mkdirSync(join(root, ".goat-flow", "footguns"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "lessons"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "decisions"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "scratchpad"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "hook-lib"), { recursive: true });
-  mkdirSync(join(root, "src"), { recursive: true });
-
-  writeFileSync(
-    join(root, ".goat-flow", "config.yaml"),
-    `version: "1.3.2"\nagents:\n${agents.map((agent) => `  - ${agent}`).join("\n")}\n`,
-  );
-  writeFileSync(
-    join(root, "package.json"),
-    '{"scripts":{"test":"node --test"}}\n',
-  );
-  writeFileSync(join(root, "tsconfig.json"), "{}\n");
-  for (const file of [
-    "patterns-shell.sh",
-    "patterns-paths.sh",
-    "patterns-writes.sh",
-    "deny-dangerous-self-test.sh",
-  ]) {
-    writeFileSync(
-      join(root, ".goat-flow", "hook-lib", file),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-  }
-
-  if (agents.includes("claude")) {
-    mkdirSync(join(root, ".claude", "hooks"), { recursive: true });
-    mkdirSync(join(root, ".claude", "skills", "goat"), { recursive: true });
-    writeFileSync(join(root, "CLAUDE.md"), "# CLAUDE.md\n\nSynthetic.\n");
-    writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
-    writeFileSync(
-      join(root, ".claude", "hooks", "deny-dangerous.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".claude", "skills", "goat", "SKILL.md"),
-      "---\nname: goat\n---\n# goat\n",
-    );
-  }
-
-  if (agents.includes("codex")) {
-    mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
-    mkdirSync(join(root, ".agents", "skills", "goat"), { recursive: true });
-    writeFileSync(join(root, "AGENTS.md"), "# AGENTS.md\n\nSynthetic.\n");
-    writeFileSync(join(root, ".codex", "config.toml"), CODEX_CONFIG);
-    writeFileSync(
-      join(root, ".codex", "hooks.json"),
-      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
-    );
-    writeFileSync(
-      join(root, ".codex", "hooks", "deny-dangerous.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".agents", "skills", "goat", "SKILL.md"),
-      "---\nname: goat\n---\n# goat\n",
-    );
-  }
-
-  if (agents.includes("copilot")) {
-    mkdirSync(join(root, ".github", "hooks"), { recursive: true });
-    mkdirSync(join(root, ".github", "skills", "goat"), { recursive: true });
-    writeFileSync(
-      join(root, ".github", "copilot-instructions.md"),
-      "# Copilot Instructions\n\nSynthetic. Commit rules: `docs/coding-standards/git-commit.md`.\n",
-    );
-    mkdirSync(join(root, "docs", "coding-standards"), { recursive: true });
-    writeFileSync(
-      join(root, "docs", "coding-standards", "git-commit.md"),
-      "# Git Commit Instructions\n\nSynthetic.\n",
-    );
-    writeFileSync(
-      join(root, ".github", "hooks", "hooks.json"),
-      '{"hooks":{"preToolUse":[{"command":".github/hooks/deny-dangerous.sh"}]}}\n',
-    );
-    writeFileSync(
-      join(root, ".github", "hooks", "deny-dangerous.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".github", "skills", "goat", "SKILL.md"),
-      "---\nname: goat\n---\n# goat\n",
-    );
-  }
-
-  for (let i = 0; i < fileCount; i++) {
-    const dir = join(root, "src", `group-${Math.floor(i / 100)}`);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, `file-${i}.ts`),
-      `export const value${i} = ${i};\n`,
-    );
-  }
-  return root;
-}
-
 /** Compare fresh dashboard audit timing for one-agent and three-agent synthetic projects. */
 async function runAgentCountComparison(serveDashboard, fileCount) {
   const cases = [
@@ -577,6 +475,108 @@ async function main() {
     stackFsTimings: stackCounted.timings,
     stackPatternTimings: summarizePatternTimings(stackCounted.patterns),
   });
+}
+
+/** Writes a temporary goat-flow project because profiling needs a repeatable large-repo audit fixture. */
+function writeSyntheticProject(fileCount, agents = ["codex"]) {
+  const root = mkdtempSync(join(tmpdir(), "goat-flow-profile-"));
+  mkdirSync(join(root, ".goat-flow", "footguns"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "lessons"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "decisions"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "scratchpad"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "hook-lib"), { recursive: true });
+  mkdirSync(join(root, "src"), { recursive: true });
+
+  writeFileSync(
+    join(root, ".goat-flow", "config.yaml"),
+    `version: "1.3.2"\nagents:\n${agents.map((agent) => `  - ${agent}`).join("\n")}\n`,
+  );
+  writeFileSync(
+    join(root, "package.json"),
+    '{"scripts":{"test":"node --test"}}\n',
+  );
+  writeFileSync(join(root, "tsconfig.json"), "{}\n");
+  for (const file of [
+    "patterns-shell.sh",
+    "patterns-paths.sh",
+    "patterns-writes.sh",
+    "deny-dangerous-self-test.sh",
+  ]) {
+    writeFileSync(
+      join(root, ".goat-flow", "hook-lib", file),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+  }
+
+  if (agents.includes("claude")) {
+    mkdirSync(join(root, ".claude", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".claude", "skills", "goat"), { recursive: true });
+    writeFileSync(join(root, "CLAUDE.md"), "# CLAUDE.md\n\nSynthetic.\n");
+    writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
+    writeFileSync(
+      join(root, ".claude", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".claude", "skills", "goat", "SKILL.md"),
+      "---\nname: goat\n---\n# goat\n",
+    );
+  }
+
+  if (agents.includes("codex")) {
+    mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".agents", "skills", "goat"), { recursive: true });
+    writeFileSync(join(root, "AGENTS.md"), "# AGENTS.md\n\nSynthetic.\n");
+    writeFileSync(join(root, ".codex", "config.toml"), CODEX_CONFIG);
+    writeFileSync(
+      join(root, ".codex", "hooks.json"),
+      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
+    );
+    writeFileSync(
+      join(root, ".codex", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".agents", "skills", "goat", "SKILL.md"),
+      "---\nname: goat\n---\n# goat\n",
+    );
+  }
+
+  if (agents.includes("copilot")) {
+    mkdirSync(join(root, ".github", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".github", "skills", "goat"), { recursive: true });
+    writeFileSync(
+      join(root, ".github", "copilot-instructions.md"),
+      "# Copilot Instructions\n\nSynthetic. Commit rules: `docs/coding-standards/git-commit.md`.\n",
+    );
+    mkdirSync(join(root, "docs", "coding-standards"), { recursive: true });
+    writeFileSync(
+      join(root, "docs", "coding-standards", "git-commit.md"),
+      "# Git Commit Instructions\n\nSynthetic.\n",
+    );
+    writeFileSync(
+      join(root, ".github", "hooks", "hooks.json"),
+      '{"hooks":{"preToolUse":[{"command":".github/hooks/deny-dangerous.sh"}]}}\n',
+    );
+    writeFileSync(
+      join(root, ".github", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".github", "skills", "goat", "SKILL.md"),
+      "---\nname: goat\n---\n# goat\n",
+    );
+  }
+
+  for (let i = 0; i < fileCount; i++) {
+    const dir = join(root, "src", `group-${Math.floor(i / 100)}`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, `file-${i}.ts`),
+      `export const value${i} = ${i};\n`,
+    );
+  }
+  return root;
 }
 
 main().catch((err) => {

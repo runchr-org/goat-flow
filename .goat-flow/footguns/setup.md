@@ -7,14 +7,14 @@ last_reviewed: 2026-05-26
 
 **Status:** active | **Created:** 2026-05-24 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** The installer round-trip test can fail for an otherwise valid agent profile with missing hook fields, even when that agent legitimately has no project-local hook mechanism yet. PR #44 hit this in `test/integration/audit-drift.test.ts` (search: `install for ${agentId} should pass`) when Antigravity was temporarily modeled as hookless.
+**Symptoms:** The installer round-trip test can fail for an otherwise valid agent profile with missing hook fields, even when that agent legitimately has no project-local hook mechanism yet. PR #44 hit this in `test/integration/audit-drift-checkdrift-installer-round-trip-fixture.test.ts` (search: `install for ${agentId} should pass`) when Antigravity was temporarily modeled as hookless.
 
 **Why it happens:** `workflow/manifest.json` allows agents whose project-local hook fields are absent, but the Bash installer previously required `hooks_dir` and `deny_hook` for every profile before copying shared files and skills. That made "no hook mechanism documented yet" indistinguishable from a corrupt manifest profile.
 
 **Evidence:**
 - `src/cli/manifest/types.ts` (search: `upstream runtime has no documented project-local hook wiring`) documents optional `deny_mechanism` and `hook_events`.
 - `workflow/install-goat-flow.sh` (search: `HOOKS_ENABLED=false`) now gates hook copying separately from skills/reference installation.
-- `test/integration/audit-drift.test.ts` (search: `install for ${agentId} should pass`) proves every manifest agent still participates in install round-trip coverage.
+- `test/integration/audit-drift-checkdrift-installer-round-trip-fixture.test.ts` (search: `install for ${agentId} should pass`) proves every manifest agent still participates in install round-trip coverage.
 
 **Prevention:** Installer profile validation must require `skills_dir` for every agent, but hook fields only when any hook-related destination is present. Do not fix hookless-agent failures by removing the agent from round-trip coverage; that hides installer regressions for future capability-limited profiles.
 

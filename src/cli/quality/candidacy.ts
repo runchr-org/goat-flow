@@ -9,7 +9,7 @@
  *
  * v1 is deterministic. Heuristics for drafts (heading + length signals) and
  * for descriptions (keyword + intent matching). LLM-assisted candidacy for
- * borderline drafts/descriptions is deferred (see M08 task list).
+ * borderline drafts/descriptions is handled by the skill-quality rubric.
  */
 import type { ArtifactSubtype, QualityConfig } from "./quality-config.js";
 import { DEFAULT_QUALITY_CONFIG } from "./quality-config.js";

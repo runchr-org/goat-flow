@@ -76,7 +76,7 @@ The modal is read-only. It does not scaffold, move, or save files.
 After creating or changing a skill, run:
 
 ```bash
-node --import tsx --test test/unit/skill-quality.test.ts
+node --import tsx --test test/unit/skill-quality/*.test.ts
 node --import tsx --test test/integration/skill-author.test.ts
 node --import tsx --test test/integration/dashboard-server.test.ts
 ```

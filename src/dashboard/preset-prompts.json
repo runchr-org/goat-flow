@@ -128,7 +128,7 @@
     "id": "milestones",
     "name": "Break Into Milestones",
     "desc": "Milestone task files with testable exit criteria",
-    "prompt": "/goat-plan break this into milestones. Use the feature plan from context; if none, ask which feature. Each milestone gets: goal (one sentence), exit criteria (testable), key tasks. M1 is always a spike validating the riskiest assumption. No milestone longer than 3-5 days of work - split if larger.",
+    "prompt": "/goat-plan break this into milestones. Use the feature plan from context; if none, ask which feature. Each milestone gets: goal (one sentence), exit criteria (testable), key tasks. The first milestone is always a spike validating the riskiest assumption. No milestone longer than 3-5 days of work - split if larger.",
     "cat": "plan",
     "route": "goat-plan",
     "source": "goat-flow-catalog",

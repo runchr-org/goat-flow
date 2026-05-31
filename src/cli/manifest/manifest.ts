@@ -231,8 +231,7 @@ export function validateManifest(
   findings.push(...validateAgentCapabilities(json));
 
   if (!json.facts) {
-    const msg =
-      "workflow/manifest.json is missing the top-level `facts` key (M06 expected shape).";
+    const msg = "workflow/manifest.json is missing the top-level `facts` key.";
     throw new ManifestValidationError(msg, [msg]);
   }
 

@@ -1,5 +1,5 @@
 /**
- * Unit tests for the learning-loop frontmatter + freshness extension (M09).
+ * Unit tests for the learning-loop frontmatter + freshness extension.
  * Covers parseFrontmatterFields, computeFreshness, and the per-file diagnostics
  * now surfaced for missing/invalid last_reviewed.
  */
@@ -253,7 +253,7 @@ describe("extractLessonsFacts freshness + placeholder filtering", () => {
     const fs = stubFS(
       {
         [`${fixtureDir}verification.md`]:
-          "---\ncategory: verification\nlast_reviewed: 2026-04-18\n---\n\n## Lesson: nav\n\nPriors at `.goat-flow/tasks/1.2.0-wave-6/M01.md`, workspace at `.goat-flow/scratchpad/notes.md`, log at `.goat-flow/logs/sessions/old.md`.\n",
+          "---\ncategory: verification\nlast_reviewed: 2026-04-18\n---\n\n## Lesson: nav\n\nPriors at a local task file, workspace at `.goat-flow/scratchpad/notes.md`, log at `.goat-flow/logs/sessions/old.md`.\n",
       },
       { [fixtureDir]: ["verification.md"] },
     );

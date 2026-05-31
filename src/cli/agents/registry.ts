@@ -1,5 +1,5 @@
 /**
- * Manifest-backed agent registry (M12).
+ * Manifest-backed agent registry.
  *
  * `workflow/manifest.json` is the single writable authority for framework
  * support metadata. This module exposes the typed runtime facade consumed by

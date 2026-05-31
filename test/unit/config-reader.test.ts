@@ -212,7 +212,7 @@ describe("config parse errors", () => {
 });
 
 // ---------------------------------------------------------------------------
-// M17-7: Config loading fails closed
+// Config loading fails closed.
 // ---------------------------------------------------------------------------
 describe("config fails closed on validation errors", () => {
   it("keeps defaults when legacy agents has bad element types", () => {
@@ -259,7 +259,7 @@ toolchain:
 });
 
 // ---------------------------------------------------------------------------
-// M01: harness.acknowledge list
+// harness.acknowledge list.
 // ---------------------------------------------------------------------------
 describe("harness.acknowledge in config", () => {
   it("defaults to an empty list when absent", () => {

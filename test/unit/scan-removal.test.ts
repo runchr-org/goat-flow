@@ -1,5 +1,5 @@
 /**
- * Scan removal stability tests (M21).
+ * Scan removal stability tests.
  * Verifies that `scan` is fully removed from user-facing surfaces.
  */
 import { describe, it } from "node:test";

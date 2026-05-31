@@ -285,11 +285,12 @@ describe("harness scoring honesty", () => {
     const ctx = makeCtx({
       fs: stubFS({
         exists: (path) => path === ".goat-flow/tasks",
-        listDir: (path) => (path === ".goat-flow/tasks" ? ["M01-demo.md"] : []),
+        listDir: (path) =>
+          path === ".goat-flow/tasks" ? ["Milestone-demo.md"] : [],
         readFile: (path) =>
-          path === ".goat-flow/tasks/M01-demo.md"
+          path === ".goat-flow/tasks/Milestone-demo.md"
             ? [
-                "# M01 Demo",
+                "# Milestone Demo",
                 "**Status:** in-progress",
                 "## Tasks",
                 "- [ ] Add feature",

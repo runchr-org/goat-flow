@@ -1,0 +1,388 @@
+import type {
+  ArtifactSubtype,
+  QualityConfig,
+  SubtypeDetection,
+} from "./quality-config.js";
+import { hasSection } from "./skill-quality-content.js";
+import type {
+  ArtifactEntry,
+  ClassificationResult,
+  ShapeDetectionResult,
+} from "./skill-quality-types.js";
+
+const SUBTYPE_NAME_MATCH_SCORE = 5; // Threshold: name match outweighs two heading hits so canonical skills keep their calibrated subtype.
+const SUBTYPE_HEADING_MATCH_SCORE = 2;
+const SUBTYPE_FALLBACK_SCORE = 1;
+const FALLBACK_ONLY_CONFIDENCE = 0.3;
+
+/**
+ * Raw subtype score with the reasoning used to explain the winning profile.
+ */
+interface SubtypeMatchScore {
+  subtype: ArtifactSubtype;
+  score: number;
+  reasoning: string[];
+}
+
+/**
+ * Detect fallback-only matches so confidence stays visibly low.
+ */
+function isFallbackOnlyMatch(match: SubtypeMatchScore): boolean {
+  return (
+    match.score === SUBTYPE_FALLBACK_SCORE &&
+    match.reasoning.some((reason) => reason.includes("fallback"))
+  );
+}
+
+function subtypeConfidence(
+  top: SubtypeMatchScore,
+  second: SubtypeMatchScore | undefined,
+): number {
+  if (isFallbackOnlyMatch(top)) return FALLBACK_ONLY_CONFIDENCE;
+  return second === undefined ? 1 : top.score / (top.score + second.score);
+}
+
+/**
+ * Score a single subtype's detection against an artifact. Returns 0 when the
+ * subtype is incompatible (wrong kind or vetoed by a `mustNotHave` heading).
+ *
+ * Scoring rules:
+ *  - Name match: +SUBTYPE_NAME_MATCH_SCORE (unconditional - preserves the
+ *    OR semantics where `goat-security` is a report regardless of Step 0).
+ *  - Heading match: +SUBTYPE_HEADING_MATCH_SCORE per match, vetoed by
+ *    `mustNotHave`. Heading-only matches that trigger `mustNotHave` return 0.
+ *  - Empty rules (fallback subtype): SUBTYPE_FALLBACK_SCORE so the fallback
+ *    always matches with low confidence.
+ */
+// eslint-disable-next-line complexity -- intentional because subtype match scoring exhausts kind compatibility, fallback rules, name-vs-heading scoring, and mustNotHave veto in one place to keep priority semantics local
+function scoreSubtypeMatch(
+  artifact: ArtifactEntry,
+  content: string,
+  detection: SubtypeDetection,
+  subtype: ArtifactSubtype,
+): SubtypeMatchScore {
+  const reasoning: string[] = [];
+  if (detection.kinds.length > 0 && !detection.kinds.includes(artifact.kind)) {
+    return { subtype, score: 0, reasoning };
+  }
+
+  if (
+    detection.namePatterns.length === 0 &&
+    detection.headingPatterns.length === 0
+  ) {
+    reasoning.push(`fallback for kind=${artifact.kind}`);
+    return { subtype, score: SUBTYPE_FALLBACK_SCORE, reasoning };
+  }
+
+  let score = 0;
+  if (detection.namePatterns.includes(artifact.name)) {
+    score += SUBTYPE_NAME_MATCH_SCORE;
+    reasoning.push(`name "${artifact.name}" in name-patterns`);
+  }
+
+  let headingMatched = false;
+  for (const pattern of detection.headingPatterns) {
+    if (new RegExp(pattern, "i").test(content)) {
+      score += SUBTYPE_HEADING_MATCH_SCORE;
+      headingMatched = true;
+      reasoning.push(`heading "${pattern}" present`);
+    }
+  }
+
+  if (score === 0) return { subtype, score: 0, reasoning };
+
+  const nameMatched = detection.namePatterns.includes(artifact.name);
+  if (!nameMatched && headingMatched) {
+    for (const veto of detection.mustNotHave) {
+      if (new RegExp(veto, "i").test(content)) {
+        reasoning.push(`vetoed by must-not-have "${veto}"`);
+        return { subtype, score: 0, reasoning };
+      }
+    }
+  }
+
+  return { subtype, score, reasoning };
+}
+
+const REFERENCE_DETECTION_ORDER: ArtifactSubtype[] = [
+  "meta",
+  "index",
+  "playbook",
+];
+const SKILL_DETECTION_ORDER: ArtifactSubtype[] = [
+  "dispatcher",
+  "report",
+  "workflow",
+];
+
+/**
+ * Classify an artifact across all candidate subtypes. The detected subtype
+ * is the highest-scoring match; confidence is `top / (top + second)` to
+ * communicate how dominant the leading subtype is.
+ */
+export function classifyArtifact(
+  artifact: ArtifactEntry,
+  content: string,
+  config: QualityConfig,
+): ClassificationResult {
+  const order =
+    artifact.kind === "shared-reference"
+      ? REFERENCE_DETECTION_ORDER
+      : SKILL_DETECTION_ORDER;
+
+  const matches = order
+    .map((subtype) =>
+      scoreSubtypeMatch(
+        artifact,
+        content,
+        config.subtypes[subtype].detection,
+        subtype,
+      ),
+    )
+    .filter((match) => match.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (matches.length === 0) {
+    const fallback =
+      artifact.kind === "shared-reference" ? "playbook" : "workflow";
+    return {
+      detectedSubtype: fallback,
+      confidence: 0,
+      alternatives: [],
+      reasoning: [
+        `no subtype matched ${artifact.id}; using ${fallback} as fallback`,
+      ],
+    };
+  }
+
+  const top = matches[0];
+  if (!top) {
+    const fallback =
+      artifact.kind === "shared-reference" ? "playbook" : "workflow";
+    return {
+      detectedSubtype: fallback,
+      confidence: 0,
+      alternatives: [],
+      reasoning: ["unreachable: empty match list after pre-filter"],
+    };
+  }
+  const rest = matches.slice(1);
+  const second = rest[0];
+  const confidence = subtypeConfidence(top, second);
+  const reasoning = [
+    `detected ${top.subtype} (score ${top.score}): ${top.reasoning.join("; ")}`,
+    ...rest.map(
+      (m) =>
+        `also matched ${m.subtype} (score ${m.score}): ${m.reasoning.join("; ")}`,
+    ),
+  ];
+  return {
+    detectedSubtype: top.subtype,
+    confidence,
+    alternatives: rest.map(({ subtype, score }) => ({ subtype, score })),
+    reasoning,
+  };
+}
+
+const SHAPE_DETECTION_ORDER: ArtifactSubtype[] = [
+  "dispatcher",
+  "report",
+  "workflow",
+  "playbook",
+  "index",
+  "meta",
+];
+
+const MIN_SHAPE_SCORE = 3; // Threshold: one strong signal or two heading signals required before shape mismatch can fire.
+
+/**
+ * Count pattern hits when repeated tool or step references are meaningful signals.
+ */
+function countRegexMatches(content: string, pattern: RegExp): number {
+  return Array.from(content.matchAll(pattern)).length;
+}
+
+function scoreFromSignals(
+  subtype: ArtifactSubtype,
+  signals: Array<[boolean, number, string]>,
+): SubtypeMatchScore {
+  let score = 0;
+  const reasoning: string[] = [];
+  for (const [matched, value, reason] of signals) {
+    if (!matched) continue;
+    score += value;
+    reasoning.push(reason);
+  }
+  return { subtype, score, reasoning };
+}
+
+// eslint-disable-next-line complexity -- intentional because semantic shape has separate signal sets per supported subtype; splitting would obscure the scoring table
+function scoreShapeMatch(
+  artifact: ArtifactEntry,
+  content: string,
+  subtype: ArtifactSubtype,
+): SubtypeMatchScore {
+  const hasStepZero = hasSection(content, /##\s+Step 0/i);
+  const hasCheckpoint = /\bCHECKPOINT\b/i.test(content);
+  const hasModeSystem =
+    /\b(?:Read-Only|File-Write)\b|\bPlan\b.*\bmode\b|\bImplement\b.*\bmode\b/i.test(
+      content,
+    );
+  const hasPhaseHeadings = /^##\s+Phase\s+\d/im.test(content);
+  const hasSkillVersion = /goat-flow-skill-version/i.test(content);
+  const hasFrontmatterName = /^---[\s\S]*?name:\s*.+[\s\S]*?---/m.test(content);
+  const browserToolRefs = countRegexMatches(
+    content,
+    /\bbrowser_[A-Za-z0-9_]+\b/g,
+  );
+  const mcpToolRefs = countRegexMatches(content, /\bmcp__[A-Za-z0-9_]+\b/g);
+  const proceduralStepCount = countRegexMatches(
+    content,
+    /^##\s+Step\s+\d\b/gim,
+  );
+
+  if (subtype === "dispatcher") {
+    return scoreFromSignals(subtype, [
+      [artifact.name === "goat", 5, 'name "goat"'],
+      [hasSection(content, /##\s+Route Map/i), 5, "Route Map section"],
+      [/\b(?:route|dispatch)\b/i.test(content), 2, "routing language"],
+    ]);
+  }
+
+  if (subtype === "report") {
+    return scoreFromSignals(subtype, [
+      [artifact.name === "goat-security", 5, 'name "goat-security"'],
+      [
+        hasSection(content, /##\s+Quick Scan Path/i) ||
+          hasSection(content, /##\s+Audit Mode/i),
+        4,
+        "report/audit heading",
+      ],
+      [
+        /\b(?:reporting-only|read-only)\b/i.test(content),
+        2,
+        "report-only language",
+      ],
+      [
+        /\b(?:finding|OBSERVED|INFERRED)\b/i.test(content),
+        2,
+        "finding evidence terms",
+      ],
+    ]);
+  }
+
+  if (subtype === "workflow") {
+    return scoreFromSignals(subtype, [
+      [hasStepZero, 3, "Step 0 intake"],
+      [hasCheckpoint, 3, "CHECKPOINT gates"],
+      [hasModeSystem, 2, "mode system"],
+      [hasPhaseHeadings, 2, "phase headings"],
+      [hasSkillVersion, 1, "skill version header"],
+      [hasFrontmatterName, 1, "skill frontmatter name"],
+      [
+        /\b(?:Verification|Proof Gate|Testing Gate)\b/i.test(content),
+        2,
+        "verification language",
+      ],
+    ]);
+  }
+
+  if (subtype === "playbook") {
+    return scoreFromSignals(subtype, [
+      [hasSection(content, /##\s+Environment/i), 2, "Environment section"],
+      [
+        hasSection(content, /##\s+Prerequisites/i) ||
+          hasSection(content, /##\s+Availability Check/i),
+        2,
+        "prerequisite or availability section",
+      ],
+      [
+        hasSection(content, /##\s+Common Gotchas/i) ||
+          hasSection(content, /Troubleshoot|Fallback/i),
+        2,
+        "troubleshooting/gotchas",
+      ],
+      [hasSection(content, /##\s+Quick Reference/i), 2, "Quick Reference"],
+      [
+        browserToolRefs + mcpToolRefs >= 2 || /Playwright\s+MCP/i.test(content),
+        3,
+        "repeated browser/MCP tool references",
+      ],
+      [proceduralStepCount >= 2, 2, "procedural Step N headings"],
+      [
+        /\btool\b.*\bprotocol\b|\bobservation\b.*\bworkflow\b|\bcapture\b.*\bworkflow\b|\bInteraction Workflow\b/i.test(
+          content,
+        ),
+        2,
+        "tool/playbook workflow language",
+      ],
+    ]);
+  }
+
+  if (subtype === "index") {
+    return scoreFromSignals(subtype, [
+      [artifact.name === "skill-quality-testing", 5, "known index name"],
+      [
+        /Which file to load|Cross-references/i.test(content),
+        3,
+        "index routing",
+      ],
+      [/index/i.test(artifact.name), 2, "index name"],
+    ]);
+  }
+
+  return scoreFromSignals(subtype, [
+    [
+      artifact.name === "skill-preamble" ||
+        artifact.name === "skill-conventions",
+      6,
+      "known meta-reference name",
+    ],
+    [/goat-flow-reference-version/i.test(content), 2, "reference version"],
+    [
+      /loaded by every skill|shared conventions/i.test(content),
+      2,
+      "meta language",
+    ],
+  ]);
+}
+
+export function detectArtifactShape(
+  artifact: ArtifactEntry,
+  content: string,
+): ShapeDetectionResult {
+  const matches = SHAPE_DETECTION_ORDER.map((subtype) =>
+    scoreShapeMatch(artifact, content, subtype),
+  )
+    .filter((match) => match.score >= MIN_SHAPE_SCORE)
+    .sort((a, b) => b.score - a.score);
+
+  const top = matches[0];
+  if (!top) {
+    const fallback =
+      artifact.kind === "shared-reference" ? "playbook" : "workflow";
+    return {
+      detectedShape: fallback,
+      confidence: 0,
+      alternatives: [],
+      reasoning: [
+        `no semantic shape matched ${artifact.id} above MIN_SHAPE_SCORE=${MIN_SHAPE_SCORE}; using ${fallback} as fallback`,
+      ],
+    };
+  }
+
+  const rest = matches.slice(1);
+  const second = rest[0];
+  return {
+    detectedShape: top.subtype,
+    confidence: subtypeConfidence(top, second),
+    alternatives: rest.map(({ subtype, score }) => ({ subtype, score })),
+    reasoning: [
+      `detected ${top.subtype} shape (score ${top.score}): ${top.reasoning.join("; ")}`,
+      ...rest.map(
+        (m) =>
+          `also matched ${m.subtype} shape (score ${m.score}): ${m.reasoning.join("; ")}`,
+      ),
+    ],
+  };
+}

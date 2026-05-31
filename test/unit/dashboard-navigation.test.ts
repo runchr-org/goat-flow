@@ -13,7 +13,14 @@ const DASHBOARD_INDEX_PATH = resolve(
   "dashboard",
   "index.html",
 );
-const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
+const DASHBOARD_APP_FRAGMENT_PATHS = Array.from({ length: 5 }, (_, index) =>
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    `dashboard-app-fragment-0${index + 1}.ts`,
+  ),
+);
 const PLANS_VIEW_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -32,6 +39,11 @@ const COMING_SOON_VIEW_PATH = resolve(
 /** Read dashboard source fixtures as text for navigation assertions. */
 function read(path: string): string {
   return readFileSync(path, "utf-8");
+}
+
+/** Read the split browser app fragments as the effective dashboard app source. */
+function readAppSource(): string {
+  return DASHBOARD_APP_FRAGMENT_PATHS.map(read).join("\n");
 }
 
 describe("dashboard side navigation", () => {
@@ -103,7 +115,7 @@ describe("dashboard side navigation", () => {
 
   it("keeps Settings and About in the header and supports a compact rail", () => {
     const html = read(DASHBOARD_INDEX_PATH);
-    const appSource = read(DASHBOARD_APP_PATH);
+    const appSource = readAppSource();
     const sideMenu = html.slice(
       html.indexOf('<aside class="no-print gf-side-nav"'),
       html.indexOf("</aside>") + "</aside>".length,
@@ -149,13 +161,13 @@ describe("dashboard side navigation", () => {
   });
 
   it("keeps deferred dashboard pages out of coming-soon metadata", () => {
-    const appSource = read(DASHBOARD_APP_PATH);
+    const appSource = readAppSource();
 
     for (const view of ["harness", "playbooks", "memory", "telemetry"]) {
       assert.doesNotMatch(
         appSource,
         new RegExp(`["']?${view}["']?\\s*:\\s*\\{\\s*title:\\s*["']`, "u"),
-        `${view} is deferred; it should not appear in 1.7.0 comingSoonMeta`,
+        `${view} is deferred; it should not appear in comingSoonMeta`,
       );
     }
   });

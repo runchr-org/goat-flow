@@ -97,7 +97,7 @@ export interface StackInfo {
   signals: ProjectSignals;
 }
 
-/** Extended detection signals for richer setup prompts (M03.3) */
+/** Extended detection signals for richer setup prompts. */
 export interface ProjectSignals {
   /** Code generation tools found (sqlc, Hygen, protobuf, openapi-generator) */
   codeGenTools: string[];
@@ -209,7 +209,7 @@ export interface SharedFacts {
     userRole: "developer" | "investigator" | "tester";
   };
   architecture: { exists: boolean; lineCount: number };
-  // evals removed - evals system removed in v1.1.0 (M09).
+  // evals removed - evals system removed in v1.1.0.
   // ci removed - CI workflow is a project-level concern.
   ignoreFiles: {
     copilotignore: boolean;

@@ -1,5 +1,5 @@
 /**
- * Route classification consistency test (M31).
+ * Route classification consistency test.
  *
  * Every POST/DELETE entry in DASHBOARD_ROUTE_INVENTORY whose class is
  * "side-effectful" must also appear in SIDE_EFFECTFUL_EXACT_API_ROUTES. This

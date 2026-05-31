@@ -59,4 +59,4 @@ last_reviewed: 2026-05-31
 
 **Root cause:** I treated the rename as a simple local cleanup and relied on source typecheck before running the touched test. The old identifier was still valid JavaScript syntax, so only executing the test surfaced the missed references.
 
-**Prevention:** After renaming identifiers inside test files, run a focused test for the touched file before the full suite, and grep the local block for the old identifier when it is not too generic. Evidence anchors: `test/unit/audit-command.test.ts` (search: `has correct shape for harness mode`), failing output (search: `ReferenceError: c is not defined`).
+**Prevention:** After renaming identifiers inside test files, run a focused test for the touched file before the full suite, and grep the local block for the old identifier when it is not too generic. Evidence anchors: `test/unit/audit-command/json-contract.test.ts` (search: `has correct shape for harness mode`), failing output (search: `ReferenceError: c is not defined`).

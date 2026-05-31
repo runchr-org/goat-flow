@@ -50,8 +50,8 @@ last_reviewed: 2026-05-28
 **Why it happens:** Agent configs name launch paths, not the abstract hook file. A stale path, lost executable bit, unsupported shell substitution, or cwd assumption can fail before `deny-dangerous.sh` and the thin hook code start. Direct `bash workflow/hooks/<guard>.sh` smoke tests skip that surface entirely.
 
 **Evidence:**
-- M12 preflight and audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Evidence anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`) and `src/cli/audit/check-agent-setup.ts` (search: `configuredGuardCommands`).
-- `test/unit/audit-command.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case, and `test/unit/audit-command.test.ts` (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case.
+- Current preflight and audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Evidence anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`) and `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configuredGuardCommands`).
+- `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case, and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case.
 - Runtime contract anchors: `workflow/hooks/README.md` (search: `Failure Modes / Runtime Contracts`) and `src/cli/server/agent-hook-writer.ts` (search: `Guard cannot start: git repository root unavailable`).
 
 **Prevention:**
@@ -70,7 +70,7 @@ last_reviewed: 2026-05-28
 **Evidence:**
 - Pre-fix runtime probe: a fresh worktree at `<project>/.claude/worktrees/feat+x/` with `.claude/` gitignored started every Bash with `bash: <worktree>/.claude/hooks/patterns-shell.sh: No such file or directory`.
 - Pre-fix repro inside goat-flow itself succeeded only because `git ls-files | grep '^\.claude/hooks/'` lists all guard scripts; a freshly created worktree therefore inherited them via the branch checkout.
-- Current anchors: `workflow/hooks/agent-config/claude.json` (search: `git rev-parse --git-common-dir`), `workflow/hooks/agent-config/antigravity-hooks.json` (search: `git rev-parse --git-common-dir`), `workflow/install-goat-flow.sh` (search: `git rev-parse --git-common-dir`), and the normalizer at `src/cli/facts/agent/hooks.ts` (search: `Hook launchers prefix the script path`) which now strips both `$(...)` and `$var/` prefixes when extracting the script path for audit.
+- Current anchors: `workflow/hooks/agent-config/claude.json` (search: `git rev-parse --git-common-dir`), `workflow/hooks/agent-config/antigravity-hooks.json` (search: `git rev-parse --git-common-dir`), `workflow/install-goat-flow.sh` (search: `git rev-parse --git-common-dir`), and the normalizer at `src/cli/facts/agent/hook-registration.ts` (search: `Hook launchers prefix the script path`) which now strips both `$(...)` and `$var/` prefixes when extracting the script path for audit.
 
 **Prevention:**
 1. Hook launchers MUST resolve to the main repo root, not the current working tree. Use `git rev-parse --git-common-dir` and take its parent when the result is absolute (worktree) or fall back to `--show-toplevel` when relative (main checkout).

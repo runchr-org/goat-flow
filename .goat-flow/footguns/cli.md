@@ -13,12 +13,12 @@ last_reviewed: 2026-05-25
 
 **Evidence:**
 - `src/cli/install-invocation.ts` (search: `toBashPath`) - forward-slashes installer argv on win32.
-- `src/cli/prompt/compose-quality.ts` (search: `toShellProjectPath`) - posix.join + forward-slash for `QUALITY_DIR` Bash snippets, plus matching test `shell-quotes quality report paths in agent-setup prompt snippets`.
+- `src/cli/prompt/compose-quality-agent-report.ts` (search: `toShellProjectPath`) - posix.join + forward-slash for `QUALITY_DIR` Bash snippets, plus matching test `shell-quotes quality report paths in agent-setup prompt snippets`.
 - `src/cli/prompt/compose-setup.ts` (search: `displayTemplatePath`) - forward-slashes packaged-template references; fixes 6 `composeSetup routing` tests.
 - `src/cli/paths.ts` (search: `getCliCommand`) - forward-slashes the `node dist/cli/cli.js` re-run hint.
-- `src/cli/audit/check-agent-setup.ts` (search: `evidencePath`) - forward-slashes 3 audit-evidence emission sites.
+- `src/cli/audit/check-agent-deny-mechanism.ts` (search: `evidencePath`) - forward-slashes 3 audit-evidence emission sites.
 - `src/cli/facts/fs.ts` (search: `results.push(relative`) - glob walker forward-slashes results.
-- `src/cli/quality/skill-quality.ts` (search: `relPosix`) - forward-slashes artifact paths/mirrors/missingMirrors.
+- `src/cli/quality/skill-quality-content.ts` (search: `relPosix`) - forward-slashes artifact paths/mirrors/missingMirrors.
 - `src/cli/skill-author.ts` (search: `proposedPath`) - forward-slashes skill scaffold paths.
 
 **Prevention:**

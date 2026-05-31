@@ -1,9 +1,9 @@
 /**
- * Client-side markdown renderer wrapper for the goat-flow dashboard (M32).
+ * Client-side markdown renderer wrapper for the goat-flow dashboard.
  *
  * Loaded as a classic script after `/assets/markdown-it.js` and
  * `/assets/js-yaml.js` (UMD builds).
- * Exposes `window.renderMarkdown` so the markdown viewer modal (M18) and any
+ * Exposes `window.renderMarkdown` so the markdown viewer modal and any
  * other consumer can render footgun/lesson/ADR/session/playbook content
  * without each call site re-inventing sanitization.
  *

@@ -1,5 +1,5 @@
 /**
- * Contract tests for M06 instruction file quality guards.
+ * Contract tests for instruction file quality guards.
  * Validates the preflight guard patterns against fixture data.
  */
 import { describe, it } from "node:test";

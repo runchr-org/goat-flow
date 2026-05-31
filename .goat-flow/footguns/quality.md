@@ -12,9 +12,9 @@ last_reviewed: 2026-05-27
 **Why it happens:** `goat-flow quality . --agent <id>` composes a prompt that instructs the agent to write its final JSON report directly to `.goat-flow/logs/quality/<YYYY-MM-DD>-<HHMM>-<agent>-<rand5>.json`. The write is the agent's responsibility, not the CLI's. If the agent emits the JSON inline as a fenced code block, or forgets the save step, or writes to a different path, nothing persists. The target directory is gitignored, so there is no git-side hint that the save was skipped.
 
 **Evidence:**
-- `src/cli/prompt/compose-quality.ts` (search: `Write it as a file to`) - the prompt ends with an explicit instruction to write the file rather than emit a fenced JSON block.
-- `src/cli/prompt/compose-quality.ts` (search: `Wrote quality report to`) - the prompt requires a single-line confirmation that references the saved filename.
-- `src/cli/quality/history.ts` (search: `No saved quality history`) - `history` and `diff` only read files that were actually written to disk.
+- `src/cli/prompt/compose-quality-agent-report.ts` (search: `Write it as a file to`) - the prompt ends with an explicit instruction to write the file rather than emit a fenced JSON block.
+- `src/cli/prompt/compose-quality-agent-report.ts` (search: `Wrote quality report to`) - the prompt requires a single-line confirmation that references the saved filename.
+- `src/cli/quality/history-render.ts` (search: `No saved quality history`) - `history` and `diff` only read files that were actually written to disk.
 
 **Prevention:**
 1. After any `/quality` run, verify the save landed: `ls .goat-flow/logs/quality/*.json | tail -3`. If the latest mtime is older than the review you just ran, the agent skipped the write.
@@ -37,7 +37,7 @@ See `.goat-flow/patterns/refactoring.md` (search: `Put prompt side effects on th
 - `src/cli/audit/types.ts` (search: `limits: string[]`) - `limits` is part of the public concern contract.
 - `src/cli/audit/render.ts` (search: `Limit:`) - terminal and Markdown output preserve the caveat.
 - `src/dashboard/dashboard-readers.ts` (search: `limits: readStringArray`) - dashboard payload readers preserve the field.
-- `src/cli/prompt/compose-quality.ts` (search: `limits: ${concern.limits.join`) - quality prompts include limits beside score and metric counts.
+- `src/cli/prompt/compose-quality-common.ts` (search: `limits: ${concern.limits.join`) - quality prompts include limits beside score and metric counts.
 
 **Prevention:** When adding or changing a non-gating audit caveat, update every audit consumer in the same patch: core type, JSON reader types, text/Markdown renderer, dashboard reader, prompt summary, and at least one unit test that fails if the caveat disappears from a human-facing surface.
 

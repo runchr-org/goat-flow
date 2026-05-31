@@ -63,7 +63,7 @@ last_reviewed: 2026-05-28
 
 **Root cause:** The verification target was the hook file, not the runtime contract. That missed stale paths, executable-bit loss, and shell-substitution assumptions before guard code could run.
 
-**Prevention:** Hook verification must include configured guard-script replay in addition to direct script self-tests. Reject commands that hide the script path inside shell text, fail hard on exit 126/127 for the extracted script, and assert the agent-specific deny stream from the configured script path. Evidence anchors: `src/cli/audit/check-agent-setup.ts` (search: `runConfiguredHookCommandSmoke`), `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), and `test/unit/audit-command.test.ts` (search: `hides the script path in shell text`).
+**Prevention:** Hook verification must include configured guard-script replay in addition to direct script self-tests. Reject commands that hide the script path inside shell text, fail hard on exit 126/127 for the extracted script, and assert the agent-specific deny stream from the configured script path. Evidence anchors: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runConfiguredHookCommandSmoke`), `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`).
 
 ## Lesson: Hook parser regressions need false-positive grammar probes
 

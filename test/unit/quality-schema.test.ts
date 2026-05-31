@@ -72,7 +72,7 @@ describe("parseQualityReport", () => {
   });
 
   it("accepts legacy reports through the relaxed history parse path", () => {
-    // M17-6 backward-compat: existing reports under .goat-flow/logs/quality/
+    // Backward-compat: existing reports under .goat-flow/logs/quality/
     // pre-date the provenance fields; they must still load cleanly.
     const legacy = makeRawReport() as Record<string, unknown>;
     delete legacy.scope;

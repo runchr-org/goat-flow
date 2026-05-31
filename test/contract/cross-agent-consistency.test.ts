@@ -152,8 +152,12 @@ describe("manifest-backed agent capability alignment", () => {
   });
 
   it("keeps dashboard and terminal runner support manifest-backed", () => {
-    const dashboardRoutes = readFileSync(
-      resolve(PROJECT_ROOT, "src/cli/server/dashboard-routes.ts"),
+    const dashboardRouteTypes = readFileSync(
+      resolve(PROJECT_ROOT, "src/cli/server/dashboard-route-types.ts"),
+      "utf-8",
+    );
+    const dashboardShellRoutes = readFileSync(
+      resolve(PROJECT_ROOT, "src/cli/server/dashboard-shell-routes.ts"),
       "utf-8",
     );
     const terminalSource = readFileSync(
@@ -162,12 +166,12 @@ describe("manifest-backed agent capability alignment", () => {
     );
 
     assert.match(
-      dashboardRoutes,
+      dashboardRouteTypes,
       /const SUPPORTED_AGENTS = AGENT_PROFILES\.map/,
       "dashboard-supported agents should be projected from getAgentProfiles()",
     );
     assert.match(
-      dashboardRoutes,
+      dashboardShellRoutes,
       /window\.__GOAT_FLOW_AGENTS__ = \$\{JSON\.stringify\(SUPPORTED_AGENTS\)\}/,
       "dashboard shell should inject the manifest-backed supported-agent list",
     );

@@ -15,6 +15,12 @@ const CUSTOM_PROMPTS_PATH = resolve(
   "dashboard",
   "dashboard-custom-prompts.ts",
 );
+const CUSTOM_PROMPTS_ACTIONS_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-custom-prompts-actions.ts",
+);
 
 type HelperContext = {
   /** Return a fresh browser-local custom prompt draft with default flags. */
@@ -95,7 +101,10 @@ function loadHelpers(
   storage: Map<string, string>;
 } {
   const storage = new Map<string, string>();
-  const source = readFileSync(CUSTOM_PROMPTS_PATH, "utf-8");
+  const source = [
+    readFileSync(CUSTOM_PROMPTS_PATH, "utf-8"),
+    readFileSync(CUSTOM_PROMPTS_ACTIONS_PATH, "utf-8"),
+  ].join("\n");
   const js = transpileModule(source, {
     compilerOptions: { target: ScriptTarget.ES2023 },
   }).outputText;

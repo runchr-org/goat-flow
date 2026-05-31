@@ -1,5 +1,5 @@
 /**
- * Template-vs-installed drift detection for goat-flow skills (M04).
+ * Template-vs-installed drift detection for goat-flow skills.
  *
  * Compares the canonical templates shipped in goat-flow against the
  * installed copies inside a consumer project (or the goat-flow repo

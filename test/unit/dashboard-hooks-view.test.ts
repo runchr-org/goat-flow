@@ -14,7 +14,14 @@ const HOOKS_VIEW_PATH = resolve(
   "views",
   "hooks.html",
 );
-const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
+const DASHBOARD_APP_FRAGMENT_PATHS = Array.from({ length: 5 }, (_, index) =>
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    `dashboard-app-fragment-0${index + 1}.ts`,
+  ),
+);
 const DASHBOARD_STYLES_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -25,6 +32,11 @@ const DASHBOARD_STYLES_PATH = resolve(
 /** Read dashboard source fixtures as text for structural assertions. */
 function read(path: string): string {
   return readFileSync(path, "utf-8");
+}
+
+/** Read the split browser app fragments as the effective dashboard app source. */
+function readAppSource(): string {
+  return DASHBOARD_APP_FRAGMENT_PATHS.map(read).join("\n");
 }
 
 describe("dashboard hooks view", () => {
@@ -45,7 +57,7 @@ describe("dashboard hooks view", () => {
   });
 
   it("labels hook-specific unsupported surfaces without implying agent support is unavailable", () => {
-    const appSource = read(DASHBOARD_APP_PATH);
+    const appSource = readAppSource();
 
     assert.match(
       appSource,

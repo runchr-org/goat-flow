@@ -1,5 +1,5 @@
 /**
- * Unit tests for M04 drift-detection helpers.
+ * Unit tests for drift-detection helpers.
  *
  * skillContentsEquivalent is the semantic-equality primitive: parses YAML
  * frontmatter, strips null/undefined leaves, compares structurally; body is

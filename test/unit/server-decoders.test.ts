@@ -1,5 +1,5 @@
 /**
- * Unit tests for server-boundary decoders (M17-9).
+ * Unit tests for server-boundary decoders.
  *
  * Every decoder must produce a typed `{ ok: false, error, path }` on malformed
  * input rather than throwing or passing arbitrary shapes through to inner logic.

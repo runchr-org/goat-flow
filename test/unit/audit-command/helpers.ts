@@ -1,0 +1,655 @@
+/**
+ * Audit command tests - build checks, quality concerns, JSON contract.
+ */
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { assertExists } from "../../helpers/assert-exists.ts";
+import { readFileSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import {
+  runAudit,
+  computeHarness,
+  runAuditBatch,
+  createAuditFactsView,
+} from "../../../src/cli/audit/audit.js";
+import {
+  renderAuditJson,
+  renderAuditMarkdown,
+  renderAuditText,
+} from "../../../src/cli/audit/render.js";
+import { renderAuditSarif } from "../../../src/cli/audit/sarif.js";
+import { parseCLIArgs } from "../../../src/cli/cli.js";
+import { SETUP_CHECKS } from "../../../src/cli/audit/check-goat-flow.js";
+import { AGENT_CHECKS } from "../../../src/cli/audit/check-agent-setup.js";
+import { HARNESS_CHECKS } from "../../../src/cli/audit/harness/index.js";
+import { extractBacktickPaths } from "../../../src/cli/audit/harness/helpers.js";
+import { AUDIT_VERSION, SKILL_NAMES } from "../../../src/cli/constants.js";
+import { PROFILES } from "../../../src/cli/detect/agents.js";
+import { composeSetup } from "../../../src/cli/prompt/compose-setup.js";
+import { extractProjectFacts } from "../../../src/cli/facts/orchestrator.js";
+import { extractHookFacts } from "../../../src/cli/facts/agent/hooks.js";
+import { extractSettingsFacts } from "../../../src/cli/facts/agent/settings.js";
+import {
+  completeInstruction,
+  INSTRUCTION_FILES,
+  RATIONALISATIONS_PREAMBLE,
+} from "../../fixtures/evidence-before-claims.js";
+
+export const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..", "..");
+export const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
+export const CODEX_WORKSPACE_ROOT_ENTRIES = [
+  '"." = "write"',
+  '"secrets/**" = "none"',
+  '".ssh/**" = "none"',
+  '".aws/**" = "none"',
+  '".docker/**" = "none"',
+  '".gnupg/**" = "none"',
+  '".kube/**" = "none"',
+];
+export const CODEX_EXACT_ENV_DENY_ENTRIES = [
+  '".env" = "none"',
+  '".env.local" = "none"',
+  '".env.development" = "none"',
+  '".env.production" = "none"',
+  '".env.test" = "none"',
+  '".env.staging" = "none"',
+  '".envrc" = "none"',
+];
+
+export function codexWorkspaceRootsTable(
+  entries = CODEX_WORKSPACE_ROOT_ENTRIES,
+): string {
+  return `":workspace_roots" = { ${entries.join(", ")} }`;
+}
+import { createFS } from "../../../src/cli/facts/fs.js";
+import type {
+  AuditContext,
+  AuditReport,
+  ProjectStructure,
+} from "../../../src/cli/audit/types.js";
+import type {
+  AgentId,
+  ReadonlyFS,
+  ProjectFacts,
+  AgentFacts,
+  AgentProfile,
+} from "../../../src/cli/types.js";
+import type {
+  LoadedConfig,
+  GoatFlowConfig,
+} from "../../../src/cli/config/types.js";
+
+// ---------------------------------------------------------------------------
+// Cached repo audits - shared across describes that audit this repo with
+// identical inputs. Each fresh audit is ~7–12s; lazy-caching cuts ~30s off
+// this file's suite time. Tests must treat the returned report as read-only.
+// ---------------------------------------------------------------------------
+
+export const cachedRepoAudits = new Map<string, AuditReport>();
+export function getRepoAudit(opts: {
+  agentFilter: AgentId | null;
+  harness: boolean;
+}): AuditReport {
+  const key = `${opts.agentFilter}|${opts.harness}`;
+  let report = cachedRepoAudits.get(key);
+  if (report === undefined) {
+    report = runAudit(createFS(PROJECT_ROOT), PROJECT_ROOT, opts);
+    cachedRepoAudits.set(key, report);
+  }
+  return report;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers: minimal mock context for targeted build-check tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Production code calls FS helpers with `path.join` results, which on Windows
+ * use backslashes. Test handlers compare against POSIX-shape literals. Wrap
+ * every incoming path with a forward-slash normaliser so handlers can match
+ * on the documented separator-agnostic shape regardless of host.
+ */
+export function posixifyPath(value: string): string {
+  return value.replace(/\\/g, "/");
+}
+
+/** Wrap a fake FS handler with host-independent path normalization. */
+export function wrapPathArg<T>(
+  fn: ((path: string) => T) | undefined,
+  fallback: T,
+) {
+  /** Invoke a fake FS override after converting Windows separators. */
+  const readNormalizedPath = (path: string): T =>
+    fn ? fn(posixifyPath(path)) : fallback;
+  return readNormalizedPath;
+}
+
+/** Build a default-passing ReadonlyFS fake with optional targeted overrides. */
+export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
+  const fs: ReadonlyFS = {
+    exists: wrapPathArg(overrides.exists, true),
+    readFile: wrapPathArg(overrides.readFile, null),
+    lineCount: wrapPathArg(overrides.lineCount, 0),
+    readJson: wrapPathArg(overrides.readJson, null),
+    listDir: wrapPathArg(overrides.listDir, [] as string[]),
+    isExecutable: wrapPathArg(overrides.isExecutable, false),
+    glob: overrides.glob ?? ((): string[] => []),
+    existsGlob:
+      overrides.existsGlob ??
+      ((pattern: string) =>
+        (overrides.glob ?? ((): string[] => []))(pattern).length > 0),
+  };
+  return fs;
+}
+
+/** Build a valid loaded-config fixture because audit checks only need targeted config overrides. */
+export function stubConfig(
+  overrides: Partial<GoatFlowConfig> = {},
+): LoadedConfig {
+  return {
+    exists: true,
+    valid: true,
+    config: {
+      version: AUDIT_VERSION,
+      footguns: { path: ".goat-flow/footguns/" },
+      lessons: { path: ".goat-flow/lessons/" },
+      decisions: { path: ".goat-flow/decisions/" },
+      tasks: { path: ".goat-flow/tasks/" },
+      logs: { path: ".goat-flow/logs/" },
+      agents: null,
+      skills: { install: "all" },
+      lineLimits: { target: 125, limit: 150 },
+      toolchain: {
+        test: ["npm test"],
+        lint: ["eslint ."],
+        build: ["tsc"],
+        package: [],
+        format: [],
+      },
+      userRole: "developer",
+      telemetry: false,
+      learningLoop: { autoCapture: { enabled: false, targets: [] } },
+      knownGaps: [],
+      skillOverrides: {},
+      harness: { acknowledge: [] },
+      ...overrides,
+    },
+    warnings: [],
+    errors: [],
+    parseError: null,
+  };
+}
+
+export const STUB_AGENT_PROFILE: AgentProfile = {
+  id: "claude",
+  name: "Claude Code",
+  instructionFile: "CLAUDE.md",
+  settingsFile: ".claude/settings.json",
+  hookConfigFile: ".claude/settings.json",
+  skillsDir: ".claude/skills",
+  hooksDir: ".claude/hooks",
+  denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
+  localPattern: "*/CLAUDE.md",
+  hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
+};
+
+/** Extract deny-hook facts from a single in-memory hook body. */
+export function extractHookFactsForDenyContent(denyContent: string) {
+  const fs = stubFS({
+    exists: (path) => path === STUB_AGENT_PROFILE.denyHookFile,
+    readFile: (path) =>
+      path === STUB_AGENT_PROFILE.denyHookFile ? denyContent : null,
+  });
+  return extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
+}
+
+/** Build complete agent facts for checks that only override one concern. */
+export function stubAgentFacts(
+  overrides: Partial<AgentFacts> = {},
+): AgentFacts {
+  return {
+    agent: STUB_AGENT_PROFILE,
+    instruction: {
+      exists: true,
+      content: "# Test",
+      lineCount: 100,
+      sections: new Map(),
+    },
+    settings: { exists: true, valid: true, parsed: {}, hasDenyPatterns: true },
+    skills: {
+      installedDirs: [],
+      found: [
+        "goat",
+        "goat-debug",
+        "goat-plan",
+        "goat-review",
+        "goat-critique",
+        "goat-security",
+        "goat-qa",
+      ],
+      missing: [],
+      allPresent: true,
+      versions: {},
+      outdatedCount: 0,
+      hasDispatcher: true,
+      quality: {
+        withStep0: 0,
+        withHumanGate: 0,
+        withConstraints: 0,
+        withPhases: 0,
+        withConversational: 0,
+        withChoices: 0,
+        withOutputFormat: 0,
+        withSharedConventions: 0,
+        malformedFenceCount: 0,
+        unadaptedCount: 0,
+        adaptCommentCount: 0,
+        total: 0,
+      },
+    },
+    hooks: {
+      denyExists: true,
+      denyHasBlocks: true,
+      denyIsConfigBased: false,
+      denyUsesJq: false,
+      denyHandlesChaining: false,
+      denyBlocksRmRf: true,
+      denyBlocksGitPush: true,
+      denyBlocksChmod: true,
+      denyBlocksPipeToShell: false,
+      denyBlocksCloudDestructive: false,
+      denyIsRegistered: true,
+      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
+      postTurnExists: false,
+      postTurnRegistered: false,
+      postTurnRegisteredPath: null,
+      postTurnExecutable: false,
+      postTurnExitsZero: false,
+      postTurnHasValidation: false,
+      postTurnSwallowsFailures: false,
+      absolutePathHooks: [],
+      readDenyCoversSecrets: true,
+      bashDenyCoversSecrets: true,
+    },
+    deny: { gitCommitBlocked: false, gitPushBlocked: false },
+    router: { exists: true, paths: [], resolved: 0, unresolved: [] },
+    localContext: { files: [], warranted: [], missing: [] },
+    ...overrides,
+  };
+}
+
+export const STUB_STRUCTURE: ProjectStructure = {
+  required_files: [".goat-flow/config.yaml", ".goat-flow/architecture.md"],
+  required_dirs: [".goat-flow/footguns/", ".goat-flow/lessons/"],
+  skills: {
+    canonical: [
+      "goat",
+      "goat-debug",
+      "goat-plan",
+      "goat-review",
+      "goat-critique",
+      "goat-security",
+      "goat-qa",
+    ],
+    stale_names: ["goat-audit", "goat-investigate"],
+  },
+  agents: {},
+};
+
+/** Build an audit context fixture because focused checks should override only the facts under test. */
+export function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
+  return {
+    projectPath: "/tmp/test-project",
+    facts: {
+      root: "/tmp/test-project",
+      stack: {
+        languages: [],
+        buildCommand: null,
+        testCommand: null,
+        lintCommand: null,
+        formatCommand: null,
+        sourceFileCount: 0,
+        signals: {
+          codeGenTools: [],
+          deployPlatforms: [],
+          llmIntegration: false,
+          staticAnalysis: [],
+          complianceSignals: false,
+          formatterGaps: [],
+        },
+      },
+      agents: [],
+      shared: {
+        footguns: {
+          exists: true,
+          hasEvidence: false,
+          entryCount: 0,
+          labelCount: 0,
+          hasEvidenceLabels: false,
+          dirMentions: new Map(),
+          staleRefs: [],
+          invalidLineRefs: [],
+          duplicateSurfacePaths: [],
+          buckets: [],
+          totalRefs: 0,
+          validRefs: 0,
+          formatDiagnostic: null,
+          path: ".goat-flow/footguns/",
+        },
+        lessons: {
+          exists: true,
+          hasEntries: false,
+          entryCount: 0,
+          staleRefs: [],
+          invalidLineRefs: [],
+          duplicateSurfacePaths: [],
+          buckets: [],
+          formatDiagnostic: null,
+          path: ".goat-flow/lessons/",
+        },
+        decisions: {
+          dirExists: true,
+          fileCount: 0,
+          path: ".goat-flow/decisions/",
+          hasRealContent: false,
+        },
+        config: {
+          exists: true,
+          valid: true,
+          warningCount: 0,
+          errorCount: 0,
+          parseError: null,
+          lineLimits: { target: 125, limit: 150 },
+          userRole: "developer",
+        },
+        architecture: { exists: true, lineCount: 50 },
+        ignoreFiles: {
+          copilotignore: false,
+          cursorignore: false,
+        },
+        gitignore: { exists: true, hasRequiredEntries: true },
+        preflightScript: { exists: false },
+        skillConventions: { exists: true },
+        localInstructions: {
+          dirExists: false,
+          location: null,
+          aiDirExists: false,
+          githubDirExists: false,
+          duplicateSurfacePaths: [],
+          fileCount: 0,
+          hasRouter: false,
+          hasValidRouter: false,
+          routerNeedsFix: null,
+          hasConventions: false,
+          conventionsHasContent: false,
+          hasFrontend: false,
+          hasBackend: false,
+          hasCodeReview: false,
+          hasGitCommit: false,
+          conventionsContent: null,
+          localFileSizes: [],
+          path: "",
+        },
+        gitCommitInstructions: {
+          exists: false,
+          path: null,
+          requiredPath: "docs/coding-standards/git-commit.md",
+          misplacedPaths: [],
+        },
+        localInstructionsLineCount: 0,
+      },
+    } as ProjectFacts,
+    config: stubConfig(),
+    fs: stubFS(),
+    structure: STUB_STRUCTURE,
+    agents: [stubAgentFacts()],
+    agentFilter: null,
+    ...overrides,
+  };
+}
+
+export function makeProjectFacts(
+  root: string,
+  agents: AgentFacts[] = [],
+): ProjectFacts {
+  const baseFacts = makeCtx().facts;
+  return {
+    ...baseFacts,
+    root,
+    agents,
+  };
+}
+
+export async function writeProjectFile(
+  root: string,
+  relativePath: string,
+  content = "",
+): Promise<void> {
+  const fullPath = join(root, relativePath);
+  await mkdir(dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content);
+}
+
+export async function makeTempProject(
+  init: (root: string) => Promise<void>,
+): Promise<{ root: string; cleanup: () => Promise<void> }> {
+  const root = await mkdtemp(join(tmpdir(), "goat-flow-setup-tests-"));
+  try {
+    await init(root);
+  } catch (error) {
+    await rm(root, { recursive: true, force: true });
+    throw error;
+  }
+
+  return {
+    root,
+    cleanup: () => rm(root, { recursive: true, force: true }),
+  };
+}
+
+export async function writeAuditSetupFixture(
+  root: string,
+  options: {
+    skillReferenceDir: boolean;
+    skillReferenceReadme?: boolean;
+    instructionPointer: boolean;
+  },
+): Promise<void> {
+  const manifest = JSON.parse(
+    readFileSync(join(PROJECT_ROOT, "workflow/manifest.json"), "utf-8"),
+  ) as { required_files: string[]; required_dirs: string[] };
+
+  for (const dir of manifest.required_dirs) {
+    if (
+      !options.skillReferenceDir &&
+      (dir.startsWith(".goat-flow/skill-reference/") ||
+        dir.startsWith(".goat-flow/skill-playbooks/") ||
+        dir === ".goat-flow/skill-reference/" ||
+        dir === ".goat-flow/skill-playbooks/")
+    ) {
+      continue;
+    }
+    await mkdir(join(root, dir), { recursive: true });
+  }
+
+  for (const file of manifest.required_files) {
+    if (
+      !options.skillReferenceDir &&
+      (file.startsWith(".goat-flow/skill-reference/") ||
+        file.startsWith(".goat-flow/skill-playbooks/"))
+    ) {
+      continue;
+    }
+    if (
+      options.skillReferenceReadme === false &&
+      file === ".goat-flow/skill-reference/README.md"
+    ) {
+      continue;
+    }
+    const content =
+      file === ".goat-flow/config.yaml"
+        ? `version: "${AUDIT_VERSION}"\n\nagents:\n  - claude\nskills:\n  install: all\n`
+        : file === ".goat-flow/.gitignore"
+          ? "*\n!.gitignore\n!skill-reference/\n!skill-reference/**\n!skill-playbooks/\n!skill-playbooks/**\n"
+          : "# Stub\n";
+    await writeProjectFile(root, file, content);
+  }
+
+  const instructionContent = options.instructionPointer
+    ? `# CLAUDE.md
+
+## Execution Loop: READ -> SCOPE -> ACT -> VERIFY
+
+### READ
+Before declaring any tool or capability unavailable, read the matching playbook in .goat-flow/skill-playbooks/ and run that doc's "Availability Check" section verbatim.
+
+### SCOPE
+
+### ACT
+
+### VERIFY
+
+## Router Table
+
+| Resource | Path |
+|----------|------|
+| Skill playbooks | .goat-flow/skill-playbooks/ |
+`
+    : "# CLAUDE.md\n";
+
+  await writeProjectFile(root, "CLAUDE.md", instructionContent);
+}
+
+export function makeAuditScope(
+  status: "pass" | "fail",
+  checks: AuditReport["scopes"]["setup"]["checks"],
+): AuditReport["scopes"]["setup"] {
+  return {
+    status,
+    checks,
+    failures: checks.flatMap((check) =>
+      check.status === "fail" && check.failure ? [check.failure] : [],
+    ),
+    summary: {},
+  };
+}
+
+export function makeAuditReport(
+  root: string,
+  status: "pass" | "fail",
+  setupChecks: AuditReport["scopes"]["setup"]["checks"] = [],
+  agentChecks: AuditReport["scopes"]["agent"]["checks"] = [],
+  harnessChecks: AuditReport["scopes"]["setup"]["checks"] = [],
+): AuditReport {
+  return {
+    command: "audit",
+    harness: harnessChecks.length > 0,
+    status,
+    target: root,
+    scopes: {
+      setup: makeAuditScope(
+        setupChecks.some((check) => check.status === "fail") ? "fail" : "pass",
+        setupChecks,
+      ),
+      agent: makeAuditScope(
+        agentChecks.some((check) => check.status === "fail") ? "fail" : "pass",
+        agentChecks,
+      ),
+      harness:
+        harnessChecks.length > 0
+          ? makeAuditScope(
+              harnessChecks.some((check) => check.status === "fail")
+                ? "fail"
+                : "pass",
+              harnessChecks,
+            )
+          : null,
+    },
+    concerns: null,
+    enforcement: [],
+    drift: null,
+    content: null,
+    overall: { status },
+  };
+}
+
+export function makeReportWithDetails(
+  scope: NonNullable<AuditReport["scopes"]["harness"]>,
+): AuditReport {
+  return makeAuditReport(
+    "/tmp/test-project",
+    scope.status,
+    [],
+    [],
+    scope.checks,
+  );
+}
+
+/** Create a profile span recorder for audit-cache instrumentation assertions. */
+export function createSpanRecorder(): {
+  profile: { span<T>(name: string, fn: () => T): T };
+  names: string[];
+} {
+  const names: string[] = [];
+  return {
+    names,
+    profile: {
+      span<T>(name: string, fn: () => T): T {
+        names.push(name);
+        return fn();
+      },
+    },
+  };
+}
+
+/** Count recorded profile spans with the exact requested name. */
+export function countSpan(names: string[], name: string): number {
+  return names.filter((entry) => entry === name).length;
+}
+
+// ---------------------------------------------------------------------------
+// Test 1: audit passes on a well-configured project (this repo)
+// ---------------------------------------------------------------------------
+
+export {
+  describe,
+  it,
+  assert,
+  assertExists,
+  readFileSync,
+  mkdir,
+  mkdtemp,
+  rm,
+  writeFile,
+  tmpdir,
+  dirname,
+  join,
+  resolve,
+  runAudit,
+  computeHarness,
+  runAuditBatch,
+  createAuditFactsView,
+  renderAuditJson,
+  renderAuditMarkdown,
+  renderAuditText,
+  renderAuditSarif,
+  parseCLIArgs,
+  SETUP_CHECKS,
+  AGENT_CHECKS,
+  HARNESS_CHECKS,
+  extractBacktickPaths,
+  AUDIT_VERSION,
+  SKILL_NAMES,
+  PROFILES,
+  composeSetup,
+  extractProjectFacts,
+  extractHookFacts,
+  extractSettingsFacts,
+  completeInstruction,
+  INSTRUCTION_FILES,
+  RATIONALISATIONS_PREAMBLE,
+  createFS,
+};

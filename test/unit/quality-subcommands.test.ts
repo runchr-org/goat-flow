@@ -133,7 +133,15 @@ describe("skill subcommand parsing", () => {
 describe("quality candidacy draft naming", () => {
   it("uses the platform path basename instead of POSIX-only splitting", () => {
     const cliSource = readFileSync(
-      resolve(import.meta.dirname, "..", "..", "src", "cli", "cli.ts"),
+      resolve(
+        import.meta.dirname,
+        "..",
+        "..",
+        "src",
+        "cli",
+        "quality",
+        "quality-command.ts",
+      ),
       "utf-8",
     );
     assert.match(cliSource, /basename\(path\)\.replace/);

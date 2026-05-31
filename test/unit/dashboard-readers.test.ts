@@ -15,6 +15,12 @@ const READERS_PATH = resolve(
   "dashboard",
   "dashboard-readers.ts",
 );
+const READERS_EXTRA_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-readers-extra.ts",
+);
 
 type HelperContext = {
   readRunnerId: (_value: unknown) => string | null;
@@ -124,10 +130,14 @@ function supportedAgent(
 function loadHelpers(
   windowOverrides: Record<string, unknown> = {},
 ): HelperContext {
-  const source = readFileSync(READERS_PATH, "utf-8");
-  const js = transpileModule(source, {
-    compilerOptions: { target: ScriptTarget.ES2023 },
-  }).outputText;
+  const js = [READERS_EXTRA_PATH, READERS_PATH]
+    .map(
+      (path) =>
+        transpileModule(readFileSync(path, "utf-8"), {
+          compilerOptions: { target: ScriptTarget.ES2023 },
+        }).outputText,
+    )
+    .join("\n");
   const context = createContext({
     URL,
     window: {
@@ -431,13 +441,13 @@ describe("dashboard payload readers", () => {
     const state = helpers.readTaskState({
       taskRoot: "/repo/.goat-flow/tasks",
       exists: true,
-      active: "1.7.0",
+      active: "current",
       activeExists: true,
-      selectedPlan: "1.7.0",
+      selectedPlan: "current",
       plans: [
         {
-          name: "1.7.0",
-          path: "/repo/.goat-flow/tasks/1.7.0",
+          name: "current",
+          path: "/repo/.goat-flow/tasks/current",
           modifiedAt: "2026-05-15T06:00:00.000Z",
           milestoneCount: 2,
           active: true,
@@ -445,9 +455,9 @@ describe("dashboard payload readers", () => {
       ],
       milestones: [
         {
-          filename: "M00-side-menu-navigation.md",
-          path: "/repo/.goat-flow/tasks/1.7.0/M00-side-menu-navigation.md",
-          title: "M00: Side Menu Navigation and Plans View",
+          filename: "Milestone-side-menu-navigation.md",
+          path: "/repo/.goat-flow/tasks/current/Milestone-side-menu-navigation.md",
+          title: "Side Menu Navigation and Plans View",
           status: "in-progress",
           objective: "Build the side menu.",
           totalTasks: 13,
@@ -461,9 +471,9 @@ describe("dashboard payload readers", () => {
     const expectedMilestoneTaskTotal = 13;
     const expectedCompletedTasks = 4;
     assert.equal(state.taskRoot, "/repo/.goat-flow/tasks");
-    assert.equal(state.active, "1.7.0");
+    assert.equal(state.active, "current");
     assert.equal(state.activeExists, true);
-    assert.equal(state.selectedPlan, "1.7.0");
+    assert.equal(state.selectedPlan, "current");
     assert.equal(state.plans[0]?.milestoneCount, expectedMilestoneCount);
     assert.equal(state.plans[0]?.active, true);
     assert.equal(state.milestones[0]?.status, "in-progress");

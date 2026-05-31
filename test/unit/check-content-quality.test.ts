@@ -1,5 +1,5 @@
 /**
- * Unit tests for M05 content-quality detection.
+ * Unit tests for content-quality detection.
  *
  * Fixes pinned:
  *  - cclint ContentOrganizationRule.ts:163-166 bug: fence-line skip without
@@ -244,7 +244,7 @@ describe("scanContentQuality: restricted mode (learning-loop surfaces)", () => {
   });
 });
 
-describe("scanContentQuality: legacy execution loop (M19-9a)", () => {
+describe("scanContentQuality: legacy execution loop", () => {
   it("flags 'READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG' as WARNING", () => {
     const findings = scanContentQuality(
       "AGENTS.md",

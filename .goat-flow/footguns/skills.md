@@ -15,7 +15,7 @@ last_reviewed: 2026-05-27
 - `workflow/manifest.json` (search: `"skills_dir": ".github/skills/"`) declares the GitHub agent skill root.
 - `src/cli/manifest/manifest.ts` (search: `getInstalledSkillRoots`) exposes installed skill roots from the manifest-backed agent set.
 - `scripts/check-path-integrity.sh` (search: `skill_dirs=".claude/skills .agents/skills .github/skills"`) checks `.github/skills/` alongside the other installed mirrors.
-- `test/integration/audit-drift.test.ts` (search: `goat-flow root should be drift-clean`) failed on 2026-04-21 with finding `goat-review: template (workflow/skills/goat-review/SKILL.md) and installed copy (.github/skills/goat-review/SKILL.md) differ`.
+- `test/integration/audit-drift-checkdrift-this-repo.test.ts` (search: `goat-flow root should be drift-clean`) failed on 2026-04-21 with finding `goat-review: template (workflow/skills/goat-review/SKILL.md) and installed copy (.github/skills/goat-review/SKILL.md) differ`.
 
 **Prevention:**
 1. When editing `workflow/skills/*/SKILL.md`, update every installed mirror in `.claude/skills/`, `.agents/skills/`, and `.github/skills/` in the same change.
@@ -181,7 +181,7 @@ Applies wherever goat-flow ships a SKILL.md or command body that orchestrates mu
 **Original symptoms:** `npm test` failed in `test/integration/audit-drift.test.ts` even when the code change did not touch skills, because the tracked installed copies under `.claude/skills/` and `.agents/skills/` had Unicode em dashes while `workflow/skills/` templates had ASCII hyphens.
 
 **Original evidence:**
-- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Use when work needs milestones with tracked progress`) - hyphen vs em dash
+- `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Use when work needs milestone tracking`) - hyphen vs em dash
 - `workflow/skills/goat-plan/SKILL.md` vs `.claude/skills/goat-plan/SKILL.md` (search: `Milestone files exist for`) - hyphen vs em dash
 
 **Resolution:** Installed copies are now byte-identical with the workflow templates (verified by `diff` returning empty output). The drift check at `test/integration/audit-drift.test.ts` now passes on these files.

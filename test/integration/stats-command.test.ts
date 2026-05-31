@@ -1,5 +1,5 @@
 /**
- * Integration tests for `goat-flow stats` and `goat-flow stats --check` (M09).
+ * Integration tests for `goat-flow stats` and `goat-flow stats --check`.
  * Exercises the extractor + report + render pipeline end-to-end against
  * temp-dir fixtures so the live repo's learning-loop content does not leak in.
  */

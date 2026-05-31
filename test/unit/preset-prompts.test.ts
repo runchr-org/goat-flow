@@ -46,6 +46,18 @@ const DASHBOARD_TERMINAL_PATH = resolve(
   "dashboard",
   "dashboard-terminal.ts",
 );
+const DASHBOARD_TERMINAL_RUNTIME_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-terminal-runtime.ts",
+);
+const DASHBOARD_TERMINAL_PASTE_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-terminal-paste.ts",
+);
 const DASHBOARD_PROMPTS_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -65,7 +77,18 @@ const DASHBOARD_QUALITY_PATH = resolve(
   "dashboard",
   "dashboard-setup-quality.ts",
 );
-const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
+const DASHBOARD_APP_FRAGMENT_01_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-app-fragment-01.ts",
+);
+const DASHBOARD_APP_FRAGMENT_02_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-app-fragment-02.ts",
+);
 const HOME_VIEW_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -116,6 +139,11 @@ function byId(id: string): PresetPrompt {
   const preset = readPresets().find((entry) => entry.id === id);
   assert.ok(preset, `missing preset ${id}`);
   return preset;
+}
+
+/** Concatenate split dashboard scripts when a contract spans browser load units. */
+function readDashboardSources(...paths: string[]): string {
+  return paths.map((path) => readFileSync(path, "utf-8")).join("\n");
 }
 
 describe("preset prompt catalog", () => {
@@ -437,7 +465,11 @@ describe("preset prompt catalog", () => {
   });
 
   it("adapts launch prompts with the requested runner and preserves target context", () => {
-    const source = readFileSync(DASHBOARD_TERMINAL_PATH, "utf-8");
+    const source = readDashboardSources(
+      DASHBOARD_TERMINAL_PATH,
+      DASHBOARD_TERMINAL_RUNTIME_PATH,
+      DASHBOARD_TERMINAL_PASTE_PATH,
+    );
     assert.match(source, /ctx\.adaptPrompt\(prompt, runnerResolved\)/);
     assert.match(source, /cwdPath: options\.cwdPath \?\? null/);
     assert.match(
@@ -527,7 +559,7 @@ describe("preset prompt catalog", () => {
   });
 
   it("switches from custom prompt editing to clicked prompt previews", () => {
-    const source = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    const source = readFileSync(DASHBOARD_APP_FRAGMENT_02_PATH, "utf-8");
     const view = readFileSync(PROMPTS_VIEW_PATH, "utf-8");
 
     assert.match(view, /@click="selectPreset\(p\)"/);
@@ -644,7 +676,7 @@ describe("preset prompt catalog", () => {
   });
 
   it("keeps Setup target cards based on setup, agent, and harness scopes", () => {
-    const app = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    const app = readFileSync(DASHBOARD_APP_FRAGMENT_01_PATH, "utf-8");
     const view = readFileSync(SETUP_VIEW_PATH, "utf-8");
     assert.match(app, /setupTargetScore\(agentId: RunnerId\)/);
     assert.match(app, /this\.auditScopePercent\(this\.report\.scopes\.setup\)/);

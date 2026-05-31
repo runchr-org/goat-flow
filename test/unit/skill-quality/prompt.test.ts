@@ -1,11 +1,6 @@
-/**
- * Unit tests for artifact quality prompt composition from structured skill reports.
- */
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-
-import { composeArtifactQualityPrompt } from "../../src/cli/prompt/compose-quality.js";
-import type { SkillQualityReport } from "../../src/cli/quality/skill-quality.js";
+import { describe, it, assert } from "./helpers.js";
+import { composeArtifactQualityPrompt } from "../../../src/cli/prompt/compose-quality.js";
+import type { SkillQualityReport } from "../../../src/cli/quality/skill-quality.js";
 
 function makeReport(
   overrides: Partial<SkillQualityReport> = {},

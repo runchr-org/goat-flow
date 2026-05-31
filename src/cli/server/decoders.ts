@@ -44,7 +44,7 @@ interface TerminalUploadBody {
 }
 
 /** Quality-evaluate payload, accepting one pasted document or one bounded file bundle. */
-interface EvaluateBody {
+export interface EvaluateBody {
   /** Either a single content string (paste / textarea) OR an array of named
    *  files (multi-file drop). Exactly one must be set. */
   content?: string;

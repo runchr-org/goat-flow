@@ -1,5 +1,5 @@
 /**
- * Shared M13/M16 negative-space test: quality flows must not execute project
+ * Shared negative-space test: quality flows must not execute project
  * constraint commands implicitly.
  */
 import { afterEach, describe, it } from "node:test";

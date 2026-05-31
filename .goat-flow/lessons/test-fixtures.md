@@ -81,7 +81,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** I wrote the test against an internal diagnostic phrase rather than the audit result field users and dashboard consumers actually receive.
 
-**Prevention:** For harness-audit regressions, assert the serialized/public `CheckResult` contract first: `status`, `displayStatus`, `impact`, `failure.message`, and `howToFix` when relevant. Only assert raw finding phrasing if that phrasing is intentionally part of the public contract. Evidence anchors: `src/cli/audit/audit.ts` (search: `Convert a harness check`), `test/unit/audit-command.test.ts` (search: `execution loop smoke check only accepts step words inside the section`).
+**Prevention:** For harness-audit regressions, assert the serialized/public `CheckResult` contract first: `status`, `displayStatus`, `impact`, `failure.message`, and `howToFix` when relevant. Only assert raw finding phrasing if that phrasing is intentionally part of the public contract. Evidence anchors: `src/cli/audit/audit.ts` (search: `Convert a harness check`), `test/unit/audit-command/signal-honesty.test.ts` (search: `execution loop smoke check only accepts step words inside the section`).
 
 ---
 

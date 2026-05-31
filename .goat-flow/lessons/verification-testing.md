@@ -11,7 +11,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** I treated shell-command parsing as a small cleanup after removing the risky spawn path. The safer behavior changed the test contract, and the first parser shape had its own syntax hazard.
 
-**Prevention:** For security changes that parse shell or agent-config command strings, run the focused parser/contract tests immediately, avoid dynamic regex construction when a literal token scan is enough, run `goat-flow stats --check` after renaming test anchors that learning-loop artifacts cite, and let current type/lint evidence override stale lesson text. Evidence anchors: `src/cli/audit/check-agent-setup.ts` (search: `extractConfiguredScriptPath`), `test/unit/audit-command.test.ts` (search: `hides the script path in shell text`).
+**Prevention:** For security changes that parse shell or agent-config command strings, run the focused parser/contract tests immediately, avoid dynamic regex construction when a literal token scan is enough, run `goat-flow stats --check` after renaming test anchors that learning-loop artifacts cite, and let current type/lint evidence override stale lesson text. Evidence anchors: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `extractConfiguredScriptPath`), `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`).
 
 ---
 
@@ -23,7 +23,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** The terminal smoke test uses real timers to assert a fallback deadline, while `audit-command.test.ts` performs CPU-heavy repo audits in the same Node test process. Grouping them made the timer-sensitive assertion fail like a product regression even though the smoke file passed alone.
 
-**Prevention:** When `test/smoke/dashboard-endpoints.test.ts` is in focused verification, run it as its own `node --import tsx --test` command. Run heavy audit suites separately, and treat a combined-run fallback-deadline failure as an invocation-shape suspect until the isolated smoke file fails too. Evidence anchors: `test/smoke/dashboard-endpoints.test.ts` (search: `uses the fallback deadline when runner output keeps updating`), `test/unit/audit-command.test.ts` (search: `runs full-profile batch fact extraction once`).
+**Prevention:** When `test/smoke/dashboard-endpoints.test.ts` is in focused verification, run it as its own `node --import tsx --test` command. Run heavy audit suites separately, and treat a combined-run fallback-deadline failure as an invocation-shape suspect until the isolated smoke file fails too. Evidence anchors: `test/smoke/dashboard-endpoints.test.ts` (search: `uses the fallback deadline when runner output keeps updating`), `test/unit/audit-command/batch-fact-reuse.test.ts` (search: `runs full-profile batch fact extraction once`).
 
 ---
 
@@ -35,7 +35,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** I wrote purpose comments for side-effecting helpers but did not include analyzer-recognised side-effect language. For gruff-ts docs rules, a human-useful purpose sentence is not enough when the helper mutates filesystem state or runs a subprocess.
 
-**Prevention:** For helpers that write files, mutate fixtures, or run subprocesses, include the side effect in plain maintainer language (`Writes`, `Spawns`, `filesystem`) instead of a generic purpose sentence. After large docs batches, check the full rule delta, not only the original docs cluster. Evidence anchors: `test/integration/audit-drift.test.ts` (search: `Writes canonical skill stubs`), `test/integration/setup-install.test.ts` (search: `Spawns the shell installer`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `docs.missing-side-effect-doc=0`).
+**Prevention:** For helpers that write files, mutate fixtures, or run subprocesses, include the side effect in plain maintainer language (`Writes`, `Spawns`, `filesystem`) instead of a generic purpose sentence. After large docs batches, check the full rule delta, not only the original docs cluster. Evidence anchors: `test/integration/audit-drift.helpers.ts` (search: `Writes canonical skill stubs`), `test/integration/setup-install.helpers.ts` (search: `Spawns the shell installer`), `CHANGELOG.md` (search: `gruff-ts cleanup follow-up`).
 
 ---
 
@@ -47,7 +47,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** I swapped a timing smell for an implementation-observation smell. Imported Node builtins and transitive helpers are not a reliable public signal for cache behavior.
 
-**Prevention:** For server cache behavior, expose a narrow response/debug contract or inject an explicit dependency, then assert that contract at the route boundary. Avoid timing ratios and late monkeypatches of already-imported helpers. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `getOrRunQualityAudit`), `test/integration/dashboard-server.test.ts` (search: `reuses cached quality audits unless fresh=true is requested`), `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`).
+**Prevention:** For server cache behavior, expose a narrow response/debug contract or inject an explicit dependency, then assert that contract at the route boundary. Avoid timing ratios and late monkeypatches of already-imported helpers. Evidence anchors: `src/cli/server/dashboard-quality-routes.ts` (search: `getOrRunQualityAudit`), `test/integration/dashboard-server-dashboard-api-quality.test.ts` (search: `reuses cached quality audits unless fresh=true is requested`), `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookSelfTest`).
 
 ---
 
@@ -71,11 +71,11 @@ last_reviewed: 2026-05-30
 
 **Root cause:** The unit tests modeled ideal timer order, not the real terminal output order from Claude Code inside xterm/WebSocket. I treated "timer sent Enter in a fake clock" as equivalent to "Claude accepted the prompt" before running the original browser reproduction.
 
-**Fix:** Keep a browser-use reproduction in the proof loop for terminal launch changes: click the real dashboard button, verify the prompt advances past `[Pasted text...]`, and then clean up the terminal session. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), `test/unit/dashboard-terminal-launch.test.ts` (search: `ignores a late Claude paste echo after the no-marker fallback submitted`).
+**Fix:** Keep a browser-use reproduction in the proof loop for terminal launch changes: click the real dashboard button, verify the prompt advances past `[Pasted text...]`, and then clean up the terminal session. Evidence anchors: `src/dashboard/dashboard-terminal-connect.ts` (search: `dashboardHandlePasteSubmitOutput`), `test/unit/dashboard-terminal-launch/launch-flow-01.test.ts` (search: `ignores a late Claude paste echo after the no-marker fallback submitted`).
 
 **Prevention:** For terminal automation, unit tests must cover lost/late paste state, but the Definition of Done still requires live browser evidence against the runner that originally failed. Do not close on fake timers alone when xterm, WebSocket, or agent composer behavior is involved.
 
-**Recurrence 2026-05-28:** A fake-timer fix added `TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS = 1500` and the built bundle contained it, but live WebSocket probing still showed bracketed paste followed by xterm DA response `\x1b[?1;2c` and then no Enter. The missing test variable was xterm's own protocol replies through `term.onData`: they were forwarded like keystrokes and cleared the pending fallback timer. Future terminal-submit tests must model the actual browser input stream, not just helper timers. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardTerminalDataLooksProtocolResponse`), `test/unit/dashboard-terminal-launch.test.ts` (search: `keeps Claude no-marker fallback armed across xterm protocol replies`).
+**Recurrence 2026-05-28:** A fake-timer fix added `TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS = 1500` and the built bundle contained it, but live WebSocket probing still showed bracketed paste followed by xterm DA response `\x1b[?1;2c` and then no Enter. The missing test variable was xterm's own protocol replies through `term.onData`: they were forwarded like keystrokes and cleared the pending fallback timer. Future terminal-submit tests must model the actual browser input stream, not just helper timers. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `dashboardTerminalDataLooksProtocolResponse`), `test/unit/dashboard-terminal-launch/launch-flow-01.test.ts` (search: `keeps Claude no-marker fallback armed across xterm protocol replies`).
 
 ---
 
@@ -87,7 +87,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** A classic-script source grep test used a whitespace-sensitive regex to assert control-flow structure. Formatter reflow changed the syntax layout without changing semantics.
 
-**Fix:** Keep source-regex tests focused on semantic tokens and tolerate formatter-owned whitespace. Evidence anchors: `test/unit/dashboard-terminal-launch.test.ts` (search: `warms xterm when the workspace or setup view opens`), `src/dashboard/app.ts` (search: `v === "workspace" || v === "setup"`).
+**Fix:** Keep source-regex tests focused on semantic tokens and tolerate formatter-owned whitespace. Evidence anchors: `test/unit/dashboard-terminal-launch/launch-flow-06.test.ts` (search: `warms xterm when the workspace or setup view opens`), `src/dashboard/dashboard-app-init.ts` (search: `view === "workspace" || view === "setup"`).
 
 **Prevention:** After changing source-grep tests for dashboard classic scripts, run Prettier before the focused test rerun. If a regex only protects structure, make whitespace flexible enough for formatter reflow or use a small VM helper test instead.
 
@@ -144,7 +144,7 @@ function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
   }
 }
 ```
-Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`) and bails early when the helper returns false. Evidence: `test/integration/main-guard.test.ts` (search: `symlinkOrSkip`), `test/unit/skill-quality.test.ts` (search: `symlinkOrSkip`), `test/unit/terminal-uploads.test.ts` (search: `symlinkOrSkip`).
+Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`) and bails early when the helper returns false. Evidence: `test/integration/main-guard.test.ts` (search: `symlinkOrSkip`), `test/unit/skill-quality/helpers.ts` (search: `symlinkOrSkip`), `test/unit/terminal-uploads.test.ts` (search: `symlinkOrSkip`).
 
 **Prevention:**
 1. Any new test that calls `symlinkSync`, `linkSync`, or any privileged fs op must guard against `EPERM` with a `t.skip(...)`.

@@ -11,7 +11,7 @@ last_reviewed: 2026-05-27
 
 **Root cause:** I treated the unit audit report contract as the only caller. Integration tests also assert the lower-level `BuildCheck` shape, including optional `skip` behavior. Removing the skip gate also left unused directory constants that `npm run typecheck` caught before the full suite.
 
-**Prevention:** When changing an audit check from optional/skippable to mandatory, grep for both the check id and `skip?.` before verification. Update unit report expectations and integration `BuildCheck` assertions in the same edit, then run `npm run typecheck` before `npm test`. Evidence anchors: `src/cli/audit/check-goat-flow.ts` (search: `instruction-file-skill-reference-pointer`), `test/unit/audit-command.test.ts` (search: `fails when the project has no skill-reference or skill-playbooks pack`), `test/integration/audit-build.test.ts` (search: `fails when the project has no shared reference/playbook pack`).
+**Prevention:** When changing an audit check from optional/skippable to mandatory, grep for both the check id and `skip?.` before verification. Update unit report expectations and integration `BuildCheck` assertions in the same edit, then run `npm run typecheck` before `npm test`. Evidence anchors: `src/cli/audit/check-goat-flow.ts` (search: `instruction-file-skill-reference-pointer`), `test/unit/audit-command/skill-reference.test.ts` (search: `fails when the project has no skill-reference or skill-playbooks pack`), `test/integration/audit-build.test.ts` (search: `fails when the project has no shared reference/playbook pack`).
 
 ---
 
@@ -47,7 +47,7 @@ last_reviewed: 2026-05-27
 
 **Root cause:** The quality rules mixed installed goat-flow skills with generic uploaded/non-goat-flow skills.
 
-**Prevention:** Every generic skill-quality rule must be satisfiable by a standalone skill with no goat-flow files present. Framework inheritance can be credited only for installed artifact paths that actually compose the shared references. Evidence anchors: `src/cli/quality/skill-quality.ts` (search: `no prerequisites or operating context`) and `test/unit/skill-quality.test.ts` (search: `does not require goat-flow preamble inheritance for portable uploaded skills`).
+**Prevention:** Every generic skill-quality rule must be satisfiable by a standalone skill with no goat-flow files present. Framework inheritance can be credited only for installed artifact paths that actually compose the shared references. Evidence anchors: `src/cli/quality/skill-quality-metrics.ts` (search: `no prerequisites or operating context`) and `test/unit/skill-quality/uploaded-composition.test.ts` (search: `does not require goat-flow preamble inheritance for portable uploaded skills`).
 
 ---
 
@@ -59,4 +59,4 @@ last_reviewed: 2026-05-27
 
 **Root cause:** Quality reports detect weak presentation, but they do not automatically know which non-gating limits are intentional.
 
-**Prevention:** Before implementing recommendations that change audit status, scoring, or setup gates, reconcile the suggestion against current ADRs and lessons. If the report is right about presentation but wrong about gating, preserve the pass/fail contract and add an explicit limit, warning, or prompt note instead. Evidence anchors: `src/cli/audit/audit.ts` (search: `addNonGatingEvidenceLimits`) and `src/cli/prompt/compose-quality.ts` (search: `metrics=${concern.metrics}`).
+**Prevention:** Before implementing recommendations that change audit status, scoring, or setup gates, reconcile the suggestion against current ADRs and lessons. If the report is right about presentation but wrong about gating, preserve the pass/fail contract and add an explicit limit, warning, or prompt note instead. Evidence anchors: `src/cli/audit/audit.ts` (search: `addNonGatingEvidenceLimits`) and `src/cli/prompt/compose-quality-common.ts` (search: `metrics=${concern.metrics}`).

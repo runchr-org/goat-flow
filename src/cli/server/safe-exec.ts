@@ -7,7 +7,7 @@
  * passed positionally to `child_process.spawn` with `shell: false` so shell
  * metacharacters in `args` cannot be interpreted.
  *
- * Pitfalls (M31):
+ * Pitfalls:
  *   - Do NOT pass `shell: true`. Ever.
  *   - Do NOT accept user-supplied `env`. Callers must scrub secrets first.
  *   - Always use positional `args: string[]`, never a single command string.

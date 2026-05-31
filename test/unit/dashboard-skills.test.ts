@@ -14,13 +14,27 @@ const SKILLS_VIEW_PATH = resolve(
   "views",
   "skills.html",
 );
-const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
+const DASHBOARD_APP_FRAGMENT_PATHS = Array.from({ length: 5 }, (_, index) =>
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    `dashboard-app-fragment-0${index + 1}.ts`,
+  ),
+);
 const DASHBOARD_INDEX_PATH = resolve(
   PROJECT_ROOT,
   "src",
   "dashboard",
   "index.html",
 );
+
+/** Read the split browser app fragments as the effective dashboard app source. */
+function readAppSource(): string {
+  return DASHBOARD_APP_FRAGMENT_PATHS.map((path) =>
+    readFileSync(path, "utf-8"),
+  ).join("\n");
+}
 
 describe("Skills dashboard view", () => {
   it("leads with the evaluator workflow and keeps installed skills as support", () => {
@@ -51,7 +65,7 @@ describe("Skills dashboard view", () => {
 
   it("does not render shared references in the sidebar", () => {
     const viewSource = readFileSync(SKILLS_VIEW_PATH, "utf-8");
-    const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    const appSource = readAppSource();
 
     assert.match(appSource, /artifact\.kind === "skill"/);
     assert.match(appSource, /isRecord\(artifact\)/);
@@ -60,7 +74,7 @@ describe("Skills dashboard view", () => {
   });
 
   it("guards skill report prefetch writes with a generation token", () => {
-    const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    const appSource = readAppSource();
 
     assert.match(appSource, /skillQualityPrefetchGeneration:\s*0/);
     assert.match(
@@ -72,7 +86,7 @@ describe("Skills dashboard view", () => {
 
   it("evaluates pasted drafts inline as skills and describes local-server scoring", () => {
     const viewSource = readFileSync(SKILLS_VIEW_PATH, "utf-8");
-    const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    const appSource = readAppSource();
 
     assert.match(appSource, /body\.kind = "skill"/);
     assert.match(viewSource, /x-model="skillEvaluatorContent"/);
@@ -87,7 +101,7 @@ describe("Skills dashboard view", () => {
 
   it("renders inline evaluation result controls and report sections", () => {
     const viewSource = readFileSync(SKILLS_VIEW_PATH, "utf-8");
-    const appSource = readFileSync(DASHBOARD_APP_PATH, "utf-8");
+    const appSource = readAppSource();
 
     assert.match(
       viewSource,

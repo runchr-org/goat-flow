@@ -1592,7 +1592,7 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
         pass "$test_label passing ($pass_count/$test_count)"
         coverage_output="$test_output"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
-        warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
+        warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding"
     elif [[ "$test_retryable" == true ]]; then
         retry_output=$("${test_command[@]}" 2>&1) && retry_exit=0 || retry_exit=$?
         retry_test_count=$(echo "$retry_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
@@ -1675,7 +1675,7 @@ $adr_clean && pass "No removed patterns found"
 # ── Gruff Policy ─────────────────────────────────────────────────────
 # Enforces the project rule "never disable gruff-ts rules" structurally
 # instead of relying on agent memory (see feedback_gruff_never_disable.md
-# and the M00 gruff-cleanup milestone). Findings get fixed, tuned via
+# and the gruff cleanup work). Findings get fixed, tuned via
 # thresholds/allowlists, or baselined with rationale - never silenced via
 # `enabled: false`. A single line in .gruff-ts.yaml setting `enabled: false`
 # on any rule fails this check.
@@ -2025,7 +2025,7 @@ done
 # ── Skill SKILL.md Parity ────────────────────────────────────────────
 # Byte-exact diff (bash) for speed. For semantic comparison (frontmatter key
 # reorder, trailing whitespace), see `goat-flow audit --check-drift` which
-# adds YAML-aware normalisation. Both paths coexist per M04.
+# adds YAML-aware normalisation. Both paths coexist for backward compatibility.
 section "Skill SKILL.md Parity"
 skill_parity_ok=true
 while IFS= read -r skill_name; do

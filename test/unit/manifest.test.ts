@@ -327,7 +327,7 @@ describe("validateSkillReferenceSchema", () => {
 describe("validateManifest (missing key)", () => {
   it("throws when the facts key is missing", () => {
     const json = fixtureJson();
-    // Simulate pre-M06 manifest with no facts key at all.
+    // Simulate an older manifest with no facts key at all.
     delete (json as { facts?: unknown }).facts;
     assert.throws(
       () => validateManifest(json, fixtureObserved()),

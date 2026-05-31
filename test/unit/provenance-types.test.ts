@@ -1,8 +1,8 @@
 /**
- * Unit tests for M05 provenance schema validator.
+ * Unit tests for provenance schema validator.
  *
  * The `source_type: "unknown"` + required `reason` contract is the critique-locked
- * M11 escape hatch. Must be mechanically enforced so back-fill work can't
+ * The escape hatch must be mechanically enforced so back-fill work can't
  * silently ship without-reason unknowns.
  */
 import { describe, it } from "node:test";
@@ -118,7 +118,7 @@ describe("validateProvenance", () => {
   });
 });
 
-describe("M05 check evidence constants validate", () => {
+describe("check evidence constants validate", () => {
   it("all 36 registered build and harness checks satisfy the schema", () => {
     const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
     const expectedRegisteredCheckCount = 36;

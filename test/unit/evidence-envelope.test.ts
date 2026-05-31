@@ -1,5 +1,5 @@
 /**
- * Unit tests for M08 evidence-envelope validation, redaction, writing, and tailing.
+ * Unit tests for evidence-envelope validation, redaction, writing, and tailing.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

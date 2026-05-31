@@ -126,8 +126,8 @@ describe("skill hardening contracts", () => {
     );
     assert.match(
       body,
-      /Task directory path plus `start M01`\s+\|\s+Implementation may start after normal gates/,
-      "start M01 input must allow implementation after gates",
+      /Task directory path plus `start current milestone`\s+\|\s+Implementation may start after normal gates/,
+      "start current milestone input must allow implementation after gates",
     );
     assert.match(
       body,
@@ -136,13 +136,13 @@ describe("skill hardening contracts", () => {
     );
     assert.match(
       body,
-      /`update M01` plus a task directory path\s+\|\s+Update the named milestone file only/,
-      "update M01 input must stay plan-file scoped",
+      /`update current milestone` plus a task directory path\s+\|\s+Update the named milestone file only/,
+      "update current milestone input must stay plan-file scoped",
     );
     assert.match(
       body,
-      /`implement M01` plus a task directory path\s+\|\s+Code implementation may proceed after reading gates/,
-      "implement M01 input must allow code implementation after gates",
+      /`implement current milestone` plus a task directory path\s+\|\s+Code implementation may proceed after reading gates/,
+      "implement current milestone input must allow code implementation after gates",
     );
   });
 

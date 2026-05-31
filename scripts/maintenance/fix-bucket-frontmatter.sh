@@ -14,8 +14,7 @@
 #   footgun entries. `goat-flow stats --check` fails on missing
 #   `last_reviewed`. This script is the one-shot repair so those projects
 #   and goat-flow itself conform to the v1.2 format.
-#   See `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md` slices
-#   M19-7 and M19-8.
+#   Keep this parser aligned with stats frontmatter validation rules.
 #
 # Usage:
 #   bash scripts/maintenance/fix-bucket-frontmatter.sh [--dry-run] [PROJECT_DIR]

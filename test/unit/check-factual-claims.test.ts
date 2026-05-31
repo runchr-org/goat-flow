@@ -1,5 +1,5 @@
 /**
- * Unit tests for M05 factual-claim extraction.
+ * Unit tests for factual-claim extraction.
  *
  * Counts asserted against runtime-imported constants to avoid hard-coding
  * values that change when skills or checks are added. Path resolution uses

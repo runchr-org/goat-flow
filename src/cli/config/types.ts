@@ -66,7 +66,7 @@ export interface GoatFlowConfig {
   learningLoop: LearningLoopConfig;
   /** Declared gaps that persist across sessions (e.g., "zero Python tests"). Readable by skills during Step 0. */
   knownGaps: string[];
-  /** Placeholder for per-project skill customisation (M18). */
+  /** Placeholder for per-project skill customisation. */
   skillOverrides: Record<string, unknown>;
   /** Terminal settings for the dashboard embedded terminal */
   terminal: { idleTimeoutMinutes: number };

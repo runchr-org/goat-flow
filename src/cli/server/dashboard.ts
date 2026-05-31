@@ -136,7 +136,7 @@ export const DASHBOARD_ROUTE_INVENTORY = [
 ] as const;
 
 /**
- * Side-effectful API route registry (M31).
+ * Side-effectful API route registry.
  *
  * Every POST/DELETE handler that mutates local state, executes a command, or
  * could be CSRF-bait MUST appear in this set. The Origin/CSRF check fires via
