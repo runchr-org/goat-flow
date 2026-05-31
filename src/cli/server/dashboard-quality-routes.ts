@@ -1,3 +1,12 @@
+/**
+ * Quality-prompt and quality-history HTTP route handlers for the dashboard server.
+ *
+ * Backs `/api/quality` (compose a quality review prompt for one agent, optionally reusing a short-TTL
+ * in-memory audit cache) and `/api/quality/history` (return persisted history rows plus the latest
+ * trend summary). Query parameters are validated up front, with invalid agent/mode/limit values
+ * answered as 400 JSON; downstream audit or filesystem failures are reported as JSON status bodies
+ * rather than thrown. Report shaping lives in dashboard-reporting.ts; history loading in quality/history.ts.
+ */
 import type { ServerResponse } from "node:http";
 import { runAudit } from "../audit/audit.js";
 import type { AuditReport } from "../audit/types.js";
@@ -47,6 +56,11 @@ function qualityHistoryEntryMatchesFilters(
   return (entry.report.quality_mode ?? "agent-setup") === qualityMode;
 }
 
+/**
+ * Validated `/api/quality/history` query filters. A null `agent` or `qualityMode` means "no filter"
+ * (return all), while `limit` is always a clamped positive count so callers cannot request an unbounded
+ * or zero-row window.
+ */
 interface QualityHistoryFilters {
   agent: AgentId | null;
   limit: number;
@@ -110,8 +124,8 @@ function parseQualityRequestParams(
   return {
     agent: agentParam as AgentId,
     qualityMode: parseQualityModeParam(modeParam) ?? "agent-setup",
-    fresh: url.searchParams.get("fresh") === "true",
-    fast: url.searchParams.get("fast") === "true",
+    includeFresh: url.searchParams.get("fresh") === "true",
+    shouldUseFastCache: url.searchParams.get("fast") === "true",
   };
 }
 
@@ -196,8 +210,8 @@ function handleQualityRequest(
     const fs = createFS(projectPath);
     const sharedFacts = extractSharedFacts(fs, loadConfig(projectPath, fs));
     const audit = getOrRunQualityAudit(ctx, projectPath, params.agent, {
-      cacheOnly: params.fast,
-      fresh: params.fresh,
+      cacheOnly: params.shouldUseFastCache,
+      fresh: params.includeFresh,
     });
     const auditReport = audit.report;
     const { entry: priorReport } = findLatestQualityReport(
@@ -210,7 +224,9 @@ function handleQualityRequest(
       projectPath,
       auditReport,
       auditUnavailableReason:
-        audit.report === null && params.fast ? "fast-cache-only" : undefined,
+        audit.report === null && params.shouldUseFastCache
+          ? "fast-cache-only"
+          : undefined,
       priorReport,
       qualityMode: params.qualityMode,
       selectedProjectPath,
@@ -284,6 +300,14 @@ async function handleQualityHistoryRequest(
   return true;
 }
 
+/**
+ * Bind the quality handlers to one server's request context so each closure shares the path validator,
+ * the per-server audit cache, and the evidence recorder.
+ *
+ * @param ctx - per-server dashboard route context with path validation, the quality audit cache, and IO hooks
+ * @returns the quality-prompt and quality-history handlers; each resolves true once it has answered a
+ *   matching request, or false to let another handler claim the URL
+ */
 export function createQualityRouteHandlers(ctx: DashboardRouteContext) {
   return {
     handleQualityRequest: (url: URL, res: ServerResponse) =>

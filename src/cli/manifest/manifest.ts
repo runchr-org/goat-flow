@@ -35,9 +35,10 @@ import type {
 import { ManifestValidationError } from "./types.js";
 import { readManifestJson } from "./manifest-json.js";
 
-// Re-exported for API stability: these moved to ./manifest-json.js to break an
-// import cycle (see that file's header). Consumers and tests still import them
-// from here. (search: "design.circular-import")
+// Re-exported here for API stability. These declarations moved into a sibling
+// module to break a circular dependency (its header explains the full story);
+// consumers and tests still reference them through this module.
+// (search: "design.circular-import")
 export {
   validateSkillReferenceSchema,
   getRequiredInstructionSections,

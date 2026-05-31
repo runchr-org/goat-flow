@@ -15,6 +15,51 @@ import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 import { createFS } from "../../src/cli/facts/fs.js";
 
+type RegisteredCheck =
+  | (typeof SETUP_CHECKS)[number]
+  | (typeof AGENT_CHECKS)[number]
+  | (typeof HARNESS_CHECKS)[number];
+
+/** Return every registered build and harness check with provenance metadata. */
+function registeredChecks(): RegisteredCheck[] {
+  return [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
+}
+
+/**
+ * Assert registered check provenance satisfies the schema.
+ *
+ * @param checks - checks whose provenance should be valid without filesystem lookup
+ */
+function assertChecksHaveValidProvenance(
+  checks: ReadonlyArray<RegisteredCheck>,
+): void {
+  checks.forEach((check) => {
+    assert.deepEqual(
+      validateProvenance(check.provenance),
+      [],
+      `check ${check.id} has invalid provenance`,
+    );
+  });
+}
+
+/**
+ * Assert registered evidence paths resolve in the repository filesystem.
+ *
+ * @param checks - checks whose evidence paths should exist on disk
+ */
+function assertChecksPointAtExistingEvidence(
+  checks: ReadonlyArray<RegisteredCheck>,
+): void {
+  const fs = createFS(resolve(import.meta.dirname, "..", ".."));
+  checks.forEach((check) => {
+    assert.deepEqual(
+      validateProvenance(check.provenance, fs.exists),
+      [],
+      `check ${check.id} points at missing evidence`,
+    );
+  });
+}
+
 describe("validateProvenance", () => {
   it("accepts a well-formed spec entry", () => {
     const evidence: CheckEvidence = {
@@ -120,27 +165,13 @@ describe("validateProvenance", () => {
 
 describe("check evidence constants validate", () => {
   it("all 36 registered build and harness checks satisfy the schema", () => {
-    const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
+    const checks = registeredChecks();
     const expectedRegisteredCheckCount = 36;
     assert.equal(checks.length, expectedRegisteredCheckCount);
-    for (const check of checks) {
-      assert.deepEqual(
-        validateProvenance(check.provenance),
-        [],
-        `check ${check.id} has invalid provenance`,
-      );
-    }
+    assertChecksHaveValidProvenance(checks);
   });
 
   it("all registered checks point at evidence paths that exist on disk", () => {
-    const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
-    const fs = createFS(resolve(import.meta.dirname, "..", ".."));
-    for (const check of checks) {
-      assert.deepEqual(
-        validateProvenance(check.provenance, fs.exists),
-        [],
-        `check ${check.id} points at missing evidence`,
-      );
-    }
+    assertChecksPointAtExistingEvidence(registeredChecks());
   });
 });

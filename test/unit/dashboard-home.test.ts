@@ -63,6 +63,7 @@ function loadHomeModel(report: unknown): HomeModel {
   return (context as typeof context & { __home: HomeModel }).__home;
 }
 
+/** Build one concern score fixture with the Home summary fields populated. */
 function concern(
   status: "pass" | "fail",
   score: number,
@@ -77,6 +78,96 @@ function concern(
     howToFix: [],
     ...extra,
   };
+}
+
+/**
+ * Load a Home model with one score-only metric warning on the Claude agent, because several tests need that exact
+ * warning shape and building the full agent/scores fixture inline in each would obscure what they assert.
+ */
+function loadScoreOnlyWarningHomeModel(): {
+  home: HomeModel;
+  agent: Record<string, unknown>;
+} {
+  const agent = {
+    id: "claude",
+    name: "Claude Code",
+    agent: { status: "pass", checks: [] },
+    harness: {
+      status: "pass",
+      checks: [
+        { id: "instruction", status: "pass", type: "integrity" },
+        { id: "verification", status: "pass", type: "integrity" },
+        {
+          id: "post-turn-hook-integrity",
+          status: "fail",
+          type: "metric",
+          impact: "score-only",
+        },
+      ],
+    },
+    concerns: {
+      context: concern("pass", 100),
+      constraints: concern("pass", 100),
+      verification: concern("pass", 67, {
+        findings: ["No post-turn hooks installed"],
+      }),
+      recovery: concern("pass", 100),
+      feedback_loop: concern("pass", 100),
+    },
+  };
+  const home = loadHomeModel({
+    scopes: {
+      setup: {
+        status: "pass",
+        checks: [{ id: "config-parses", status: "pass" }],
+      },
+    },
+    agentScores: [agent],
+  });
+  return { home, agent };
+}
+
+/**
+ * Load a Home model with hard and unknown enforcement rows for detail-panel assertions, because the detail-panel
+ * tests need both enforcement variants present at once and assembling that agent fixture inline would repeat noise.
+ */
+function loadAdvisoryEnforcementHomeModel(): {
+  home: HomeModel;
+  agent: Record<string, unknown>;
+} {
+  const agent = {
+    id: "claude",
+    name: "Claude Code",
+    agent: { status: "pass", checks: [] },
+    harness: { status: "pass", checks: [] },
+    concerns: {},
+    enforcement: {
+      capabilities: [
+        {
+          id: "shell-dangerous",
+          label: "Dangerous shell commands",
+          status: "hard",
+          summary: "Deny mechanism blocks dangerous commands",
+        },
+        {
+          id: "file-read-restrictions",
+          label: "General file-read restrictions",
+          status: "unknown",
+          summary: "Not inferred from secret-path coverage",
+        },
+      ],
+    },
+  };
+  const home = loadHomeModel({
+    scopes: {
+      setup: {
+        status: "pass",
+        checks: [{ id: "config-parses", status: "pass" }],
+      },
+    },
+    agentScores: [agent],
+  });
+  return { home, agent };
 }
 
 describe("Home harness summary", () => {
@@ -126,42 +217,7 @@ describe("Home harness summary", () => {
 
   it("surfaces score-only metric warnings in headline scoring and summaries", () => {
     const expectedScoreOnlyAgentScore = 67;
-    const agent = {
-      id: "claude",
-      name: "Claude Code",
-      agent: { status: "pass", checks: [] },
-      harness: {
-        status: "pass",
-        checks: [
-          { id: "instruction", status: "pass", type: "integrity" },
-          { id: "verification", status: "pass", type: "integrity" },
-          {
-            id: "post-turn-hook-integrity",
-            status: "fail",
-            type: "metric",
-            impact: "score-only",
-          },
-        ],
-      },
-      concerns: {
-        context: concern("pass", 100),
-        constraints: concern("pass", 100),
-        verification: concern("pass", 67, {
-          findings: ["No post-turn hooks installed"],
-        }),
-        recovery: concern("pass", 100),
-        feedback_loop: concern("pass", 100),
-      },
-    };
-    const home = loadHomeModel({
-      scopes: {
-        setup: {
-          status: "pass",
-          checks: [{ id: "config-parses", status: "pass" }],
-        },
-      },
-      agentScores: [agent],
-    });
+    const { home, agent } = loadScoreOnlyWarningHomeModel();
 
     assert.equal(home.agentScore(agent), expectedScoreOnlyAgentScore);
     assert.equal(home.recommendationSummary(agent), "1 score warning");
@@ -174,38 +230,7 @@ describe("Home harness summary", () => {
 
   it("exposes advisory enforcement rows for the detail panel", () => {
     const expectedEnforcementRows = 2;
-    const agent = {
-      id: "claude",
-      name: "Claude Code",
-      agent: { status: "pass", checks: [] },
-      harness: { status: "pass", checks: [] },
-      concerns: {},
-      enforcement: {
-        capabilities: [
-          {
-            id: "shell-dangerous",
-            label: "Dangerous shell commands",
-            status: "hard",
-            summary: "Deny mechanism blocks dangerous commands",
-          },
-          {
-            id: "file-read-restrictions",
-            label: "General file-read restrictions",
-            status: "unknown",
-            summary: "Not inferred from secret-path coverage",
-          },
-        ],
-      },
-    };
-    const home = loadHomeModel({
-      scopes: {
-        setup: {
-          status: "pass",
-          checks: [{ id: "config-parses", status: "pass" }],
-        },
-      },
-      agentScores: [agent],
-    });
+    const { home, agent } = loadAdvisoryEnforcementHomeModel();
 
     const rows = home.enforcementRows(agent);
     assert.equal(rows.length, expectedEnforcementRows);

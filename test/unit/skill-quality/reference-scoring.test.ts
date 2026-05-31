@@ -1,3 +1,8 @@
+/**
+ * Reference (playbook) scoring: browser-use.md and page-capture.md score as reference-playbook, browser-use.md
+ * gets availability-check credit, shared references score without preamble composition, and meta references
+ * stay reference-playbook without promotion notes.
+ */
 import {
   describe,
   it,

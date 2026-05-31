@@ -38,12 +38,13 @@ interface LearningLoopConfig {
 }
 
 /** One togglable goat-flow hook entry from `.goat-flow/config.yaml`. */
-interface GoatFlowHookConfig {
-  enabled: boolean;
-}
+type GoatFlowHookConfig = Record<"enabled", boolean>;
+
+/** Stable boolean keys retained because they mirror `.goat-flow/config.yaml`. */
+type GoatFlowConfigBooleanFields = Record<"telemetry", boolean>;
 
 /** Normalized config shape after parsing and validating .goat-flow/config.yaml. */
-export interface GoatFlowConfig {
+export interface GoatFlowConfig extends GoatFlowConfigBooleanFields {
   version: string;
   footguns: { path: string };
   lessons: { path: string };
@@ -60,8 +61,6 @@ export interface GoatFlowConfig {
   toolchain: GoatFlowToolchain;
   /** User role that controls read-only vs read-write mode */
   userRole: "developer" | "investigator" | "tester";
-  /** Opt-in skill usage telemetry (logs invocations to .goat-flow/logs/skill-usage.jsonl) */
-  telemetry: boolean;
   /** Opt-in policy for future automatic lesson/footgun/pattern/decision capture. */
   learningLoop: LearningLoopConfig;
   /** Declared gaps that persist across sessions (e.g., "zero Python tests"). Readable by skills during Step 0. */
@@ -94,18 +93,15 @@ export interface ValidationIssue {
 }
 
 /** Aggregate validation result with separated warning and error lists. */
-export interface ValidationResult {
-  valid: boolean;
+export interface ValidationResult extends Record<"valid", boolean> {
   warnings: ValidationIssue[];
   errors: ValidationIssue[];
 }
 
 /** Complete loaded config state including existence, validation, and parsed values. */
-export interface LoadedConfig {
+export interface LoadedConfig extends Record<"valid", boolean> {
   /** Whether .goat-flow/config.yaml was found on disk */
   exists: boolean;
-  /** Whether the config passed all validation rules */
-  valid: boolean;
   /** Parsed and defaulted config values (always populated, even if file is missing) */
   config: GoatFlowConfig;
   warnings: ValidationIssue[];

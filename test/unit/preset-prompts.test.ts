@@ -77,17 +77,17 @@ const DASHBOARD_QUALITY_PATH = resolve(
   "dashboard",
   "dashboard-setup-quality.ts",
 );
-const DASHBOARD_APP_FRAGMENT_01_PATH = resolve(
+const DASHBOARD_PROJECTS_FRAGMENT_PATH = resolve(
   PROJECT_ROOT,
   "src",
   "dashboard",
-  "dashboard-app-fragment-01.ts",
+  "dashboard-app-state-fragments.ts",
 );
-const DASHBOARD_APP_FRAGMENT_02_PATH = resolve(
+const DASHBOARD_WORKSPACE_FRAGMENT_PATH = resolve(
   PROJECT_ROOT,
   "src",
   "dashboard",
-  "dashboard-app-fragment-02.ts",
+  "dashboard-app-prompts-audit-fragments.ts",
 );
 const HOME_VIEW_PATH = resolve(
   PROJECT_ROOT,
@@ -146,139 +146,247 @@ function readDashboardSources(...paths: string[]): string {
   return paths.map((path) => readFileSync(path, "utf-8")).join("\n");
 }
 
+/** Apply a catalog assertion to every preset while preserving preset-specific messages. */
+function assertEveryPreset(assertion: (preset: PresetPrompt) => void): void {
+  for (const preset of readPresets()) {
+    assertion(preset);
+  }
+}
+
+/** Assert the required primitive fields exist on a dashboard preset. */
+function assertPresetShape(preset: PresetPrompt): void {
+  assert.equal(typeof preset.id, "string", `${preset.id} id`);
+  assert.equal(typeof preset.name, "string", `${preset.id} name`);
+  assert.equal(typeof preset.desc, "string", `${preset.id} desc`);
+  assert.equal(typeof preset.prompt, "string", `${preset.id} prompt`);
+  assert.equal(typeof preset.cat, "string", `${preset.id} cat`);
+  assert.ok(preset.id.length > 0, "id should not be empty");
+  assert.ok(preset.name.length > 0, `${preset.id} name should not be empty`);
+  assert.ok(preset.desc.length > 0, `${preset.id} desc should not be empty`);
+  assert.ok(
+    preset.prompt.length > 0,
+    `${preset.id} prompt should not be empty`,
+  );
+  assert.ok(preset.cat.length > 0, `${preset.id} cat should not be empty`);
+}
+
+/** Assert routing metadata and prompt entrypoints agree for one catalog preset. */
+function assertPresetMetadata(preset: PresetPrompt): void {
+  assert.equal(typeof preset.route, "string", `${preset.id} route`);
+  assert.equal(typeof preset.source, "string", `${preset.id} source`);
+  assert.equal(typeof preset.globalSafe, "boolean", `${preset.id} globalSafe`);
+  assert.equal(
+    typeof preset.internalOnly,
+    "boolean",
+    `${preset.id} internalOnly`,
+  );
+  assert.equal(
+    typeof preset.qualityMode,
+    "boolean",
+    `${preset.id} qualityMode`,
+  );
+  assert.equal(typeof preset.requiresGh, "boolean", `${preset.id} requiresGh`);
+  assert.equal(
+    typeof preset.requiresPrOrIssue,
+    "boolean",
+    `${preset.id} requiresPrOrIssue`,
+  );
+  assert.equal(
+    typeof preset.requiresLocalDiff,
+    "boolean",
+    `${preset.id} requiresLocalDiff`,
+  );
+  assert.equal(
+    typeof preset.requiresUiApp,
+    "boolean",
+    `${preset.id} requiresUiApp`,
+  );
+  assert.equal(
+    typeof preset.requiresDependencyFiles,
+    "boolean",
+    `${preset.id} requiresDependencyFiles`,
+  );
+  assert.equal(
+    typeof preset.requiresGoatFlowInstall,
+    "boolean",
+    `${preset.id} requiresGoatFlowInstall`,
+  );
+  assert.equal(
+    typeof preset.mayCheckoutBranch,
+    "boolean",
+    `${preset.id} mayCheckoutBranch`,
+  );
+  assert.equal(
+    typeof preset.requiresCleanWorktree,
+    "boolean",
+    `${preset.id} requiresCleanWorktree`,
+  );
+  assert.equal(
+    typeof preset.mayWriteFiles,
+    "boolean",
+    `${preset.id} mayWriteFiles`,
+  );
+  assert.equal(
+    typeof preset.artifactRequired,
+    "boolean",
+    `${preset.id} artifactRequired`,
+  );
+  assert.ok(
+    Array.isArray(preset.bestTargetSurfaces),
+    `${preset.id} bestTargetSurfaces`,
+  );
+  assert.equal(
+    typeof preset.fallbackPrompt,
+    "string",
+    `${preset.id} fallbackPrompt`,
+  );
+  assert.match(preset.costTier, /^(low|medium|high)$/);
+  assert.ok(KNOWN_ROUTES.has(preset.route), `${preset.id} known route`);
+  if (preset.qualityMode) {
+    assert.doesNotMatch(
+      preset.prompt,
+      /^\/goat-/,
+      `${preset.id} quality mode should be a direct assessment prompt`,
+    );
+    return;
+  }
+  assert.match(preset.prompt, new RegExp(`^/${preset.route}\\b`));
+}
+
+/** Assert one preset points at an installed goat-flow skill. */
+function assertPresetRouteInstalled(preset: PresetPrompt): void {
+  assert.ok(KNOWN_CATEGORIES.has(preset.cat), `${preset.id} known cat`);
+  assert.equal(
+    existsSync(resolve(PROJECT_ROOT, ".agents", "skills", preset.route)),
+    true,
+    `${preset.id} route ${preset.route} should be installed`,
+  );
+  assert.equal(
+    existsSync(
+      resolve(PROJECT_ROOT, ".agents", "skills", preset.route, "SKILL.md"),
+    ),
+    true,
+    `${preset.id} route ${preset.route} should include SKILL.md`,
+  );
+}
+
+/** Assert a PR-oriented workflow preset requires PR metadata and names its fallback. */
+function assertPrWorkflowMetadata(id: string): void {
+  const preset = byId(id);
+  assert.equal(preset.requiresGh, true, `${id} requires gh metadata`);
+  assert.equal(preset.requiresPrOrIssue, true, `${id} requires PR metadata`);
+  assert.match(preset.prompt, /gh/i, `${id} prompt should mention gh`);
+  assert.match(
+    preset.prompt,
+    /pasted PR\/diff context|local diff|branch comparison/,
+    `${id} prompt should include PR fallback`,
+  );
+}
+
+/** Assert a branch-comparison workflow declares checkout and clean-worktree needs. */
+function assertCheckoutWorkflowMetadata(id: string): void {
+  const preset = byId(id);
+  assert.equal(preset.mayCheckoutBranch, true, `${id} may checkout`);
+  assert.equal(
+    preset.requiresCleanWorktree,
+    true,
+    `${id} requires clean worktree`,
+  );
+  assert.match(preset.prompt, /clean worktree|explicit user approval/);
+  assert.equal(preset.requiresUiApp, true, `${id} UI workflow`);
+}
+
+/** Assert globally safe presets do not depend on target-project goat-flow installs. */
+function assertGlobalSafePresetIsPortable(preset: PresetPrompt): void {
+  if (!preset.globalSafe) {
+    return;
+  }
+  assert.equal(
+    preset.requiresGoatFlowInstall,
+    false,
+    `${preset.id} globalSafe cannot require target goat-flow install`,
+  );
+  assert.doesNotMatch(
+    preset.prompt,
+    /target .goat-flow|target project.*\.goat-flow/i,
+    `${preset.id} globalSafe should not require target .goat-flow`,
+  );
+}
+
+/** Assert a prompt includes each required literal without turning the test into a loop. */
+function assertPromptIncludesAll(
+  prompt: string,
+  required: readonly string[],
+): void {
+  for (const item of required) {
+    assert.match(prompt, new RegExp(item.replace("/", "\\/")));
+  }
+}
+
+/** Assert goat-qa preset prompts keep their no-test-code contract. */
+function assertQaPresetDoesNotWriteTests(preset: PresetPrompt): void {
+  assert.equal(preset.mayWriteFiles, false, `${preset.id} should not write`);
+  assert.doesNotMatch(
+    preset.prompt,
+    /Write a test that|Place it near existing tests|generate complete test code/i,
+    `${preset.id} asks goat-qa to write test code`,
+  );
+}
+
+/** Adapt a preset prompt exactly as the dashboard terminal runner does. */
+function adaptPromptForRunner(prompt: string, runner: string): string {
+  return runner === "codex" ? prompt.replace(/^\/goat\b/, "$goat") : prompt;
+}
+
+/** Assert one terminal dry-run payload preserves target and runner-specific prompt shape. */
+function assertTerminalPayloadDryRun(
+  preset: PresetPrompt,
+  runner: "claude" | "codex" | "antigravity" | "copilot",
+  targetPath: string,
+): void {
+  const payload = {
+    prompt: adaptPromptForRunner(preset.prompt, runner),
+    projectPath: PROJECT_ROOT,
+    targetPath,
+    runner,
+  };
+  assert.equal(payload.projectPath, PROJECT_ROOT);
+  assert.equal(payload.targetPath, targetPath);
+  if (preset.qualityMode) {
+    assert.doesNotMatch(payload.prompt, /^\/goat-/);
+    return;
+  }
+  assert.match(payload.prompt, runner === "codex" ? /^\$goat/ : /^\/goat/);
+}
+
+/** Dry-run every preset/runner/target combination used by the dashboard terminal. */
+function assertAllTerminalPayloadsDryRun(): void {
+  const targets = [
+    "/tmp/example-app",
+    "/tmp/example-library",
+    "/tmp/no-goat-flow-target",
+  ] as const;
+  const runners = ["claude", "codex", "antigravity", "copilot"] as const;
+  for (const preset of readPresets()) {
+    for (const runner of runners) {
+      for (const targetPath of targets) {
+        assertTerminalPayloadDryRun(preset, runner, targetPath);
+      }
+    }
+  }
+}
+
 describe("preset prompt catalog", () => {
   it("keeps the required dashboard preset shape", () => {
-    for (const preset of readPresets()) {
-      assert.equal(typeof preset.id, "string", `${preset.id} id`);
-      assert.equal(typeof preset.name, "string", `${preset.id} name`);
-      assert.equal(typeof preset.desc, "string", `${preset.id} desc`);
-      assert.equal(typeof preset.prompt, "string", `${preset.id} prompt`);
-      assert.equal(typeof preset.cat, "string", `${preset.id} cat`);
-      assert.ok(preset.id.length > 0, "id should not be empty");
-      assert.ok(
-        preset.name.length > 0,
-        `${preset.id} name should not be empty`,
-      );
-      assert.ok(
-        preset.desc.length > 0,
-        `${preset.id} desc should not be empty`,
-      );
-      assert.ok(
-        preset.prompt.length > 0,
-        `${preset.id} prompt should not be empty`,
-      );
-      assert.ok(preset.cat.length > 0, `${preset.id} cat should not be empty`);
-    }
+    assertEveryPreset(assertPresetShape);
   });
 
   it("keeps additive metadata present and valid on every preset", () => {
-    for (const preset of readPresets()) {
-      assert.equal(typeof preset.route, "string", `${preset.id} route`);
-      assert.equal(typeof preset.source, "string", `${preset.id} source`);
-      assert.equal(
-        typeof preset.globalSafe,
-        "boolean",
-        `${preset.id} globalSafe`,
-      );
-      assert.equal(
-        typeof preset.internalOnly,
-        "boolean",
-        `${preset.id} internalOnly`,
-      );
-      assert.equal(
-        typeof preset.qualityMode,
-        "boolean",
-        `${preset.id} qualityMode`,
-      );
-      assert.equal(
-        typeof preset.requiresGh,
-        "boolean",
-        `${preset.id} requiresGh`,
-      );
-      assert.equal(
-        typeof preset.requiresPrOrIssue,
-        "boolean",
-        `${preset.id} requiresPrOrIssue`,
-      );
-      assert.equal(
-        typeof preset.requiresLocalDiff,
-        "boolean",
-        `${preset.id} requiresLocalDiff`,
-      );
-      assert.equal(
-        typeof preset.requiresUiApp,
-        "boolean",
-        `${preset.id} requiresUiApp`,
-      );
-      assert.equal(
-        typeof preset.requiresDependencyFiles,
-        "boolean",
-        `${preset.id} requiresDependencyFiles`,
-      );
-      assert.equal(
-        typeof preset.requiresGoatFlowInstall,
-        "boolean",
-        `${preset.id} requiresGoatFlowInstall`,
-      );
-      assert.equal(
-        typeof preset.mayCheckoutBranch,
-        "boolean",
-        `${preset.id} mayCheckoutBranch`,
-      );
-      assert.equal(
-        typeof preset.requiresCleanWorktree,
-        "boolean",
-        `${preset.id} requiresCleanWorktree`,
-      );
-      assert.equal(
-        typeof preset.mayWriteFiles,
-        "boolean",
-        `${preset.id} mayWriteFiles`,
-      );
-      assert.equal(
-        typeof preset.artifactRequired,
-        "boolean",
-        `${preset.id} artifactRequired`,
-      );
-      assert.ok(
-        Array.isArray(preset.bestTargetSurfaces),
-        `${preset.id} bestTargetSurfaces`,
-      );
-      assert.equal(
-        typeof preset.fallbackPrompt,
-        "string",
-        `${preset.id} fallbackPrompt`,
-      );
-      assert.match(preset.costTier, /^(low|medium|high)$/);
-      assert.ok(KNOWN_ROUTES.has(preset.route), `${preset.id} known route`);
-      if (preset.qualityMode) {
-        assert.doesNotMatch(
-          preset.prompt,
-          /^\/goat-/,
-          `${preset.id} quality mode should be a direct assessment prompt`,
-        );
-      } else {
-        assert.match(preset.prompt, new RegExp(`^/${preset.route}\\b`));
-      }
-    }
+    assertEveryPreset(assertPresetMetadata);
   });
 
   it("routes every built-in preset to an installed skill and known category", () => {
-    for (const preset of readPresets()) {
-      assert.ok(KNOWN_CATEGORIES.has(preset.cat), `${preset.id} known cat`);
-      assert.equal(
-        existsSync(resolve(PROJECT_ROOT, ".agents", "skills", preset.route)),
-        true,
-        `${preset.id} route ${preset.route} should be installed`,
-      );
-      assert.equal(
-        existsSync(
-          resolve(PROJECT_ROOT, ".agents", "skills", preset.route, "SKILL.md"),
-        ),
-        true,
-        `${preset.id} route ${preset.route} should include SKILL.md`,
-      );
-    }
+    assertEveryPreset(assertPresetRouteInstalled);
   });
 
   it("routes security presets to known skills with matching constraints", () => {
@@ -308,34 +416,10 @@ describe("preset prompt catalog", () => {
   });
 
   it("keeps prerequisite metadata aligned with prompt text", () => {
-    const prWorkflowIds = ["walkthrough-with-testing", "test"];
-    for (const id of prWorkflowIds) {
-      const preset = byId(id);
-      assert.equal(preset.requiresGh, true, `${id} requires gh metadata`);
-      assert.equal(
-        preset.requiresPrOrIssue,
-        true,
-        `${id} requires PR metadata`,
-      );
-      assert.match(preset.prompt, /gh/i, `${id} prompt should mention gh`);
-      assert.match(
-        preset.prompt,
-        /pasted PR\/diff context|local diff|branch comparison/,
-        `${id} prompt should include PR fallback`,
-      );
-    }
-
-    for (const id of ["walkthrough-with-testing", "test"]) {
-      const preset = byId(id);
-      assert.equal(preset.mayCheckoutBranch, true, `${id} may checkout`);
-      assert.equal(
-        preset.requiresCleanWorktree,
-        true,
-        `${id} requires clean worktree`,
-      );
-      assert.match(preset.prompt, /clean worktree|explicit user approval/);
-      assert.equal(preset.requiresUiApp, true, `${id} UI workflow`);
-    }
+    assertPrWorkflowMetadata("walkthrough-with-testing");
+    assertPrWorkflowMetadata("test");
+    assertCheckoutWorkflowMetadata("walkthrough-with-testing");
+    assertCheckoutWorkflowMetadata("test");
 
     assert.equal(byId("quality-check-goatflow").internalOnly, true);
     assert.equal(byId("quality-check-goatflow").qualityMode, true);
@@ -348,26 +432,15 @@ describe("preset prompt catalog", () => {
   });
 
   it("does not mark target-goat-flow-only prompts as globally safe", () => {
-    for (const preset of readPresets()) {
-      if (preset.globalSafe) {
-        assert.equal(
-          preset.requiresGoatFlowInstall,
-          false,
-          `${preset.id} globalSafe cannot require target goat-flow install`,
-        );
-        assert.doesNotMatch(
-          preset.prompt,
-          /target .goat-flow|target project.*\.goat-flow/i,
-          `${preset.id} globalSafe should not require target .goat-flow`,
-        );
-      }
-    }
-    for (const id of ["quality-check-goatflow", "skill-quality-test"]) {
-      const preset = byId(id);
-      assert.equal(preset.globalSafe, false);
-      assert.equal(preset.internalOnly, true);
-      assert.equal(preset.qualityMode, true);
-    }
+    assertEveryPreset(assertGlobalSafePresetIsPortable);
+    const processQuality = byId("quality-check-goatflow");
+    assert.equal(processQuality.globalSafe, false);
+    assert.equal(processQuality.internalOnly, true);
+    assert.equal(processQuality.qualityMode, true);
+    const skillQuality = byId("skill-quality-test");
+    assert.equal(skillQuality.globalSafe, false);
+    assert.equal(skillQuality.internalOnly, true);
+    assert.equal(skillQuality.qualityMode, true);
     const testPlanVsCode = byId("test-vs-code");
     assert.equal(testPlanVsCode.requiresPrOrIssue, true);
     assert.equal(testPlanVsCode.requiresLocalDiff, true);
@@ -387,19 +460,17 @@ describe("preset prompt catalog", () => {
       preset.prompt,
       /\.goat-flow\/skill-playbooks\/skill-quality-testing\//,
     );
-    for (const skill of [
-      "goat",
-      "goat-debug",
-      "goat-plan",
-      "goat-review",
-      "goat-critique",
-      "goat-security",
-      "goat-qa",
-    ]) {
-      assert.match(preset.prompt, new RegExp(`/${skill}\\b`));
-    }
+    assertPromptIncludesAll(preset.prompt, [
+      "/goat\\b",
+      "/goat-debug\\b",
+      "/goat-plan\\b",
+      "/goat-review\\b",
+      "/goat-critique\\b",
+      "/goat-security\\b",
+      "/goat-qa\\b",
+    ]);
     assert.match(preset.prompt, /Do not stop after one skill/);
-    for (const required of [
+    assertPromptIncludesAll(preset.prompt, [
       "Method used",
       "Evidence limit",
       "Worked",
@@ -411,9 +482,7 @@ describe("preset prompt catalog", () => {
       "Cross-skill patterns",
       "Top 5 skill/system improvements",
       "What was not tested",
-    ]) {
-      assert.match(preset.prompt, new RegExp(required.replace("/", "\\/")));
-    }
+    ]);
   });
 
   it("keeps process quality preset as a direct assessment prompt", () => {
@@ -429,21 +498,9 @@ describe("preset prompt catalog", () => {
   });
 
   it("keeps goat-qa presets inside the no-test-code contract", () => {
-    const qaPresets = readPresets().filter(
-      (preset) => preset.route === "goat-qa",
-    );
-    for (const preset of qaPresets) {
-      assert.equal(
-        preset.mayWriteFiles,
-        false,
-        `${preset.id} should not write`,
-      );
-      assert.doesNotMatch(
-        preset.prompt,
-        /Write a test that|Place it near existing tests|generate complete test code/i,
-        `${preset.id} asks goat-qa to write test code`,
-      );
-    }
+    readPresets()
+      .filter((preset) => preset.route === "goat-qa")
+      .forEach(assertQaPresetDoesNotWriteTests);
     assert.match(
       byId("test-regression").prompt,
       /Recommend a regression guard/,
@@ -504,38 +561,7 @@ describe("preset prompt catalog", () => {
   });
 
   it("dry-runs terminal payload shape across all presets and runners", () => {
-    const targets = [
-      "/tmp/example-app",
-      "/tmp/example-library",
-      "/tmp/no-goat-flow-target",
-    ];
-    const runners = ["claude", "codex", "antigravity", "copilot"] as const;
-    for (const preset of readPresets()) {
-      for (const runner of runners) {
-        for (const targetPath of targets) {
-          const prompt =
-            runner === "codex"
-              ? preset.prompt.replace(/^\/goat\b/, "$goat")
-              : preset.prompt;
-          const payload = {
-            prompt,
-            projectPath: PROJECT_ROOT,
-            targetPath,
-            runner,
-          };
-          assert.equal(payload.projectPath, PROJECT_ROOT);
-          assert.equal(payload.targetPath, targetPath);
-          if (preset.qualityMode) {
-            assert.doesNotMatch(payload.prompt, /^\/goat-/);
-          } else {
-            assert.match(
-              payload.prompt,
-              runner === "codex" ? /^\$goat/ : /^\/goat/,
-            );
-          }
-        }
-      }
-    }
+    assertAllTerminalPayloadsDryRun();
   });
 
   it("keeps quality and internal prompts out of normal prompt browsing", () => {
@@ -559,7 +585,7 @@ describe("preset prompt catalog", () => {
   });
 
   it("switches from custom prompt editing to clicked prompt previews", () => {
-    const source = readFileSync(DASHBOARD_APP_FRAGMENT_02_PATH, "utf-8");
+    const source = readFileSync(DASHBOARD_WORKSPACE_FRAGMENT_PATH, "utf-8");
     const view = readFileSync(PROMPTS_VIEW_PATH, "utf-8");
 
     assert.match(view, /@click="selectPreset\(p\)"/);
@@ -676,7 +702,7 @@ describe("preset prompt catalog", () => {
   });
 
   it("keeps Setup target cards based on setup, agent, and harness scopes", () => {
-    const app = readFileSync(DASHBOARD_APP_FRAGMENT_01_PATH, "utf-8");
+    const app = readFileSync(DASHBOARD_PROJECTS_FRAGMENT_PATH, "utf-8");
     const view = readFileSync(SETUP_VIEW_PATH, "utf-8");
     assert.match(app, /setupTargetScore\(agentId: RunnerId\)/);
     assert.match(app, /this\.auditScopePercent\(this\.report\.scopes\.setup\)/);

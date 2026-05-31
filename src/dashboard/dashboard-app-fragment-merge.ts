@@ -9,7 +9,7 @@ type DashboardAppContext = DashboardTerminalContext &
   DashboardSetupQualityContext &
   DashboardPromptsContext &
   DashboardCustomPromptsContext &
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Alpine fragments add methods dynamically across classic-script files.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional: Alpine fragments add methods dynamically across classic-script files, so the merged app's extra members cannot be typed statically here.
   Record<string, any>;
 
 type DashboardAppFragment = Record<string, unknown> &

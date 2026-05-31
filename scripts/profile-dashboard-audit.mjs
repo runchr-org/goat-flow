@@ -266,7 +266,14 @@ async function fetchAudit(baseUrl, token, projectPath, fresh) {
   });
 }
 
-/** Compare fresh dashboard audit timing for one-agent and three-agent synthetic projects. */
+/**
+ * Compare fresh dashboard audit timing for one-agent and three-agent synthetic projects.
+ * Each case gets its own freshly-served dashboard and a `?fresh=true` fetch because the goal is to
+ * isolate how per-agent audit work scales with configured agent count - sharing a server or
+ * reusing the cache would let one case's warm state mask the other's cold cost. The leading
+ * `/api/health` call is intentional: it forces first-request module/route warmup so the measured
+ * audit fetch reflects steady-state work, not one-time server boot.
+ */
 async function runAgentCountComparison(serveDashboard, fileCount) {
   const cases = [
     { label: "one-agent", agents: ["codex"] },
@@ -340,7 +347,12 @@ function printDirectProfile(result) {
   }
 }
 
-/** Flatten counted glob-pattern maps into rows sorted by total duration. */
+/**
+ * Flatten the per-method glob-pattern timing maps into one rows array for tabular profile output.
+ * Maintains the same slowest-first contract as summarizeSpans: rows are sorted by descending
+ * totalMs so the heaviest pattern is always row 0, and the `glob`-before-`existsGlob` method order
+ * is fixed so two runs over the same data produce a deterministic, diffable ordering.
+ */
 function summarizePatternTimings(patterns) {
   const rows = [];
   for (const method of ["glob", "existsGlob"]) {
@@ -571,10 +583,7 @@ function writeSyntheticProject(fileCount, agents = ["codex"]) {
   for (let i = 0; i < fileCount; i++) {
     const dir = join(root, "src", `group-${Math.floor(i / 100)}`);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, `file-${i}.ts`),
-      `export const value${i} = ${i};\n`,
-    );
+    writeFileSync(join(dir, `file-${i}.ts`), `const value${i} = ${i};\n`);
   }
   return root;
 }

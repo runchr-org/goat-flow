@@ -41,7 +41,7 @@ last_reviewed: 2026-05-18
 - Copy/data: key visible text such as project name, audit age, pill labels, and CTA labels matches the mockup intent.
 - Bindings: every new Alpine helper used in markup is either local to `x-data` or exists on `app()`; grep for helper names and smoke the rendered browser view after rebuilding `dist/dashboard`.
 
-**Evidence:** `src/dashboard/views/home.html` (search: `rollup-heading`) now renders the project name row; `src/dashboard/dashboard-app-fragment-01.ts` (search: `agentName(agentId`) is the existing helper used by Home bindings.
+**Evidence:** `src/dashboard/views/home.html` (search: `rollup-heading`) now renders the project name row; `src/dashboard/dashboard-app-state-fragments.ts` (search: `agentName(agentId`) is the existing helper used by Home bindings.
 
 ---
 

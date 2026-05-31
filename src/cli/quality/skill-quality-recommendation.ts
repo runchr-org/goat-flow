@@ -1,3 +1,13 @@
+/**
+ * Turns the scored metric rows into a single human-facing Recommendation plus explanatory fit
+ * notes. This is the last stage of the scoring pipeline, after classification and metric scoring:
+ * it reads the total score band, per-metric failures, classification confidence, and shape mismatch
+ * to decide keep / revise / reclassify / retire, or escalate to human review.
+ *
+ * The thresholds here (confidence cutoff, score bands) are advisory routing, not hard gates - a
+ * reviewer still owns the final call; the notes exist to make that call quick. Subtype/shape
+ * disagreement always surfaces as a note so a misfiled artifact never passes silently.
+ */
 import type { ArtifactSubtype } from "./quality-config.js";
 import type {
   ArtifactEntry,
@@ -56,7 +66,7 @@ export function deriveRecommendation(
   );
   if (mismatchNote) fitNotes.push(mismatchNote);
 
-  if (fitMetric?.signals?.meta) {
+  if (fitMetric?.signals?.isMetaReference) {
     fitNotes.push(fitMetric.detail);
     return { recommendation: "reference-playbook", fitNotes };
   }
@@ -90,7 +100,7 @@ export function deriveRecommendation(
   }
 
   if (artifact.kind === "skill") {
-    if (fitMetric?.signals?.demote) {
+    if (fitMetric?.signals?.shouldDemote) {
       fitNotes.push(
         "Artifact lacks skill structure. Consider converting it to a reference or playbook instead of a runnable skill.",
       );
@@ -116,7 +126,7 @@ export function deriveRecommendation(
     return { recommendation: "consider-revision", fitNotes };
   }
 
-  if (fitMetric?.signals?.promote) {
+  if (fitMetric?.signals?.shouldPromote) {
     fitNotes.push(
       "Strong skill signals detected. Consider promoting to a first-class goat-* skill.",
     );

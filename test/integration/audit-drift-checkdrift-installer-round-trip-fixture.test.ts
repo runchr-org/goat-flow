@@ -1,8 +1,12 @@
+/**
+ * checkDrift installer round-trip: clones the repo, installs a fixture-backed reference skill for
+ * every agent, then asserts the skill files land, preflight passes, and a real `audit --check-drift`
+ * run reports zero drift - the end-to-end guard that install output matches what drift expects.
+ */
 import {
   after,
   assert,
   before,
-  checkDrift,
   describe,
   existsSync,
   INSTALL_FIXTURE_FILES,

@@ -1,3 +1,10 @@
+/**
+ * setup --apply installer behaviour: scaffolds config.yaml without an agents allowlist and manages
+ * that allowlist on existing configs (removing single/multi-agent lists or a null value, leaving an
+ * absent one absent), prunes orphaned artifacts on upgrade (legacy deny-dangerous self-test files,
+ * 1.8.0 split guard hooks and their registrations, stale per-skill reference files), and does not
+ * duplicate an existing node_modules gitignore entry.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

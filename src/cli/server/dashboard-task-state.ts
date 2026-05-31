@@ -1,3 +1,13 @@
+/**
+ * Task-plan and milestone state model behind the dashboard's `/api/tasks` route.
+ *
+ * Reads `.goat-flow/tasks`, parsing each `M*.md` milestone into a compact summary (title, status,
+ * objective, checkbox progress) so the UI never receives raw Markdown, and writes the `.active`
+ * marker to switch the selected plan. Plan-name inputs are validated to a single top-level directory
+ * segment before any write so a request cannot escape the tasks root. Filesystem reads swallow
+ * missing paths into empty state; the mutation helpers throw on malformed input or a non-existent
+ * plan. Consumed by dashboard-project-routes.ts.
+ */
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveLocalStatePath } from "./local-paths.js";
@@ -19,12 +29,11 @@ interface DashboardTaskMilestoneSummary {
 /**
  * Task-plan row for the dashboard plan picker; `modifiedAt` comes from the newest milestone.
  */
-interface DashboardTaskPlanSummary {
+interface DashboardTaskPlanSummary extends Record<"active", boolean> {
   name: string;
   path: string;
   modifiedAt: string;
   milestoneCount: number;
-  active: boolean;
 }
 
 /**
@@ -265,9 +274,12 @@ function assertTopLevelPlanName(planName: string): void {
 }
 
 /**
- * Extract and validate the active task-plan name from the dashboard request body.
+ * Extract and validate the active task-plan name from the dashboard request body. Throws when
+ * `body.plan` is missing, blank, or not a safe top-level plan name, so a malformed POST cannot select
+ * or escape into an unintended directory.
  *
- * Throws when `body.plan` is missing, blank, or not a safe top-level plan name.
+ * @param body - raw request body; must be JSON with a non-empty string `plan` field
+ * @returns the trimmed, validated plan name guaranteed to be a single top-level directory segment
  */
 export function readActiveTaskPlanBody(body: string): string {
   const parsed = parseJsonObjectBody(body);
@@ -281,9 +293,12 @@ export function readActiveTaskPlanBody(body: string): string {
 }
 
 /**
- * Writes `.active` only for an existing task plan so the dashboard never creates task structure.
+ * Persist the selected task plan by writing the `.active` marker, but only for a plan that already
+ * exists, so the dashboard can switch the active plan without ever creating task structure. Throws
+ * when the tasks directory is absent or the requested plan does not exist.
  *
- * Throws when tasks are absent or the requested plan does not exist.
+ * @param projectPath - absolute project root whose `.goat-flow/tasks` directory holds the plans
+ * @param planName - validated top-level plan directory name to mark active; must already exist on disk
  */
 export function writeActiveTaskPlan(
   projectPath: string,

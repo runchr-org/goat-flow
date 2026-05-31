@@ -1,3 +1,20 @@
+/**
+ * Data-loading and detection fragments of the dashboard Alpine app. dashboardMergeAppFragments
+ * stitches these into one app object. These fragments own the async methods that talk to the
+ * dashboard server - installed-agent detection, plans/tasks, hooks, stack detection, setup-prompt
+ * generation, and the quality surfaces. Each method is a thin `this`-bound shim over a shared
+ * `dashboard*` helper that holds the real fetch/parse logic and its error handling, so the fragments
+ * stay small and the network behaviour lives in one place per concern.
+ */
+
+/**
+ * Build the agent-detection / plans / hooks fragment of the app's async data-loading methods.
+ * One input to dashboardMergeAppFragments; the methods delegate to shared helpers that own the
+ * fetch and its recover-on-failure handling, so this fragment only wires names to those helpers.
+ *
+ * @param supportedAgents - agents the server can launch, used to scope installed-agent detection
+ * @returns the fragment object of agent/plans/hooks loader methods merged into the Alpine app
+ */
 function dashboardAppFragment07(
   supportedAgents: SupportedAgent[],
 ): DashboardAppFragment {
@@ -292,9 +309,9 @@ function dashboardAppFragment08(
     },
 
     /** Persist one hook toggle; reports failed requests while preserving rows because guardrail state is sensitive. */
-    async toggleHook(hook: HookState, enabled: boolean) {
+    async toggleHook(hook: HookState, shouldEnable: boolean) {
       if (!hook.togglable || this.hookSavingId) return;
-      if (!enabled && hook.requiresConfirmDialog) {
+      if (!shouldEnable && hook.requiresConfirmDialog) {
         const confirmed = window.confirm(
           `Disabling ${hook.name} removes the guardrail. Continue?`,
         );
@@ -309,7 +326,7 @@ function dashboardAppFragment08(
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled }),
+            body: JSON.stringify({ enabled: shouldEnable }),
           },
         );
         const payload = readRecord(await res.json(), "Hook toggle response");
@@ -320,7 +337,9 @@ function dashboardAppFragment08(
         this.hooksState = this.hooksState.map((item: HookState) =>
           item.id === nextHook.id ? nextHook : item,
         );
-        this.showToast(`${nextHook.name} ${enabled ? "enabled" : "disabled"}`);
+        this.showToast(
+          `${nextHook.name} ${shouldEnable ? "enabled" : "disabled"}`,
+        );
       } catch (err) {
         if (this.projectPath !== requestProjectPath) return;
         this.hooksError = err instanceof Error ? err.message : String(err);
@@ -341,12 +360,22 @@ function dashboardAppFragment08(
     },
 
     /** Generate setup output for the agent selected in the setup view. */
-    async generateSetupPrompt(force = false) {
-      await dashboardGenerateSetupPrompt(this, { force });
+    async generateSetupPrompt(shouldForce = false) {
+      await dashboardGenerateSetupPrompt(this, { force: shouldForce });
     },
   };
 }
 
+/**
+ * Build the setup-scheduling and quality fragment: debounced setup-prompt scheduling plus the
+ * quality-report generate/history/home-summary loaders. Most methods delegate to shared `dashboard*`
+ * helpers, but the inline loaders here catch a fetch/parse failure: each recovers by showing a
+ * dashboard toast (it reports the message in-view) instead of propagating, so a transient quality
+ * fetch never breaks the view. They
+ * also guard against stale responses with a current-request check because the user can switch
+ * project/agent mid-flight and a late reply must not overwrite newer state. Merged by
+ * dashboardMergeAppFragments.
+ */
 function dashboardAppFragment09(): DashboardAppFragment {
   return {
     /** Generate setup output after setup detection gets a paint. */
@@ -355,8 +384,10 @@ function dashboardAppFragment09(): DashboardAppFragment {
     },
 
     // -- Quality --
-    async generateQuality(options: { fast?: boolean; fresh?: boolean } = {}) {
-      await dashboardGenerateQuality(this, options);
+    async generateQuality(
+      qualityOptions: DashboardQualityGenerateOptions = {},
+    ) {
+      await dashboardGenerateQuality(this, qualityOptions);
     },
 
     /** Load persisted quality-history rows for the selected project and agent. */

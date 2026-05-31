@@ -1,6 +1,18 @@
 ---
 category: verification-testing
-last_reviewed: 2026-05-30
+last_reviewed: 2026-05-31
+---
+
+## Lesson: Gruff-driven direct imports must preserve facade proof
+
+**Status:** active | **Created:** 2026-05-31
+
+**What happened:** During `test-quality` cleanup, gruff's nearby-test requirement pushed several tests from public facade imports to implementation-module imports. The first full `npm test` rerun then failed the installer round-trip preflight because Knip found `8 unused exports/types`, including facade re-exports such as `createAuditFactsView`, `scoreAllArtifacts`, and `normalizeAgentVersionOutput`. The same verification pass caught an order-sensitive dashboard tasks assertion: `/api/tasks` returned `Milestone-malformed.md` before `Milestone-side-menu-navigation.md`, so the test failed with `# fail 1` even though both milestone records were present.
+
+**Root cause:** I treated "direct implementation import for gruff" and "facade import for Knip/API stability" as mutually exclusive, and one endpoint test asserted incidental filesystem ordering instead of selecting the record that carried the behavior under test.
+
+**Prevention:** When direct imports are needed to prove a nearby implementation module, keep stable facade exports exercised with explicit alignment assertions in existing nearby tests. For endpoint arrays that do not declare a sort contract, select records by semantic identifier before asserting fields. Evidence anchors: `test/unit/audit-command/batch-fact-reuse.test.ts` (search: `keeps the audit facade fact-view export aligned`), `test/unit/skill-quality/skill-scoring.test.ts` (search: `keeps the skill-quality facade score export aligned`), `test/integration/dashboard-tasks-api.test.ts` (search: `milestoneByFilename`).
+
 ---
 
 ## Lesson: Security parser fixes need focused parser proof
@@ -35,7 +47,7 @@ last_reviewed: 2026-05-30
 
 **Root cause:** I wrote purpose comments for side-effecting helpers but did not include analyzer-recognised side-effect language. For gruff-ts docs rules, a human-useful purpose sentence is not enough when the helper mutates filesystem state or runs a subprocess.
 
-**Prevention:** For helpers that write files, mutate fixtures, or run subprocesses, include the side effect in plain maintainer language (`Writes`, `Spawns`, `filesystem`) instead of a generic purpose sentence. After large docs batches, check the full rule delta, not only the original docs cluster. Evidence anchors: `test/integration/audit-drift.helpers.ts` (search: `Writes canonical skill stubs`), `test/integration/setup-install.helpers.ts` (search: `Spawns the shell installer`), `CHANGELOG.md` (search: `gruff-ts cleanup follow-up`).
+**Prevention:** For helpers that write files, mutate fixtures, or run subprocesses, include the side effect in plain maintainer language (`Write`, `Run`, `filesystem`) instead of a generic purpose sentence. After large docs batches, check the full rule delta, not only the original docs cluster. Evidence anchors: `test/integration/audit-drift.helpers.ts` (search: `Write canonical skill stubs`), `test/integration/setup-install.helpers.ts` (search: `Run the shell installer`), `CHANGELOG.md` (search: `gruff-ts cleanup follow-up`).
 
 ---
 

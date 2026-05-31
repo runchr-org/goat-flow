@@ -1,3 +1,10 @@
+/**
+ * Codex config.toml migration during install: rewrites deprecated codex_hooks (and removes it when
+ * hooks is already present) and the legacy :project_roots anchor to :workspace_roots, and fixes
+ * invalid filesystem permission globs in place including inside inline tables - all without
+ * overwriting custom config or valid /** deny entries, and leaving comment-only references and
+ * unrelated glob 'none' entries untouched.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";

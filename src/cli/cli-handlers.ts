@@ -1,3 +1,12 @@
+/**
+ * Command-dispatch layer for the CLI: one handler per subcommand plus the COMMAND_HANDLERS table
+ * and dispatchCommand entry that routes a parsed ParsedCLI to the right one. Handlers lazy-import
+ * their heavy dependencies (audit, facts, quality, dashboard, stats) so a single command never pays
+ * for modules it does not use. The shared error convention is to throw CLIError for user-facing
+ * failures (the entry point maps that to an exit code) and to set process.exitCode (not exit) for
+ * non-zero-but-successful outcomes like a failing audit, so buffered stdout still flushes.
+ */
+
 import { spawnSync } from "node:child_process";
 import { delimiter, dirname, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -44,6 +53,7 @@ function formatCandidacyArtifact(
   }
 }
 
+/** Return a shallow copy of one check with its heavy `details` payload removed for compact JSON. */
 function stripCheckDetails(check: CheckResult): CheckResult {
   const stripped: CheckResult = { ...check };
   delete stripped.details;
@@ -192,15 +202,16 @@ async function promptMenuCommand(
 
   const projectPath = await promptProjectPath(rl);
   const agent = action.needsAgent ? await promptAgent(rl) : options.agent;
-  const force = action.command === "install" ? await promptForce(rl) : false;
+  const shouldForce =
+    action.command === "install" ? await promptForce(rl) : false;
 
   return {
     ...options,
     command: action.command,
     projectPath,
     agent,
-    force,
-    apply: false,
+    shouldForce,
+    shouldApply: false,
   };
 }
 
@@ -326,7 +337,7 @@ function deriveInstallFlags(
   agentId: string,
   options: ParsedCLI,
 ): string[] {
-  if (options.force) return [];
+  if (options.shouldForce) return [];
   try {
     const projectFS = createFS(projectPath);
     const state = classifyProjectState(projectFS, agentId);
@@ -349,7 +360,7 @@ function deriveInstallFlags(
 /** Build the user-supplied installer flag list for the bundled bash script. */
 function collectInstallerFlags(options: ParsedCLI, agent: AgentId): string[] {
   const flags: string[] = [];
-  if (options.force) flags.push("--force");
+  if (options.shouldForce) flags.push("--force");
   if (options.updateConfigVersion) flags.push("--update-config-version");
   if (options.cleanDeprecated) flags.push("--clean-deprecated");
   flags.push(...deriveInstallFlags(options.projectPath, agent, options));
@@ -464,7 +475,7 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
   const fs = createFS(options.projectPath);
   const report = runAudit(fs, options.projectPath, {
     agentFilter: options.agent ?? null,
-    harness: options.harness,
+    harness: options.includeHarness,
     checkDrift: options.checkDrift,
     checkContent: options.checkContent,
   });
@@ -491,6 +502,11 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
   }
 }
 
+/**
+ * Run the quality command by delegating to the quality module with CLI-side dependencies injected.
+ * The error/output behaviour lives in the injected collaborators - CLIError for failures and
+ * writeOutput for results - so this wrapper only supplies them and forwards the parsed options.
+ */
 async function handleQualityCommand(options: ParsedCLI): Promise<void> {
   await runQualityCommand(options, {
     CLIError,
@@ -523,7 +539,7 @@ async function handleStatsCommand(options: ParsedCLI): Promise<void> {
     decisions: buildDecisionsSection(fs, configState.config.decisions.path),
   });
 
-  if (options.check) {
+  if (options.shouldCheck) {
     const verdict = checkStats(report);
     if (options.format === "json") {
       writeOutput(options, JSON.stringify(verdict, null, 2));
@@ -545,7 +561,11 @@ async function handleStatsCommand(options: ParsedCLI): Promise<void> {
   writeOutput(options, rendered.trimEnd());
 }
 
-/** Handle local evidence-envelope event reads. */
+/**
+ * Handle `events tail`, reading the most recent local evidence-envelope events for the project.
+ * Throws a usage CLIError (exit 2) for any subcommand other than `tail`. Emits the events as a
+ * JSON array under `--format json`, otherwise one compact JSON object per line (JSONL) for piping.
+ */
 async function handleEventsCommand(options: ParsedCLI): Promise<void> {
   if (options.eventsSubcommand !== "tail") {
     throw new CLIError("Usage: goat-flow events tail [path] [--limit 20]", 2);
@@ -559,12 +579,20 @@ async function handleEventsCommand(options: ParsedCLI): Promise<void> {
   writeOutput(options, events.map((event) => JSON.stringify(event)).join("\n"));
 }
 
-/** Handle the manifest command: resolve + print the single-source-of-truth manifest. */
+/**
+ * Handle the manifest command: resolve + print the single-source-of-truth manifest.
+ * The function forks up front on `--check` because the two modes are genuinely different outputs,
+ * not formatting variants of one: `--check` is the CI gate that runs checkManifest and sets
+ * process.exitCode to 1 on drift (so the pipeline fails), while the default branch just loads and
+ * prints the resolved manifest with no exit-code side effect. They are kept in one handler so both
+ * honour the same `--format` flag, but the early return after the check branch is intentional - it
+ * avoids the printer ever running in CI mode.
+ */
 async function handleManifestCommand(options: ParsedCLI): Promise<void> {
   const { loadManifest, checkManifest, renderManifestMarkdown } =
     await import("./manifest/manifest.js");
 
-  if (options.check) {
+  if (options.shouldCheck) {
     const report = checkManifest();
     let rendered: string;
     if (options.format === "json") {
@@ -619,7 +647,7 @@ async function runDashboardCommand(options: ParsedCLI): Promise<void> {
   const { serveDashboard } = await import("./server/dashboard.js");
   await serveDashboard({
     projectPath: options.projectPath,
-    dev: options.dev,
+    isDevMode: options.isDevMode,
   });
 }
 
@@ -640,6 +668,12 @@ const COMMAND_HANDLERS: Partial<
   info: handleInfoCommand,
 };
 
+/**
+ * Run `skill new`, scaffolding a skill/playbook from a description, draft, or interactive prompt.
+ * Throws a usage CLIError (exit 2) when the subcommand is not `new` or when the skill author
+ * reports a SkillNewInputError (bad/missing input); any other author error is rethrown unchanged.
+ * Emits a JSON candidacy/path/score summary under `--format json`, otherwise the author's text.
+ */
 async function handleSkillCommand(options: ParsedCLI): Promise<void> {
   if (options.skillSubcommand !== "new") {
     throw new CLIError(
@@ -653,9 +687,9 @@ async function handleSkillCommand(options: ParsedCLI): Promise<void> {
     result = await runSkillNew({
       description: options.skillDescription ?? undefined,
       draftPath: options.skillDraftPath ?? undefined,
-      interactive: options.skillInteractive,
+      shouldUseInteractivePrompt: options.skillInteractive,
       name: options.skillName ?? undefined,
-      skipConfirm: options.skillSkipConfirm,
+      shouldSkipConfirm: options.skillSkipConfirm,
       projectRoot: options.projectPath,
     });
   } catch (err) {
@@ -690,7 +724,7 @@ export async function dispatchCommand(options: ParsedCLI): Promise<void> {
     await handler(options);
     return;
   }
-  if (options.apply) {
+  if (options.shouldApply) {
     handleInstallCommand(options);
     return;
   }

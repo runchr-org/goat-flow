@@ -165,7 +165,7 @@ export interface ObservedFacts {
 }
 
 /** Raised when the on-disk manifest's static facts disagree with observed reality. */
-export class ManifestValidationError extends Error {
+class ManifestValidationError extends Error {
   constructor(
     message: string,
     public readonly findings: string[],
@@ -174,6 +174,8 @@ export class ManifestValidationError extends Error {
     this.name = "ManifestValidationError";
   }
 }
+
+export { ManifestValidationError };
 
 /** One consistency finding produced by `checkManifest()`. */
 interface ManifestCheckFinding {

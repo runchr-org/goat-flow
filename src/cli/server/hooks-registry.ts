@@ -9,7 +9,7 @@ import type { AgentId } from "../types.js";
 type HookEvent = "PreToolUse" | "PostToolUse";
 
 /** Static manifest for one shipped hook and how agents register it. */
-export interface HookSpec {
+export interface HookSpec extends Record<"togglable", boolean> {
   id: string;
   displayName: string;
   description: string;
@@ -17,7 +17,6 @@ export interface HookSpec {
   matcher: string;
   scriptFiles: string[];
   primaryScript: string;
-  togglable: boolean;
   defaultEnabled: boolean;
   requiresConfirmDialog: boolean;
   unsupportedAgents?: Partial<Record<AgentId, string>>;
@@ -52,7 +51,7 @@ const HOOKS: HookSpec[] = [
   },
 ];
 
-const HOOKS_BY_ID = new Map(HOOKS.map((hook) => [hook.id, hook]));
+const HOOKS_BY_IDENTIFIER = new Map(HOOKS.map((hook) => [hook.id, hook]));
 
 // Returns a defensive copy so callers may sort or filter without mutating the
 // canonical registry that getHookSpec / readAllHookStates read from.
@@ -62,12 +61,12 @@ export function listHookSpecs(): HookSpec[] {
 
 // Returns null (rather than throwing) for an unknown id so callers can treat a
 // missing hook as a 404-style branch instead of an exception path.
-export function getHookSpec(hookId: string): HookSpec | null {
-  return HOOKS_BY_ID.get(hookId) ?? null;
+export function getHookSpec(hookIdentifier: string): HookSpec | null {
+  return HOOKS_BY_IDENTIFIER.get(hookIdentifier) ?? null;
 }
 
 // Guards an id before it is used as a filesystem-safe key and URL segment:
 // lowercase-kebab only, so it can never escape a directory or need encoding.
-export function isValidHookIdShape(hookId: string): boolean {
-  return /^[a-z0-9][a-z0-9-]*$/u.test(hookId);
+export function isValidHookIdShape(hookIdentifier: string): boolean {
+  return /^[a-z0-9][a-z0-9-]*$/u.test(hookIdentifier);
 }

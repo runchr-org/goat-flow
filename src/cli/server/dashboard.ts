@@ -48,12 +48,12 @@ function readBody(
     const tooLargeMessage = options.tooLargeMessage ?? "Request body too large";
     const chunks: Buffer[] = [];
     let size = 0;
-    let rejected = false;
+    let hasRejectedBody = false;
     req.on("data", (chunk: Buffer) => {
-      if (rejected) return;
+      if (hasRejectedBody) return;
       size += chunk.length;
       if (size > maxBytes) {
-        rejected = true;
+        hasRejectedBody = true;
         chunks.length = 0;
         req.resume();
         reject(new Error(tooLargeMessage));
@@ -62,11 +62,11 @@ function readBody(
       chunks.push(chunk);
     });
     req.on("end", () => {
-      if (rejected) return;
+      if (hasRejectedBody) return;
       resolve(Buffer.concat(chunks).toString("utf-8"));
     });
     req.on("error", (err) => {
-      if (!rejected) reject(err);
+      if (!hasRejectedBody) reject(err);
     });
   });
 }
@@ -84,7 +84,7 @@ function jsonResponse(
 /** Configuration options for launching the dashboard server */
 interface DashboardOptions {
   projectPath: string;
-  dev?: boolean;
+  isDevMode?: boolean;
 }
 
 /** Handle returned by serveDashboard for closing the server and reading the port */
@@ -189,7 +189,7 @@ export function serveDashboard(
   return new Promise((resolveStart) => {
     const shellPath = getTemplatePath("dist/dashboard/index.html");
     const dashboardPresets = loadDashboardPresets();
-    const devMode = options.dev === true;
+    const devMode = options.isDevMode === true;
     const dashboardToken = randomBytes(32).toString("base64url");
     // In dev mode, re-read on every request. In prod, cache once.
     let cachedTemplate: string | null = devMode

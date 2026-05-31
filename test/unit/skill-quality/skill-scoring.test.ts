@@ -1,3 +1,8 @@
+/**
+ * Skill scoring and reference composition: goat-plan scores keep-skill against per-dimension thresholds, inherited
+ * skill-local references compose only from the references directory for composed metrics, and content caps are
+ * enforced by UTF-8 byte length - surfacing truncation/fit notes for oversized artifacts and bundles.
+ */
 import {
   describe,
   it,
@@ -11,12 +16,91 @@ import {
   PROJECT_ROOT,
   FULL_DISPATCHER_WORKFLOW_SCORE,
   ARTIFACT_TRUNCATION_BYTES,
+  scoreAllArtifacts,
   makeTempProject,
   writeText,
   writeSkill,
 } from "./helpers.js";
+import { readFileSync } from "node:fs";
+import {
+  classifyArtifact,
+  detectArtifactShape,
+} from "../../../src/cli/quality/skill-quality-classification.js";
+import { ALL_METRICS } from "../../../src/cli/quality/skill-quality-metrics.js";
+import { deriveRecommendation } from "../../../src/cli/quality/skill-quality-recommendation.js";
+import { finalizeMetric } from "../../../src/cli/quality/skill-quality-types.js";
+import { scoreAllArtifacts as scoreAllArtifactsFromFacade } from "../../../src/cli/quality/skill-quality.js";
+
+type ArtifactSubtypeCase = readonly [
+  id: string,
+  subtype: string,
+  profileMax: number,
+];
+
+/**
+ * Assert artifact subtype detection and profile max selection for representative artifacts.
+ *
+ * @param cases - artifact ids with their expected subtype and maximum score
+ */
+function assertArtifactSubtypeCases(
+  cases: ReadonlyArray<ArtifactSubtypeCase>,
+): void {
+  cases.forEach(([id, subtype, profileMax]) => {
+    const artifact = findArtifact(PROJECT_ROOT, id)!;
+    const report = scoreArtifact(PROJECT_ROOT, artifact);
+    assert.equal(report.subtype, subtype, id);
+    assert.equal(report.profileMax, profileMax, id);
+    assert.equal(report.maxTotalScore, profileMax, id);
+  });
+}
 
 describe("skill scoring", () => {
+  it("keeps the skill-quality facade score export aligned with the implementation", () => {
+    assert.equal(scoreAllArtifactsFromFacade, scoreAllArtifacts);
+  });
+
+  it("keeps classifier, metric, and recommendation primitives aligned", () => {
+    const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
+    const content = readFileSync(join(PROJECT_ROOT, artifact.path), "utf-8");
+    const classification = classifyArtifact(
+      artifact,
+      content,
+      DEFAULT_QUALITY_CONFIG,
+    );
+    const shape = detectArtifactShape(artifact, content);
+    const metric = finalizeMetric(
+      {
+        rawContent: content,
+        composedContent: content,
+        artifact,
+        subtype: classification.detectedSubtype,
+        profileMax: 100,
+        projectRoot: PROJECT_ROOT,
+        config: DEFAULT_QUALITY_CONFIG,
+      },
+      "trigger-clarity",
+      15,
+      "trigger contract present",
+    );
+    const recommendation = deriveRecommendation(
+      artifact,
+      [metric],
+      metric.score,
+      metric.maxScore,
+      classification,
+      shape,
+    );
+
+    assert.equal(classification.detectedSubtype, "workflow");
+    assert.equal(shape.detectedShape, "workflow");
+    assert.equal(metric.severity, "ok");
+    assert.equal(recommendation.recommendation, "keep-skill");
+    assert.equal(
+      ALL_METRICS.some((scorer) => typeof scorer === "function"),
+      true,
+    );
+  });
+
   it("scores goat-plan with a keep-skill recommendation and per-dimension thresholds", () => {
     const artifact = findArtifact(PROJECT_ROOT, "skill:goat-plan")!;
     const report = scoreArtifact(PROJECT_ROOT, artifact);
@@ -239,20 +323,13 @@ describe("skill scoring", () => {
   });
 
   it("detects artifact subtypes and profile maxes", () => {
-    const cases = [
+    assertArtifactSubtypeCases([
       ["skill:goat", "dispatcher", 70],
       ["skill:goat-plan", "workflow", 100],
       ["skill:goat-security", "report", 85],
       ["reference:browser-use", "playbook", 80],
       ["reference:skill-preamble", "meta", 50],
       ["reference:skill-quality-testing", "index", 60],
-    ] as const;
-    for (const [id, subtype, profileMax] of cases) {
-      const artifact = findArtifact(PROJECT_ROOT, id)!;
-      const report = scoreArtifact(PROJECT_ROOT, artifact);
-      assert.equal(report.subtype, subtype, id);
-      assert.equal(report.profileMax, profileMax, id);
-      assert.equal(report.maxTotalScore, profileMax, id);
-    }
+    ]);
   });
 });

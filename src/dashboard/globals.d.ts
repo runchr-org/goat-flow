@@ -220,12 +220,11 @@ interface TaskMilestoneSummary {
 }
 
 /** Top-level task directory summary from `.goat-flow/tasks/`. */
-interface TaskPlanSummary {
+interface TaskPlanSummary extends Record<"active", boolean> {
   name: string;
   path: string;
   modifiedAt: string;
   milestoneCount: number;
-  active: boolean;
 }
 
 /** Response from `/api/tasks` after reading or changing active task-plan state. */
@@ -242,8 +241,7 @@ interface TaskState {
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
 
 /** Per-agent hook installation and drift state delivered to the browser. */
-interface HookAgentState {
-  supported: boolean;
+interface HookAgentState extends Record<"supported", boolean> {
   installed: boolean;
   scriptPath: string | null;
   configPath: string | null;
@@ -252,12 +250,10 @@ interface HookAgentState {
 }
 
 /** Browser-side hook state used by the Hooks view and confirmation dialog. */
-interface HookState {
+interface HookState extends Record<"togglable" | "enabled", boolean> {
   id: string;
   name: string;
   description: string;
-  togglable: boolean;
-  enabled: boolean;
   defaultEnabled: boolean;
   requiresConfirmDialog: boolean;
   agents: Partial<Record<RunnerId, HookAgentState>>;
@@ -322,7 +318,10 @@ interface ServerSessionInfo {
 type TerminalLoadingPhase = "connecting" | "loading" | "ready" | "error";
 
 /** Alpine-reactive terminal session state; xterm/WebSocket handles live in TerminalRefs. */
-interface LocalSession {
+interface LocalSession
+  extends
+    Record<"connected" | "ended", boolean>,
+    Partial<Record<"awaitingInput", boolean>> {
   id: string;
   runner: RunnerId;
   promptLabel: string;
@@ -331,9 +330,6 @@ interface LocalSession {
   targetPath: string;
   startTime: number;
   lastInputTime: number;
-  connected: boolean;
-  ended: boolean;
-  awaitingInput?: boolean;
   outputTail?: string;
   /** Loading overlay state: create/mount -> connecting, ws open -> loading, first output -> ready, pre-output failure -> error. */
   loadingPhase: TerminalLoadingPhase;
@@ -596,13 +592,21 @@ interface SetupCommands {
 }
 
 /** Existing GOAT Flow artifacts detected in the selected project. */
-interface ExistingArtifacts {
-  skills: boolean;
+type ExistingArtifactPresence = Record<
+  "skills" | "lessons" | "footguns" | "config",
+  boolean
+>;
+
+/**
+ * What goat-flow content already exists in the selected project, as detected by `/api/setup/detect`.
+ * Extends the skills/lessons/footguns/config presence flags with how instruction files are scoped:
+ * `instructionsRepoWide` true means a root instruction file (e.g. CLAUDE.md) is present, while
+ * `instructionsPathScoped` true means per-directory scoped instruction files were found. Both can be
+ * true; both false means the project has no instruction file yet, which the setup view treats as bare.
+ */
+interface ExistingArtifacts extends ExistingArtifactPresence {
   instructionsRepoWide: boolean;
   instructionsPathScoped: boolean;
-  lessons: boolean;
-  footguns: boolean;
-  config: boolean;
 }
 
 /** Aggregated setup-view detection data returned by `/api/setup/detect`. */

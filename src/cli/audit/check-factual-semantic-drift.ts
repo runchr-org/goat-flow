@@ -1,3 +1,9 @@
+/**
+ * Semantic-drift scanners for high-trust cold-path docs (code-map, glossary, ADRs). Where the
+ * factual-claims checks compare exact strings, these read live source - classifier state unions,
+ * server constants, the manifest - and flag the curated docs that quietly fall out of sync with it.
+ * Runs only under `--check-content` because reading source on every audit would be too expensive.
+ */
 import { AUDIT_VERSION } from "../constants.js";
 import { loadManifest } from "../manifest/manifest.js";
 import type { AuditContext, ContentFinding } from "./types.js";
@@ -404,12 +410,12 @@ function driftSetupOverview(setupOverview: string): ContentFinding[] {
 }
 
 /** Drift: ADR-020 still says Copilot accepted while manifest excludes it. */
-function driftAdr020(adr020: string): ContentFinding[] {
+function driftCopilotDecision(decisionText: string): ContentFinding[] {
   const hasCopilot = Object.prototype.hasOwnProperty.call(
     loadManifest().agents,
     "copilot",
   );
-  const isAccepted = /\*\*Status:\*\*\s*Accepted/u.test(adr020);
+  const isAccepted = /\*\*Status:\*\*\s*Accepted/u.test(decisionText);
 
   if (isAccepted && !hasCopilot) {
     return [
@@ -443,11 +449,11 @@ function driftAdr020(adr020: string): ContentFinding[] {
 }
 
 /** Drift: ADR-013 still carries pre-simplification implementation detail. */
-function driftAdr013(adr013: string): ContentFinding[] {
+function driftScannerRemovalDecision(decisionText: string): ContentFinding[] {
   if (
-    !/v0\.9\/v1\.0/u.test(adr013) &&
-    !/agent-setup-checks\.ts/u.test(adr013) &&
-    !/17 build checks \(7 project setup \+ 10 per-agent/u.test(adr013)
+    !/v0\.9\/v1\.0/u.test(decisionText) &&
+    !/agent-setup-checks\.ts/u.test(decisionText) &&
+    !/17 build checks \(7 project setup \+ 10 per-agent/u.test(decisionText)
   ) {
     return [];
   }
@@ -469,6 +475,11 @@ function driftAdr013(adr013: string): ContentFinding[] {
  *
  * Missing optional docs recover by being skipped, while readable docs are added
  * to the scanned count so audit output reflects the actual coverage.
+ *
+ * @param ctx - audit context; its readonly FS reads both the curated docs and the live source files
+ *   (classify-state, terminal server, manifest) the docs are checked against
+ * @returns the accumulated drift findings and the count of docs actually read, so callers can report
+ *   coverage; an empty findings list means no drift was detected among the docs present on disk
  */
 export function scanSemanticDrift(ctx: AuditContext): {
   findings: ContentFinding[];
@@ -526,15 +537,17 @@ export function scanSemanticDrift(ctx: AuditContext): {
   if (setupOverview !== null)
     findings.push(...driftSetupOverview(setupOverview));
 
-  const adr020 = readAndTrack(
+  const copilotDecision = readAndTrack(
     ".goat-flow/decisions/ADR-020-add-copilot-cli.md",
   );
-  if (adr020 !== null) findings.push(...driftAdr020(adr020));
+  if (copilotDecision !== null)
+    findings.push(...driftCopilotDecision(copilotDecision));
 
-  const adr013 = readAndTrack(
+  const scannerRemovalDecision = readAndTrack(
     ".goat-flow/decisions/ADR-013-remove-scanner-system.md",
   );
-  if (adr013 !== null) findings.push(...driftAdr013(adr013));
+  if (scannerRemovalDecision !== null)
+    findings.push(...driftScannerRemovalDecision(scannerRemovalDecision));
 
   return { findings, filesScanned: scanned.size };
 }

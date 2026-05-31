@@ -1,3 +1,7 @@
+/**
+ * checkDrift clean-fixture baseline: with templates and installed copies identical, asserts a pass
+ * with zero findings and that `checked` equals the exact expected skill-file plus shared-file count.
+ */
 describe("checkDrift: clean fixture", () => {
   let root: string;
   before(() => {

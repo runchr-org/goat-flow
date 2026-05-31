@@ -25,13 +25,38 @@ const DASHBOARD_TERMINAL_SOURCE_PATHS = [
 ];
 const DASHBOARD_APP_PATH = resolve(PROJECT_ROOT, "src", "dashboard", "app.ts");
 const DASHBOARD_APP_SOURCE_PATHS = [
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragments.ts"),
+  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-merge.ts"),
   resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-init.ts"),
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-01.ts"),
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-02.ts"),
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-03.ts"),
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-04.ts"),
-  resolve(PROJECT_ROOT, "src", "dashboard", "dashboard-app-fragment-05.ts"),
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    "dashboard-app-state-fragments.ts",
+  ),
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    "dashboard-app-prompts-audit-fragments.ts",
+  ),
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    "dashboard-app-data-loading-fragments.ts",
+  ),
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    "dashboard-app-skill-quality-fragments.ts",
+  ),
+  resolve(
+    PROJECT_ROOT,
+    "src",
+    "dashboard",
+    "dashboard-app-project-terminal-fragments.ts",
+  ),
   DASHBOARD_APP_PATH,
 ];
 const WORKSPACE_VIEW_PATH = resolve(
@@ -56,7 +81,7 @@ type LaunchOptions = {
   targetPath?: string | null;
 };
 
-type LaunchContext = {
+type LaunchContext = Record<"launching", boolean> & {
   projectPath: string;
   activeView: string;
   workspacePanel: string;
@@ -68,7 +93,6 @@ type LaunchContext = {
   recentTerminalSessions: unknown[];
   sessions: Array<Record<string, unknown>>;
   promptRunStates: Record<string, string>;
-  launching: boolean;
   activeSessionId: string | null;
   _terminalRefs: Record<
     string,
@@ -155,6 +179,41 @@ type LaunchContext = {
    * Emulates Alpine's post-render scheduling point before terminal attachment.
    */
   $nextTick(): Promise<void>;
+};
+
+type TestTerminalSession = Record<string, unknown> & {
+  id: string;
+  runner: string;
+  promptLabel: string;
+  projectPath: string;
+  cwd: string;
+  targetPath: string;
+  startTime: number;
+  lastInputTime: number;
+  connected: boolean;
+  ended: boolean;
+  awaitingInput: boolean;
+  outputTail: string;
+  loadingPhase: string;
+  loadingShowSlowHint: boolean;
+  loadingShowRetry: boolean;
+  age: string;
+  presetId: string | null;
+};
+
+type TerminalSendHarness = {
+  ctx: ReturnType<typeof makeContext>;
+  sent: string[];
+  session: TestTerminalSession;
+  websocket: ReturnType<typeof makeCapturingWebSocket>;
+};
+
+type TerminalSendHarnessOptions = {
+  id?: string;
+  runner?: string;
+  sent?: string[];
+  session?: Partial<TestTerminalSession>;
+  ref?: Record<string, unknown>;
 };
 
 type HelperContext = {
@@ -302,18 +361,37 @@ type HelperContext = {
   dashboardUpdateSessionCount(ctx: LaunchContext): Promise<void>;
 };
 
+/**
+ * Concatenate the dashboard terminal-helper source files into one string for tests that assert on the shipped
+ * source text (rather than executing it) - e.g. confirming a code path or asset route exists in the real file.
+ *
+ * @returns the joined contents of every dashboard terminal source path, newline-separated
+ */
 function readDashboardTerminalSource(): string {
   return DASHBOARD_TERMINAL_SOURCE_PATHS.map((path) =>
     readFileSync(path, "utf-8"),
   ).join("\n");
 }
 
+/**
+ * Concatenate the dashboard app source files into one string, the app-shell counterpart to
+ * readDashboardTerminalSource, for tests that assert on workspace wiring in the shipped source.
+ *
+ * @returns the joined contents of every dashboard app source path, newline-separated
+ */
 function readDashboardAppSource(): string {
   return DASHBOARD_APP_SOURCE_PATHS.map((path) =>
     readFileSync(path, "utf-8"),
   ).join("\n");
 }
 
+/**
+ * Read a captured awaiting-input fixture (real PTY byte capture) from the shared __fixtures__ directory, used to
+ * drive the detector tests against runner output recorded from actual sessions.
+ *
+ * @param name - fixture file name within test/unit/__fixtures__/awaiting-input
+ * @returns the fixture file's UTF-8 contents
+ */
 function loadFixture(name: string): string {
   return readFileSync(
     resolve(
@@ -480,6 +558,66 @@ function makeContext(
 }
 
 /**
+ * Build a browser-side terminal session with the full state shape dashboard
+ * helpers expect, while letting tests override only the behavior under review.
+ */
+function makeTerminalSession(
+  overrides: Partial<TestTerminalSession> = {},
+): TestTerminalSession {
+  const id = overrides.id ?? "session-upload";
+  return {
+    id,
+    runner: "claude",
+    promptLabel: "Upload target",
+    projectPath: "/tmp/example",
+    cwd: "/tmp/example",
+    targetPath: "/tmp/example",
+    startTime: Date.now(),
+    lastInputTime: 0,
+    connected: true,
+    ended: false,
+    awaitingInput: false,
+    outputTail: "",
+    loadingPhase: "ready",
+    loadingShowSlowHint: false,
+    loadingShowRetry: false,
+    age: "0s",
+    presetId: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Create the common one-session WebSocket harness used by terminal-send tests.
+ *
+ * @param options - session/ref overrides for the specific behavior under test
+ * @returns context, captured wire payloads, session object, and mutable websocket
+ */
+function makeTerminalSendHarness(
+  options: TerminalSendHarnessOptions = {},
+): TerminalSendHarness {
+  const sent = options.sent ?? [];
+  const sessionOverrides: Partial<TestTerminalSession> = {
+    ...options.session,
+  };
+  if (options.id !== undefined) sessionOverrides.id = options.id;
+  if (options.runner !== undefined) sessionOverrides.runner = options.runner;
+  const session = makeTerminalSession(sessionOverrides);
+  const websocket = makeCapturingWebSocket(sent);
+  const ctx = makeContext({
+    activeSessionId: session.id,
+    sessions: [session],
+    _terminalRefs: {
+      [session.id]: {
+        ws: websocket,
+        ...options.ref,
+      },
+    },
+  });
+  return { ctx, sent, session, websocket };
+}
+
+/**
  * Keeps queued-launch tests on the same local session shape so they differ
  * only by runner output and timer behaviour.
  */
@@ -542,6 +680,8 @@ export {
   loadFixture,
   makeContext,
   makeLaunchPromptContext,
+  makeTerminalSendHarness,
+  makeTerminalSession,
   makeCapturingWebSocket,
   PROJECT_ROOT,
   DASHBOARD_TERMINAL_PATH,
@@ -553,7 +693,12 @@ export {
   readDashboardTerminalSource,
   resolve,
 };
-export type { HelperContext, LaunchContext, LaunchOptions };
+export type {
+  HelperContext,
+  LaunchContext,
+  LaunchOptions,
+  TestTerminalSession,
+};
 export {
   createFakeTimers,
   FakeDashboardWebSocket,

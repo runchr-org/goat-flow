@@ -73,6 +73,7 @@ interface ParsedSarifLog {
   }>;
 }
 
+/** Build one audit check with SARIF-relevant defaults and caller-specific overrides. */
 function makeCheck(
   id: string,
   overrides: Partial<CheckResult> = {},
@@ -109,6 +110,7 @@ function makeScope(checks: CheckResult[]): AuditScope {
   };
 }
 
+/** Build a complete audit report fixture from per-scope checks and optional content data. */
 function makeReport(options: {
   setup?: CheckResult[];
   agent?: CheckResult[];
@@ -141,6 +143,47 @@ function makeReport(options: {
     content: options.content ?? null,
     overall: { status },
   };
+}
+
+/** Build the report fixture that mixes drift and content findings with locations. */
+function makeReportWithDriftAndContentLocation(
+  expectedAgentFindingLine: number,
+): AuditReport {
+  return makeReport({
+    drift: {
+      status: "fail",
+      findings: [
+        {
+          kind: "missing",
+          path: ".agents/skills/goat/SKILL.md",
+          message: "Skill mirror is missing.",
+        },
+      ],
+      checked: 1,
+    },
+    content: {
+      status: "fail",
+      findings: [
+        {
+          severity: "warning",
+          rule: "vague-term",
+          path: "AGENTS.md",
+          line: expectedAgentFindingLine,
+          message: "Instruction uses vague wording.",
+          suggestion: "Name the concrete command.",
+        },
+        {
+          severity: "info",
+          rule: "generic-guidance",
+          path: "README.md",
+          message: "Guidance is generic.",
+        },
+      ],
+      warnings: 1,
+      infos: 1,
+      filesScanned: 2,
+    },
+  });
 }
 
 /** Render and parse SARIF so tests can assert its typed structure. */
@@ -235,41 +278,7 @@ describe("renderAuditSarif", () => {
   it("maps drift and content findings to SARIF results with file locations", () => {
     const expectedAgentFindingLine = 42;
     const sarif = parseSarif(
-      makeReport({
-        drift: {
-          status: "fail",
-          findings: [
-            {
-              kind: "missing",
-              path: ".agents/skills/goat/SKILL.md",
-              message: "Skill mirror is missing.",
-            },
-          ],
-          checked: 1,
-        },
-        content: {
-          status: "fail",
-          findings: [
-            {
-              severity: "warning",
-              rule: "vague-term",
-              path: "AGENTS.md",
-              line: expectedAgentFindingLine,
-              message: "Instruction uses vague wording.",
-              suggestion: "Name the concrete command.",
-            },
-            {
-              severity: "info",
-              rule: "generic-guidance",
-              path: "README.md",
-              message: "Guidance is generic.",
-            },
-          ],
-          warnings: 1,
-          infos: 1,
-          filesScanned: 2,
-        },
-      }),
+      makeReportWithDriftAndContentLocation(expectedAgentFindingLine),
     );
 
     const results = sarif.runs[0].results;

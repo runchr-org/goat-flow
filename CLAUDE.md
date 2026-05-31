@@ -11,7 +11,7 @@ User's explicit instruction (this session) > CLAUDE.md > `.goat-flow/architectur
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
+**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) are conditional: update only when VERIFY caught a failure or you corrected course.
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 

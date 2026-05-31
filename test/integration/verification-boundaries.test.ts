@@ -23,6 +23,27 @@ const CANONICAL_SKILLS = [
   "goat-qa",
 ];
 
+/**
+ * Assert every canonical skill template cites the Proof Gate contract.
+ *
+ * @param skills - canonical skill directory names under workflow/skills
+ */
+function assertCanonicalSkillsReferenceProofGate(
+  skills: ReadonlyArray<string>,
+): void {
+  skills.forEach((skill) => {
+    const content = readFileSync(
+      resolve(PROJECT_ROOT, `workflow/skills/${skill}/SKILL.md`),
+      "utf-8",
+    );
+    assert.match(
+      content,
+      /Proof Gate/,
+      `${skill} SKILL.md must reference the Proof Gate (ADR-018)`,
+    );
+  });
+}
+
 describe("verification routing boundaries (ADR-018)", () => {
   it("goat-qa does not claim raw 'verify' in its quick-mode trigger", () => {
     const content = readFileSync(
@@ -61,16 +82,6 @@ describe("verification routing boundaries (ADR-018)", () => {
   });
 
   it("every canonical goat-* skill template references the Proof Gate", () => {
-    for (const skill of CANONICAL_SKILLS) {
-      const content = readFileSync(
-        resolve(PROJECT_ROOT, `workflow/skills/${skill}/SKILL.md`),
-        "utf-8",
-      );
-      assert.match(
-        content,
-        /Proof Gate/,
-        `${skill} SKILL.md must reference the Proof Gate (ADR-018)`,
-      );
-    }
+    assertCanonicalSkillsReferenceProofGate(CANONICAL_SKILLS);
   });
 });

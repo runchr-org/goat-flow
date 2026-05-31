@@ -1,3 +1,8 @@
+/**
+ * Audit checks that compare an installed agent deny hook against the canonical template: failing when a
+ * configured command hides the script path in shell text, points at a stale path, diverges from the template,
+ * or the shared self-test is missing, and passing on an exact match and on the Copilot JSON runtime smoke.
+ */
 import {
   AGENT_CHECKS,
   PROFILES,

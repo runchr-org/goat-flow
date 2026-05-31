@@ -1,3 +1,19 @@
+/**
+ * Prompt, custom-prompt, terminal-upload, and audit fragments of the dashboard Alpine app.
+ * dashboardMergeAppFragments later stitches these into one app object. These fragments own the
+ * user-authored custom prompt editor, preset browsing/copying, terminal image drops, app init,
+ * navigation helpers, and audit refresh actions. Heavy validation and workflow logic lives in
+ * shared dashboard helpers; the methods here are thin `this`-bound entry points so Alpine can call
+ * them by name.
+ */
+
+/**
+ * Build the custom-prompt editor fragment: the draft being edited and its open/closed editor flags.
+ * One input to dashboardMergeAppFragments; the validation getters that read this draft live in the
+ * sibling fragment below, so this fragment must merge before they are evaluated.
+ *
+ * @returns the fragment object of custom-prompt editor state fields merged into the Alpine app
+ */
 function dashboardAppFragment04(): DashboardAppFragment {
   return {
     showCustomPromptEditor: false,
@@ -172,6 +188,13 @@ function dashboardAppFragment04(): DashboardAppFragment {
   };
 }
 
+/**
+ * Build the custom-prompt validation fragment: per-field error lookups and draft-validity getters
+ * that read the editor draft seeded by the editor-state fragment. Each method delegates to a shared
+ * dashboard validation helper rather than inlining the rules, because the same validation must run
+ * identically here and on the server, so the branchy logic lives in one shared place and these
+ * methods only pass `this` so the helper sees live draft state. Merged by dashboardMergeAppFragments.
+ */
 function dashboardAppFragment05(): DashboardAppFragment {
   return {
     /** Return the first validation error for one draft field. */
@@ -349,6 +372,14 @@ function dashboardAppFragment05(): DashboardAppFragment {
   };
 }
 
+/**
+ * Build the terminal drag-and-drop fragment: the dragenter/over/leave/drop handlers that route
+ * image files dropped onto the active terminal pane into an upload instead of letting the browser
+ * navigate to the file. A depth counter (`_terminalDragDepth`) is used intentionally because nested
+ * dragenter/leave events would otherwise flicker the highlight as the pointer crosses child nodes.
+ * The drop/upload path catches a failed upload and reports it through the dashboard toast rather
+ * than throwing, so a bad drop never breaks the terminal. Merged by dashboardMergeAppFragments.
+ */
 function dashboardAppFragment06(): DashboardAppFragment {
   return {
     /** Keep image drops routed to the active terminal pane instead of the browser. */
@@ -360,7 +391,7 @@ function dashboardAppFragment06(): DashboardAppFragment {
     },
 
     /** Clear terminal drag state when the nested drag counter returns to zero. */
-    handleTerminalDragLeave(_event: DragEvent) {
+    handleTerminalDragLeave(_dragEvent: DragEvent) {
       this._terminalDragDepth = Math.max(0, this._terminalDragDepth - 1);
       if (this._terminalDragDepth === 0) this.terminalDragActive = false;
     },
@@ -462,11 +493,11 @@ function dashboardAppFragment06(): DashboardAppFragment {
 
     // -- API Calls --
     /** Load an audit snapshot; reports network/server errors as toasts because the dashboard must stay usable. */
-    async runAudit(fresh = false) {
+    async runAudit(includeFresh = false) {
       this.auditing = true;
       this.toast = "";
       try {
-        const freshParam = fresh ? "&fresh=true" : "";
+        const freshParam = includeFresh ? "&fresh=true" : "";
         const res = await dashboardFetch(
           `/api/audit?path=${encodeURIComponent(this.projectPath)}&quality=true${freshParam}`,
         );
@@ -480,7 +511,7 @@ function dashboardAppFragment06(): DashboardAppFragment {
         this.report = readDashboardReport(payload);
         this.auditCached = cached;
         this.lastAuditTime = cachedAt ? new Date(cachedAt) : new Date();
-        if (fresh) {
+        if (includeFresh) {
           this.setupOutputs = {};
           this._setupOutputProjectPath = this.projectPath;
           if (this.activeView === "setup") this.scheduleSetupPrompt();

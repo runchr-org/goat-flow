@@ -1,3 +1,8 @@
+/**
+ * checkDrift hook-template parity: drift-clean when installed deny-dangerous scripts and the
+ * Copilot hooks.json match their workflow templates, and the content/missing findings raised when
+ * a .codex script or the Copilot config diverges, including the enabled-optional-hook allowance.
+ */
 import {
   assert,
   checkDrift,

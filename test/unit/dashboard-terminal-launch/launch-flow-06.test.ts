@@ -1,21 +1,17 @@
+/**
+ * Dashboard terminal launch flow, part 6: launch-prompt delivery and workspace wiring - prompts stay queued
+ * through Antigravity auth output until the composer is ready and clear/fall back on Codex config errors, the
+ * awaiting-input badge is debounced and mapped into the workspace waiting state and meters, and prompts are
+ * deferred until after terminal attachment.
+ */
 import {
   assert,
   assertExists,
   createFakeTimers,
-  DASHBOARD_APP_PATH,
-  DASHBOARD_TERMINAL_PATH,
   delay,
   describe,
-  FakeDashboardWebSocket,
-  FakeFitAddon,
-  FakeResizeObserver,
-  FakeTerminal,
   it,
   loadHelpers,
-  loadFixture,
-  makeBrowserTerminalGlobals,
-  makeCapturingWebSocket,
-  makeContext,
   makeLaunchPromptContext,
   PROJECT_ROOT,
   readFileSync,

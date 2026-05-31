@@ -90,10 +90,12 @@ export type AuditConcernKey =
   | "recovery"
   | "feedback_loop";
 
+/** Stable `harness` JSON field retained for existing CLI and dashboard consumers. */
+type AuditHarnessJsonField = Record<"harness", boolean>;
+
 /** Top-level audit JSON schema returned by CLI and dashboard audit routes. */
-export interface AuditReport {
+export interface AuditReport extends AuditHarnessJsonField {
   command: "audit";
-  harness: boolean;
   status: "pass" | "fail";
   target: string;
   scopes: {

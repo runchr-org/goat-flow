@@ -1,3 +1,13 @@
+/**
+ * Shared building blocks for composing agent quality-review prompts.
+ *
+ * Collects the cross-mode helpers the per-mode composers reuse: shell/JSON/date
+ * escaping for embedded snippets, project-path shaping that survives Windows and
+ * UNC roots, audit-summary rendering, prior-report delta context, bounded
+ * learning-loop context, and the focused JSON-report contract appended to the end
+ * of every prompt. Pure string assembly; the only I/O is the `package.json` read
+ * behind `inferQualityScope`.
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { AgentId, SharedFacts } from "../types.js";
@@ -18,6 +28,10 @@ import {
  * normalised first so UNC roots (`\\server\share`) survive as `//server/share`;
  * the leading slash that `posix.join` collapses on UNC inputs is then restored
  * so quality writes still target the network share, not a local absolute path.
+ *
+ * @param projectPath - absolute project root; may be a Windows path or a UNC root (`\\server\share`)
+ * @param sub - POSIX-shaped sub-path to append, e.g. `.goat-flow/logs/quality`
+ * @returns forward-slash path safe to embed in a generated Bash snippet, with the UNC root preserved
  */
 export function toShellProjectPath(projectPath: string, sub: string): string {
   const normalized = projectPath.replace(/\\/g, "/");
@@ -39,6 +53,10 @@ export interface QualityInput {
   sharedFacts?: SharedFacts | null;
 }
 
+/**
+ * Why an audit summary could not be embedded in a quality prompt: the audit run
+ * itself failed, or fast cache-only mode found no cached report to reuse.
+ */
 export type AuditUnavailableReason = "audit-failed" | "fast-cache-only";
 
 /** Structured quality command payload returned to CLI and dashboard callers. */
@@ -50,7 +68,12 @@ export interface QualityPayload {
   prompt: string;
 }
 
-/** Format one date using the local calendar day in YYYY-MM-DD form. */
+/**
+ * Format one date as YYYY-MM-DD using the local calendar day, not UTC.
+ *
+ * @param date - day to format; defaults to the current local time
+ * @returns the date as a zero-padded YYYY-MM-DD string
+ */
 export function formatLocalDate(date: Date = new Date()): string {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -58,17 +81,33 @@ export function formatLocalDate(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Render one JSON-safe string literal for the embedded example block. */
+/**
+ * Render one JSON-safe string literal for the embedded example block.
+ *
+ * @param value - raw string to embed in the prompt's JSON example
+ * @returns the value as a quoted, escaped JSON string literal
+ */
 export function jsonString(value: string): string {
   return JSON.stringify(value);
 }
 
-/** Render a Bash single-quoted literal so generated snippets do not expand `$` or backticks. */
+/**
+ * Render a Bash single-quoted literal so generated snippets do not expand `$` or backticks.
+ *
+ * @param value - raw string to quote for a generated shell snippet
+ * @returns a single-quoted Bash literal with embedded quotes escaped as `'\''`
+ */
 export function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
-/** Infer the report scope from package metadata; recover as consumer when metadata is unreadable. */
+/**
+ * Infer the report scope from package metadata; recover as consumer when metadata is unreadable.
+ *
+ * @param projectPath - project root whose `package.json` name field is inspected
+ * @returns `framework-self` when the package is `@blundergoat/goat-flow`, otherwise `consumer`
+ *   (also `consumer` when `package.json` is missing or unparseable)
+ */
 export function inferQualityScope(
   projectPath: string,
 ): "framework-self" | "consumer" {
@@ -86,7 +125,12 @@ export function inferQualityScope(
   }
 }
 
-/** Render the audit summary block because reviewers need setup failures before qualitative judgment. */
+/**
+ * Render the audit summary block because reviewers need setup failures before qualitative judgment.
+ *
+ * @param report - completed audit report whose scope results and concern scores are summarised
+ * @returns a Markdown block listing setup/agent pass-fail plus harness-completeness percentages
+ */
 export function renderAuditSummary(report: AuditReport): string {
   const lines: string[] = [];
   const scopes: [string, string][] = [
@@ -132,7 +176,12 @@ export function renderAuditSummary(report: AuditReport): string {
   return lines.join("\n");
 }
 
-/** Render the summary text returned when no audit report is embedded. */
+/**
+ * Render the summary text returned when no audit report is embedded.
+ *
+ * @param reason - why audit data is absent (failed run vs fast cache miss)
+ * @returns a one-line summary phrased for that reason
+ */
 export function renderAuditUnavailableSummary(
   reason: AuditUnavailableReason,
 ): string {
@@ -142,7 +191,12 @@ export function renderAuditUnavailableSummary(
   return "Audit data unavailable (audit could not complete).";
 }
 
-/** Render the heading used when no audit report is embedded. */
+/**
+ * Render the heading used when no audit report is embedded.
+ *
+ * @param reason - why audit data is absent (failed run vs fast cache miss)
+ * @returns a bold Markdown heading marking the audit as not-loaded or unavailable
+ */
 export function renderAuditUnavailableHeading(
   reason: AuditUnavailableReason,
 ): string {
@@ -152,7 +206,12 @@ export function renderAuditUnavailableHeading(
   return "**Audit: UNAVAILABLE**";
 }
 
-/** Render the fallback note used when audit data is unavailable. */
+/**
+ * Render the fallback note used when audit data is unavailable.
+ *
+ * @param reason - why audit data is absent (failed run vs fast cache miss)
+ * @returns a blockquote telling the reviewer not to infer setup failure from the gap
+ */
 export function renderDegradedNote(reason: AuditUnavailableReason): string {
   if (reason === "fast-cache-only") {
     return [
@@ -179,7 +238,12 @@ function findingSeverityRank(severity: "BLOCKER" | "MAJOR" | "MINOR"): number {
   return 2;
 }
 
-/** Return the operator-facing label for a quality prompt mode. */
+/**
+ * Return the operator-facing label for a quality prompt mode.
+ *
+ * @param mode - quality prompt mode being rendered
+ * @returns the human-readable label shown to operators (e.g. `Harness Engineering`)
+ */
 export function qualityModeLabel(mode: QualityMode): string {
   if (mode === "process") return "Process";
   if (mode === "harness") return "Harness Engineering";
@@ -187,7 +251,12 @@ export function qualityModeLabel(mode: QualityMode): string {
   return "Agent Installation";
 }
 
-/** Describe which workspace or target the selected quality mode should assess. */
+/**
+ * Describe which workspace or target the selected quality mode should assess.
+ *
+ * @param mode - quality prompt mode being rendered
+ * @returns a sentence naming the workspace or target the mode's assessment covers
+ */
 export function qualityModeTargetScope(mode: QualityMode): string {
   if (mode === "process") {
     return "controlling goat-flow workspace, plus selected target only when it is a goat-flow installation";
@@ -243,7 +312,12 @@ function renderPriorFindingSummary(summary: string): string {
   );
 }
 
-/** Escape Markdown table cell content emitted from scorer details. */
+/**
+ * Escape Markdown table cell content emitted from scorer details.
+ *
+ * @param value - raw cell text that may contain pipes or newlines
+ * @returns single-line cell text with `|` escaped and line breaks flattened to spaces
+ */
 export function markdownTableCell(value: string): string {
   return value.replaceAll("|", "\\|").replace(/\r?\n/g, " ");
 }

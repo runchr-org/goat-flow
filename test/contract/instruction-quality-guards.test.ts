@@ -41,6 +41,30 @@ function h2Sections(content: string): string[] {
   });
 }
 
+/** Apply a repeated contract assertion while keeping each target name visible. */
+function assertEvery<T>(
+  items: readonly T[],
+  assertion: (item: T) => void,
+): void {
+  for (const item of items) {
+    assertion(item);
+  }
+}
+
+/** Assert each instruction line avoids encyclopedia-style content patterns. */
+function assertNoEncyclopediaContent(
+  content: string,
+  instructionFile: string,
+  regex: RegExp,
+): void {
+  for (const line of content.split("\n")) {
+    assert.ok(
+      !regex.test(line),
+      `${instructionFile} contains encyclopedia content: ${line.trim().slice(0, 80)}`,
+    );
+  }
+}
+
 describe("instruction file line-count guard", () => {
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
   const lineTarget = manifest.instruction_file.line_target;
@@ -87,18 +111,18 @@ describe("instruction file line-count guard", () => {
 
 describe("setup agent guide structure", () => {
   it("all setup agent guides follow the canonical policy-first order", () => {
-    for (const guide of SETUP_AGENT_GUIDES) {
+    assertEvery(SETUP_AGENT_GUIDES, (guide) => {
       const content = readFileSync(resolve(PROJECT_ROOT, guide), "utf-8");
       assert.deepEqual(h2Sections(content), CANONICAL_SETUP_SECTIONS, guide);
-    }
+    });
   });
 
   it("all setup agent guides point at the shared instruction skeleton", () => {
-    for (const guide of SETUP_AGENT_GUIDES) {
+    assertEvery(SETUP_AGENT_GUIDES, (guide) => {
       const content = readFileSync(resolve(PROJECT_ROOT, guide), "utf-8");
       assert.match(content, /workflow\/setup\/reference\/execution-loop\.md/);
       assert.match(content, /workflow\/setup\/02-instruction-file\.md/);
-    }
+    });
   });
 
   it("the shared skeleton names every required hot-path section", () => {
@@ -106,9 +130,9 @@ describe("setup agent guide structure", () => {
       resolve(PROJECT_ROOT, "workflow/setup/reference/execution-loop.md"),
       "utf-8",
     );
-    for (const section of CANONICAL_SETUP_SECTIONS) {
+    assertEvery(CANONICAL_SETUP_SECTIONS, (section) => {
       assert.match(content, new RegExp(`\\b${section}\\b`), section);
-    }
+    });
   });
 
   it("setup references stay generic and avoid controlling-workspace router rows", () => {
@@ -119,13 +143,13 @@ describe("setup agent guide structure", () => {
     ];
     const repoOnly =
       /src\/cli|src\/dashboard|This repo is the goat-flow controlling workspace/;
-    for (const file of checkedFiles) {
+    assertEvery(checkedFiles, (file) => {
       const content = readFileSync(resolve(PROJECT_ROOT, file), "utf-8");
       assert.ok(
         !repoOnly.test(content),
         `${file} contains goat-flow-only rows`,
       );
-    }
+    });
   });
 
   it("Copilot setup preserves standalone hot-path guidance", () => {
@@ -171,20 +195,18 @@ describe("encyclopedia guard", () => {
 
   it("live instruction files have no encyclopedia hits", () => {
     const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
-    for (const agent of Object.values(manifest.agents) as Array<{
-      instruction_file: string;
-    }>) {
-      const content = readFileSync(
-        resolve(PROJECT_ROOT, agent.instruction_file),
-        "utf-8",
-      );
-      for (const line of content.split("\n")) {
-        assert.ok(
-          !regex.test(line),
-          `${agent.instruction_file} contains encyclopedia content: ${line.trim().slice(0, 80)}`,
+    assertEvery(
+      Object.values(manifest.agents) as Array<{
+        instruction_file: string;
+      }>,
+      (agent) => {
+        const content = readFileSync(
+          resolve(PROJECT_ROOT, agent.instruction_file),
+          "utf-8",
         );
-      }
-    }
+        assertNoEncyclopediaContent(content, agent.instruction_file, regex);
+      },
+    );
   });
 });
 
@@ -239,9 +261,9 @@ describe("Router Table path parity", () => {
     ].join("\n");
     const paths = extractRouterPaths(fixture);
     const expectedPaths = [".goat-flow/architecture.md", "src/cli"];
-    for (const path of expectedPaths) {
+    assertEvery(expectedPaths, (path) => {
       assert.ok(paths.has(path));
-    }
+    });
     assert.equal(paths.size, expectedPaths.length);
   });
 

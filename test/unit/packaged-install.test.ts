@@ -132,7 +132,7 @@ describe("validateManifest: packaged vs dev mode", () => {
     withPackagedMode(() => {
       // Packaged mode: src/ isn't shipped, so observed views/presets are empty.
       // The manifest's declared values were validated at publish time; trust them.
-      assert.doesNotThrow(() => validateManifest(json, observed));
+      assert.equal(validateManifest(json, observed), undefined);
     });
   });
 

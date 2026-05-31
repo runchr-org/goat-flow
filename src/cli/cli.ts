@@ -109,7 +109,12 @@ function printVersion(): void {
   console.log(`goat-flow v${PACKAGE_VERSION}`);
 }
 
-/** Entry point that dispatches to the appropriate command handler */
+/**
+ * Entry point that dispatches to the appropriate command handler.
+ * Installs an EPIPE guard that exits 0 when stdout is closed early (e.g. piped to `head`); any
+ * other stdout error is rethrown. Parse and dispatch errors are not handled here - they throw and
+ * are caught by the top-level runner below, which maps CLIError to its exit code.
+ */
 async function main(): Promise<void> {
   // Gracefully handle EPIPE (e.g., output piped to `head`)
   process.stdout.on("error", (err: NodeJS.ErrnoException) => {
@@ -122,11 +127,11 @@ async function main(): Promise<void> {
   // Empty argv opens the menu; path-only argv still uses the audit shorthand.
   const options = parseCLIArgs(rawArgs);
 
-  if (options.help) {
+  if (options.showHelp) {
     printHelp();
     return;
   }
-  if (options.version) {
+  if (options.showVersion) {
     printVersion();
     return;
   }
@@ -134,8 +139,13 @@ async function main(): Promise<void> {
   await dispatchCommand(options);
 }
 
-/** True when this module is the CLI entry point, including when launched
- *  through a symlink like `node_modules/.bin/goat-flow`. */
+/**
+ * True when this module is the CLI entry point, including when launched through a symlink like
+ * `node_modules/.bin/goat-flow`. Resolves both the invoked path and this module's URL through
+ * realpath so the symlink and its target compare equal. A resolution error (missing or
+ * unreadable path) is swallowed and treated as a fallback `false`, so importing this module as a
+ * library never accidentally triggers the CLI runner.
+ */
 function isMainModule(): boolean {
   const entry = process.argv[1];
   if (!entry) return false;

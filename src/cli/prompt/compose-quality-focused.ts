@@ -1,3 +1,12 @@
+/**
+ * Composer for the focused quality modes - process, harness, and skills, i.e.
+ * every quality mode except agent-setup.
+ *
+ * Builds the mode-specific reporting-only prompt: the grounding commands to run
+ * (or mark skipped), the target scope for the mode, prior-report and bounded
+ * learning-loop context, and the focused JSON-report contract. Pure string
+ * assembly over the passed QualityInput and the resolved agent profile.
+ */
 import type { AgentId } from "../types.js";
 import { getAgentProfile } from "../agents/registry.js";
 import type { QualityMode } from "../quality/schema.js";

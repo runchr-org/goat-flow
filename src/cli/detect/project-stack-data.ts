@@ -1,3 +1,13 @@
+/**
+ * Loads and schema-validates the shipped detector tables in
+ * workflow/project-stack-data.json, then re-exports each table as a typed
+ * constant for the project-stack detector and setup signals.
+ *
+ * Loaded eagerly at module import: a malformed shipped table throws during
+ * startup rather than producing silently wrong detection. The exported
+ * PROJECT_STACK_* constants are the only supported way to read these rows;
+ * consumers must not re-parse the JSON.
+ */
 import { readFileSync } from "node:fs";
 import { getTemplatePath } from "../paths.js";
 
@@ -242,26 +252,34 @@ function loadProjectStackData(): ProjectStackData {
 const PROJECT_STACK_DATA = loadProjectStackData();
 
 /** Node.js framework indicators matched against package dependencies. */
-export const NODE_FRAMEWORKS = PROJECT_STACK_DATA.nodeFrameworks;
+export const PROJECT_STACK_NODE_FRAMEWORKS = PROJECT_STACK_DATA.nodeFrameworks;
 /** Additional language/template indicators beyond primary manifest detection. */
-export const EXTRA_LANGUAGE_SIGNALS = PROJECT_STACK_DATA.extraLanguageSignals;
+export const PROJECT_STACK_EXTRA_LANGUAGE_SIGNALS =
+  PROJECT_STACK_DATA.extraLanguageSignals;
 /** Code generation tool indicators detected from config files. */
-export const CODE_GEN_SIGNALS = PROJECT_STACK_DATA.codeGenSignals;
+export const PROJECT_STACK_CODE_GENERATION_SIGNALS =
+  PROJECT_STACK_DATA.codeGenSignals;
 /** Deployment platform indicators detected from config files. */
-export const DEPLOY_SIGNALS = PROJECT_STACK_DATA.deploySignals;
+export const PROJECT_STACK_DEPLOYMENT_SIGNALS =
+  PROJECT_STACK_DATA.deploySignals;
 /** Extra framework markers used only for setup-view framework display names. */
-export const SETUP_FRAMEWORK_MARKERS = PROJECT_STACK_DATA.setupFrameworkMarkers;
+export const PROJECT_STACK_SETUP_FRAMEWORK_MARKERS =
+  PROJECT_STACK_DATA.setupFrameworkMarkers;
 /** Root-level files that indicate a Python project. */
-export const ROOT_PYTHON_FILES = PROJECT_STACK_DATA.rootPythonFiles;
+export const PROJECT_STACK_ROOT_PYTHON_FILES =
+  PROJECT_STACK_DATA.rootPythonFiles;
 /** Glob patterns for detecting Python projects in subdirectories. */
-export const SUBDIR_PYTHON_GLOBS = PROJECT_STACK_DATA.subdirPythonGlobs;
+export const PROJECT_STACK_SUBDIRECTORY_PYTHON_GLOBS =
+  PROJECT_STACK_DATA.subdirPythonGlobs;
 /** Build manifest paths read to detect Java framework dependencies. */
-export const JAVA_MANIFEST_PATHS = PROJECT_STACK_DATA.javaManifestPaths;
+export const PROJECT_STACK_JAVA_MANIFEST_PATHS =
+  PROJECT_STACK_DATA.javaManifestPaths;
 /** Environment files checked for LLM provider API key variables. */
-export const LLM_ENV_FILES = PROJECT_STACK_DATA.llmEnvFiles;
+export const PROJECT_STACK_LLM_ENV_FILES = PROJECT_STACK_DATA.llmEnvFiles;
 /** Dependency files checked for LLM SDK references. */
-export const LLM_DEP_FILES = PROJECT_STACK_DATA.llmDepFiles;
+export const PROJECT_STACK_LLM_DEPENDENCY_FILES =
+  PROJECT_STACK_DATA.llmDepFiles;
 /** Files checked for compliance-related keywords (HIPAA, GDPR, etc.). */
-export const COMPLIANCE_DOCS = PROJECT_STACK_DATA.complianceDocs;
+export const PROJECT_STACK_COMPLIANCE_DOCS = PROJECT_STACK_DATA.complianceDocs;
 /** Maps languages to their known formatter tool names for gap detection. */
-export const FORMATTER_MAP = PROJECT_STACK_DATA.formatterMap;
+export const PROJECT_STACK_FORMATTER_MAP = PROJECT_STACK_DATA.formatterMap;

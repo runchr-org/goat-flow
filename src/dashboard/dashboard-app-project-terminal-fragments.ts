@@ -1,3 +1,20 @@
+/**
+ * Project, terminal, and skill-evaluator action fragments for the dashboard Alpine app.
+ * dashboardMergeAppFragments stitches these into one app object. These fragments own the standalone
+ * skill evaluator (drop/upload/paste markdown, then POST for a quality verdict), project-list
+ * management methods, clipboard + toast utilities, the full terminal-session method surface, and the
+ * small time-formatting helpers. As elsewhere, most methods are thin `this`-bound shims over shared
+ * `dashboard*` helpers; the few with logic inline (clipboard fallback, scrollback export, time
+ * formatting) are self-contained and noted on their own doc comments.
+ */
+
+/**
+ * Build the skill-evaluator and project-list fragment: drop/remove/run methods for the ad-hoc
+ * markdown evaluator plus the saved-project add/sort/audit methods. Most methods delegate to shared
+ * helpers, but runSkillEvaluator owns its fetch inline because it has a one-off request/response
+ * shape, and it catches a failure into the evaluator's error field and reports it in-view rather
+ * than throwing, so a bad evaluate request never breaks the app. Merged by dashboardMergeAppFragments.
+ */
 function dashboardAppFragment13(): DashboardAppFragment {
   return {
     /** drop handler - read every dropped .md file and append to the list. */
@@ -16,6 +33,13 @@ function dashboardAppFragment13(): DashboardAppFragment {
       );
     },
 
+    /**
+     * POST the dropped/pasted markdown to the quality evaluate endpoint and store the verdict.
+     * Returns early (no request) when neither files nor content are present, setting a prompt.
+     * On a fetch/parse failure it does not propagate the error; instead it recovers by writing the
+     * message into skillEvaluatorError and reports it in-view, so a bad request never breaks the
+     * app. Loading state is always cleared in finally.
+     */
     async runSkillEvaluator() {
       this.skillEvaluatorError = null;
       this.skillEvaluatorResult = null;
@@ -120,26 +144,34 @@ function dashboardAppFragment13(): DashboardAppFragment {
     },
 
     // -- Clipboard + Toast --
+    /**
+     * Copy text to the clipboard, preferring the async Clipboard API. When that throws (the API is
+     * undefined in insecure contexts, or the promise rejects) it recovers via a hidden-textarea
+     * `execCommand("copy")` fallback instead of surfacing the error. Returns whether the copy
+     * succeeded by either path; false means both the modern API and the legacy fallback failed.
+     */
     async copyTextToClipboard(text: string): Promise<boolean> {
       try {
         await navigator.clipboard.writeText(text);
         return true;
-      } catch {
+      } catch (err) {
         // Falls through to legacy textarea+execCommand on TypeError (clipboard
         // API undefined in insecure contexts) or any Promise reject reason.
+        void err;
       }
-      const el = document.createElement("textarea");
-      el.value = text;
-      el.style.position = "fixed";
-      el.style.opacity = "0";
-      document.body.appendChild(el);
-      el.select();
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
       // eslint-disable-next-line @typescript-eslint/no-deprecated -- intentional fallback for insecure contexts without Clipboard API
       const ok = document.execCommand("copy");
-      document.body.removeChild(el);
+      document.body.removeChild(textarea);
       return ok;
     },
 
+    /** Copy text and flash the "Copied!" button label, reverting to "Copy" after 2s. Fire-and-forget: the copy result is ignored. */
     copyText(text: string) {
       void this.copyTextToClipboard(text);
       this.copyLabel = "Copied!";
@@ -164,6 +196,14 @@ function dashboardAppFragment13(): DashboardAppFragment {
   };
 }
 
+/**
+ * Build the terminal-session method fragment: the full surface for launching, attaching,
+ * reconnecting, switching, exporting, and ending browser/backend terminal sessions. Almost every
+ * method intentionally delegates to a shared `dashboard*` terminal helper, because the WebSocket and
+ * xterm mechanics are shared with the non-fragmented code paths and must stay in one place; the
+ * fragment is just the named Alpine entry points. exportSession is the deliberate exception and
+ * builds the scrollback download inline. Merged into the app by dashboardMergeAppFragments.
+ */
 function dashboardAppFragment14(): DashboardAppFragment {
   return {
     /** Refresh terminal session state from the server. */
@@ -264,6 +304,12 @@ function dashboardAppFragment14(): DashboardAppFragment {
       dashboardEndSession(this, sessionId);
     },
 
+    /**
+     * Download one terminal tab's scrollback as a .txt file built from its xterm buffer. Dumps the
+     * normal buffer and, when a TUI has switched to the alternate screen, appends that view under a
+     * divider so the export captures what the user currently sees. Returns early (no download) when
+     * the session has no live xterm instance; trailing blank lines are trimmed from the normal buffer.
+     */
     exportSession(sessionId: string) {
       const refs = this._terminalRefs[sessionId];
       if (!refs?.xterm) return;
@@ -300,10 +346,10 @@ function dashboardAppFragment14(): DashboardAppFragment {
       const shortId = sessionId.slice(0, 8);
       const blob = new Blob([text], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${runner}-${shortId}.txt`;
-      a.click();
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = `${runner}-${shortId}.txt`;
+      downloadLink.click();
       URL.revokeObjectURL(url);
     },
 
@@ -332,9 +378,18 @@ function dashboardAppFragment14(): DashboardAppFragment {
   };
 }
 
+/**
+ * Build the time-formatting helper fragment: pure relative-time formatters the templates bind to.
+ * No state or I/O - they turn a date into a short "Xm/h/d ago" label. The two differ only in their
+ * null/zero handling, called out on each method. Merged into the app by dashboardMergeAppFragments.
+ */
 function dashboardAppFragment15(): DashboardAppFragment {
   return {
     // -- Helpers --
+    /**
+     * Format a past date as a coarse "just now / Xm / Xh / Xd ago" label for activity timestamps.
+     * A null date returns "" (render nothing); negative/future deltas are not specially handled.
+     */
     formatTimeAgo(date: string | Date | null): string {
       if (!date) return "";
       const seconds = Math.floor(
@@ -348,6 +403,12 @@ function dashboardAppFragment15(): DashboardAppFragment {
       return `${Math.floor(hours / 24)}d ago`;
     },
 
+    /**
+     * Format an audit's age like formatTimeAgo, but tuned for "freshness" copy. A null date reads
+     * "just now" (treat a never-stamped audit as current, not blank), the elapsed time is clamped at
+     * zero so clock skew never shows a negative age, and hours are shown up to 72h before switching
+     * to days so a recent multi-day audit still reads in hours.
+     */
     formatAuditAge(date: string | Date | null): string {
       if (!date) return "just now";
       const seconds = Math.max(

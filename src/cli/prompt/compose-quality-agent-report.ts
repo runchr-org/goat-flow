@@ -1,3 +1,11 @@
+/**
+ * Composer for the shared "write the JSON report" contract block.
+ *
+ * `appendAgentReportContract` appends the filename convention, the bash snippet
+ * that builds the gitignored output path, the JSON body shape, the per-field
+ * rules, and the validate-before-confirming step to an agent-setup quality prompt,
+ * so every agent report writes to the same contract.
+ */
 import type { AgentId } from "../types.js";
 import type { QualityHistoryEntry } from "../quality/history.js";
 import { QUALITY_REPORT_KIND, type QualityMode } from "../quality/schema.js";

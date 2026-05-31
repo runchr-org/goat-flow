@@ -13,8 +13,7 @@ import { withStubbedDate } from "../../helpers/global-fixtures.js";
 import { composeQuality } from "../../../src/cli/prompt/compose-quality.js";
 import { runAudit } from "../../../src/cli/audit/audit.js";
 import { createFS } from "../../../src/cli/facts/fs.js";
-import type { QualityHistoryEntry } from "../../../src/cli/quality/history.js";
-import { parseQualityReport } from "../../../src/cli/quality/schema.js";
+import { parseQualityReport } from "../../../src/cli/quality/schema-parser.js";
 import type { LearningLoopEntryFact } from "../../../src/cli/types.js";
 import { makeSharedFacts } from "../../fixtures/projects/index.js";
 
@@ -33,7 +32,12 @@ after(() => {
   }
 });
 
-/** Writes an isolated project root with the quality command log directory. */
+/**
+ * Writes an isolated project root with the quality command log directory.
+ *
+ * @returns the absolute path of a fresh temp project root, pre-seeded with a .goat-flow directory and registered
+ *   for automatic cleanup after the test run
+ */
 export function makeTempProject(): string {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-quality-command-"));
   mkdirSync(join(root, ".goat-flow"), { recursive: true });
@@ -61,7 +65,13 @@ export function runCLI(
   };
 }
 
-/** Extract the first ```json fenced block from a prompt string; throws when the fixture lacks one. */
+/**
+ * Extract the first ```json fenced block from a prompt string; throws when the fixture lacks one.
+ *
+ * @param prompt - the composed quality prompt expected to embed a fenced JSON verdict/example block
+ * @returns the JSON text inside the first fenced block; throws when no such block is present, so a missing
+ *   example fails the test loudly rather than returning an empty string
+ */
 export function extractExampleJson(prompt: string): string {
   const match = prompt.match(/```json\n([\s\S]*?)\n```/);
   if (!match) throw new Error("no ```json fenced block found in prompt");

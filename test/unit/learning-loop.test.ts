@@ -6,12 +6,20 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  parseFrontmatterFields,
-  computeFreshness,
+  computeFreshness as computeFreshnessFromLearningLoop,
   extractFootgunFacts,
   extractLessonsFacts,
-  extractLearningLoopEntries,
+  parseFrontmatterFields as parseFrontmatterFieldsFromLearningLoop,
 } from "../../src/cli/facts/shared/learning-loop.js";
+import {
+  computeFreshness,
+  parseFrontmatterFields,
+} from "../../src/cli/facts/shared/learning-loop-common.js";
+import { extractLearningLoopEntries } from "../../src/cli/facts/shared/learning-loop-entries.js";
+import {
+  collectFootgunStructureDiagnostics,
+  splitFootgunSections,
+} from "../../src/cli/facts/shared/learning-loop-sections.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 import type {
   LoadedConfig,
@@ -74,6 +82,13 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
 }
 
 describe("parseFrontmatterFields", () => {
+  it("keeps the learning-loop facade parser export aligned with the implementation", () => {
+    assert.equal(
+      parseFrontmatterFieldsFromLearningLoop,
+      parseFrontmatterFields,
+    );
+  });
+
   it("returns an empty object for an empty block", () => {
     assert.deepEqual(parseFrontmatterFields(""), {});
   });
@@ -107,8 +122,37 @@ describe("parseFrontmatterFields", () => {
   });
 });
 
+describe("splitFootgunSections", () => {
+  it("extracts footgun sections and reports invalid evidence shape", () => {
+    const body = [
+      "## Footgun: missing evidence",
+      "",
+      "**Status:** active",
+      "",
+      "Body with no measured evidence marker.",
+    ].join("\n");
+
+    const sections = splitFootgunSections(body);
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0]?.title, "missing evidence");
+    assert.deepEqual(
+      collectFootgunStructureDiagnostics(
+        ".goat-flow/footguns/example.md",
+        body,
+      ),
+      [
+        '.goat-flow/footguns/example.md active footgun "missing evidence" missing file:line or (search: ...) evidence',
+      ],
+    );
+  });
+});
+
 describe("computeFreshness", () => {
   const today = new Date("2026-04-18T12:00:00Z");
+
+  it("keeps the learning-loop facade freshness export aligned with the implementation", () => {
+    assert.equal(computeFreshnessFromLearningLoop, computeFreshness);
+  });
 
   it("returns unknown when last_reviewed is null", () => {
     assert.deepEqual(computeFreshness(null, today), {

@@ -1,3 +1,8 @@
+/**
+ * Harness signal honesty: doc-path extraction keeps repo paths while ignoring npm scopes and home paths, the
+ * doc-paths-resolve check rejects path-line references (even when the base file exists) and scans glossary paths
+ * safely, and the execution-loop and feedback-loop checks reject out-of-section step words and invalid line refs.
+ */
 import {
   HARNESS_CHECKS,
   assert,
@@ -7,7 +12,6 @@ import {
   it,
   join,
   makeCtx,
-  resolve,
   stubAgentFacts,
   stubFS,
 } from "./helpers.js";

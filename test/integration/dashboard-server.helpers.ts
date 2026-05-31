@@ -29,9 +29,8 @@ import {
   validateEvidenceEnvelope,
   type EvidenceEnvelope,
 } from "../../src/cli/evidence/envelope.js";
-import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-routes.js";
+import { normalizeAgentVersionOutput } from "../../src/cli/server/dashboard-route-types.js";
 import { TERMINAL_UPLOAD_MAX_BODY_BYTES } from "../../src/cli/server/terminal-uploads.js";
-import type { AgentId } from "../../src/cli/types.js";
 
 export const PROJECT_PATH = resolve(import.meta.dirname, "..", "..");
 export const DASHBOARD_STATE_PATH = resolve(
@@ -104,7 +103,13 @@ export function expectRecord(
   return value as Record<string, unknown>;
 }
 
-/** Assert that an endpoint response advertises JSON before decoding the body. */
+/**
+ * Assert that an endpoint response advertises JSON before decoding the body, so a non-JSON
+ * error page fails loudly here instead of throwing later inside `res.json()`.
+ *
+ * @param res - fetch Response whose content-type header is checked for `application/json`
+ * @param context - label woven into the assertion message to identify which endpoint failed
+ */
 export function assertJsonResponse(res: Response, context: string): void {
   assert.match(
     res.headers.get("content-type") ?? "",
@@ -113,14 +118,26 @@ export function assertJsonResponse(res: Response, context: string): void {
   );
 }
 
-/** Extract the dashboard auth token injected into the served HTML shell. */
+/**
+ * Extract the dashboard auth token injected into the served HTML shell so subsequent API calls
+ * can authenticate. Asserts the token is present rather than returning empty on a miss.
+ *
+ * @param html - the rendered dashboard index HTML containing the injected token assignment
+ * @returns the token string captured from the `__GOAT_FLOW_DASHBOARD_TOKEN__` assignment
+ */
 export function extractDashboardToken(html: string): string {
   const match = html.match(/__GOAT_FLOW_DASHBOARD_TOKEN__\s*=\s*"([^"]+)"/);
   assert.ok(match?.[1], "dashboard HTML should inject an auth token");
   return match[1];
 }
 
-/** Assert that a check provenance payload preserves the audit evidence contract. */
+/**
+ * Assert that a check provenance payload preserves the audit evidence contract: a valid source
+ * type, a source_urls array, a verified_on string, and an allowed normative level.
+ *
+ * @param value - the provenance object from one rendered audit check, of unknown runtime shape
+ * @param context - label woven into assertion messages to identify which check's provenance failed
+ */
 export function assertAuditCheckProvenance(
   value: unknown,
   context: string,
@@ -144,7 +161,13 @@ export function assertAuditCheckProvenance(
   );
 }
 
-/** Assert one rendered audit scope has valid status, checks, failures, and summary shape. */
+/**
+ * Assert one rendered audit scope has a pass/fail status, a checks array (each with valid
+ * provenance), a failures array, and a string-valued summary map.
+ *
+ * @param value - one scope object (setup/agent/harness) from the dashboard report, unknown shape
+ * @param context - label woven into assertion messages to identify which scope failed
+ */
 export function assertAuditScope(value: unknown, context: string): void {
   const scope = expectRecord(value, context);
   assert.match(
@@ -174,7 +197,14 @@ export function assertAuditScope(value: unknown, context: string): void {
   }
 }
 
-/** Assert the dashboard report payload contains the fields the browser app reads. */
+/**
+ * Assert the dashboard report payload contains every field the browser app reads - status,
+ * target, agentScores, the setup/agent (and optional harness) scopes, overall status, and the
+ * learningLoop and recentLessons sections - so a contract drift fails the test, not the UI.
+ *
+ * @param value - the parsed dashboard report response body, of unknown runtime shape
+ * @returns the same payload narrowed to a record, for callers that read further fields
+ */
 export function assertDashboardReport(value: unknown): Record<string, unknown> {
   const report = expectRecord(value, "Dashboard report");
   assert.match(
@@ -275,7 +305,12 @@ export async function readEventEnvelopes(
   return envelopes;
 }
 
-/** Validate one emitted evidence envelope against the production schema validator. */
+/**
+ * Validate one emitted evidence envelope against the production schema validator, asserting it
+ * produces zero validation errors so the dashboard emits only well-formed evidence.
+ *
+ * @param envelope - a single evidence envelope read back from the temp event log
+ */
 export function assertValidEmittedEnvelope(envelope: EvidenceEnvelope): void {
   assert.deepEqual(
     validateEvidenceEnvelope(envelope, (path) =>
@@ -295,7 +330,14 @@ export async function writeProjectFile(
   await writeFile(fullPath, content);
 }
 
-/** Spawns git inside a fixture project and returns stdout for setup helpers. */
+/**
+ * Spawn git synchronously inside a fixture project for setup helpers; spawns a git subprocess and
+ * inherits execFileSync's throw-on-nonzero-exit behavior, so a failed git command throws.
+ *
+ * @param root - working directory of the fixture project the git command runs in
+ * @param args - git argument vector (e.g. ["add", "."]) passed verbatim to execFileSync
+ * @returns the command's stdout decoded as utf-8
+ */
 export function runGit(root: string, args: string[]): string {
   return childProcess.execFileSync("git", args, {
     cwd: root,
@@ -303,7 +345,12 @@ export function runGit(root: string, args: string[]): string {
   });
 }
 
-/** Create a baseline git commit so cache identity tests can resolve repository metadata. */
+/**
+ * Initialise a repo and create a baseline commit so dashboard cache identity tests can resolve
+ * the repository metadata (HEAD/commit) the cache keys on. Uses throwaway test author identity.
+ *
+ * @param root - working directory of the fixture project to init and commit
+ */
 export function commitDashboardCacheProject(root: string): void {
   runGit(root, ["init"]);
   runGit(root, ["add", "."]);
@@ -377,7 +424,12 @@ export async function makeDashboardCacheProject(): Promise<{
   };
 }
 
-/** Return the compact AGENTS.md fixture text used by setup-prompt integration tests. */
+/**
+ * Build the compact AGENTS.md fixture text used by setup-prompt integration tests - one minimal
+ * instruction file carrying every required section heading the setup detector looks for.
+ *
+ * @returns the AGENTS.md fixture body as a single string
+ */
 export function dashboardSetupInstruction(): string {
   return `# AGENTS.md
 

@@ -20,9 +20,23 @@ function readSkill(path: string): string {
   return readFileSync(resolve(PROJECT_ROOT, path), "utf-8");
 }
 
+/** Apply one assertion contract to every goat-review mirror path. */
+function assertEverySkillPath(assertion: (path: string) => void): void {
+  for (const path of SKILL_PATHS) {
+    assertion(path);
+  }
+}
+
+/** Apply a mirror-only assertion while treating workflow/ as the source template. */
+function assertEveryInstalledMirror(assertion: (path: string) => void): void {
+  for (const path of SKILL_PATHS.slice(1)) {
+    assertion(path);
+  }
+}
+
 describe("goat-review PR base branch contract", () => {
   it("does not hardcode origin/main as the universal review base", () => {
-    for (const path of SKILL_PATHS) {
+    assertEverySkillPath((path) => {
       const body = readSkill(path);
       assert.doesNotMatch(
         body,
@@ -71,13 +85,13 @@ describe("goat-review PR base branch contract", () => {
         /last-resort fallback/,
         `${path} only permits main as last resort`,
       );
-    }
+    });
   });
 
   it("keeps installed goat-review mirrors byte-aligned with the workflow template", () => {
     const template = readSkill("workflow/skills/goat-review/SKILL.md");
-    for (const path of SKILL_PATHS.slice(1)) {
+    assertEveryInstalledMirror((path) => {
       assert.equal(readSkill(path), template, `${path} drifted from template`);
-    }
+    });
   });
 });

@@ -123,20 +123,24 @@ afterEach(() => {
   syncBuiltinESMExports();
 });
 
+/** Assert every build check passes against the supplied audit context. */
+function assertBuildChecksPass(ctx: ReturnType<typeof makeCtx>): void {
+  for (const check of BUILD_CHECKS) {
+    const result = check.run(ctx);
+    assert.equal(
+      result,
+      null,
+      `Check ${check.id} should pass but got: ${result?.message}`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Both scopes pass when project is well-configured
 // ---------------------------------------------------------------------------
 describe("audit build: all scopes pass on healthy project", () => {
   it("no failures when all checks pass", () => {
-    const ctx = makeCtx();
-    for (const check of BUILD_CHECKS) {
-      const result = check.run(ctx);
-      assert.equal(
-        result,
-        null,
-        `Check ${check.id} should pass but got: ${result?.message}`,
-      );
-    }
+    assertBuildChecksPass(makeCtx());
   });
 });
 

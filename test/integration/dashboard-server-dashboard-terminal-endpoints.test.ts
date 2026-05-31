@@ -1,63 +1,21 @@
+/**
+ * Dashboard terminal endpoints: POST /api/terminal/create rejects unknown runners without launching
+ * a fallback, list/sessions return their empty-state shapes when nothing is running, and
+ * /upload-image rejects unsafe session ids, unknown sessions (404), empty or too-many file arrays,
+ * malformed JSON, and oversized bodies (JSON 413).
+ */
 import {
-  after,
   assert,
-  assertAuditCheckProvenance,
-  assertAuditScope,
-  assertDashboardReport,
-  assertJsonResponse,
-  assertValidEmittedEnvelope,
-  AUDIT_VERSION,
-  baseUrl,
-  before,
-  childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
-  commitDashboardCacheProject,
-  createRequire,
-  DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
-  dashboardToken,
   describe,
-  dirname,
-  existsSync,
   expectRecord,
-  extractDashboardToken,
   fetchJson,
-  getAgentProfileMap,
-  getKnownAgentIds,
   it,
-  join,
-  LEGACY_PROJECTS_LIST_PATH,
-  makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
-  MISSING_PATH,
-  mkdir,
-  mkdtemp,
-  normalizeAgentVersionOutput,
-  originalDashboardState,
-  originalExecFileSync,
-  originalLegacyProjectsList,
-  performance,
   PROJECT_PATH,
-  readEventEnvelopes,
-  readFile,
-  readdir,
-  rename,
-  require,
-  resolve,
-  rm,
-  runGit,
-  server,
-  setEnv,
-  syncBuiltinESMExports,
   TERMINAL_UPLOAD_MAX_BODY_BYTES,
-  tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
-  writeProjectFile,
 } from "./dashboard-server.helpers.js";
-import type { AgentId } from "../../src/cli/types.js";
+
+const TERMINAL_MAX_SESSIONS = 10;
+
 describe("dashboard terminal endpoints", () => {
   it("POST /api/terminal/create rejects unknown runners without launching a fallback", async () => {
     const { res, body } = await fetchJson("/api/terminal/create", {
@@ -88,7 +46,7 @@ describe("dashboard terminal endpoints", () => {
     const data = expectRecord(body, "Terminal sessions response");
     assert.ok(Array.isArray(data.sessions));
     assert.deepEqual(data.sessions, []);
-    assert.equal(data.maxSessions, 10);
+    assert.equal(data.maxSessions, TERMINAL_MAX_SESSIONS);
     assert.equal(data.activeCount, 0);
   });
 

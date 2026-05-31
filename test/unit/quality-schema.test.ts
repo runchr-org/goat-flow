@@ -4,10 +4,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  QUALITY_REPORT_KIND,
   parseQualityReport,
   parseSavedQualityReport,
-} from "../../src/cli/quality/schema.js";
+} from "../../src/cli/quality/schema-parser.js";
+import { parseSavedQualityReport as parseSavedQualityReportFromSchema } from "../../src/cli/quality/schema.js";
+import { QUALITY_REPORT_KIND } from "../../src/cli/quality/schema-types.js";
 
 /** Build a complete raw report object before schema mutation tests alter it. */
 function makeRawReport() {
@@ -247,6 +248,10 @@ describe("parseQualityReport", () => {
 });
 
 describe("parseSavedQualityReport", () => {
+  it("keeps the quality schema facade parser export aligned with the implementation", () => {
+    assert.equal(parseSavedQualityReportFromSchema, parseSavedQualityReport);
+  });
+
   it("accepts persisted finding ids", () => {
     const report = makeRawReport();
     const parsed = parseSavedQualityReport({

@@ -1,14 +1,33 @@
+/**
+ * Resolves the set of agent IDs goat-flow supports and renders them for CLI help and error text.
+ * The manifest-backed list is the single source of truth; this module caches it once and offers
+ * pre-formatted help strings so the parser, handlers, and `--help` output never hardcode agent
+ * names. The list-building helpers swallow manifest-load failures into a "run manifest" hint so a
+ * broken manifest degrades help text instead of crashing argument parsing on every invocation.
+ */
+
 import type { AgentId } from "./types.js";
 import { getKnownAgentIds } from "./agents/registry.js";
 
 let cachedValidAgents: AgentId[] | null = null;
 
-/** Return the cached list of valid agent IDs. */
+/**
+ * Return the supported agent IDs, memoised after the first manifest read for the process lifetime.
+ *
+ * @returns the known agent IDs in manifest order; propagates (does not catch) a manifest-load
+ *   throw, so callers that need a guaranteed string use the list/flags helpers below instead
+ */
 export function validAgents(): AgentId[] {
   return (cachedValidAgents ??= getKnownAgentIds());
 }
 
-/** Return the valid agent IDs as help text, falling back when manifest loading throws. */
+/**
+ * Format the supported agent IDs as a comma-separated string for `--help` and invalid-agent errors.
+ * Catches a manifest-load failure and returns a safe fallback hint rather than letting it propagate.
+ *
+ * @returns the agents joined by ", "; on a manifest-load failure, the fallback string
+ *   "run `goat-flow manifest` for the current list" so the surrounding command never crashes
+ */
 export function validAgentList(): string {
   try {
     return validAgents().join(", ");
@@ -17,7 +36,12 @@ export function validAgentList(): string {
   }
 }
 
-/** Return the valid agent flag examples, falling back when manifest loading throws. */
+/**
+ * Format the supported agents as example `--agent <id>` flags for usage and error messages.
+ *
+ * @returns each agent rendered as "--agent <id>", comma-joined; on a manifest-load throw, returns
+ *   the generic "--agent <id> (run `goat-flow manifest` for valid ids)" fallback instead
+ */
 export function validAgentFlags(): string {
   try {
     return validAgents()

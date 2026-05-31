@@ -24,11 +24,11 @@ const SESSION_REFRESH_DEBOUNCE_MS = 50;
 const BRACKETED_PASTE_MARKER_PATTERN = /\x1b\[(?:200|201)~/g;
 const RUNNER_STARTUP_FAILURE_MESSAGE =
   "Runner failed before prompt delivery. Check the terminal output above.";
-// eslint-disable-next-line prefer-const -- Reassigned by dashboard-terminal-runtime.ts in the classic-script bundle.
+// eslint-disable-next-line prefer-const -- false positive because dashboard-terminal-runtime.ts reassigns xtermLoadPromise across the classic-script bundle, which this file cannot see.
 let xtermLoadPromise: Promise<void> | null = null;
-// eslint-disable-next-line prefer-const -- Reassigned by dashboard-terminal-runtime.ts in the classic-script bundle.
+// eslint-disable-next-line prefer-const -- false positive because dashboard-terminal-runtime.ts reassigns sessionRefreshPromise across the classic-script bundle, which this file cannot see.
 let sessionRefreshPromise: Promise<void> | null = null;
-// eslint-disable-next-line prefer-const -- Reassigned by dashboard-terminal-runtime.ts in the classic-script bundle.
+// eslint-disable-next-line prefer-const -- false positive because dashboard-terminal-runtime.ts reassigns sessionRefreshDebounceTimer across the classic-script bundle, which this file cannot see.
 let sessionRefreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Pending bracketed-paste payload waiting for the runner to commit or echo it. */
@@ -38,7 +38,10 @@ interface DashboardQueuedPaste {
 }
 
 /** Stable Alpine state schema and terminal methods consumed by browser-side helpers. */
-interface DashboardTerminalContext {
+interface DashboardTerminalContext extends Record<
+  "launching" | "_xtermLoaded" | "_detaching",
+  boolean
+> {
   projectPath: string;
   activeView: string;
   activeRunner: RunnerId;
@@ -56,15 +59,12 @@ interface DashboardTerminalContext {
   sessions: LocalSession[];
   activeSessionId: string | null;
   promptRunStates: Record<string, string>;
-  launching: boolean;
   availableRunners: RunnerId[];
   presets: Preset[];
   allPresets: Preset[];
   _projectSessions: Record<string, SavedSession[]>;
   _projectActiveSession: Record<string, string>;
   _terminalRefs: Record<string, TerminalRefs>;
-  _xtermLoaded: boolean;
-  _detaching: boolean;
   _activeSession: LocalSession | null;
   terminalAwaitingInput: boolean;
   terminalSessionId: string | null;
@@ -78,7 +78,10 @@ interface DashboardTerminalContext {
   /** Check whether a backend session has a browser terminal tab in this project. */
   isSessionBoundLocally(id: string): boolean;
   /** Send text to the active browser terminal connection. */
-  sendToTerminal(text: string, options?: { adapt?: boolean }): boolean;
+  sendToTerminal(
+    text: string,
+    sendOptions?: Partial<Record<"adapt", boolean>>,
+  ): boolean;
   /** Rehydrate a server-active terminal session into the browser UI. */
   openServerSession(serverSession: ServerSessionInfo): Promise<void>;
   launchInTerminal(

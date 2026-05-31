@@ -1,3 +1,14 @@
+/**
+ * Report assembly, enrichment, and audit-cache I/O behind the dashboard's `/api/audit` and quality routes.
+ *
+ * Projects raw audit results into the DashboardReport wire shape, layers in compact Home-only
+ * learning-loop context (cached in-memory by a content signature with a TTL), and reads/writes the
+ * persisted on-disk audit cache. Also builds the deterministic content signatures used to invalidate
+ * both caches: the signature must stay stable for identical inputs and change when any tracked file
+ * changes, or the dashboard serves stale audits. All filesystem reads here swallow missing/unreadable
+ * inputs into stable sentinels so a partial project still produces a report. Routes live in
+ * dashboard-audit-routes.ts and dashboard-quality-routes.ts; the wire types in types.ts.
+ */
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -45,7 +56,13 @@ interface RecentLessonSummary {
 }
 
 /**
- * Enable expensive profiling only when the request opts in and the server is trusted.
+ * Decide whether to collect per-span audit timings for one request. Profiling is gated on both an
+ * explicit opt-in and a trust signal so an untrusted caller cannot force the extra timing work.
+ *
+ * @param url - the request URL; profiling requires the `profile=true` query parameter
+ * @param devMode - true when the server runs in dev mode; otherwise the `GOAT_FLOW_AUDIT_PROFILE=1`
+ *   environment flag must be set to allow profiling on a packaged server
+ * @returns true only when the request opts in AND the server is trusted to expose timings
  */
 export function shouldProfileAuditRequest(url: URL, devMode: boolean): boolean {
   return (
@@ -97,7 +114,14 @@ export function appendAuditProfile<T extends object>(
   };
 }
 
-/** Build the latest quality summary. */
+/**
+ * Project one quality-history entry into the compact Home-card summary, deriving severity counts and
+ * the distinct evidence methods from its findings so the dashboard never loads the full report.
+ *
+ * @param entry - the latest matching history entry, or null when no history matches the filter
+ * @returns the display summary, or null when entry is null - null means "no quality run to show yet"
+ *   (an expected empty state, not an error)
+ */
 export function buildLatestQualitySummary(
   entry: QualityHistoryEntry | null,
 ): LatestQualitySummary | null {
@@ -294,6 +318,9 @@ function readRecentLessons(
 }
 
 const ENRICHMENT_TTL_MS = 60_000;
+// Cap the signature walk at 500 entries because the signature only needs to detect learning-loop
+// edits, not fingerprint the whole tree; an unbounded walk would let a large project stall every
+// cache-miss audit on directory I/O. Past the limit the walk records a `:truncated` marker and stops.
 const DIRECTORY_SIGNATURE_FILE_LIMIT = 500;
 const DIRECTORY_SIGNATURE_IGNORES = new Set([".git", "node_modules", "dist"]);
 const enrichmentCache = new Map<
@@ -450,7 +477,18 @@ export function buildAuditCacheSignature(
   );
 }
 
-/** Enrich a dashboard report with compact Home-only learning-loop context. */
+/**
+ * Attach compact Home-only learning-loop context (loop health plus recent lessons) to a dashboard
+ * report, served from a per-project in-memory cache keyed by a content signature with a 60s TTL so
+ * repeated Home loads avoid re-scanning `.goat-flow`. Returns a new report; the input is not mutated.
+ *
+ * @param report - the base dashboard report to extend; returned unchanged except for the two added fields
+ * @param projectPath - absolute project root whose `.goat-flow` learning-loop content is summarised
+ * @param fresh - when true, bypass the cache and recompute (used right after a fresh audit so the
+ *   first response reflects current content)
+ * @returns a copy of the report with `learningLoop` and `recentLessons` populated; `learningLoop` is
+ *   null when the loop directories are absent or unreadable
+ */
 export function enrichDashboardReport(
   report: DashboardReport,
   projectPath: string,
@@ -482,7 +520,18 @@ export function enrichDashboardReport(
   return { ...report, learningLoop, recentLessons };
 }
 
-/** Build the dashboard API payload from aggregate and per-agent audit results. */
+/**
+ * Assemble the `/api/audit` DashboardReport from one aggregate audit and the per-agent audits,
+ * deriving agent cards from per-agent results and overall scopes/status from the aggregate. Always
+ * runs learning-loop enrichment with fresh=true so a newly built report reflects current content.
+ *
+ * @param auditRpt - the aggregate (dashboard-wide) audit supplying scopes, overall status, and target
+ * @param perAgentAudits - one entry per managed agent, each id paired with that agent's audit report;
+ *   becomes the per-agent `agentScores` cards
+ * @param projectPath - absolute project root, used for the learning-loop enrichment pass
+ * @param profiler - optional per-request profiler; when present the enrichment pass is timed as a span
+ * @returns the fully populated dashboard report ready to serialise to the client
+ */
 export function buildDashboardReport(
   auditRpt: AuditReport,
   perAgentAudits: { id: string; audit: AuditReport }[],

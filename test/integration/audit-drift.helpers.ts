@@ -63,7 +63,14 @@ export interface CommandResult {
   output: string;
 }
 
-/** Writes canonical skill stubs into a template or installed mirror root. */
+/**
+ * Write canonical skill stubs (SKILL.md plus shared reference files) for one skill into a
+ * template or installed mirror under the fixture root, so drift comparison sees matching copies.
+ *
+ * @param root - the temp fixture root the files are written beneath
+ * @param baseDir - skills directory relative to root (e.g. "workflow/skills" or an installed dir)
+ * @param name - skill name; selects the SKILL.md stub and names its directory
+ */
 export function writeSkillFiles(
   root: string,
   baseDir: string,
@@ -79,7 +86,12 @@ export function writeSkillFiles(
   }
 }
 
-/** Writes a complete filesystem drift fixture with workflow templates and installed copies. */
+/**
+ * Build a complete filesystem drift fixture: workflow template references, playbooks, and skill
+ * sources, plus their installed mirrors under .goat-flow, so checkDrift sees a fully-parity tree.
+ *
+ * @returns the temp fixture root path; the caller is responsible for cleaning it up
+ */
 export function setupFixture(): string {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-drift-"));
   // Template: meta references stay under workflow/skills/reference/
@@ -239,7 +251,13 @@ export function setupFixture(): string {
   return root;
 }
 
-/** Writes deny-dangerous hook fixtures for drift checks that compare hook manifests. */
+/**
+ * Write deny-dangerous hook fixtures - workflow source hooks plus their installed copies across
+ * the .claude/.codex/.github hook dirs - so drift checks that compare hook manifests find parity.
+ * Writes files and creates directories on the filesystem under root.
+ *
+ * @param root - the temp fixture root the hook source and installed copies are written beneath
+ */
 export function writeHookFixtures(root: string): void {
   mkdirSync(join(root, "workflow", "hooks", "agent-config"), {
     recursive: true,
@@ -285,7 +303,14 @@ export function writeHookFixtures(root: string): void {
   );
 }
 
-/** Clone the repo into a temp fixture; writes a full install target while reusing node_modules for speed. */
+/**
+ * Clone this repo into a temp fixture and git-init it, so install-then-drift round trips run
+ * against a real tree. Writes the copied tree to the filesystem, skipping .git/node_modules/
+ * log-session dirs, and spawns git init; symlinks node_modules back to the source to avoid a slow
+ * copy. Asserts git init succeeds.
+ *
+ * @returns the cloned repo root inside the temp fixture; the caller cleans up its parent dir
+ */
 export function setupInstallRoundTripFixture(): string {
   const parent = mkdtempSync(join(tmpdir(), "goat-flow-install-roundtrip-"));
   const root = join(parent, "repo");
@@ -312,7 +337,14 @@ export function setupInstallRoundTripFixture(): string {
   return root;
 }
 
-/** Writes cloned fixture patches so install round-trip tests include a reference skill. */
+/**
+ * Patch the cloned fixture so install round-trip tests include a reference skill: register the
+ * fixture skill in manifest.json and constants.ts, stub package.json's test script with canned
+ * TAP, and copy the skill source in. Mutates files inside the fixture root.
+ *
+ * @param root - the cloned fixture repo root produced by setupInstallRoundTripFixture
+ * @returns the agent ids and deduped installed skill-root dirs read from the patched manifest
+ */
 export function patchInstallRoundTripFixture(root: string): {
   agentIds: string[];
   skillRoots: string[];

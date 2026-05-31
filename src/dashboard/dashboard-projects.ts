@@ -26,7 +26,7 @@ interface DashboardProjectsContext {
   /** Return the stable identity key used for saved project titles. */
   projectKeyFor(path: string): string;
   /** Refresh the active project audit, optionally bypassing the cached result. */
-  runAudit(fresh?: boolean): Promise<void>;
+  runAudit(includeFresh?: boolean): Promise<void>;
   /** Surface a dashboard toast message, with error styling when requested. */
   showToast(msg: string, isError?: boolean): void;
   /** Load browser rows for a filesystem path. */

@@ -17,17 +17,63 @@ import {
   SIDE_EFFECTFUL_EXACT_API_ROUTES,
 } from "../../src/cli/server/dashboard.js";
 
+type DashboardRoute = (typeof DASHBOARD_ROUTE_INVENTORY)[number];
+
+/**
+ * Return side-effectful exact-route keys missing from the CSRF enforcement set.
+ *
+ * @param inventory - dashboard route inventory entries to validate
+ * @returns route keys whose side-effect class is not enforced by exact match
+ */
+function missingSideEffectfulRouteKeys(
+  inventory: ReadonlyArray<DashboardRoute>,
+): string[] {
+  return inventory
+    .filter((entry) => entry.class === "side-effectful")
+    .filter((entry) => !entry.path.includes(":"))
+    .map((entry) => `${entry.method} ${entry.path}`)
+    .filter((key) => !SIDE_EFFECTFUL_EXACT_API_ROUTES.has(key));
+}
+
+/**
+ * Return exact-match CSRF keys that do not exist in the current route inventory.
+ *
+ * @param inventory - dashboard route inventory entries to validate against
+ * @returns exact route keys with no matching inventory entry
+ */
+function orphanedSideEffectfulRouteKeys(
+  inventory: ReadonlyArray<DashboardRoute>,
+): string[] {
+  const inventoryKeys = new Set(
+    inventory
+      .filter((entry) => !entry.path.includes(":"))
+      .map((entry) => `${entry.method} ${entry.path}`),
+  );
+  return [...SIDE_EFFECTFUL_EXACT_API_ROUTES].filter(
+    (key) => !inventoryKeys.has(key),
+  );
+}
+
+/**
+ * Assert every inventory entry uses an uppercase HTTP method.
+ *
+ * @param inventory - dashboard route inventory entries to validate
+ */
+function assertRouteMethodsAreUppercase(
+  inventory: ReadonlyArray<DashboardRoute>,
+): void {
+  inventory.forEach((entry) => {
+    assert.equal(
+      entry.method,
+      entry.method.toUpperCase(),
+      `${entry.method} ${entry.path} uses non-uppercase method`,
+    );
+  });
+}
+
 describe("dashboard route classification", () => {
   it("registers every side-effectful POST/DELETE in the exact-match set", () => {
-    const missing: string[] = [];
-    for (const entry of DASHBOARD_ROUTE_INVENTORY) {
-      if (entry.class !== "side-effectful") continue;
-      if (entry.path.includes(":")) continue; // param routes have regex matching
-      const key = `${entry.method} ${entry.path}`;
-      if (!SIDE_EFFECTFUL_EXACT_API_ROUTES.has(key)) {
-        missing.push(key);
-      }
-    }
+    const missing = missingSideEffectfulRouteKeys(DASHBOARD_ROUTE_INVENTORY);
     assert.deepEqual(
       missing,
       [],
@@ -36,15 +82,7 @@ describe("dashboard route classification", () => {
   });
 
   it("only lists keys whose route exists in the inventory", () => {
-    const inventoryKeys = new Set(
-      DASHBOARD_ROUTE_INVENTORY.filter((e) => !e.path.includes(":")).map(
-        (e) => `${e.method} ${e.path}`,
-      ),
-    );
-    const orphans: string[] = [];
-    for (const key of SIDE_EFFECTFUL_EXACT_API_ROUTES) {
-      if (!inventoryKeys.has(key)) orphans.push(key);
-    }
+    const orphans = orphanedSideEffectfulRouteKeys(DASHBOARD_ROUTE_INVENTORY);
     assert.deepEqual(
       orphans,
       [],
@@ -53,12 +91,6 @@ describe("dashboard route classification", () => {
   });
 
   it("uses upper-case HTTP methods in inventory entries", () => {
-    for (const entry of DASHBOARD_ROUTE_INVENTORY) {
-      assert.equal(
-        entry.method,
-        entry.method.toUpperCase(),
-        `${entry.method} ${entry.path} uses non-uppercase method`,
-      );
-    }
+    assertRouteMethodsAreUppercase(DASHBOARD_ROUTE_INVENTORY);
   });
 });

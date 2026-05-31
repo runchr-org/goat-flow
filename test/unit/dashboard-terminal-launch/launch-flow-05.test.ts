@@ -1,29 +1,21 @@
+/**
+ * Dashboard terminal launch flow, part 5: the awaiting-input badge persists across output volume and spinner
+ * frames (held by an OSC title alone) and clears only on user input or session exit, per-session; plus runner
+ * readiness detection for fresh launches - distinguishing a real composer from auth/config-failure output - that
+ * gates when launch prompts are sent.
+ */
 import {
   assert,
-  assertExists,
   createFakeTimers,
-  DASHBOARD_APP_PATH,
-  DASHBOARD_TERMINAL_PATH,
   delay,
   describe,
-  FakeDashboardWebSocket,
-  FakeFitAddon,
-  FakeResizeObserver,
-  FakeTerminal,
   it,
   loadHelpers,
   loadFixture,
   makeBrowserTerminalGlobals,
-  makeCapturingWebSocket,
   makeContext,
   makeLaunchPromptContext,
-  PROJECT_ROOT,
-  readFileSync,
-  readDashboardAppSource,
-  readDashboardTerminalSource,
-  resolve,
-  SETUP_VIEW_PATH,
-  WORKSPACE_VIEW_PATH,
+  makeTerminalSession,
 } from "./helpers.js";
 
 describe("dashboard terminal launch flow", () => {
@@ -125,25 +117,13 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-persist",
       runner: "claude" as const,
       promptLabel: "Persistence test",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
-      awaitingInput: false,
-      outputTail: "",
-      loadingPhase: "ready",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-persist",
       sessions: [session],
@@ -209,25 +189,13 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-userinput",
       runner: "claude" as const,
       promptLabel: "User-input test",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
-      awaitingInput: false,
-      outputTail: "",
-      loadingPhase: "ready",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-userinput",
       sessions: [session],
@@ -364,25 +332,13 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-exit",
       runner: "claude" as const,
       promptLabel: "Exit test",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
-      awaitingInput: false,
-      outputTail: "",
-      loadingPhase: "ready",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-exit",
       sessions: [session],
@@ -424,7 +380,7 @@ describe("dashboard terminal launch flow", () => {
     // Round-3 live trace (2026-05-21): after the round-2 fix Claude was stable
     // but Codex still flickered. Codex's idle-spinner glyph is `◦` (U+25E6
     // WHITE BULLET), painted via `CUP \x1b[28;1H\x1b[2m` dim. The round-2
-    // class `[●✻✢✳✶*•·]` did not include `◦`, so every spinner tick still
+    // character class `[●✻✢✳✶*•·]` did not include `◦`, so every spinner tick still
     // returned false from `dashboardNextAwaitingInputState` and the badge
     // flickered set→clear within ~100ms on a 2.4s cadence. Also exercised
     // braille spinners (U+2800–U+28FF) used by many other CLIs.
@@ -460,13 +416,17 @@ describe("dashboard terminal launch flow", () => {
     );
     // 8-tick simulation alternating Codex bullet-on / bullet-off must never
     // knock state down (the actual flicker reproducer).
-    let state = true;
+    let isAwaitingInput = true;
     let tail = prompt;
     for (let i = 0; i < 8; i += 1) {
       const chunk = i % 2 === 0 ? codexBullet : codexBulletOff;
-      state = helpers.dashboardNextAwaitingInputState(state, tail, chunk);
+      isAwaitingInput = helpers.dashboardNextAwaitingInputState(
+        isAwaitingInput,
+        tail,
+        chunk,
+      );
       tail = (tail + chunk).slice(-5000);
-      assert.equal(state, true, `codex tick ${i} cleared the state`);
+      assert.equal(isAwaitingInput, true, `codex tick ${i} cleared the state`);
     }
     // Real Codex status output starting with `◦` followed by text must still
     // clear so the badge drops when the user has answered.

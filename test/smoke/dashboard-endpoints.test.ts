@@ -4,7 +4,7 @@
  * dashboard exports plus terminal WebSocket boundary behavior that does not
  * require launching a real PTY.
  */
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -105,6 +105,19 @@ function managerInternals(
   manager: TerminalManager,
 ): TestTerminalManagerInternals {
   return manager as unknown as TestTerminalManagerInternals;
+}
+
+/**
+ * Enable mocked timers for TerminalManager launch-prompt timing tests.
+ *
+ * @returns the node:test timer controller, with Date and timer APIs mocked
+ */
+function enableTerminalMockTimers(): typeof mock.timers {
+  mock.timers.enable({
+    apis: ["Date", "setTimeout", "setInterval"],
+    now: 0,
+  });
+  return mock.timers;
 }
 
 /** Build a TerminalManager instance with explicit test-owned internals. */
@@ -320,6 +333,7 @@ describe("terminal exports", () => {
   });
 
   it("waits for runner output to settle before initial prompt delivery", async () => {
+    const timers = enableTerminalMockTimers();
     const manager = makeManager();
     const internals = managerInternals(manager);
     const spawned = makeSpawnedPty();
@@ -332,21 +346,23 @@ describe("terminal exports", () => {
     try {
       await manager.create("review this", PROJECT_ROOT, "claude");
       spawned.emitData("runner banner\n");
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+      timers.tick(100);
       spawned.emitData("runner prompt\n");
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 80));
+      timers.tick(80);
 
       assert.deepStrictEqual(spawned.writes, []);
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 120));
+      timers.tick(70);
       assert.deepStrictEqual(spawned.writes, [
         "\x1b[200~review this\x1b[201~\r",
       ]);
     } finally {
       manager.shutdown();
+      timers.reset();
     }
   });
 
   it("uses the fallback deadline when runner output keeps updating", async () => {
+    const timers = enableTerminalMockTimers();
     const manager = makeManager();
     const internals = managerInternals(manager);
     const spawned = makeSpawnedPty();
@@ -360,7 +376,9 @@ describe("terminal exports", () => {
     try {
       await manager.create("review this", PROJECT_ROOT, "claude");
       interval = setInterval(() => spawned.emitData("status redraw\n"), 100);
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5600));
+      timers.tick(4999);
+      assert.deepStrictEqual(spawned.writes, []);
+      timers.tick(1);
 
       assert.deepStrictEqual(spawned.writes, [
         "\x1b[200~review this\x1b[201~\r",
@@ -368,6 +386,7 @@ describe("terminal exports", () => {
     } finally {
       if (interval) clearInterval(interval);
       manager.shutdown();
+      timers.reset();
     }
   });
 

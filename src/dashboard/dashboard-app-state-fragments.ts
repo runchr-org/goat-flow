@@ -1,3 +1,20 @@
+/**
+ * Core state fragments for the dashboard Alpine app. dashboardMergeAppFragments stitches them into
+ * one app object via descriptor merge (so getters and method `this` survive). These fragments seed
+ * the injected audit report, selected project path, theme, per-session/terminal UI flags, and the
+ * state used by projects, tasks, hooks, quality, and the skill evaluator. Order matters: fields here
+ * must exist before later fragments' methods read them.
+ */
+
+/**
+ * Build the core-state fragment: audit report, project path, theme, and session/terminal UI flags.
+ * The returned object is one input to dashboardMergeAppFragments, not a standalone app; its fields
+ * are the reactive baseline later fragments' getters and methods assume already exist.
+ *
+ * @param supportedAgents - agents the server reports as launchable, used to seed runner UI options
+ * @param defaultRunner - runner pre-selected in the launcher until the user picks another
+ * @returns the fragment object of initial state fields merged into the Alpine app
+ */
 function dashboardAppFragment01(
   supportedAgents: SupportedAgent[],
   defaultRunner: RunnerId,
@@ -170,6 +187,16 @@ function dashboardAppFragment01(
   };
 }
 
+/**
+ * Build the active-session and session-list fragment: getters that derive the currently-focused
+ * terminal session from `sessions`/`activeSessionId` plus the grouped server-session lists the UI
+ * renders. These are intentional getters rather than methods, because they must recompute reactively
+ * from raw state and the merge step preserves them (a plain spread would flatten a getter to its value).
+ * The list getters hold a stable ordering contract the templates depend on: current-project
+ * sessions sort newest-first, and other-project sessions sort by project name then newest-first, so
+ * the rendered order is deterministic across re-renders rather than reflecting array insertion order.
+ * Merged into the app by dashboardMergeAppFragments.
+ */
 function dashboardAppFragment02(): DashboardAppFragment {
   return {
     /** Return the active local session. */

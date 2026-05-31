@@ -1,29 +1,22 @@
+/**
+ * Dashboard terminal launch flow, part 4: awaiting-input detection from captured PTY bytes - Claude Code footer
+ * and numbered-choice layouts, Action Required OSC titles, and workspace-trust / approval prompts for Claude
+ * Code, Codex, Copilot, and Gemini - while not false-firing on benign titles or running output, and holding the
+ * badge across spinner frames and unknown ANSI-heavy chunks.
+ */
 import {
   assert,
-  assertExists,
   createFakeTimers,
-  DASHBOARD_APP_PATH,
-  DASHBOARD_TERMINAL_PATH,
-  delay,
   describe,
-  FakeDashboardWebSocket,
-  FakeFitAddon,
-  FakeResizeObserver,
-  FakeTerminal,
   it,
   loadHelpers,
   loadFixture,
   makeBrowserTerminalGlobals,
-  makeCapturingWebSocket,
   makeContext,
-  makeLaunchPromptContext,
+  makeTerminalSession,
   PROJECT_ROOT,
   readFileSync,
-  readDashboardAppSource,
-  readDashboardTerminalSource,
   resolve,
-  SETUP_VIEW_PATH,
-  WORKSPACE_VIEW_PATH,
 } from "./helpers.js";
 
 describe("dashboard terminal launch flow", () => {
@@ -397,13 +390,21 @@ describe("dashboard terminal launch flow", () => {
     );
     // Alternating bullet frames simulating ~2 seconds of spinner ticks must
     // never knock the state down.
-    let state = true;
+    let isAwaitingInput = true;
     let tail = prompt;
     for (let i = 0; i < 8; i += 1) {
       const chunk = i % 2 === 0 ? bulletOn : bulletOff;
-      state = helpers.dashboardNextAwaitingInputState(state, tail, chunk);
+      isAwaitingInput = helpers.dashboardNextAwaitingInputState(
+        isAwaitingInput,
+        tail,
+        chunk,
+      );
       tail = (tail + chunk).slice(-5000);
-      assert.equal(state, true, `spinner frame ${i} cleared the state`);
+      assert.equal(
+        isAwaitingInput,
+        true,
+        `spinner frame ${i} cleared the state`,
+      );
     }
     // Genuine "moved on" output (the user pressed 1, Claude continues) still
     // clears: the chunk is non-bullet text without prompt markers.
@@ -440,25 +441,13 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-defensive",
       runner: "claude" as const,
       promptLabel: "Defensive test",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
-      awaitingInput: false,
-      outputTail: "",
-      loadingPhase: "ready",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-defensive",
       sessions: [session],
@@ -540,25 +529,13 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-ansi-heavy",
       runner: "antigravity" as const,
       promptLabel: "ANSI-heavy test",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
-      awaitingInput: false,
-      outputTail: "",
-      loadingPhase: "ready",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-ansi-heavy",
       sessions: [session],

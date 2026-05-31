@@ -17,12 +17,10 @@
  * Frontmatter parsing uses `js-yaml` so nested arrays/objects in future
  * artifacts do not need another dashboard renderer change.
  */
-interface RenderMarkdownOptions {
+type RenderMarkdownOptions = Partial<Record<"breaks", boolean>> & {
   /** "strip" (default): drop the YAML block. "passthrough": leave it in. */
   frontmatter?: "strip" | "passthrough";
-  /** Enable GFM line breaks. Defaults to true. */
-  breaks?: boolean;
-}
+};
 
 /** Rendered markdown plus optional parsed frontmatter used by dashboard prompt previews. */
 interface RenderMarkdownResult {

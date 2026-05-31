@@ -43,14 +43,14 @@ const referenceTemplates = [
   ),
 ];
 
-let ok = true;
+let allVersionsMatch = true;
 for (const f of templates) {
   const content = readFileSync(f, "utf8");
   if (!content.includes(`goat-flow-skill-version: "${version}"`)) {
     console.error(
       `Version mismatch: ${f} does not contain goat-flow-skill-version: "${version}"`,
     );
-    ok = false;
+    allVersionsMatch = false;
   }
 }
 
@@ -60,11 +60,11 @@ for (const f of referenceTemplates) {
     console.error(
       `Version mismatch: ${f} does not contain goat-flow-reference-version: "${version}"`,
     );
-    ok = false;
+    allVersionsMatch = false;
   }
 }
 
-if (!ok) {
+if (!allVersionsMatch) {
   console.error(
     `\nFix: update goat-flow-skill-version / goat-flow-reference-version in the files above to "${version}"`,
   );

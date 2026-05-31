@@ -52,7 +52,8 @@ export function checkDenyPatterns(
     };
   }
 
-  // type: 'both'
+  // The 'both' mechanism blocks when either the settings file or the deny
+  // script matches.
   /** Deny results from the settings-based mechanism */
   const settings = checkDenyPatterns(fs, {
     ...agent,
@@ -77,7 +78,7 @@ export function extractSettingsFacts(
 ): AgentFacts["settings"] & { readDenyCoversSecrets: boolean } {
   /** Whether the agent's settings file exists on disk */
   const exists = agent.settingsFile ? fs.exists(agent.settingsFile) : false;
-  let valid = false;
+  let isSettingsValid = false;
   let parsed: unknown = null;
   let hasDenyPatterns = false;
   if (agent.settingsFile) {
@@ -106,14 +107,14 @@ export function extractSettingsFacts(
             tomlObj[key] = val;
           }
         }
-        valid = Object.keys(tomlObj).length > 0;
+        isSettingsValid = Object.keys(tomlObj).length > 0;
         parsed = tomlObj;
       }
     } else {
       parsed = fs.readJson(agent.settingsFile);
-      valid = parsed !== null;
+      isSettingsValid = parsed !== null;
     }
-    if (valid && parsed) {
+    if (isSettingsValid && parsed) {
       /** Permissions object from the parsed settings */
       const perms = (parsed as Record<string, unknown>).permissions as
         | Record<string, unknown>
@@ -132,7 +133,13 @@ export function extractSettingsFacts(
     fs,
   );
 
-  return { exists, valid, parsed, hasDenyPatterns, readDenyCoversSecrets };
+  return {
+    exists,
+    valid: isSettingsValid,
+    parsed,
+    hasDenyPatterns,
+    readDenyCoversSecrets,
+  };
 }
 
 /** Remove simple TOML string-key quoting for keys goat-flow needs to inspect. */

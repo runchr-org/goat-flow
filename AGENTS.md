@@ -11,7 +11,7 @@ User's explicit instruction (this session) > AGENTS.md > `.goat-flow/architectur
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
+**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) are conditional: update only when VERIFY caught a failure or you corrected course.
 
 **Codex note:** `goat-critique` depends on delegated sub-agents. Direct `$goat-critique` or `/goat-critique` invocation is explicit delegation consent. Skill-chained entry (e.g. `/goat-debug` chains to `/goat-critique`) is implicit consent from the parent invocation - do not re-ask.
 

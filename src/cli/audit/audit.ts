@@ -43,9 +43,16 @@ import type {
 export { createAuditFactsView } from "./audit-facts-view.js";
 
 /** Runtime switches that choose audit scope, fact depth, and optional diagnostics. */
-interface AuditOptions {
+type AuditHarnessOption = Record<"harness", boolean>;
+
+/**
+ * Caller-supplied switches for a single `runAudit` invocation. Every field beyond `agentFilter` and
+ * the inherited `harness` flag is optional and off by default, so the common audit path stays the
+ * deterministic build checks; the optional fields turn on the more expensive diagnostics (drift,
+ * content lint, full deny-hook runtime validation) or trade fact depth for dashboard speed.
+ */
+interface AuditOptions extends AuditHarnessOption {
   agentFilter: AgentId | null;
-  harness: boolean;
   /** Optional drift check. Defaults to false when omitted. */
   checkDrift?: boolean;
   /** Optional cold-path content lint. Defaults to false when omitted. */
@@ -59,7 +66,7 @@ interface AuditOptions {
   /** Internal label used to separate aggregate, per-agent, and single audit spans. */
   profileScope?: "aggregate" | "per-agent" | "single";
   /** Internal batch option: project-level auto drift should run on aggregate only. */
-  skipAutoDrift?: boolean;
+  shouldRunAutoDrift?: boolean;
 }
 
 /** Synchronous profiler seam used by dashboard development benchmarks. */
@@ -562,7 +569,7 @@ function shouldRunDriftCheck(
   options: AuditOptions,
 ): boolean {
   if (options.checkDrift === true) return true;
-  return options.skipAutoDrift !== true && shouldAutoRunDrift(ctx);
+  return options.shouldRunAutoDrift !== false && shouldAutoRunDrift(ctx);
 }
 
 function computeDriftWithProfile(
@@ -682,7 +689,7 @@ export function runAuditBatch(
           ...options,
           agentFilter: agentId,
           profileScope: "per-agent",
-          skipAutoDrift: true,
+          shouldRunAutoDrift: false,
         }),
       });
     } catch {

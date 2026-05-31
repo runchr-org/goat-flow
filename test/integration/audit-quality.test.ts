@@ -43,18 +43,25 @@ function getRepoAudit(opts: {
 // ---------------------------------------------------------------------------
 // Harness concerns produce pass/fail status
 // ---------------------------------------------------------------------------
+/** Assert harness concerns use only dashboard-supported status values. */
+function assertConcernStatusesAreTerminal(
+  concerns: NonNullable<ReturnType<typeof getRepoAudit>["concerns"]>,
+): void {
+  for (const key of Object.keys(concerns) as AuditConcernKey[]) {
+    const status = concerns[key].status;
+    assert.ok(
+      status === "pass" || status === "fail",
+      `${key} status ${status} should be pass or fail`,
+    );
+  }
+}
+
 describe("harness concern statuses", () => {
   it("all concern statuses are pass or fail", () => {
     const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
     assertExists(report.concerns);
-    for (const key of Object.keys(report.concerns) as AuditConcernKey[]) {
-      const status = report.concerns[key].status;
-      assert.ok(
-        status === "pass" || status === "fail",
-        `${key} status ${status} should be pass or fail`,
-      );
-    }
+    assertConcernStatusesAreTerminal(report.concerns);
   });
 });
 

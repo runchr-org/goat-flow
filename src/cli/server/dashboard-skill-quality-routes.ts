@@ -1,3 +1,13 @@
+/**
+ * Skill/reference artifact quality HTTP route handlers for the dashboard server.
+ *
+ * Backs `/api/skill-quality/inventory` (list a runner's installed skill and reference artifacts),
+ * `/api/skill-quality` (score one artifact and compose its tip prompt), and
+ * `/api/quality/evaluate` plus its deprecated `/api/quality/analyse` alias (score uploaded or pasted
+ * markdown). Discovery is narrowed to the selected runner's skill tree. Oversized uploads are
+ * rejected as 413 and all validation/scoring failures are reported as JSON; alias responses also
+ * carry Deprecation headers. Scoring engine lives in quality/skill-quality.ts; body decoding in decoders.ts.
+ */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   loadQualityConfig,
@@ -178,6 +188,11 @@ async function readEvaluateRequestBody(
   }
 }
 
+/**
+ * Score a decoded evaluate request against the project, routing a multi-file upload to the bundle
+ * scorer and a single payload to the content scorer. Treats a missing `content` field as an empty
+ * string so the content path always has a value to score.
+ */
 function evaluateRequestBody(projectPath: string, value: EvaluateBody) {
   if (value.files) {
     return evaluateUploadedBundle(projectPath, {
@@ -232,6 +247,14 @@ async function handleQualityEvaluateRequest(
   return true;
 }
 
+/**
+ * Bind the skill-quality handlers to one server's request context so each closure shares the path
+ * validator, JSON responder, and body reader.
+ *
+ * @param ctx - per-server dashboard route context with path validation, the body reader, and IO hooks
+ * @returns the skill-quality, inventory, and evaluate handlers; each resolves true once it has
+ *   answered a matching request, or false to let another handler claim the URL
+ */
 export function createSkillQualityRouteHandlers(ctx: DashboardRouteContext) {
   return {
     handleSkillQualityRequest: (url: URL, res: ServerResponse) =>

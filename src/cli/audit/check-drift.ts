@@ -566,11 +566,11 @@ function expectedHookConfig(
   }
   if (!isRecord(config)) return template;
 
-  let changed = false;
+  let hasHookConfigChanged = false;
   for (const spec of listHookSpecs()) {
     const enabled = explicitHookEnabled(fs, spec.id);
     if (enabled === null) continue;
-    changed = true;
+    hasHookConfigChanged = true;
     const event = hookEventKey(agentId, spec);
     removeHookEntries(config, event, spec);
     if (!enabled) {
@@ -580,7 +580,7 @@ function expectedHookConfig(
     ensureHookEntries(config, event).push(copilotHookEntry(agent, spec));
   }
 
-  if (!changed) return template;
+  if (!hasHookConfigChanged) return template;
   return `${JSON.stringify(config, null, 2)}\n`;
 }
 

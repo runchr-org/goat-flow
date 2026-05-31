@@ -1,64 +1,31 @@
+/**
+ * Dashboard /api/agents/installed detection: normalizeAgentVersionOutput strips trailing
+ * punctuation and maps empty output to null, the default (non-fresh) route stays passive and never
+ * spawns runner --version probes, and the response lists every known agent id and name.
+ */
 import {
-  after,
   assert,
-  assertAuditCheckProvenance,
-  assertAuditScope,
-  assertDashboardReport,
-  assertJsonResponse,
-  assertValidEmittedEnvelope,
-  AUDIT_VERSION,
-  baseUrl,
-  before,
   childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
-  commitDashboardCacheProject,
-  createRequire,
-  DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
-  dashboardToken,
   describe,
-  dirname,
-  existsSync,
   expectRecord,
-  extractDashboardToken,
   fetchJson,
   getAgentProfileMap,
   getKnownAgentIds,
   it,
-  join,
-  LEGACY_PROJECTS_LIST_PATH,
-  makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
-  MISSING_PATH,
-  mkdir,
-  mkdtemp,
   normalizeAgentVersionOutput,
-  originalDashboardState,
   originalExecFileSync,
-  originalLegacyProjectsList,
-  performance,
-  PROJECT_PATH,
-  readEventEnvelopes,
-  readFile,
-  readdir,
-  rename,
-  require,
-  resolve,
-  rm,
-  runGit,
-  server,
-  setEnv,
   syncBuiltinESMExports,
-  TERMINAL_UPLOAD_MAX_BODY_BYTES,
-  tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
-  writeProjectFile,
 } from "./dashboard-server.helpers.js";
-import type { AgentId } from "../../src/cli/types.js";
+import { normalizeAgentVersionOutput as normalizeAgentVersionOutputFromRoutes } from "../../src/cli/server/dashboard-routes.js";
+
 describe("dashboard /api/agents/installed", () => {
+  it("keeps the dashboard routes version-normalizer export aligned with the implementation", () => {
+    assert.equal(
+      normalizeAgentVersionOutputFromRoutes,
+      normalizeAgentVersionOutput,
+    );
+  });
+
   it("normalizes trailing punctuation from one-line version output", () => {
     assert.equal(
       normalizeAgentVersionOutput("GitHub Copilot CLI 1.0.34.\n"),

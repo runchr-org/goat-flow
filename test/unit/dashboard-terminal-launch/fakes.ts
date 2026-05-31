@@ -1,3 +1,13 @@
+/**
+ * Test doubles for the dashboard terminal launch suite: a controllable fake clock (createFakeTimers) plus fake
+ * xterm Terminal, fit addon, ResizeObserver, and WebSocket classes, and the browser-global surface those tests
+ * inject when loading the classic dashboard script in a VM rather than a real browser.
+ */
+
+/**
+ * Shape of the fake clock's drop-in replacements for the four browser timer functions, handed to dashboard
+ * helpers so the suite can control time deterministically instead of relying on the real event loop.
+ */
 export type TimerControls = {
   setTimeout: typeof setTimeout;
   clearTimeout: typeof clearTimeout;
@@ -5,6 +15,16 @@ export type TimerControls = {
   clearInterval: typeof clearInterval;
 };
 
+/**
+ * Build a deterministic fake clock. Registrations are recorded in a map keyed by virtual fire time rather than
+ * handed to the real event loop, because the launch flow's retry/fallback timing must be driven step by step in a
+ * test: `tick` advances virtual time and fires due callbacks in timestamp order, so no real waits are needed and
+ * the suite stays deterministic. Cancellation is tracked in a separate set so an interval callback can clear its
+ * own timer without that clear being lost when the callback returns.
+ *
+ * @returns the four timer functions plus `tick` (advance virtual time, firing due callbacks) and `pending`
+ *   (count of still-scheduled timers, used to catch leaked fallback work after a scenario)
+ */
 export function createFakeTimers(): TimerControls & {
   /**
    * Advances all due timeout and interval callbacks in timestamp order.
@@ -95,7 +115,7 @@ export function createFakeTimers(): TimerControls & {
   };
 }
 
-export class FakeTerminal {
+class FakeTerminal {
   cols = 80;
   rows = 24;
   _addonFit?: FakeFitAddon;
@@ -112,7 +132,9 @@ export class FakeTerminal {
   /**
    * DOM mounting is outside these tests; the method only satisfies xterm's API.
    */
-  open(): void {}
+  open(): void {
+    void 0;
+  }
 
   /**
    * Mutates `written` by appending output that helpers would write into xterm.
@@ -124,17 +146,23 @@ export class FakeTerminal {
   /**
    * Focus changes are not observable in this harness.
    */
-  focus(): void {}
+  focus(): void {
+    void 0;
+  }
 
   /**
    * Disposal side effects are asserted through session refs, not xterm internals.
    */
-  dispose(): void {}
+  dispose(): void {
+    void 0;
+  }
 
   /**
    * Keyboard shortcut wiring is not under test in this launch-focused suite.
    */
-  attachCustomKeyEventHandler(): void {}
+  attachCustomKeyEventHandler(): void {
+    void 0;
+  }
 
   /**
    * Tests drive input through dashboardSendToTerminalSession instead of xterm events.
@@ -153,7 +181,9 @@ export class FakeTerminal {
   /**
    * Resize paths are triggered through the fake ResizeObserver when needed.
    */
-  onResize(): void {}
+  onResize(): void {
+    void 0;
+  }
 
   /**
    * Keeps paste tests on the no-selection branch unless a test overrides xterm.
@@ -182,26 +212,32 @@ export class FakeTerminal {
   };
 }
 
-export class FakeFitAddon {
+class FakeFitAddon {
   /**
    * Layout measurements are not meaningful in the VM harness.
    */
-  fit(): void {}
+  fit(): void {
+    void 0;
+  }
 }
 
-export class FakeResizeObserver {
+class FakeResizeObserver {
   /**
    * Observed elements are static fake DOM nodes, so no callback is needed.
    */
-  observe(): void {}
+  observe(): void {
+    void 0;
+  }
 
   /**
    * Disconnect is present so terminal cleanup can call the browser API shape.
    */
-  disconnect(): void {}
+  disconnect(): void {
+    void 0;
+  }
 }
 
-export class FakeDashboardWebSocket {
+class FakeDashboardWebSocket {
   static OPEN = 1;
   readyState = 1;
   sent: string[] = [];
@@ -239,6 +275,10 @@ export class FakeDashboardWebSocket {
 /**
  * Creates the mutable WebSocket double used by tests that only assert terminal
  * wire payloads; `readyState` stays writable for retry and reconnect scenarios.
+ *
+ * @param sent - array the double appends each raw browser-to-server payload to, in send order, so a test can
+ *   assert the exact wire traffic and its ordering
+ * @returns a minimal socket with a writable `readyState` and a `send` that pushes onto `sent`
  */
 export function makeCapturingWebSocket(sent: string[]): {
   readyState: number;
@@ -316,3 +356,10 @@ export function makeBrowserTerminalGlobals(): {
     },
   };
 }
+
+export {
+  FakeDashboardWebSocket,
+  FakeFitAddon,
+  FakeResizeObserver,
+  FakeTerminal,
+};

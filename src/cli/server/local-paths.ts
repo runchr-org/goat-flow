@@ -35,7 +35,7 @@ type LocalStatePathPurpose = Extract<
 >;
 
 /** Structured validation failure returned to dashboard callers as a safe rejection. */
-export class LocalPathValidationError extends Error {
+class LocalPathValidationError extends Error {
   readonly validationClass: LocalPathValidationClass;
   readonly purpose: LocalPathPurpose | "state-path";
 
@@ -51,6 +51,8 @@ export class LocalPathValidationError extends Error {
     this.purpose = purpose;
   }
 }
+
+export { LocalPathValidationError };
 
 const EXACT_BLOCKED_POSIX_ROOTS = new Set([
   "/",

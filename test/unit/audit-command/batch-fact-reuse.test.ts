@@ -1,3 +1,8 @@
+/**
+ * Batch fact reuse for multi-agent audits: building isolated aggregate and per-agent fact views from a single
+ * source bundle, running full-profile extraction once for the aggregate plus per-agent audits, ignoring legacy
+ * config agents, and running dashboard-summary batches without stack detection or stack access.
+ */
 import {
   PROFILES,
   PROJECT_ROOT,
@@ -14,8 +19,27 @@ import {
   stubAgentFacts,
   stubConfig,
 } from "./helpers.js";
+import { createAuditFactsView as createAuditFactsViewFromAudit } from "../../../src/cli/audit/audit.js";
+
+/**
+ * Assert every per-agent audit was built from the shared batch facts.
+ *
+ * @param batch - batch audit result returned from the helper harness
+ */
+function assertPerAgentAuditsUseSharedFacts(
+  batch: ReturnType<typeof runAuditBatch>,
+): void {
+  batch.perAgent.forEach((entry) => {
+    assert.equal(entry.audit.scopes.agent.checks.length > 0, true);
+    assert.equal(entry.audit.target, PROJECT_ROOT);
+  });
+}
 
 describe("Batch fact reuse", () => {
+  it("keeps the audit facade fact-view export aligned with the implementation", () => {
+    assert.equal(createAuditFactsViewFromAudit, createAuditFactsView);
+  });
+
   it("creates isolated aggregate and per-agent fact views from one source bundle", () => {
     const sourceFacts = makeProjectFacts(PROJECT_ROOT, [
       stubAgentFacts(),
@@ -90,10 +114,7 @@ describe("Batch fact reuse", () => {
       batch.perAgent.map((entry) => entry.id),
       ["claude", "codex", "copilot"],
     );
-    for (const entry of batch.perAgent) {
-      assert.equal(entry.audit.scopes.agent.checks.length > 0, true);
-      assert.equal(entry.audit.target, PROJECT_ROOT);
-    }
+    assertPerAgentAuditsUseSharedFacts(batch);
   });
 
   it("ignores legacy config agents when extracting aggregate facts", () => {

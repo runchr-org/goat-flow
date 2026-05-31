@@ -1,3 +1,12 @@
+/**
+ * Audit, setup-detect, and setup-prompt HTTP route handlers for the dashboard server.
+ *
+ * Backs `/api/audit` (the shared DashboardReport for Home/Setup/Quality), `/api/setup/detect`,
+ * and `/api/setup`. Aggregate `/api/audit` requests fold a persisted disk cache and a per-request
+ * profiler over `runAuditBatch`; explicit per-agent requests skip the cache. Handlers return their
+ * outcome as JSON and never throw to the server, so a failed audit becomes an error body rather than
+ * a crashed request. Route wiring lives in dashboard-routes.ts; report assembly in dashboard-reporting.ts.
+ */
 import type { ServerResponse } from "node:http";
 import { isPackagedInstall } from "../paths.js";
 import { runAudit, runAuditBatch } from "../audit/audit.js";
@@ -30,9 +39,9 @@ import type { DashboardReport } from "./types.js";
 
 function isCacheEligible(
   agentFilter: AgentId | null,
-  harness: boolean,
+  includeHarness: boolean,
 ): boolean {
-  return !agentFilter && harness && isPackagedInstall();
+  return !agentFilter && includeHarness && isPackagedInstall();
 }
 
 /** Resolve the managed agent list for dashboard aggregate audits. */
@@ -45,7 +54,7 @@ function resolveDashboardManagedAgentIds(
 function buildDashboardAuditReport(
   projectPath: string,
   agentFilter: AgentId | null,
-  harness: boolean,
+  includeHarness: boolean,
   profiler: DashboardAuditProfiler,
 ): DashboardReport {
   const fs = createFS(projectPath);
@@ -59,7 +68,7 @@ function buildDashboardAuditReport(
       projectPath,
       {
         agentFilter,
-        harness,
+        harness: includeHarness,
         // Summary cards only need to know whether the deny mechanism is
         // installed. Explicit per-agent audits and quality flows still run the
         // slower runtime self-test.
@@ -107,8 +116,8 @@ function recordSetupPrompt(
   recordEvidenceEvent({
     producer: "dashboard-session-trace",
     actor: "server",
-    eventKind: "setup.prompt",
-    projectPath,
+    eventType: "setup.prompt",
+    projectRoot: projectPath,
     payload: {
       agent,
       output: redactEvidenceText("setup prompt", renderedOutput),
@@ -116,6 +125,19 @@ function recordSetupPrompt(
   });
 }
 
+/**
+ * Bind the audit/setup route handlers to one server's request context so each closure can reach the
+ * validated-path resolver, evidence recorder, and JSON responder without per-request wiring. The
+ * closure shape is intentional because the context is resolved once per server, and binding it here
+ * lets the handlers be registered as plain `(url, res)` callbacks. Each handler reports validation,
+ * audit, and cache failures back to the client as a JSON error body instead of throwing, so a failed
+ * request never crashes the server. The aggregate audit route also folds a disk cache over
+ * `runAuditBatch` to avoid paying a full re-audit on every fresh Home load.
+ *
+ * @param ctx - per-server dashboard route context carrying path validation, the audit cache, and IO hooks
+ * @returns the three audit/setup handlers; each returns true once it has owned and answered a matching
+ *   request, or false to let the next handler try the URL
+ */
 export function createAuditRouteHandlers(ctx: DashboardRouteContext): {
   handleAuditRequest: (url: URL, res: ServerResponse) => boolean;
   handleSetupDetectRequest: (url: URL, res: ServerResponse) => boolean;
@@ -135,7 +157,7 @@ export function createAuditRouteHandlers(ctx: DashboardRouteContext): {
   function handleAuditRequest(url: URL, res: ServerResponse): boolean {
     if (url.pathname !== "/api/audit") return false;
 
-    const harness = url.searchParams.get("quality") === "true";
+    const includeHarness = url.searchParams.get("quality") === "true";
     const agentFilter = parseAgentFilter(url.searchParams.get("agent"));
     const fresh = url.searchParams.get("fresh") === "true";
     const profiler = createDashboardAuditProfiler(
@@ -147,7 +169,7 @@ export function createAuditRouteHandlers(ctx: DashboardRouteContext): {
         url.searchParams.get("path"),
         "project-read",
       );
-      const auditCacheSignature = isCacheEligible(agentFilter, harness)
+      const auditCacheSignature = isCacheEligible(agentFilter, includeHarness)
         ? profiler.span("cache signature", () =>
             buildAuditCacheSignature(projectPath, ctx.packageVersion),
           )
@@ -166,7 +188,7 @@ export function createAuditRouteHandlers(ctx: DashboardRouteContext): {
         );
         ctx.recordDashboardEvent(projectPath, "audit.run", {
           cached: true,
-          harness,
+          harness: includeHarness,
           agent: agentFilter ?? "all",
           status: report.status,
         });
@@ -188,7 +210,7 @@ export function createAuditRouteHandlers(ctx: DashboardRouteContext): {
       const report = buildDashboardAuditReport(
         projectPath,
         agentFilter,
-        harness,
+        includeHarness,
         profiler,
       );
 
@@ -205,7 +227,7 @@ export function createAuditRouteHandlers(ctx: DashboardRouteContext): {
 
       ctx.recordDashboardEvent(projectPath, "audit.run", {
         cached: false,
-        harness,
+        harness: includeHarness,
         agent: agentFilter ?? "all",
         status: report.status,
       });

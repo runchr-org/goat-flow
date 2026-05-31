@@ -28,14 +28,27 @@ after(() => {
   }
 });
 
-/** Create an isolated target project for installer side-effect assertions. */
+/**
+ * Create an isolated temp target project for installer side-effect assertions and register it
+ * for teardown, so each test installs into a clean directory removed in the `after` hook.
+ *
+ * @returns the absolute path of the new temp project directory
+ */
 export function makeTempProject(): string {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-setup-install-"));
   disposables.push(root);
   return root;
 }
 
-/** Spawns the shell installer exactly as users invoke setup --apply. */
+/**
+ * Run the shell installer (install-goat-flow.sh) synchronously against a target project, exactly
+ * as users invoke setup --apply, so tests assert on the real script's exit and output. Spawns a
+ * bash subprocess; the script itself writes scaffolding into root.
+ *
+ * @param root - target project directory passed as the installer's first argument
+ * @param extraArgs - additional installer flags appended after the target (e.g. --dry-run)
+ * @returns the spawnSync result (status, stdout, stderr) for the installer process
+ */
 export function runInstaller(root: string, ...extraArgs: string[]) {
   return spawnSync(
     "bash",
@@ -52,7 +65,15 @@ export function runInstaller(root: string, ...extraArgs: string[]) {
   );
 }
 
-/** Spawns the TypeScript CLI installer path against a temp project fixture. */
+/**
+ * Run the TypeScript CLI installer path (`cli.ts install`) synchronously via tsx against a temp
+ * project, so tests cover the CLI entrypoint as well as the shell installer. Spawns a node
+ * subprocess; the install command writes scaffolding into root.
+ *
+ * @param root - target project directory passed as the install command's argument
+ * @param extraArgs - additional install flags appended after the target (e.g. --agents codex)
+ * @returns the spawnSync result (status, stdout, stderr) for the CLI process
+ */
 export function runCliInstaller(root: string, ...extraArgs: string[]) {
   return spawnSync(
     "node",
@@ -72,7 +93,14 @@ export function runCliInstaller(root: string, ...extraArgs: string[]) {
   );
 }
 
-/** Spawns git in a fixture repo with deterministic author metadata. */
+/**
+ * Run git synchronously in a fixture repo with deterministic author/committer metadata, so
+ * commit-dependent tests are reproducible. Spawns a git subprocess and asserts a zero exit,
+ * reporting git's stderr on failure.
+ *
+ * @param root - working directory of the fixture repo the git command runs in
+ * @param args - git argument vector (e.g. ["add", "history.txt"]) passed verbatim
+ */
 export function git(root: string, args: string[]): void {
   const result = spawnSync("git", args, {
     cwd: root,
@@ -88,7 +116,13 @@ export function git(root: string, args: string[]): void {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 }
 
-/** Writes a fixture history entry and commits it for upgrade-path tests. */
+/**
+ * Append a line to the fixture's history.txt and commit it under the deterministic test identity,
+ * building the commit history that upgrade-path tests replay. Writes the file and spawns git.
+ *
+ * @param root - working directory of the fixture repo to write and commit into
+ * @param subject - the history line content and the commit message subject
+ */
 export function addCommit(root: string, subject: string): void {
   writeFileSync(join(root, "history.txt"), `${subject}\n`, { flag: "a" });
   git(root, ["add", "history.txt"]);

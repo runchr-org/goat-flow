@@ -24,6 +24,10 @@ import { CONTEXT_CHECKS } from "../../src/cli/audit/harness/check-context.js";
 import type { AuditContext } from "../../src/cli/audit/types.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
+type LifetimeClaimFinding = ReturnType<
+  typeof scanLifetimeClaimEvidence
+>[number];
+
 /** Build a path-existence-only filesystem for claim scanners. */
 function stubFS(existsSet: Set<string>): ReadonlyFS {
   return {
@@ -76,6 +80,19 @@ function stubFSFromFiles(files: Record<string, string>): ReadonlyFS {
 /** Wrap a readonly filesystem in the minimal audit context scanner APIs need. */
 function stubCtx(fs: ReadonlyFS): AuditContext {
   return { fs } as unknown as AuditContext;
+}
+
+/**
+ * Assert every finding came from the lifetime-claim evidence rule.
+ *
+ * @param findings - scanner findings returned for lifetime phrase variants
+ */
+function assertLifetimeClaimRule(
+  findings: ReadonlyArray<LifetimeClaimFinding>,
+): void {
+  findings.forEach((finding) => {
+    assert.equal(finding.rule, "lifetime-claim-evidence-missing");
+  });
 }
 
 describe("scanCountClaims: skill count", () => {
@@ -398,9 +415,7 @@ describe("scanLifetimeClaimEvidence", () => {
     ].join("\n");
     const findings = scanLifetimeClaimEvidence("docs/example.md", text);
     assert.equal(findings.length, expectedLifetimeClaimCount);
-    for (const finding of findings) {
-      assert.equal(finding.rule, "lifetime-claim-evidence-missing");
-    }
+    assertLifetimeClaimRule(findings);
   });
 
   it("does not flag generic phrases without lifetime prefixes", () => {

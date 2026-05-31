@@ -24,6 +24,19 @@ function markdownFilesUnder(path: string): string[] {
   );
 }
 
+/** Assert reference markdown files carry the current goat-flow reference version. */
+function assertVersionTaggedReferences(files: readonly string[]): void {
+  for (const file of files) {
+    assert.match(
+      readFileSync(file, "utf-8"),
+      new RegExp(
+        `^---\\ngoat-flow-reference-version: "${AUDIT_VERSION}"\\n---\\n`,
+      ),
+      `${file} must have current goat-flow-reference-version frontmatter`,
+    );
+  }
+}
+
 describe("Copilot and skill-reference contracts", () => {
   it("keeps the root goat-security skill within the 220-line ceiling", () => {
     const path = resolve(
@@ -77,14 +90,6 @@ describe("Copilot and skill-reference contracts", () => {
       markdownFilesUnder(resolve(PROJECT_ROOT, root)),
     );
     assert.ok(files.length > 0, "expected reference markdown files to exist");
-    for (const file of files) {
-      assert.match(
-        readFileSync(file, "utf-8"),
-        new RegExp(
-          `^---\\ngoat-flow-reference-version: "${AUDIT_VERSION}"\\n---\\n`,
-        ),
-        `${file} must have current goat-flow-reference-version frontmatter`,
-      );
-    }
+    assertVersionTaggedReferences(files);
   });
 });

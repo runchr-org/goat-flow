@@ -1,3 +1,12 @@
+/**
+ * Project-management HTTP route handlers for the dashboard server.
+ *
+ * Backs `/api/tasks` (read/write the active milestone plan), `/api/projects/list` (load and persist
+ * the recent-projects list to disk), and `/api/projects/status` (classify adoption for one or many
+ * paths). Mutating routes validate every incoming path through the route context before any write and
+ * report failures as JSON status bodies rather than throwing. Persistence and identity normalisation
+ * live in dashboard-project-state.ts; task-plan parsing in dashboard-task-state.ts.
+ */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname } from "node:path";
 import { classifyProjectState } from "../classify-state.js";
@@ -15,6 +24,11 @@ import {
 } from "./dashboard-task-state.js";
 import { validateLocalPath } from "./local-paths.js";
 
+/**
+ * Load the persisted recent-projects state, preferring the current state file and falling back to the
+ * legacy projects-only file. Delegates to loadDashboardState, which swallows missing or malformed
+ * files and returns empty state, so callers always receive a usable object.
+ */
 function readDashboardState(ctx: DashboardRouteContext) {
   return loadDashboardState(ctx.dashboardStateFile, ctx.legacyProjectsListFile);
 }
@@ -216,6 +230,14 @@ function handleProjectsStatusRequest(
   return true;
 }
 
+/**
+ * Bind the project-management handlers to one server's request context so each closure carries the
+ * shared path validator, state-file locations, and evidence recorder.
+ *
+ * @param ctx - per-server dashboard route context with path validation, state-file paths, and IO hooks
+ * @returns the tasks, projects-list, and projects-status handlers; each resolves true once it has
+ *   answered a matching request, or false to let another handler claim the URL
+ */
 export function createProjectRouteHandlers(ctx: DashboardRouteContext) {
   return {
     handleTasksRequest: (req: IncomingMessage, url: URL, res: ServerResponse) =>

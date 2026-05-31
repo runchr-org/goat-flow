@@ -99,7 +99,7 @@ describe("backwards compatibility", () => {
       "json",
     ]);
     assert.equal(parsed.command, "audit");
-    assert.equal(parsed.harness, true);
+    assert.equal(parsed.includeHarness, true);
     assert.equal(parsed.agent, "claude");
     assert.equal(parsed.format, "json");
   });
@@ -126,13 +126,13 @@ describe("backwards compatibility", () => {
     ]);
     assert.equal(parsed.command, "install");
     assert.equal(parsed.agent, "codex");
-    assert.equal(parsed.force, true);
+    assert.equal(parsed.shouldForce, true);
   });
 
   it("setup --apply parses as deterministic setup", () => {
     const parsed = parseCLIArgs(["setup", ".", "--agent", "codex", "--apply"]);
     assert.equal(parsed.command, "setup");
     assert.equal(parsed.agent, "codex");
-    assert.equal(parsed.apply, true);
+    assert.equal(parsed.shouldApply, true);
   });
 });

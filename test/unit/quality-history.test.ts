@@ -37,6 +37,11 @@ const FIXTURE_IDS = {
 
 const disposables: string[] = [];
 
+type MutableQualityFixture = Record<string, unknown> & {
+  findings: Array<Record<string, unknown>>;
+  run_date?: string;
+};
+
 after(() => {
   for (const dir of disposables) {
     rmSync(dir, { recursive: true, force: true });
@@ -60,6 +65,7 @@ function installFixture(root: string, id: string): void {
   );
 }
 
+/** Install a fixture under a different mode and output id for mode-specific selection tests. */
 function installFixtureAsMode(
   root: string,
   id: string,
@@ -75,6 +81,73 @@ function installFixtureAsMode(
     `${JSON.stringify(parsed, null, 2)}\n`,
     "utf-8",
   );
+}
+
+/** Read one stored quality-history fixture as mutable JSON for regression fixtures. */
+function readFixtureJson(id: string): MutableQualityFixture {
+  return JSON.parse(
+    readFileSync(join(FIXTURE_DIR, `${id}.json`), "utf-8"),
+  ) as MutableQualityFixture;
+}
+
+/** Write one quality-history JSON object into the temp project's log directory. */
+function writeHistoryJson(
+  root: string,
+  filename: string,
+  value: MutableQualityFixture,
+): void {
+  writeFileSync(
+    join(root, ".goat-flow", "logs", "quality", filename),
+    `${JSON.stringify(value, null, 2)}\n`,
+    "utf-8",
+  );
+}
+
+/** Install two null-line findings at one path so the loader must preserve both generated ids. */
+function installNullLineCollisionFixture(root: string): void {
+  const source = readFixtureJson(FIXTURE_IDS.april29);
+  source.findings = [
+    {
+      ...source.findings[0],
+      type: "framework_flaw",
+      file: ".goat-flow/config.yaml",
+      line: null,
+      summary: "Aggregate audit hides configured Codex failure",
+    },
+    {
+      ...source.findings[0],
+      type: "framework_flaw",
+      file: ".goat-flow/config.yaml",
+      line: null,
+      summary: "Aggregate audit hides configured Gemini failure",
+    },
+  ];
+  writeHistoryJson(root, "2026-05-05-2009-claude-bytb4.json", source);
+}
+
+/** Install adjacent reports where duplicate null-line count changes but one finding persists. */
+function installChangingDuplicateCountFixtures(root: string): void {
+  const first = readFixtureJson(FIXTURE_IDS.april29);
+  const second = JSON.parse(JSON.stringify(first)) as MutableQualityFixture;
+  const shared = {
+    ...first.findings[0],
+    type: "framework_flaw",
+    file: "AGENTS.md",
+    line: null,
+    summary: "First null-line finding",
+  };
+  const sibling = {
+    ...first.findings[0],
+    type: "framework_flaw",
+    file: "AGENTS.md",
+    line: null,
+    summary: "Second null-line finding",
+  };
+  first.findings = [shared, sibling];
+  second.findings = [shared];
+  second.run_date = "2026-05-06";
+  writeHistoryJson(root, "2026-05-05-1000-claude-aaaaa.json", first);
+  writeHistoryJson(root, "2026-05-06-1000-claude-bbbbb.json", second);
 }
 
 describe("loadQualityHistory", () => {
@@ -105,38 +178,7 @@ describe("loadQualityHistory", () => {
   // Fixture writes null-line fingerprint collisions because one saved report must preserve both records.
   it("keeps distinct null-line findings instead of rejecting positional id collisions", () => {
     const root = makeTempProject();
-    // Fixture duplicates null-line findings at one path so positional IDs must
-    // preserve both records instead of treating them as a collision.
-    const source = JSON.parse(
-      readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
-    );
-    source.findings = [
-      {
-        ...source.findings[0],
-        type: "framework_flaw",
-        file: ".goat-flow/config.yaml",
-        line: null,
-        summary: "Aggregate audit hides configured Codex failure",
-      },
-      {
-        ...source.findings[0],
-        type: "framework_flaw",
-        file: ".goat-flow/config.yaml",
-        line: null,
-        summary: "Aggregate audit hides configured Gemini failure",
-      },
-    ];
-    writeFileSync(
-      join(
-        root,
-        ".goat-flow",
-        "logs",
-        "quality",
-        "2026-05-05-2009-claude-bytb4.json",
-      ),
-      `${JSON.stringify(source, null, 2)}\n`,
-      "utf-8",
-    );
+    installNullLineCollisionFixture(root);
 
     const history = loadQualityHistory(root);
     assert.deepEqual(history.warnings, []);
@@ -334,52 +376,7 @@ describe("buildQualityDiff", () => {
   // Fixture writes a stable duplicate-count regression across saved reports.
   it("persists a null-line finding when duplicate count changes between reports", () => {
     const root = makeTempProject();
-    // Fixture changes duplicate count across reports so persistence verifies
-    // stable IDs do not depend on the current batch size alone.
-    const first = JSON.parse(
-      readFileSync(join(FIXTURE_DIR, `${FIXTURE_IDS.april29}.json`), "utf-8"),
-    );
-    const second = JSON.parse(JSON.stringify(first));
-    const shared = {
-      ...first.findings[0],
-      type: "framework_flaw",
-      file: "AGENTS.md",
-      line: null,
-      summary: "First null-line finding",
-    };
-    const sibling = {
-      ...first.findings[0],
-      type: "framework_flaw",
-      file: "AGENTS.md",
-      line: null,
-      summary: "Second null-line finding",
-    };
-    first.findings = [shared, sibling];
-    second.findings = [shared];
-    second.run_date = "2026-05-06";
-
-    writeFileSync(
-      join(
-        root,
-        ".goat-flow",
-        "logs",
-        "quality",
-        "2026-05-05-1000-claude-aaaaa.json",
-      ),
-      `${JSON.stringify(first, null, 2)}\n`,
-      "utf-8",
-    );
-    writeFileSync(
-      join(
-        root,
-        ".goat-flow",
-        "logs",
-        "quality",
-        "2026-05-06-1000-claude-bbbbb.json",
-      ),
-      `${JSON.stringify(second, null, 2)}\n`,
-      "utf-8",
-    );
+    installChangingDuplicateCountFixtures(root);
 
     const history = loadQualityHistory(root);
     const diff = buildQualityDiff(history.entries, {

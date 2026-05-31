@@ -13,14 +13,13 @@ const DASHBOARD_INDEX_PATH = resolve(
   "dashboard",
   "index.html",
 );
-const DASHBOARD_APP_FRAGMENT_PATHS = Array.from({ length: 5 }, (_, index) =>
-  resolve(
-    PROJECT_ROOT,
-    "src",
-    "dashboard",
-    `dashboard-app-fragment-0${index + 1}.ts`,
-  ),
-);
+const DASHBOARD_APP_FRAGMENT_PATHS = [
+  "dashboard-app-state-fragments.ts",
+  "dashboard-app-prompts-audit-fragments.ts",
+  "dashboard-app-data-loading-fragments.ts",
+  "dashboard-app-skill-quality-fragments.ts",
+  "dashboard-app-project-terminal-fragments.ts",
+].map((filename) => resolve(PROJECT_ROOT, "src", "dashboard", filename));
 const PLANS_VIEW_PATH = resolve(
   PROJECT_ROOT,
   "src",
@@ -46,6 +45,73 @@ function readAppSource(): string {
   return DASHBOARD_APP_FRAGMENT_PATHS.map(read).join("\n");
 }
 
+/**
+ * Assert each navigation label is rendered in the supplied menu markup.
+ *
+ * @param menuMarkup - HTML fragment for the side navigation menu
+ * @param labels - visible labels that must appear as text nodes
+ */
+function assertMenuContainsLabels(
+  menuMarkup: string,
+  labels: ReadonlyArray<string>,
+): void {
+  labels.forEach((label) => {
+    assert.match(menuMarkup, new RegExp(`>\\s*${label}\\s*<`));
+  });
+}
+
+/**
+ * Assert each navigation label is absent from the supplied menu markup.
+ *
+ * @param menuMarkup - HTML fragment for the side navigation menu
+ * @param labels - visible labels that must not render in the menu
+ */
+function assertMenuOmitsLabels(
+  menuMarkup: string,
+  labels: ReadonlyArray<string>,
+): void {
+  labels.forEach((label) => {
+    assert.doesNotMatch(menuMarkup, new RegExp(`>\\s*${label}\\s*<`));
+  });
+}
+
+/**
+ * Assert deferred dashboard views are not exposed through coming-soon metadata.
+ *
+ * @param appSource - concatenated dashboard app source
+ * @param views - view identifiers deferred from the dashboard
+ */
+function assertComingSoonMetaOmitsDeferredViews(
+  appSource: string,
+  views: ReadonlyArray<string>,
+): void {
+  views.forEach((view) => {
+    assert.doesNotMatch(
+      appSource,
+      new RegExp(`["']?${view}["']?\\s*:\\s*\\{\\s*title:\\s*["']`, "u"),
+      `${view} is deferred; it should not appear in comingSoonMeta`,
+    );
+  });
+}
+
+/**
+ * Assert deferred dashboard views are not included in the HTML shell.
+ *
+ * @param html - dashboard index HTML
+ * @param views - view identifiers whose include comments must be absent
+ */
+function assertDashboardOmitsDeferredViews(
+  html: string,
+  views: ReadonlyArray<string>,
+): void {
+  views.forEach((view) => {
+    assert.doesNotMatch(
+      html,
+      new RegExp(`<!-- include: views\\/${view}\\.html -->`),
+    );
+  });
+}
+
 describe("dashboard side navigation", () => {
   it("renders the requested desktop side menu without disabled destinations", () => {
     const html = read(DASHBOARD_INDEX_PATH);
@@ -65,9 +131,7 @@ describe("dashboard side navigation", () => {
     assert.match(sideMenu, /href="#gf-side-icon-home"/);
     assert.match(sideMenu, /class="gf-side-icon"/);
     assert.match(sideMenu, /aria-label="Primary navigation"/);
-    for (const label of ["Managers", "Operations"]) {
-      assert.match(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
-    }
+    assertMenuContainsLabels(sideMenu, ["Managers", "Operations"]);
     assert.match(
       sideMenu,
       />\s*Home\s*<[\s\S]*>\s*Prompts\s*<[\s\S]*>\s*Workspace\s*</,
@@ -80,7 +144,7 @@ describe("dashboard side navigation", () => {
       sideMenu,
       />\s*Operations\s*<[\s\S]*>\s*Projects\s*<[\s\S]*>\s*Quality\s*<[\s\S]*>\s*Setup\s*</,
     );
-    for (const label of [
+    assertMenuContainsLabels(sideMenu, [
       "Home",
       "Prompts",
       "Workspace",
@@ -90,10 +154,8 @@ describe("dashboard side navigation", () => {
       "Quality",
       "Setup",
       "Hooks",
-    ]) {
-      assert.match(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
-    }
-    for (const label of [
+    ]);
+    assertMenuOmitsLabels(sideMenu, [
       "Context",
       "Constraints",
       "Verification",
@@ -104,12 +166,8 @@ describe("dashboard side navigation", () => {
       "Memory",
       "Playbooks",
       "Telemetry",
-    ]) {
-      assert.doesNotMatch(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
-    }
-    for (const label of ["Settings", "About"]) {
-      assert.doesNotMatch(sideMenu, new RegExp(`>\\s*${label}\\s*<`));
-    }
+    ]);
+    assertMenuOmitsLabels(sideMenu, ["Settings", "About"]);
     assert.doesNotMatch(sideMenu, /\sdisabled(?:=|\s|>)/);
   });
 
@@ -163,18 +221,17 @@ describe("dashboard side navigation", () => {
   it("keeps deferred dashboard pages out of coming-soon metadata", () => {
     const appSource = readAppSource();
 
-    for (const view of ["harness", "playbooks", "memory", "telemetry"]) {
-      assert.doesNotMatch(
-        appSource,
-        new RegExp(`["']?${view}["']?\\s*:\\s*\\{\\s*title:\\s*["']`, "u"),
-        `${view} is deferred; it should not appear in comingSoonMeta`,
-      );
-    }
+    assertComingSoonMetaOmitsDeferredViews(appSource, [
+      "harness",
+      "playbooks",
+      "memory",
+      "telemetry",
+    ]);
   });
 
   it("does not include deferred harness manager views", () => {
     const html = read(DASHBOARD_INDEX_PATH);
-    for (const view of [
+    assertDashboardOmitsDeferredViews(html, [
       "harness",
       "feedback-loop",
       "context",
@@ -183,11 +240,6 @@ describe("dashboard side navigation", () => {
       "recovery",
       "memory",
       "playbooks",
-    ]) {
-      assert.doesNotMatch(
-        html,
-        new RegExp(`<!-- include: views\\/${view}\\.html -->`),
-      );
-    }
+    ]);
   });
 });

@@ -1,3 +1,8 @@
+/**
+ * Codex agent-settings audit: parsing current vs deprecated feature flags and nested permission tables from
+ * TOML, deciding when a permission profile counts as secret-file coverage (exact/subtree denies, active vs
+ * inactive profiles, env staging variants), and failing agent-settings on codex_hooks or hooks-not-enabled.
+ */
 import {
   BUILD_CHECKS,
   CODEX_EXACT_ENV_DENY_ENTRIES,

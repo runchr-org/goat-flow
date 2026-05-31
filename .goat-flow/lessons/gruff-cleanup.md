@@ -33,6 +33,26 @@ last_reviewed: 2026-05-31
 
 **Prevention:** For every gruff `waste.unused-import` finding, run `rg "<symbol>" <file>` before editing. Delete the import only when the import specifier is the sole hit, then run the focused typecheck or test that covers the file. Evidence anchors: `src/cli/cli.ts` (search: `realpathSync(fileURLToPath(import.meta.url))`), `test/integration/dashboard-server-dashboard-terminal-endpoints.test.ts` (search: `TERMINAL_UPLOAD_MAX_BODY_BYTES + 1`), failing output (search: `ReferenceError: rename is not defined`).
 
+## Lesson: Check staged deletions after bulk gruff rewrites
+
+**Status:** active | **Created:** 2026-05-31
+
+**What happened:** During the gruff naming cleanup, a mechanical rewrite left unrelated test files staged as deleted. `git status --short` caught the problem before final verification; affected paths included `test/unit/audit-command/harness.test.ts` and `test/unit/dashboard-toast.test.ts`.
+
+**Root cause:** I treated a broad cleanup as a sequence of source edits and did not immediately inspect staged state after the mechanical step. Because the deletions were staged, a worktree-only restore was insufficient and the unexpected `D` entries remained until I checked status again.
+
+**Prevention:** After any bulk gruff cleanup, run `git status --short` before formatting or tests. If unrelated deletes appear, restore both index and worktree state for only those paths, then re-run the targeted gruff rule to confirm no finding was reintroduced. Evidence anchors: `test/unit/audit-command/harness.test.ts`, `test/unit/dashboard-toast.test.ts`, status pattern (search: `D  test/unit/dashboard-toast.test.ts`).
+
+## Lesson: Run cheap style gates before expensive gruff verification
+
+**Status:** active | **Created:** 2026-05-31
+
+**What happened:** During the gruff naming cleanup, the full `npm test` run reached the installer round-trip fixture and failed its temp-repo preflight because local style gates still had issues: ESLint flagged a non-null assertion in `src/cli/cli-parser.ts`, and Prettier found an unformatted modified contract test.
+
+**Root cause:** I verified the target gruff rule and typecheck first, then jumped to the expensive full suite before running the cheap local style gates that the round-trip preflight also enforces.
+
+**Prevention:** After broad gruff edits, run `npx eslint src/cli src/dashboard` and `npm run format:check` before full tests or preflight. Treat any non-null assertion introduced during naming cleanup as unfinished parsing code; bind the typed value once and branch on it. Evidence anchors: `src/cli/cli-parser.ts` (search: `skillDraftValue`), `test/contract/instruction-quality-guards.test.ts` (search: `assertNoEncyclopediaContent`).
+
 ## Lesson: Size refactors must preserve browser script load graphs in tests
 
 **Status:** active | **Created:** 2026-05-31
@@ -43,7 +63,17 @@ last_reviewed: 2026-05-31
 
 **Root cause:** I treated a browser classic-script split like a TypeScript module split. These files do not import each other; the HTML script order is the dependency graph, and VM tests must mirror that graph explicitly.
 
-**Prevention:** After splitting dashboard classic scripts, update `src/dashboard/index.html` and every VM helper source list in the same patch. Run the focused VM suites before expanding the refactor. Evidence anchors: `src/dashboard/index.html` (search: `dashboard-app-fragments.js`), `test/unit/dashboard-terminal-launch/helpers.ts` (search: `readDashboardAppSource`), `test/unit/dashboard-readers.test.ts` (search: `READERS_EXTRA_PATH`).
+**Prevention:** After splitting dashboard classic scripts, update `src/dashboard/index.html` and every VM helper source list in the same patch. Run the focused VM suites before expanding the refactor. Evidence anchors: `src/dashboard/index.html` (search: `dashboard-app-fragment-merge.js`), `test/unit/dashboard-terminal-launch/helpers.ts` (search: `readDashboardAppSource`), `test/unit/dashboard-readers.test.ts` (search: `READERS_EXTRA_PATH`).
+
+## Lesson: Dashboard asset renames need a clean dist build
+
+**Status:** active | **Created:** 2026-05-31
+
+**What happened:** While renaming dashboard app fragment files, `npm run build:dashboard` compiled the new descriptive `dashboard-app-*.js` files but left the old generated numbered fragment assets in `dist/dashboard`.
+
+**Root cause:** `build:dashboard` runs the dashboard TypeScript compile and asset copy only; it does not remove `dist/dashboard` before compiling. The full `npm run build` does clean `dist` first.
+
+**Prevention:** When verifying dashboard asset renames, run the full `npm run build` or clean `dist` before `npm run build:dashboard`. Then grep `dist` for the old filenames. Evidence anchors: `package.json` (search: `"build": "node -e \"require('node:fs').rmSync('dist'`), `package.json` (search: `"build:dashboard": "tsc -p tsconfig.dashboard.json`).
 
 ## Lesson: Gruff cleanup automation must fit the hook surface
 

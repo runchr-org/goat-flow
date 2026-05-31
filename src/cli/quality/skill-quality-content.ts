@@ -1,3 +1,14 @@
+/**
+ * Filesystem-facing layer of skill-quality scoring: discovers artifacts on disk, safely reads their
+ * content under byte caps, composes the scoring surface (preamble, conventions, and skill-local
+ * references), and provides the small text utilities (heading counts, frontmatter stripping, token
+ * estimate) the metric scorers call.
+ *
+ * This is the only module here that touches the filesystem, so the safety rules live here: symlinks
+ * are refused, every reference include is confined to its allowed root (no `..` escape), and uploads
+ * can disable disk scanning so a user-supplied name cannot leak on-disk content into the score.
+ * Reads are capped and truncate on UTF-8 character boundaries to keep composed sizes deterministic.
+ */
 import {
   closeSync,
   existsSync,
@@ -79,6 +90,9 @@ function referenceArtifactId(
 
 /**
  * Build the synthetic path used when uploaded markdown is evaluated as a reference.
+ *
+ * @param name - user-supplied artifact name; used only to label the synthetic record, never to read disk.
+ * @returns a project-relative playbook path under `.goat-flow/skill-playbooks/`; no file is created.
  */
 export function uploadedSharedReferencePath(name: string): string {
   return `.goat-flow/skill-playbooks/${name}.md`;
@@ -288,6 +302,9 @@ function readOptionalText(path: string, config: QualityConfig): string | null {
 
 /**
  * Measure byte caps in UTF-8 so dashboard upload limits match HTTP body limits.
+ *
+ * @param content - text to measure; counted as encoded UTF-8 bytes, not JS string length (UTF-16 units).
+ * @returns the UTF-8 byte count - the unit every cap in this module is expressed in.
  */
 export function utf8ByteLength(content: string): number {
   return Buffer.byteLength(content, "utf-8");
@@ -295,6 +312,10 @@ export function utf8ByteLength(content: string): number {
 
 /**
  * Truncate without splitting multibyte characters in composed scoring surfaces.
+ *
+ * @param content - text to truncate, iterated by Unicode code point so multibyte chars stay intact.
+ * @param maxBytes - UTF-8 byte budget; negative or fractional values are floored to a non-negative cap.
+ * @returns the longest whole-character prefix that fits within `maxBytes`; "" when the budget is 0.
  */
 export function truncateUtf8Bytes(content: string, maxBytes: number): string {
   const cap = Math.max(0, Math.floor(maxBytes));
@@ -408,6 +429,10 @@ export function composeArtifactContent(
 
 /**
  * Count exact Markdown heading levels so rubric section counts are deterministic.
+ *
+ * @param content - Markdown text; only lines beginning with the exact `#` run plus a space match.
+ * @param level - heading depth to count (1 for `# `, 2 for `## `); deeper or shallower headings are ignored.
+ * @returns the number of headings at exactly that level; 0 when none match (not an error).
  */
 export function countHeadings(content: string, level: number): number {
   const prefix = "#".repeat(level) + " ";
@@ -416,6 +441,10 @@ export function countHeadings(content: string, level: number): number {
 
 /**
  * Centralise section checks so rubric regexes stay scoped to Markdown content.
+ *
+ * @param content - artifact text to test the section pattern against.
+ * @param pattern - caller-owned regex; its flags (case, multiline) are respected as-is.
+ * @returns true when the pattern matches anywhere in the content.
  */
 export function hasSection(content: string, pattern: RegExp): boolean {
   return pattern.test(content);
@@ -423,6 +452,9 @@ export function hasSection(content: string, pattern: RegExp): boolean {
 
 /**
  * Remove frontmatter before tool-keyword scoring so version metadata cannot earn credit.
+ *
+ * @param content - artifact text that may open with a `---` fenced YAML frontmatter block.
+ * @returns the content with a leading frontmatter block stripped; unchanged when there is none.
  */
 export function stripYamlFrontmatter(content: string): string {
   return content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/u, "");
@@ -430,6 +462,9 @@ export function stripYamlFrontmatter(content: string): string {
 
 /**
  * Estimate token load conservatively for budget scoring without invoking a tokenizer.
+ *
+ * @param content - text whose token cost is being approximated for the token-budget metric.
+ * @returns a rounded-up estimate using the ~4-chars-per-token heuristic; an over-estimate, not exact.
  */
 export function estimateTokens(content: string): number {
   return Math.ceil(content.length / 4);

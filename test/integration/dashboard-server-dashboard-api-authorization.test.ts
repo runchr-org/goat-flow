@@ -1,63 +1,20 @@
+/**
+ * Dashboard API authorization: rejects requests with a missing or wrong token and cross-origin
+ * side-effectful requests (including terminal image uploads and terminal WebSocket upgrades), while
+ * accepting a valid token on same-origin requests - the token plus same-origin access guard.
+ */
 import {
-  after,
   assert,
-  assertAuditCheckProvenance,
-  assertAuditScope,
-  assertDashboardReport,
   assertJsonResponse,
-  assertValidEmittedEnvelope,
-  AUDIT_VERSION,
   baseUrl,
-  before,
-  childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
-  commitDashboardCacheProject,
-  createRequire,
   DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
   dashboardToken,
   describe,
-  dirname,
-  existsSync,
-  expectRecord,
-  extractDashboardToken,
-  fetchJson,
-  getAgentProfileMap,
-  getKnownAgentIds,
   it,
-  join,
-  LEGACY_PROJECTS_LIST_PATH,
-  makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
-  MISSING_PATH,
-  mkdir,
-  mkdtemp,
-  normalizeAgentVersionOutput,
-  originalDashboardState,
-  originalExecFileSync,
-  originalLegacyProjectsList,
-  performance,
   PROJECT_PATH,
-  readEventEnvelopes,
   readFile,
-  readdir,
-  rename,
-  require,
   resolve,
-  rm,
-  runGit,
-  server,
-  setEnv,
-  syncBuiltinESMExports,
-  TERMINAL_UPLOAD_MAX_BODY_BYTES,
-  tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
-  writeProjectFile,
 } from "./dashboard-server.helpers.js";
-import type { AgentId } from "../../src/cli/types.js";
 describe("dashboard API authorization", () => {
   it("rejects API requests with a missing token", async () => {
     const res = await fetch(`${baseUrl}/api/terminal/create`, {
@@ -131,34 +88,31 @@ describe("dashboard API authorization", () => {
     assert.equal(persisted.includes(dashboardToken), false);
   });
 
-  it("rejects terminal WebSocket upgrades with a missing token", async () => {
-    const { WebSocket } = await import("ws");
-    let rejectedUpgrade = false;
-    await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(
-        `${baseUrl.replace(/^http/u, "ws")}/ws/terminal/test`,
-        { headers: { Origin: baseUrl } },
-      );
-      const timer = setTimeout(
-        () => reject(new Error("terminal WebSocket rejection timed out")),
-        1000,
-      );
-      ws.once("open", () => {
-        clearTimeout(timer);
-        ws.close();
-        reject(new Error("terminal WebSocket opened without a token"));
+  it(
+    "rejects terminal WebSocket upgrades with a missing token",
+    { timeout: 1000 },
+    async () => {
+      const { WebSocket } = await import("ws");
+      let rejectedUpgrade = false;
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(
+          `${baseUrl.replace(/^http/u, "ws")}/ws/terminal/test`,
+          { headers: { Origin: baseUrl } },
+        );
+        ws.once("open", () => {
+          ws.close();
+          reject(new Error("terminal WebSocket opened without a token"));
+        });
+        ws.once("error", () => {
+          rejectedUpgrade = true;
+          resolve();
+        });
+        ws.once("close", () => {
+          rejectedUpgrade = true;
+          resolve();
+        });
       });
-      ws.once("error", () => {
-        clearTimeout(timer);
-        rejectedUpgrade = true;
-        resolve();
-      });
-      ws.once("close", () => {
-        clearTimeout(timer);
-        rejectedUpgrade = true;
-        resolve();
-      });
-    });
-    assert.equal(rejectedUpgrade, true);
-  });
+      assert.equal(rejectedUpgrade, true);
+    },
+  );
 });

@@ -14,7 +14,15 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-/** Symlink helper that skips blocked Windows fixtures and throws for unexpected symlink failures. */
+/**
+ * Symlink helper that skips blocked Windows fixtures and throws for unexpected symlink failures.
+ *
+ * @param testContext - the running test, marked skipped when the host forbids unprivileged symlinks
+ * @param target - existing path the symlink should point at
+ * @param link - path of the symlink to create
+ * @returns true when the symlink was created; false after skipping on an EPERM host; throws on any other error so
+ *   a genuine failure is not silently swallowed
+ */
 export function symlinkOrSkip(
   testContext: TestContext,
   target: string,
@@ -39,12 +47,16 @@ export function symlinkOrSkip(
 
 import {
   discoverArtifacts,
-  evaluateContent,
-  evaluateUploadedBundle,
   findArtifact,
+} from "../../../src/cli/quality/skill-quality-content.js";
+import {
   scoreArtifact,
   scoreAllArtifacts,
-} from "../../../src/cli/quality/skill-quality.js";
+} from "../../../src/cli/quality/skill-quality-score.js";
+import {
+  evaluateContent,
+  evaluateUploadedBundle,
+} from "../../../src/cli/quality/skill-quality-upload.js";
 import {
   cloneQualityConfig,
   DEFAULT_QUALITY_CONFIG,
@@ -108,18 +120,33 @@ export const SANITISED_PLAYWRIGHT_SHAPED_SKILL = [
   "- Prefer visible text waits over fixed sleeps.",
 ].join("\n");
 
-/** Keep skill-quality fixture projects isolated from the real repo tree. */
+/**
+ * Keep skill-quality fixture projects isolated from the real repo tree.
+ *
+ * @returns the absolute path of a fresh temp directory to use as a fixture project root
+ */
 export function makeTempProject(): string {
   return mkdtempSync(join(tmpdir(), "goat-flow-skill-quality-"));
 }
 
-/** Writes fixture files while preserving nested artifact directory shapes. */
+/**
+ * Writes fixture files while preserving nested artifact directory shapes.
+ *
+ * @param path - absolute target file path; any missing parent directories are created first
+ * @param content - exact file contents to write
+ */
 export function writeText(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
 }
 
-/** Place a test skill at the installed Claude skill path the scanner expects. */
+/**
+ * Place a test skill at the installed Claude skill path the scanner expects.
+ *
+ * @param projectRoot - fixture project root the skill is written under
+ * @param name - skill directory name, becoming .claude/skills/<name>/SKILL.md
+ * @param content - SKILL.md body to write
+ */
 export function writeSkill(
   projectRoot: string,
   name: string,
@@ -137,7 +164,12 @@ export function writeSkill(
 
 export let cachedRepoArtifacts: ReturnType<typeof discoverArtifacts> | null =
   null;
-/** Reuse whole-repo discovery because artifact walks dominate this suite. */
+/**
+ * Reuse whole-repo discovery because artifact walks dominate this suite.
+ *
+ * @returns the lazily-cached result of discovering every artifact under the repo root; callers must treat it as
+ *   read-only since the same instance is shared across tests
+ */
 export function getRepoArtifacts(): ReturnType<typeof discoverArtifacts> {
   if (cachedRepoArtifacts === null) {
     cachedRepoArtifacts = discoverArtifacts(PROJECT_ROOT);
@@ -148,7 +180,12 @@ export function getRepoArtifacts(): ReturnType<typeof discoverArtifacts> {
 export let cachedRepoScoredArtifacts: ReturnType<
   typeof scoreAllArtifacts
 > | null = null;
-/** Reuse whole-repo scoring because each run evaluates every installed skill. */
+/**
+ * Reuse whole-repo scoring because each run evaluates every installed skill.
+ *
+ * @returns the lazily-cached result of scoring every artifact under the repo root; callers must treat it as
+ *   read-only since the same instance is shared across tests
+ */
 export function getRepoScoredArtifacts(): ReturnType<typeof scoreAllArtifacts> {
   if (cachedRepoScoredArtifacts === null) {
     cachedRepoScoredArtifacts = scoreAllArtifacts(PROJECT_ROOT);

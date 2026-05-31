@@ -275,7 +275,7 @@ function looksLikePromptSend(input: string): boolean {
 }
 
 /** Manages PTY-backed terminal sessions for the dashboard */
-export class TerminalManager {
+class TerminalManager {
   private sessions = new Map<string, TerminalSession>();
   private runnerPaths = new Map<Runner, string>();
   private nodePtyModule: NodePtyModule | null = null;
@@ -682,4 +682,4 @@ export class TerminalManager {
   }
 }
 
-export { resolveCLIPath, validateProjectPath };
+export { TerminalManager, resolveCLIPath, validateProjectPath };

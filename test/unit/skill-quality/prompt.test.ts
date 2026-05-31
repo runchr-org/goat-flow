@@ -1,3 +1,8 @@
+/**
+ * composeArtifactQualityPrompt output: it escapes pipes in metric details, includes the anti-bias guidance, the
+ * four scored semantic dimensions, the scope-check question and final gate decision, requires a fenced JSON
+ * verdict matching the schema, and adapts criteria/weights per subtype (playbook, meta, workflow, single-file).
+ */
 import { describe, it, assert } from "./helpers.js";
 import { composeArtifactQualityPrompt } from "../../../src/cli/prompt/compose-quality.js";
 import type { SkillQualityReport } from "../../../src/cli/quality/skill-quality.js";

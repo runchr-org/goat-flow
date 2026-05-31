@@ -1,3 +1,7 @@
+/**
+ * Hook fact extraction for secret coverage: recognising current deny-hook secret coverage from the generalized
+ * path matcher, while not counting self-test-only secret probes as real Bash secret coverage.
+ */
 import {
   PROJECT_ROOT,
   STUB_AGENT_PROFILE,
@@ -10,44 +14,99 @@ import {
   resolve,
   stubFS,
 } from "./helpers.js";
+import {
+  buildDenyRegistration,
+  buildHookRegistration,
+  readHookConfig,
+} from "../../../src/cli/facts/agent/hook-registration.js";
+import { extractSkillFacts } from "../../../src/cli/facts/agent/skills.js";
+
+/** Extract hook facts from the packaged deny hook plus its shared pattern libraries. */
+function extractPackagedDenyHookFacts(): ReturnType<typeof extractHookFacts> {
+  const gitTemplate = readFileSync(
+    resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
+    "utf8",
+  );
+  const secretTemplate = readFileSync(
+    resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+    "utf8",
+  );
+  const destructiveTemplate = readFileSync(
+    resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+    "utf8",
+  );
+  const fs = stubFS({
+    exists: (path) =>
+      [
+        ".claude/hooks/deny-dangerous.sh",
+        ".goat-flow/hook-lib/patterns-shell.sh",
+        ".goat-flow/hook-lib/patterns-paths.sh",
+        ".goat-flow/hook-lib/patterns-writes.sh",
+        ".goat-flow/hook-lib/deny-dangerous-self-test.sh",
+      ].includes(path),
+    readFile: (path) => {
+      if (path === ".goat-flow/hook-lib/patterns-shell.sh") {
+        return destructiveTemplate;
+      }
+      if (path === ".goat-flow/hook-lib/patterns-paths.sh") {
+        return secretTemplate;
+      }
+      if (path === ".claude/hooks/deny-dangerous.sh") {
+        return gitTemplate;
+      }
+      return null;
+    },
+  });
+  return extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
+}
 
 describe("hook fact extraction", () => {
-  it("detects current deny hook secret coverage from generalized path matcher", () => {
-    const gitTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-      "utf8",
-    );
-    const secretTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
-      "utf8",
-    );
-    const destructiveTemplate = readFileSync(
-      resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
-      "utf8",
-    );
+  it("derives hook registration and skill facts from agent-owned surfaces", () => {
     const fs = stubFS({
       exists: (path) =>
-        [
-          ".claude/hooks/deny-dangerous.sh",
-          ".goat-flow/hook-lib/patterns-shell.sh",
-          ".goat-flow/hook-lib/patterns-paths.sh",
-          ".goat-flow/hook-lib/patterns-writes.sh",
-          ".goat-flow/hook-lib/deny-dangerous-self-test.sh",
-        ].includes(path),
-      readFile: (path) => {
-        if (path === ".goat-flow/hook-lib/patterns-shell.sh") {
-          return destructiveTemplate;
-        }
-        if (path === ".goat-flow/hook-lib/patterns-paths.sh") {
-          return secretTemplate;
-        }
-        if (path === ".claude/hooks/deny-dangerous.sh") {
-          return gitTemplate;
-        }
-        return null;
-      },
+        path === ".claude/settings.json" ||
+        path === ".claude/skills/goat/SKILL.md",
+      readJson: (path) =>
+        path === ".claude/settings.json"
+          ? {
+              hooks: {
+                Stop: [{ hooks: [{ command: ".claude/hooks/post-turn.sh" }] }],
+                PreToolUse: [
+                  { hooks: [{ command: ".claude/hooks/deny-dangerous.sh" }] },
+                ],
+              },
+            }
+          : null,
+      readFile: (path) =>
+        path === ".claude/skills/goat/SKILL.md"
+          ? "---\nname: goat\ngoat-flow-skill-version: 1.9.0\n---\n# goat\n"
+          : null,
+      listDir: (path) => (path === ".claude/skills" ? ["goat"] : []),
     });
-    const facts = extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
+    const hookConfig = {
+      hooks: {
+        Stop: [{ hooks: [{ command: ".claude/hooks/post-turn.sh" }] }],
+        PreToolUse: [
+          { hooks: [{ command: ".claude/hooks/deny-dangerous.sh" }] },
+        ],
+      },
+    };
+    const config = readHookConfig(fs, STUB_AGENT_PROFILE, hookConfig, true);
+
+    assert.equal(config.valid, true);
+    assert.deepEqual(buildHookRegistration(STUB_AGENT_PROFILE, config.parsed), {
+      postTurnRegistered: true,
+      postTurnRegisteredPath: ".claude/hooks/post-turn.sh",
+    });
+    assert.deepEqual(buildDenyRegistration(STUB_AGENT_PROFILE, config.parsed), {
+      denyIsRegistered: true,
+      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
+    });
+    assert.equal(extractSkillFacts(fs, STUB_AGENT_PROFILE).hasDispatcher, true);
+  });
+
+  it("detects current deny hook secret coverage from generalized path matcher", () => {
+    const facts = extractPackagedDenyHookFacts();
     assert.equal(facts.bashDenyCoversSecrets, true);
   });
 

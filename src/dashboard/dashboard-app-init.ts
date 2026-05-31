@@ -21,6 +21,12 @@ function dashboardResizeTerminalRef(
   return true;
 }
 
+/**
+ * Reset all skill-quality view state to empty, aborting any in-flight evaluation request first.
+ * Called when the runner or project changes so a stale report/inventory never lingers across a
+ * switch. Bumps skillQualityPrefetchGeneration so any prefetch that resolves after this reset is
+ * recognised as stale by its generation check and discarded rather than applied.
+ */
 function dashboardResetSkillQualityState(ctx: DashboardAppContext): void {
   ctx.skillQualityAbortController?.abort();
   ctx.skillQualityAbortController = null;
@@ -35,6 +41,15 @@ function dashboardResetSkillQualityState(ctx: DashboardAppContext): void {
     Number(ctx.skillQualityPrefetchGeneration) + 1;
 }
 
+/**
+ * Register the Alpine watchers that keep the xterm terminal sized and focused as the view changes.
+ * Watches activeView/workspacePanel/activeSessionId and, on each relevant change, refits the active
+ * terminal and pushes the new cols/rows to the backend over the open WebSocket. The refit is done
+ * inside requestAnimationFrame (and a bounded retry poll for activeView) because a freshly-shown
+ * panel has zero width until the browser lays it out; measuring too early yields a 0-size fit. The
+ * lazy `loadXterm()` triggered on view entry swallows its rejection - a failed asset load must not
+ * break view switching, and the terminal's own loading overlay reports the failure to the user.
+ */
 function dashboardRegisterTerminalWatchers(ctx: DashboardAlpineContext): void {
   ctx.$watch("activeView", (view: string) => {
     if ((view === "workspace" || view === "setup") && ctx.terminalAvailable) {
@@ -99,6 +114,14 @@ function dashboardRegisterTerminalWatchers(ctx: DashboardAlpineContext): void {
   });
 }
 
+/**
+ * Register the watchers that lazy-load each view's data when the user navigates to it and react to
+ * the quality filters. Entering a view triggers its loader (audit/quality/skills/setup/plans/hooks);
+ * the per-view fan-out is intentional because data is fetched on demand rather than all at once on
+ * boot, keeping the initial render cheap. The workspace view additionally starts a 10s session-count
+ * poll that is cleared on every activeView change, because leaving the workspace must stop the
+ * interval so only one poll is ever live and a backgrounded view does not keep hitting the server.
+ */
 function dashboardRegisterViewWatchers(ctx: DashboardAlpineContext): void {
   ctx.$watch("activeView", (view: string) => {
     if (ctx._workspacePoll) {
@@ -264,6 +287,12 @@ function dashboardHandlePromptShortcut(
   }
 }
 
+/**
+ * Wire the single document-level keydown listener that drives the dashboard's keyboard shortcuts.
+ * Global shortcuts are tried first and, when one handles the event, the prompt-view shortcuts are
+ * skipped (the global handler returning true short-circuits) so the two sets never both fire for
+ * one keypress. One listener for the whole app, registered once during init.
+ */
 function dashboardRegisterKeyboardShortcuts(ctx: DashboardAlpineContext): void {
   document.addEventListener("keydown", (event: KeyboardEvent) => {
     if (dashboardHandleGlobalShortcut(ctx, event)) return;
@@ -271,6 +300,13 @@ function dashboardRegisterKeyboardShortcuts(ctx: DashboardAlpineContext): void {
   });
 }
 
+/**
+ * One-shot bootstrap run once when the Alpine app initialises: register every watcher and keyboard
+ * shortcut, apply the persisted dark-mode class, load saved custom prompts and dashboard state, and
+ * kick off the first audit/agent/terminal-availability fetches. The initial network calls are
+ * guarded behind an http(s) protocol check so opening the built HTML from `file://` (no server)
+ * loads the UI without firing requests that would only fail. Side-effecting; returns nothing.
+ */
 function dashboardInit(ctx: DashboardAlpineContext): void {
   ctx.$watch("darkMode", (value: boolean) => {
     localStorage.setItem("gf-dark", String(value));

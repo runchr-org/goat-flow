@@ -4,12 +4,12 @@
  */
 import type { StackInfo, ReadonlyFS } from "../types.js";
 import {
-  EXTRA_LANGUAGE_SIGNALS,
-  JAVA_MANIFEST_PATHS,
-  NODE_FRAMEWORKS,
-  ROOT_PYTHON_FILES,
-  SETUP_FRAMEWORK_MARKERS,
-  SUBDIR_PYTHON_GLOBS,
+  PROJECT_STACK_EXTRA_LANGUAGE_SIGNALS,
+  PROJECT_STACK_JAVA_MANIFEST_PATHS,
+  PROJECT_STACK_NODE_FRAMEWORKS,
+  PROJECT_STACK_ROOT_PYTHON_FILES,
+  PROJECT_STACK_SETUP_FRAMEWORK_MARKERS,
+  PROJECT_STACK_SUBDIRECTORY_PYTHON_GLOBS,
 } from "./project-stack-data.js";
 import {
   hasAnyGlob,
@@ -195,7 +195,7 @@ function collectNodeLanguages(
   if (hasTypeScript) {
     addLanguageIfMissing(languages, "typescript");
   }
-  for (const detector of NODE_FRAMEWORKS) {
+  for (const detector of PROJECT_STACK_NODE_FRAMEWORKS) {
     if (hasAnyDependency(deps, detector.packages)) {
       addLanguageIfMissing(languages, detector.language);
     }
@@ -289,8 +289,9 @@ function detectPythonLanguages(fs: ReadonlyFS): string[] {
 
 /** Detect Python projects from root or subdirectory manifests. */
 function detectPythonStack(fs: ReadonlyFS): DetectorResult {
-  const hasRootPython = hasAnyPath(fs, ROOT_PYTHON_FILES);
-  const hasSubdirPython = !hasRootPython && hasAnyGlob(fs, SUBDIR_PYTHON_GLOBS);
+  const hasRootPython = hasAnyPath(fs, PROJECT_STACK_ROOT_PYTHON_FILES);
+  const hasSubdirPython =
+    !hasRootPython && hasAnyGlob(fs, PROJECT_STACK_SUBDIRECTORY_PYTHON_GLOBS);
   if (!hasRootPython && !hasSubdirPython) {
     return {};
   }
@@ -421,7 +422,8 @@ function detectJavaStack(fs: ReadonlyFS): DetectorResult {
     return {};
   }
 
-  const manifest = readFirstExistingFile(fs, JAVA_MANIFEST_PATHS) ?? "";
+  const manifest =
+    readFirstExistingFile(fs, PROJECT_STACK_JAVA_MANIFEST_PATHS) ?? "";
   return {
     languages: detectJavaLanguages(manifest),
     ...getJavaCommands(hasMaven),
@@ -536,7 +538,7 @@ function hasJinjaSignal(fs: ReadonlyFS): boolean {
 function detectExtraLanguages(fs: ReadonlyFS): string[] {
   const languages: string[] = [];
 
-  for (const signal of EXTRA_LANGUAGE_SIGNALS) {
+  for (const signal of PROJECT_STACK_EXTRA_LANGUAGE_SIGNALS) {
     if (signal.language === "jinja") {
       if (hasJinjaSignal(fs)) languages.push(signal.language);
       continue;
@@ -653,7 +655,7 @@ function buildSetupFrameworks(
     const display = STACK_LANGUAGE_FRAMEWORK_LABELS[language];
     if (display) addSetupLabelIfMissing(frameworks, display);
   }
-  for (const detector of SETUP_FRAMEWORK_MARKERS) {
+  for (const detector of PROJECT_STACK_SETUP_FRAMEWORK_MARKERS) {
     if (hasFrameworkMarker(fs, detector.files, detector.markers)) {
       addSetupLabelIfMissing(frameworks, detector.name);
     }

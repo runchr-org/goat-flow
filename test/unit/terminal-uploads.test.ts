@@ -60,10 +60,25 @@ const WEBP_HEADER = Buffer.concat([
   Buffer.from([0x00, 0x00, 0x00, 0x00]),
   Buffer.from("WEBP"),
 ]);
+type UploadDecodeResult = ReturnType<typeof decodeUploadFile>;
+type DecodedUpload = Extract<UploadDecodeResult, { ok: true }>;
+type UploadDecodeFailure = Extract<UploadDecodeResult, { ok: false }>;
 
 /** Build a minimal binary image with a chosen signature and padded body. */
 function makeFakeImage(header: Buffer, bodyBytes = 32): Buffer {
   return Buffer.concat([header, Buffer.alloc(bodyBytes, 0xff)]);
+}
+
+/** Return a decoded upload after asserting the payload was accepted. */
+function assertUploadOk(result: UploadDecodeResult): DecodedUpload {
+  assert.equal(result.ok, true);
+  return result as DecodedUpload;
+}
+
+/** Return a decoded upload failure after asserting the payload was rejected. */
+function assertUploadFailure(result: UploadDecodeResult): UploadDecodeFailure {
+  assert.equal(result.ok, false);
+  return result as UploadDecodeFailure;
 }
 
 describe("sanitizeUploadFilename", () => {
@@ -117,11 +132,9 @@ describe("decodeUploadFile", () => {
   it("accepts a valid base64-encoded PNG", () => {
     const png = makeFakeImage(PNG_HEADER);
     const result = decodeUploadFile("photo.png", png.toString("base64"));
-    assert.equal(result.ok, true);
-    if (result.ok) {
-      assert.equal(result.sanitized.ext, ".png");
-      assert.equal(result.bytes.length, png.length);
-    }
+    const decoded = assertUploadOk(result);
+    assert.equal(decoded.sanitized.ext, ".png");
+    assert.equal(decoded.bytes.length, png.length);
   });
 
   it("rejects an unsupported extension", () => {
@@ -129,10 +142,7 @@ describe("decodeUploadFile", () => {
       "note.txt",
       Buffer.from("hi").toString("base64"),
     );
-    assert.equal(result.ok, false);
-    if (!result.ok) {
-      assert.match(result.reason, /Unsupported extension/);
-    }
+    assert.match(assertUploadFailure(result).reason, /Unsupported extension/);
   });
 
   it("rejects content whose magic bytes do not match any supported format", () => {
@@ -140,10 +150,7 @@ describe("decodeUploadFile", () => {
       "fake.png",
       Buffer.from("plain text payload").toString("base64"),
     );
-    assert.equal(result.ok, false);
-    if (!result.ok) {
-      assert.match(result.reason, /supported image format/);
-    }
+    assert.match(assertUploadFailure(result).reason, /supported image format/);
   });
 
   it("trusts magic bytes over a misleading extension", () => {
@@ -151,10 +158,7 @@ describe("decodeUploadFile", () => {
     const result = decodeUploadFile("trick.gif", png.toString("base64"));
     // .gif extension passes sanitize because it is in the allowed set, but
     // the bytes are PNG. The decoder rewrites the saved extension to match.
-    assert.equal(result.ok, true);
-    if (result.ok) {
-      assert.equal(result.sanitized.ext, ".png");
-    }
+    assert.equal(assertUploadOk(result).sanitized.ext, ".png");
   });
 
   it("rejects an empty payload", () => {

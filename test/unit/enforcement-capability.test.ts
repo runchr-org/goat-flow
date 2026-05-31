@@ -121,27 +121,35 @@ function byId(
   return item;
 }
 
+/**
+ * Assert fact-backed hard enforcement statuses for supported hook agents.
+ *
+ * @param agents - agent profiles whose facts should yield hard enforcement
+ */
+function assertFactBackedStatusesForAgents(
+  agents: ReadonlyArray<(typeof PROFILES)[keyof typeof PROFILES]>,
+): void {
+  agents.forEach((agent) => {
+    const matrix = buildAgentEnforcementCapability(facts(agent), {
+      agentScope: agentScope("pass"),
+      denyMechanismEvidenceLevel: "full",
+    });
+    assert.equal(byId(matrix, "shell-dangerous").status, "hard");
+    assert.equal(byId(matrix, "secret-file-read").status, "hard");
+    assert.equal(byId(matrix, "secret-shell-read").status, "hard");
+    assert.equal(byId(matrix, "hook-registration").status, "hard");
+    assert.equal(byId(matrix, "hook-self-test").status, "hard");
+    assert.match(
+      byId(matrix, "hook-self-test").summary,
+      /runtime-shaped payload smoke passed/,
+    );
+    assert.equal(byId(matrix, "provider-native-enforcement").status, "limited");
+  });
+}
+
 describe("agent enforcement capability matrix", () => {
   it("derives fact-backed statuses for all supported agents", () => {
-    for (const agent of [PROFILES.claude, PROFILES.codex]) {
-      const matrix = buildAgentEnforcementCapability(facts(agent), {
-        agentScope: agentScope("pass"),
-        denyMechanismEvidenceLevel: "full",
-      });
-      assert.equal(byId(matrix, "shell-dangerous").status, "hard");
-      assert.equal(byId(matrix, "secret-file-read").status, "hard");
-      assert.equal(byId(matrix, "secret-shell-read").status, "hard");
-      assert.equal(byId(matrix, "hook-registration").status, "hard");
-      assert.equal(byId(matrix, "hook-self-test").status, "hard");
-      assert.match(
-        byId(matrix, "hook-self-test").summary,
-        /runtime-shaped payload smoke passed/,
-      );
-      assert.equal(
-        byId(matrix, "provider-native-enforcement").status,
-        "limited",
-      );
-    }
+    assertFactBackedStatusesForAgents([PROFILES.claude, PROFILES.codex]);
 
     const copilot = buildAgentEnforcementCapability(facts(PROFILES.copilot), {
       agentScope: agentScope("pass"),

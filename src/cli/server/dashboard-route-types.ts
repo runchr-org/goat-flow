@@ -1,3 +1,12 @@
+/**
+ * Shared types and derived agent constants for the dashboard's non-terminal HTTP routes.
+ *
+ * Owns the dependency-bag and request-context interfaces every route closure consumes, the validated
+ * query-parameter shapes, the per-request audit-profiler contract, and the agent lists/sets derived
+ * once from the agent registry (used for `?agent=` validation and the client bootstrap payload).
+ * Pure type and constant module - the route context is constructed in dashboard-route-context.ts and
+ * the handlers live in the sibling dashboard-*-routes.ts files.
+ */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   getAgentProfileMap,
@@ -42,6 +51,11 @@ export const VALID_QUALITY_MODES = new Set<string>(QUALITY_MODES);
 export const QUALITY_EVALUATE_MAX_BODY_BYTES =
   MAX_EVALUATE_CONTENT_BYTES + 64 * 1024;
 
+/**
+ * Outcome of the `/api/quality` audit-cache lookup, surfaced to the dashboard so the UI can show
+ * whether the audit was reused: `hit` served from cache, `miss` recomputed and cached, `bypass` a
+ * `fresh=true` request that skipped the cache.
+ */
 export type QualityAuditCacheStatus = "hit" | "miss" | "bypass";
 
 /**
@@ -62,8 +76,8 @@ interface DashboardPresetData {
 export interface QualityRequestParams {
   agent: AgentId;
   qualityMode: QualityMode;
-  fresh: boolean;
-  fast: boolean;
+  includeFresh: boolean;
+  shouldUseFastCache: boolean;
 }
 
 type JsonResponder = (
@@ -96,8 +110,7 @@ export interface DashboardAuditProfileSpan {
 /**
  * Per-request profiler so dashboard audit timings cannot leak between responses.
  */
-export interface DashboardAuditProfiler {
-  enabled: boolean;
+export interface DashboardAuditProfiler extends Record<"enabled", boolean> {
   spans: DashboardAuditProfileSpan[];
   span<T>(name: string, fn: () => T): T;
 }
@@ -116,6 +129,17 @@ export interface DashboardRouteDependencies {
   readBody: BodyReader;
 }
 
+/**
+ * Per-server request context shared by every non-terminal route handler. Extends the raw dependency
+ * bag with values resolved once per server: the state-file locations, the in-memory quality audit
+ * cache, and the IO helpers (evidence recording, path validation, error-to-status mapping). Built by
+ * createDashboardRouteContext.
+ *
+ * Invariant: every handler shares one context instance per server, so the qualityAuditCache is a
+ * single process-wide store, not per-request. The security contract is that handlers must resolve
+ * any caller-supplied path through validatedPath before touching the filesystem; that method is the
+ * sole boundary check, and responseStatusForError must map its rejection to a 400.
+ */
 export interface DashboardRouteContext extends DashboardRouteDependencies {
   dashboardStateFile: string;
   legacyProjectsListFile: string;

@@ -56,9 +56,7 @@ export interface EvaluateBody {
 }
 
 /** Hook-toggle payload accepted by POST /api/hooks/:hookId/toggle. */
-interface HookToggleBody {
-  enabled: boolean;
-}
+type HookToggleBody = Record<"enabled", boolean>;
 
 const MAX_PROJECT_TITLE_LENGTH = 120; // Storage limit: dense dashboard rows cannot absorb long custom aliases.
 

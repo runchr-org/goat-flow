@@ -1,3 +1,8 @@
+/**
+ * Audit scoring model: how acknowledged vs unacknowledged advisory failures affect a concern's status and
+ * scope.failures, the CheckResult/structured-details contract for dashboard consumers, deny-covers-secrets
+ * pass/fail conditions, and that each renderer (json, markdown, sarif, text) handles details consistently.
+ */
 import {
   INSTRUCTION_FILES,
   PROFILES,
@@ -15,7 +20,6 @@ import {
   renderAuditMarkdown,
   renderAuditSarif,
   renderAuditText,
-  resolve,
   stubAgentFacts,
   stubConfig,
   stubFS,

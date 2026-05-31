@@ -1,3 +1,13 @@
+/**
+ * Persistent identity and on-disk state model for the dashboard's recent-projects list.
+ *
+ * Resolves a stable identity for each checkout (git remote hash, then a gitignored `.goat-flow`
+ * marker, then the absolute path) so the same project is recognised after it moves on disk, and
+ * hydrates/normalises the JSON state file into a deduplicated, deterministically ordered shape.
+ * Reads and writes the local marker file and shells out to `git config` with a short timeout; all
+ * filesystem and git failures are swallowed into path-based fallbacks so a read-only or non-git
+ * project still loads. Consumed by dashboard-project-routes.ts.
+ */
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
@@ -40,7 +50,7 @@ function hashString(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-const PROJECT_ID_COMMENT =
+const PROJECT_MARKER_COMMENT =
   "# Local goat-flow dashboard project identity. Gitignored by default.";
 
 /** Accept only persisted identity-source values understood by this dashboard build. */
@@ -134,7 +144,7 @@ function readGitRemote(projectPath: string): string | null {
 }
 
 /** Read the first non-comment project marker line; swallows missing marker files. */
-function readProjectMarkerId(markerPath: string): string | null {
+function readProjectMarkerIdentifier(markerPath: string): string | null {
   try {
     const raw = readFileSync(markerPath, "utf-8");
     for (const line of raw.split(/\r?\n/u)) {
@@ -149,13 +159,17 @@ function readProjectMarkerId(markerPath: string): string | null {
 }
 
 /** Writes a gitignored project marker; swallows read-only projects as `null`. */
-function writeProjectMarkerId(markerPath: string): string | null {
+function writeProjectMarkerIdentifier(markerPath: string): string | null {
   try {
-    const markerId = `gf_${randomUUID()}`;
-    writeFileSync(markerPath, `${PROJECT_ID_COMMENT}\n${markerId}\n`, {
-      encoding: "utf-8",
-    });
-    return markerId;
+    const markerIdentifier = `gf_${randomUUID()}`;
+    writeFileSync(
+      markerPath,
+      `${PROJECT_MARKER_COMMENT}\n${markerIdentifier}\n`,
+      {
+        encoding: "utf-8",
+      },
+    );
+    return markerIdentifier;
   } catch {
     return null;
   }
@@ -189,17 +203,17 @@ function resolveMarkerIdentity(
   } catch (err) {
     if (allowMarkerWrite) throw err;
   }
-  const markerId =
+  const markerIdentifier =
     markerPath === null
       ? null
-      : (readProjectMarkerId(markerPath) ??
-        (allowMarkerWrite ? writeProjectMarkerId(markerPath) : null));
-  if (!markerId) return null;
+      : (readProjectMarkerIdentifier(markerPath) ??
+        (allowMarkerWrite ? writeProjectMarkerIdentifier(markerPath) : null));
+  if (!markerIdentifier) return null;
   return {
-    identity: `goat-marker:${markerId}`,
+    identity: `goat-marker:${markerIdentifier}`,
     identitySource: "goat-marker",
     currentPath,
-    markerId,
+    markerId: markerIdentifier,
   };
 }
 

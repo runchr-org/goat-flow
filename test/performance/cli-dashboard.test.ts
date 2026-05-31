@@ -22,11 +22,13 @@ const PERF_ENABLED = process.env["GOAT_FLOW_PERF_TESTS"] === "1";
 const PERF_SKIP = PERF_ENABLED
   ? false
   : "Set GOAT_FLOW_PERF_TESTS=1 or run `npm run test:performance`.";
-const BUDGET_SCALE = Number.parseFloat(
+const PERF_BUDGET_SCALE = Number.parseFloat(
   process.env["GOAT_FLOW_PERF_BUDGET_SCALE"] ?? "1",
 );
-const budgetScale =
-  Number.isFinite(BUDGET_SCALE) && BUDGET_SCALE > 0 ? BUDGET_SCALE : 1;
+const performanceBudgetMultiplier =
+  Number.isFinite(PERF_BUDGET_SCALE) && PERF_BUDGET_SCALE > 0
+    ? PERF_BUDGET_SCALE
+    : 1;
 
 /** Stable timing summary contract used by performance budget assertions. */
 interface DurationStats {
@@ -45,7 +47,7 @@ interface DashboardServerHandle {
 
 /** Scale performance budgets from one env-controlled multiplier. */
 function budget(ms: number): number {
-  return ms * budgetScale;
+  return ms * performanceBudgetMultiplier;
 }
 
 /** Summarize repeated timings with a stable p95 contract used by assertions. */
@@ -210,8 +212,8 @@ describe("performance: dashboard", { skip: PERF_SKIP }, () => {
       async () => {
         const res = await fetchOk(baseUrl, "/");
         assert.match(res.headers.get("content-type") ?? "", /text\/html/i);
-        const html = await res.text();
-        assert.match(html, /__GOAT_FLOW_DEFAULT_PATH__/);
+        const dashboardMarkup = await res.text();
+        assert.match(dashboardMarkup, /__GOAT_FLOW_DEFAULT_PATH__/);
       },
     );
 

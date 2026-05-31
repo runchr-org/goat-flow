@@ -29,7 +29,7 @@ export function renderQualityHistoryText(
   options: {
     agent: AgentId | null;
     qualityMode: QualityMode | null;
-    all: boolean;
+    includeAll: boolean;
   },
 ): string {
   if (rows.length === 0) {
@@ -60,7 +60,7 @@ export function renderQualityHistoryText(
       ].join(" | "),
     );
   }
-  if (!options.all) {
+  if (!options.includeAll) {
     lines.push("");
     lines.push(
       "Use `--all` to lift the 20-run default. Diff ids are saved report basenames under `.goat-flow/logs/quality/`.",

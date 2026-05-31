@@ -1,30 +1,61 @@
+/**
+ * Dashboard terminal launch flow, part 1: send payloads keep controlling cwd separate from the selected target
+ * and route text to the requested session, single-line/non-Claude sends submit immediately, and Claude pastes
+ * use the no-marker fallback (armed across xterm replies, retried while parked, ignoring a late paste echo).
+ */
 import {
   assert,
-  assertExists,
   createFakeTimers,
-  DASHBOARD_APP_PATH,
-  DASHBOARD_TERMINAL_PATH,
-  delay,
   describe,
-  FakeDashboardWebSocket,
-  FakeFitAddon,
-  FakeResizeObserver,
-  FakeTerminal,
   it,
   loadHelpers,
-  loadFixture,
   makeBrowserTerminalGlobals,
   makeCapturingWebSocket,
   makeContext,
-  makeLaunchPromptContext,
-  PROJECT_ROOT,
-  readFileSync,
-  readDashboardAppSource,
-  readDashboardTerminalSource,
-  resolve,
-  SETUP_VIEW_PATH,
-  WORKSPACE_VIEW_PATH,
+  makeTerminalSendHarness,
+  makeTerminalSession,
 } from "./helpers.js";
+
+/** Build two live sessions so send-routing assertions can prove only the requested tab receives input. */
+function makeRequestedSessionRoutingHarness(): {
+  helpers: ReturnType<typeof loadHelpers>;
+  ctx: ReturnType<typeof makeContext>;
+  sent: Record<"upload" | "active", string[]>;
+} {
+  const helpers = loadHelpers(
+    async () => ({ json: async () => ({}) }) as Response,
+  );
+  const sent: Record<"upload" | "active", string[]> = {
+    upload: [],
+    active: [],
+  };
+  const ctx = makeContext({
+    activeSessionId: "session-active",
+    sessions: [
+      makeTerminalSession({
+        id: "session-upload",
+        runner: "claude",
+        promptLabel: "Upload target",
+        awaitingInput: true,
+      }),
+      makeTerminalSession({
+        id: "session-active",
+        runner: "codex",
+        promptLabel: "Active target",
+        awaitingInput: false,
+      }),
+    ],
+    _terminalRefs: {
+      "session-upload": {
+        ws: makeCapturingWebSocket(sent.upload),
+      },
+      "session-active": {
+        ws: makeCapturingWebSocket(sent.active),
+      },
+    },
+  });
+  return { helpers, ctx, sent };
+}
 
 describe("dashboard terminal launch flow", () => {
   it("keeps controlling cwd and selected target separate in terminal create payloads", async () => {
@@ -65,56 +96,7 @@ describe("dashboard terminal launch flow", () => {
   });
 
   it("sends terminal text to the requested session instead of the current active tab", async () => {
-    const helpers = loadHelpers(
-      async () => ({ json: async () => ({}) }) as Response,
-    );
-    const sent: Record<string, string[]> = {
-      upload: [],
-      active: [],
-    };
-    const ctx = makeContext({
-      activeSessionId: "session-active",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: true,
-          age: "0s",
-          presetId: null,
-        },
-        {
-          id: "session-active",
-          runner: "codex",
-          promptLabel: "Active target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: makeCapturingWebSocket(sent.upload),
-        },
-        "session-active": {
-          ws: makeCapturingWebSocket(sent.active),
-        },
-      },
-    });
+    const { helpers, ctx, sent } = makeRequestedSessionRoutingHarness();
 
     assert.equal(
       helpers.dashboardSendToTerminalSession(
@@ -374,29 +356,16 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
+    const session = makeTerminalSession({
+      id: "session-protocol",
+      runner: "claude",
+      promptLabel: "Protocol reply test",
+      connected: false,
+      age: "",
+    });
     const ctx = makeContext({
       activeSessionId: "session-protocol",
-      sessions: [
-        {
-          id: "session-protocol",
-          runner: "claude",
-          promptLabel: "Protocol reply test",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: false,
-          ended: false,
-          awaitingInput: false,
-          outputTail: "",
-          loadingPhase: "ready",
-          loadingShowSlowHint: false,
-          loadingShowRetry: false,
-          age: "",
-          presetId: null,
-        },
-      ],
+      sessions: [session],
       _terminalRefs: { "session-protocol": {} },
     });
 
@@ -451,32 +420,11 @@ describe("dashboard terminal launch flow", () => {
       async () => ({ json: async () => ({}) }) as Response,
       timers,
     );
-    const sent: string[] = [];
-    const ctx = makeContext({
-      activeSessionId: "session-upload",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-          outputTail:
-            "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: makeCapturingWebSocket(sent),
-        },
+    const { ctx, sent, session } = makeTerminalSendHarness({
+      runner: "claude",
+      session: {
+        outputTail:
+          "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
       },
     });
 
@@ -505,7 +453,7 @@ describe("dashboard terminal launch flow", () => {
       data: "\r",
     });
 
-    ctx.sessions[0]!.outputTail = "Running quality assessment";
+    session.outputTail = "Running quality assessment";
     timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
     assert.equal(timers.pending(), 0);
   });
@@ -586,32 +534,11 @@ describe("dashboard terminal launch flow", () => {
       async () => ({ json: async () => ({}) }) as Response,
       timers,
     );
-    const sent: string[] = [];
-    const ctx = makeContext({
-      activeSessionId: "session-upload",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-          outputTail:
-            "[Pasted text #1 +2 lines]\n────────────────\npasteagaintoexpand ◉ xhigh · /effort",
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: makeCapturingWebSocket(sent),
-        },
+    const { ctx, sent, session } = makeTerminalSendHarness({
+      runner: "claude",
+      session: {
+        outputTail:
+          "[Pasted text #1 +2 lines]\n────────────────\npasteagaintoexpand ◉ xhigh · /effort",
       },
     });
 
@@ -646,7 +573,7 @@ describe("dashboard terminal launch flow", () => {
     });
     assert.equal(timers.pending(), 1);
 
-    ctx.sessions[0]!.outputTail = "Running quality assessment";
+    session.outputTail = "Running quality assessment";
     timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
     assert.equal(timers.pending(), 0);
   });

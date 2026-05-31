@@ -85,10 +85,11 @@ export interface ExecOptions {
   };
 }
 
+/** Stable result flags: `ok` means clean exit; `truncated` means an output cap fired. */
+type ExecResultBooleanFields = Record<"ok" | "truncated", boolean>;
+
 /** Completed process result with captured output bounded to the configured byte caps. */
-export interface ExecResult {
-  /** `true` iff the process exited with code 0 and did not time out. */
-  ok: boolean;
+export interface ExecResult extends ExecResultBooleanFields {
   /** Exit code; `null` if the process was killed by signal. */
   exitCode: number | null;
   /** Signal that terminated the process, if any. */
@@ -99,8 +100,6 @@ export interface ExecResult {
   stderr: string;
   /** Whether the timeout fired. */
   timedOut: boolean;
-  /** Whether the stdout or stderr cap truncated the output. */
-  truncated: boolean;
   /** Wall-clock duration in milliseconds. */
   durationMs: number;
   /** Basename of the spawned command, for telemetry. */
@@ -108,7 +107,7 @@ export interface ExecResult {
 }
 
 /** Rejected safety check before any child process is spawned. */
-export class SafeExecRejection extends Error {
+class SafeExecRejection extends Error {
   readonly reason:
     | "command-not-in-allow-list"
     | "args-contain-metacharacters"
@@ -126,6 +125,8 @@ export class SafeExecRejection extends Error {
     this.reason = reason;
   }
 }
+
+export { SafeExecRejection };
 
 /** Rejected local file write before any content is written. */
 class SafeFileWriteRejection extends Error {
@@ -253,9 +254,9 @@ function recordExecEvidence(opts: ExecOptions, result: ExecResult): void {
   recordEvidenceEvent(
     {
       actor: "server",
-      eventKind: opts.evidence.eventKind ?? "audit.exec",
+      eventType: opts.evidence.eventKind ?? "audit.exec",
       producer: opts.evidence.producer ?? "safe-exec",
-      projectPath: opts.evidence.projectPath,
+      projectRoot: opts.evidence.projectPath,
       payload: {
         command: result.commandBasename,
         ok: result.ok,

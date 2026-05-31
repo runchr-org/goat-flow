@@ -11,14 +11,18 @@ import assert from "node:assert/strict";
 import {
   composeManifest,
   validateManifest,
-  validateSkillReferenceSchema,
   loadManifest,
   checkManifest,
   getSkillFiles,
-  getRequiredInstructionSections,
+  getRequiredInstructionSections as getRequiredInstructionSectionsFromManifest,
   renderManifestMarkdown,
   resetManifestCache,
+  validateSkillReferenceSchema as validateSkillReferenceSchemaFromManifest,
 } from "../../src/cli/manifest/manifest.js";
+import {
+  getRequiredInstructionSections,
+  validateSkillReferenceSchema,
+} from "../../src/cli/manifest/manifest-json.js";
 import type {
   ManifestJson,
   ObservedFacts,
@@ -219,14 +223,16 @@ describe("validateManifest (clean case)", () => {
   it("accepts a manifest whose static facts match observed state", () => {
     const json = fixtureJson();
     const observed = fixtureObserved();
-    assert.doesNotThrow(() => validateManifest(json, observed));
+    const validationResult = validateManifest(json, observed);
+    assert.equal(validationResult, undefined);
   });
 
   it("accepts an agent with valid capability metadata", () => {
     const json = fixtureJson();
     json.agents.claude = fixtureAgent();
 
-    assert.doesNotThrow(() => validateManifest(json, fixtureObserved()));
+    const validationResult = validateManifest(json, fixtureObserved());
+    assert.equal(validationResult, undefined);
   });
 });
 
@@ -280,9 +286,17 @@ describe("validateManifest (agent capability metadata)", () => {
 });
 
 describe("validateSkillReferenceSchema", () => {
+  it("keeps the manifest facade validator export aligned with manifest-json", () => {
+    assert.equal(
+      validateSkillReferenceSchemaFromManifest,
+      validateSkillReferenceSchema,
+    );
+  });
+
   it("accepts an omitted references map", () => {
     const json = fixtureJson();
-    assert.doesNotThrow(() => validateSkillReferenceSchema(json));
+    const validationResult = validateSkillReferenceSchema(json);
+    assert.equal(validationResult, undefined);
   });
 
   it("throws when one skill reference entry is not an array", () => {
@@ -388,7 +402,8 @@ describe("validateManifest (drifted count)", () => {
     const observed = fixtureObserved({
       views: ["quality", "about", "home"],
     });
-    assert.doesNotThrow(() => validateManifest(json, observed));
+    const validationResult = validateManifest(json, observed);
+    assert.equal(validationResult, undefined);
   });
 });
 
@@ -437,6 +452,13 @@ describe("checkManifest (real repo)", () => {
 // getRequiredInstructionSections: manifest-sourced harness input (T1 pinning)
 // ---------------------------------------------------------------------------
 describe("getRequiredInstructionSections (real repo)", () => {
+  it("keeps the manifest facade section export aligned with manifest-json", () => {
+    assert.equal(
+      getRequiredInstructionSectionsFromManifest,
+      getRequiredInstructionSections,
+    );
+  });
+
   it("returns one entry per manifest required_sections label", () => {
     resetManifestCache();
     const sections = getRequiredInstructionSections();

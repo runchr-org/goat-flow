@@ -1,3 +1,8 @@
+/**
+ * Quality prompt content: the assessment is stated as reporting-only, includes the skill-testing and ratings
+ * sections with sub-scores, uses generic legacy task-state wording, generates mode-specific skills and focused
+ * process prompts, adds bounded learning-loop context for setup/harness, and uses local (not UTC) run_date.
+ */
 import {
   describe,
   it,
@@ -10,8 +15,212 @@ import {
   extractExampleJson,
   qualityContextEntry,
 } from "./helpers.js";
+import { appendAgentReportContract } from "../../../src/cli/prompt/compose-quality-agent-report.js";
+import { composeAgentSetupQuality } from "../../../src/cli/prompt/compose-quality-agent-setup.js";
+import { composeArtifactQualityPrompt } from "../../../src/cli/prompt/compose-quality-artifact.js";
+import {
+  formatLocalDate,
+  jsonString,
+  shellSingleQuote,
+  toShellProjectPath,
+} from "../../../src/cli/prompt/compose-quality-common.js";
+import { composeFocusedQuality } from "../../../src/cli/prompt/compose-quality-focused.js";
+import type { QualityHistoryEntry } from "../../../src/cli/quality/history.js";
+import { renderQualityHistoryText } from "../../../src/cli/quality/history-render.js";
+import { attachFindingIds } from "../../../src/cli/quality/ids.js";
+import { handleQualityCommand } from "../../../src/cli/quality/quality-command.js";
+import type { SkillQualityReport } from "../../../src/cli/quality/skill-quality-types.js";
+
+/**
+ * Build prior quality history that mixes ignored local artifacts with a real tracked-file finding, because the
+ * prior-report tests must prove the prompt carries forward genuine tracked-file findings while not resurfacing
+ * gitignored-log findings, which needs both kinds present in one fixture.
+ */
+function priorReportWithTrackedAndIgnoredFindings(): QualityHistoryEntry {
+  return {
+    id: "2026-04-15-1000-claude-bbbbb",
+    path: "/tmp/test-project/.goat-flow/logs/quality/2026-04-15-1000-claude-bbbbb.json",
+    date: "2026-04-15",
+    time: "1000",
+    agent: "claude",
+    randomId: "bbbbb",
+    report: {
+      report_kind: "goat-flow-quality-report",
+      goat_flow_version: "1.2.1",
+      agent: "claude",
+      project_path: "/tmp/test-project",
+      run_date: "2026-04-15",
+      audit_status: "pass",
+      scores: {
+        setup: {
+          total: 80,
+          accuracy: 20,
+          relevance: 20,
+          completeness: 20,
+          friction: 20,
+        },
+        system: {
+          total: 75,
+          usefulness: 20,
+          signal_to_noise: 20,
+          adaptability: 20,
+          learnability: 15,
+        },
+      },
+      findings: [
+        {
+          id: "framework_flaw:src-cli-prompt-compose-quality-ts:600",
+          type: "framework_flaw",
+          severity: "BLOCKER",
+          file: "src/cli/prompt/compose-quality.ts",
+          line: 600,
+          summary: "Prompt still asks for resolved findings",
+          detail: "Resolved findings belong in diff output.",
+          evidence_quality: "OBSERVED",
+          delta_tag: "new",
+        },
+        {
+          id: "skill_flaw:agents-skills-goat-critique-skill-md:131",
+          type: "skill_flaw",
+          severity: "MAJOR",
+          file: ".agents/skills/goat-critique/SKILL.md",
+          line: 131,
+          summary:
+            "goat-critique unconditionally persists critique snapshots with no strict no-write branch.",
+          detail:
+            "The finding treats gitignored critique logs as a write violation.",
+          evidence_quality: "OBSERVED",
+          delta_tag: "new",
+        },
+        {
+          id: "framework_flaw:src-cli-prompt-compose-quality-ts:700",
+          type: "framework_flaw",
+          severity: "MAJOR",
+          file: "src/cli/prompt/compose-quality.ts",
+          line: 700,
+          summary:
+            "Tracked-file edit violates strict no-write assessment mode.",
+          detail:
+            "The agent modified src/cli/prompt/compose-quality.ts during reporting-only assessment.",
+          evidence_quality: "OBSERVED",
+          delta_tag: "new",
+        },
+      ],
+    },
+  };
+}
+
+/**
+ * Outputs of the direct (non-dispatcher) prompt composers, captured together so a
+ * test can assert the shared report contract stays aligned across the agent-report,
+ * focused, setup, and artifact modes - `lines` holds the agent-report contract block.
+ */
+interface DirectPromptComposerOutputs {
+  lines: string[];
+  focusedPrompt: string;
+  setupPrompt: string;
+  artifactPrompt: string;
+}
+
+/** Compose the direct prompt contracts that should stay aligned across modes. */
+function composeDirectPromptContracts(): DirectPromptComposerOutputs {
+  const lines: string[] = [];
+  appendAgentReportContract(lines, {
+    agent: "claude",
+    projectPath: "/tmp/test project",
+    auditStatus: "unavailable",
+    qualityMode: "skills",
+    priorReport: null,
+    runDate: "2026-04-18",
+  });
+  const focused = composeFocusedQuality(
+    {
+      agent: "claude",
+      projectPath: PROJECT_ROOT,
+      auditReport: null,
+      runDate: "2026-04-18",
+    },
+    "skills",
+  );
+  const setup = composeAgentSetupQuality(
+    {
+      agent: "claude",
+      projectPath: PROJECT_ROOT,
+      auditReport: null,
+      runDate: "2026-04-18",
+    },
+    "agent-setup",
+  );
+  const artifactPrompt = composeArtifactQualityPrompt({
+    artifact: {
+      id: "skill:demo",
+      kind: "skill",
+      name: "demo",
+      path: ".claude/skills/demo/SKILL.md",
+      source: "installed",
+      missingMirrors: [],
+      mirrorPaths: [],
+    },
+    totalScore: 0,
+    maxTotalScore: 100,
+    profileMax: 100,
+    subtype: "workflow",
+    detectedShape: "workflow",
+    shapeConfidence: 1,
+    shapeMismatch: false,
+    classification: {
+      detectedSubtype: "workflow",
+      confidence: 1,
+      alternatives: [],
+      reasoning: [],
+    },
+    recommendation: "needs-human-review",
+    metrics: [],
+    composedFrom: [".claude/skills/demo/SKILL.md"],
+    fitNotes: [],
+  } as SkillQualityReport);
+
+  return {
+    lines,
+    focusedPrompt: focused.prompt,
+    setupPrompt: setup.prompt,
+    artifactPrompt,
+  };
+}
 
 describe("quality prompt content", () => {
+  it("keeps direct prompt composers aligned on report-writing contracts", () => {
+    const contracts = composeDirectPromptContracts();
+
+    assert.match(contracts.lines.join("\n"), /Write the JSON report/);
+    assert.equal(
+      formatLocalDate(new Date("2026-04-18T12:00:00")),
+      "2026-04-18",
+    );
+    assert.equal(jsonString("quoted"), '"quoted"');
+    assert.equal(shellSingleQuote("can't"), "'can'\\''t'");
+    assert.equal(
+      toShellProjectPath("/tmp/test project", ".goat-flow/logs/quality"),
+      "/tmp/test project/.goat-flow/logs/quality",
+    );
+    assert.match(contracts.focusedPrompt, /GOAT Flow Skills Assessment/);
+    assert.match(contracts.setupPrompt, /GOAT Flow Quality Assessment/);
+    assert.match(contracts.artifactPrompt, /Skill Quality Review: demo/);
+    assert.match(
+      renderQualityHistoryText([], {
+        agent: null,
+        qualityMode: null,
+        includeAll: false,
+      }),
+      /No saved quality history/,
+    );
+    assert.equal(
+      attachFindingIds(priorReportWithTrackedAndIgnoredFindings().report).ok,
+      true,
+    );
+    assert.equal(typeof handleQualityCommand, "function");
+  });
+
   it("states the assessment is reporting-only", () => {
     const result = composeQuality({
       agent: "claude",
@@ -284,77 +493,7 @@ describe("quality prompt content", () => {
   });
 
   it("includes prior-report context and json contract guidance when history exists", () => {
-    const priorReport: QualityHistoryEntry = {
-      id: "2026-04-15-1000-claude-bbbbb",
-      path: "/tmp/test-project/.goat-flow/logs/quality/2026-04-15-1000-claude-bbbbb.json",
-      date: "2026-04-15",
-      time: "1000",
-      agent: "claude",
-      randomId: "bbbbb",
-      report: {
-        report_kind: "goat-flow-quality-report",
-        goat_flow_version: "1.2.1",
-        agent: "claude",
-        project_path: "/tmp/test-project",
-        run_date: "2026-04-15",
-        audit_status: "pass",
-        scores: {
-          setup: {
-            total: 80,
-            accuracy: 20,
-            relevance: 20,
-            completeness: 20,
-            friction: 20,
-          },
-          system: {
-            total: 75,
-            usefulness: 20,
-            signal_to_noise: 20,
-            adaptability: 20,
-            learnability: 15,
-          },
-        },
-        findings: [
-          {
-            id: "framework_flaw:src-cli-prompt-compose-quality-ts:600",
-            type: "framework_flaw",
-            severity: "BLOCKER",
-            file: "src/cli/prompt/compose-quality.ts",
-            line: 600,
-            summary: "Prompt still asks for resolved findings",
-            detail: "Resolved findings belong in diff output.",
-            evidence_quality: "OBSERVED",
-            delta_tag: "new",
-          },
-          {
-            id: "skill_flaw:agents-skills-goat-critique-skill-md:131",
-            type: "skill_flaw",
-            severity: "MAJOR",
-            file: ".agents/skills/goat-critique/SKILL.md",
-            line: 131,
-            summary:
-              "goat-critique unconditionally persists critique snapshots with no strict no-write branch.",
-            detail:
-              "The finding treats gitignored critique logs as a write violation.",
-            evidence_quality: "OBSERVED",
-            delta_tag: "new",
-          },
-          {
-            id: "framework_flaw:src-cli-prompt-compose-quality-ts:700",
-            type: "framework_flaw",
-            severity: "MAJOR",
-            file: "src/cli/prompt/compose-quality.ts",
-            line: 700,
-            summary:
-              "Tracked-file edit violates strict no-write assessment mode.",
-            detail:
-              "The agent modified src/cli/prompt/compose-quality.ts during reporting-only assessment.",
-            evidence_quality: "OBSERVED",
-            delta_tag: "new",
-          },
-        ],
-      },
-    };
+    const priorReport = priorReportWithTrackedAndIgnoredFindings();
 
     const result = composeQuality({
       agent: "claude",

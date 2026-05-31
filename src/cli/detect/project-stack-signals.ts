@@ -1,16 +1,33 @@
+/**
+ * Derives the secondary project signals that enrich setup prompts and audit
+ * policy: code-generation and deployment tooling, LLM integration, static-analysis
+ * tools, compliance-sensitive docs, and per-language formatter gaps.
+ *
+ * These are advisory signals, not hard facts - compliance detection in particular
+ * is signal-only and audit policy decides whether a hit matters. Detector tables
+ * come from project-stack-data.js; file matching goes through the read-only fs
+ * adapter so a missing or unreadable file is a non-match, never a throw.
+ */
 import type { ProjectSignals, ReadonlyFS } from "../types.js";
 import {
-  CODE_GEN_SIGNALS,
-  COMPLIANCE_DOCS,
-  DEPLOY_SIGNALS,
-  FORMATTER_MAP,
-  LLM_DEP_FILES,
-  LLM_ENV_FILES,
+  PROJECT_STACK_CODE_GENERATION_SIGNALS,
+  PROJECT_STACK_COMPLIANCE_DOCS,
+  PROJECT_STACK_DEPLOYMENT_SIGNALS,
+  PROJECT_STACK_FORMATTER_MAP,
+  PROJECT_STACK_LLM_DEPENDENCY_FILES,
+  PROJECT_STACK_LLM_ENV_FILES,
   type ToolPathGlobSignal,
 } from "./project-stack-data.js";
 import { hasAnyGlob, hasAnyPath } from "./project-stack-files.js";
 
-/** Count approximate source files (excludes generated/vendor/build dirs). */
+/**
+ * Count distinct source files under the conventional code roots, used as a coarse
+ * project-size signal. Globs only src/lib/app/packages, so generated, vendor, and
+ * build output outside those trees is excluded by construction rather than filtered.
+ *
+ * @param fs - read-only filesystem adapter for the target project
+ * @returns the de-duplicated file count across the code roots; 0 when none match
+ */
 export function countSourceFiles(fs: ReadonlyFS): number {
   const patterns = [
     "src/**/*.*",
@@ -57,12 +74,12 @@ function detectLLMIntegration(fs: ReadonlyFS): boolean {
   return (
     fileContainsPattern(
       fs,
-      LLM_ENV_FILES,
+      PROJECT_STACK_LLM_ENV_FILES,
       /MODEL_PROVIDER|OPENAI_API_KEY|ANTHROPIC_API_KEY|BEDROCK|OLLAMA/i,
     ) ||
     fileContainsPattern(
       fs,
-      LLM_DEP_FILES,
+      PROJECT_STACK_LLM_DEPENDENCY_FILES,
       /anthropic|openai|langchain|llamaindex|strands/i,
     )
   );
@@ -158,7 +175,7 @@ function detectStaticAnalysis(
 function detectComplianceSignals(fs: ReadonlyFS): boolean {
   return fileContainsPattern(
     fs,
-    COMPLIANCE_DOCS,
+    PROJECT_STACK_COMPLIANCE_DOCS,
     /\bPHI\b|HIPAA|GDPR|patient.*data|health.*record/i,
   );
 }
@@ -187,7 +204,7 @@ function detectFormatterGaps(
 
   for (const lang of languages) {
     if (!shouldCheckFormatter(lang, languages)) continue;
-    const known = FORMATTER_MAP[lang];
+    const known = PROJECT_STACK_FORMATTER_MAP[lang];
     if (!known) continue;
     if (!known.some((formatter) => formatterSources.includes(formatter))) {
       formatterGaps.push(lang);
@@ -197,15 +214,27 @@ function detectFormatterGaps(
   return formatterGaps;
 }
 
-/** Detect codegen, deploy, LLM, compliance, and formatter-gap project signals. */
+/**
+ * Aggregate every secondary signal into one ProjectSignals record for the setup
+ * and audit pipelines. The single entry point so callers run detection once and
+ * read a complete picture rather than invoking each detector piecemeal.
+ *
+ * @param fs - read-only filesystem adapter for the target project
+ * @param languages - detected languages in precedence order; gates per-language formatter checks
+ * @param formatCommand - the project's configured format command, or null when none is detected
+ * @returns the populated signal record; list fields are empty (not null) when nothing is detected
+ */
 export function detectProjectSignals(
   fs: ReadonlyFS,
   languages: string[],
   formatCommand: string | null,
 ): ProjectSignals {
   return {
-    codeGenTools: collectNamedSignals(fs, CODE_GEN_SIGNALS),
-    deployPlatforms: collectNamedSignals(fs, DEPLOY_SIGNALS),
+    codeGenTools: collectNamedSignals(
+      fs,
+      PROJECT_STACK_CODE_GENERATION_SIGNALS,
+    ),
+    deployPlatforms: collectNamedSignals(fs, PROJECT_STACK_DEPLOYMENT_SIGNALS),
     llmIntegration: detectLLMIntegration(fs),
     staticAnalysis: detectStaticAnalysis(fs),
     complianceSignals: detectComplianceSignals(fs),

@@ -13,10 +13,20 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { PROFILES } from "../../src/cli/detect/agents.js";
+import {
+  readAgentHookState,
+  writeAgentHookState,
+} from "../../src/cli/server/agent-hook-writer.js";
 import {
   applyHookState,
   syncHookStates,
 } from "../../src/cli/server/hook-registrar.js";
+import {
+  getHookSpec,
+  isValidHookIdShape,
+  listHookSpecs,
+} from "../../src/cli/server/hooks-registry.js";
 
 const HOOK_ID = "deny-dangerous";
 
@@ -65,6 +75,24 @@ function assertPresent(root: string, paths: string[]): void {
 }
 
 describe("hook registrar", () => {
+  it("persists hook state through the writer and exposes registry specs", () => {
+    withTempProject((root) => {
+      const spec = getHookSpec("deny-dangerous");
+      assert.ok(spec);
+
+      writeAgentHookState(root, PROFILES.codex, spec, true);
+      const state = readAgentHookState(root, PROFILES.codex, spec);
+
+      assert.equal(state.installed, true);
+      assert.equal(
+        listHookSpecs().some((hookSpec) => hookSpec.id === spec.id),
+        true,
+      );
+      assert.equal(isValidHookIdShape("gruff-code-quality"), true);
+      assert.equal(isValidHookIdShape("../bad"), false);
+    });
+  });
+
   it("does not scaffold uninstalled agent surfaces on clean target toggles", () => {
     withTempProject((root) => {
       applyHookState(HOOK_ID, false, root);

@@ -1,3 +1,13 @@
+/**
+ * Scoring path for content uploaded or pasted through the dashboard "Evaluate skill" flow, where
+ * the artifact has no trusted on-disk location. Scores the supplied markdown with disk scanning
+ * disabled, then turns the metric breakdown into actionable improvement tips for the modal.
+ *
+ * The no-disk rule is a safety boundary, not an optimisation: a user-supplied name must never cause
+ * sibling files of an installed skill to be composed into the score, so host composition is stripped
+ * and `scanDisk: false` is passed throughout. Artifact kind is inferred from content when the caller
+ * does not specify it, and the upload name is sanitised before use as an id.
+ */
 import {
   cloneQualityConfig,
   loadQualityConfig,

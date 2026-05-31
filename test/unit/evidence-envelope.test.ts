@@ -41,9 +41,9 @@ function withTempProject<T>(fn: (root: string) => T): T {
 describe("EvidenceEnvelope", () => {
   it("adapts CheckEvidence and validates runtime envelope fields", () => {
     const envelope = createEvidenceEnvelope({
-      eventKind: "audit.run",
+      eventType: "audit.run",
       actor: "server",
-      projectPath: PROJECT_ROOT,
+      projectRoot: PROJECT_ROOT,
       timestamp: "2026-05-17T01:02:03.000Z",
       payload: { status: "pass", cached: false },
     });
@@ -59,9 +59,9 @@ describe("EvidenceEnvelope", () => {
 
   it("rejects raw sensitive payload fields unless they are redacted", () => {
     const envelope = createEvidenceEnvelope({
-      eventKind: "quality.prompt",
+      eventType: "quality.prompt",
       actor: "server",
-      projectPath: PROJECT_ROOT,
+      projectRoot: PROJECT_ROOT,
       timestamp: "2026-05-17T01:02:03.000Z",
       payload: { prompt: "raw prompt text" },
     });
@@ -83,9 +83,9 @@ describe("EvidenceEnvelope", () => {
     assert.doesNotMatch(JSON.stringify(redacted), /launch this prompt/);
 
     const envelope = createEvidenceEnvelope({
-      eventKind: "prompt.launch",
+      eventType: "prompt.launch",
       actor: "server",
-      projectPath: PROJECT_ROOT,
+      projectRoot: PROJECT_ROOT,
       timestamp: "2026-05-17T01:02:03.000Z",
       payload: { prompt: redacted },
     });
@@ -95,16 +95,16 @@ describe("EvidenceEnvelope", () => {
   it("appends JSONL events and tails the newest validated envelopes", () => {
     withTempProject((root) => {
       const first = createEvidenceEnvelope({
-        eventKind: "audit.run",
+        eventType: "audit.run",
         actor: "server",
-        projectPath: root,
+        projectRoot: root,
         timestamp: "2026-05-17T00:00:00.000Z",
         payload: { status: "fail" },
       });
       const second = createEvidenceEnvelope({
-        eventKind: "quality.prompt",
+        eventType: "quality.prompt",
         actor: "server",
-        projectPath: root,
+        projectRoot: root,
         timestamp: "2026-05-17T00:01:00.000Z",
         payload: { prompt: redactEvidenceText("quality prompt", "secret") },
       });
@@ -132,9 +132,9 @@ describe("EvidenceEnvelope", () => {
       writeFileSync(join(root, ".goat-flow", "logs", "events"), "file");
       const warnings: string[] = [];
       const envelope = createEvidenceEnvelope({
-        eventKind: "audit.run",
+        eventType: "audit.run",
         actor: "server",
-        projectPath: root,
+        projectRoot: root,
         timestamp: "2026-05-17T00:00:00.000Z",
         payload: { status: "pass" },
       });

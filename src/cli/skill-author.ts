@@ -234,9 +234,9 @@ interface SkillNewOptions {
   /** Path to an existing markdown draft (draft-validation mode). */
   draftPath?: string;
   /** Open the interactive prompt flow even when other inputs are provided. */
-  interactive?: boolean;
+  shouldUseInteractivePrompt?: boolean;
   /** Skip the y/n confirmation prompt before writing (used by tests). */
-  skipConfirm?: boolean;
+  shouldSkipConfirm?: boolean;
   /** Override the skill name (otherwise prompts in interactive mode). */
   name?: string;
   /** Project root for path resolution (default: process.cwd()). */
@@ -246,14 +246,12 @@ interface SkillNewOptions {
 }
 
 /** Result returned by `skill new`, including dry-run output when no file is written. */
-interface SkillNewResult {
+interface SkillNewResult extends Record<"written", boolean> {
   candidacy: CandidacyResult;
   /** Absolute path the scaffold was (or would be) written to. */
   proposedPath: string | null;
   /** Filled scaffold content. */
   scaffold: string | null;
-  /** Whether the file was actually written to disk. */
-  written: boolean;
   /** Quality score after scaffold (skill kind only). */
   postScaffoldScore?: { totalScore: number; profileMax: number };
   /** Human-readable lines for terminal output. */
@@ -264,13 +262,15 @@ const SKILL_DIR = ".claude/skills";
 const PLAYBOOK_DIR = ".goat-flow/skill-playbooks";
 
 /** User-facing validation error for invalid `skill new` mode combinations. */
-export class SkillNewInputError extends Error {
+class SkillNewInputError extends Error {
   /** Preserve the custom error name so the CLI can classify input failures. */
   constructor(message: string) {
     super(message);
     this.name = "SkillNewInputError";
   }
 }
+
+export { SkillNewInputError };
 
 /** Resolved scaffold target and template after candidacy chooses an artifact kind. */
 interface ResolvedScaffold {
@@ -326,7 +326,7 @@ function selectedInputModes(options: SkillNewOptions): string[] {
   const modes: string[] = [];
   if ((options.description ?? "").trim().length > 0) modes.push("description");
   if ((options.draftPath ?? "").trim().length > 0) modes.push("--draft");
-  if (options.interactive) modes.push("--interactive");
+  if (options.shouldUseInteractivePrompt) modes.push("--interactive");
   return modes;
 }
 
@@ -587,7 +587,7 @@ async function maybeWrite(
   prompts: InteractivePrompts,
 ): Promise<boolean> {
   if (existsSync(proposedPath)) return false;
-  const allow = options.skipConfirm
+  const allow = options.shouldSkipConfirm
     ? true
     : await prompts.confirmWrite(proposedPath, scaffold);
   if (!allow) return false;
@@ -720,7 +720,10 @@ export async function runSkillNew(
     if (options.draftPath) {
       return runDraftMode(options.draftPath, options);
     }
-    if (options.interactive || (!options.description && !options.draftPath)) {
+    if (
+      options.shouldUseInteractivePrompt ||
+      (!options.description && !options.draftPath)
+    ) {
       return await runInteractiveMode(options, prompts);
     }
     if (options.description) {

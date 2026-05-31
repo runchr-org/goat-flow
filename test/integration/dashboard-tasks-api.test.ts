@@ -1,63 +1,44 @@
+/**
+ * Dashboard /api/tasks endpoint: parses the selected target's tasks tree - directories, active
+ * marker, milestones, and malformed-file fallbacks - rather than the controlling workspace, returns
+ * an empty state when there is no tasks directory, updates the active task plan while preserving
+ * stale active markers without treating them as selected, and rejects invalid plan updates.
+ */
 import {
-  after,
   assert,
-  assertAuditCheckProvenance,
-  assertAuditScope,
-  assertDashboardReport,
-  assertJsonResponse,
-  assertValidEmittedEnvelope,
-  AUDIT_VERSION,
-  baseUrl,
-  before,
-  childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
-  commitDashboardCacheProject,
-  createRequire,
-  DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
-  dashboardToken,
   describe,
-  dirname,
-  existsSync,
   expectRecord,
-  extractDashboardToken,
   fetchJson,
-  getAgentProfileMap,
-  getKnownAgentIds,
   it,
   join,
-  LEGACY_PROJECTS_LIST_PATH,
-  makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
-  MISSING_PATH,
-  mkdir,
   mkdtemp,
-  normalizeAgentVersionOutput,
-  originalDashboardState,
-  originalExecFileSync,
-  originalLegacyProjectsList,
-  performance,
-  PROJECT_PATH,
-  readEventEnvelopes,
   readFile,
-  readdir,
-  rename,
-  require,
-  resolve,
   rm,
-  runGit,
-  server,
-  setEnv,
-  syncBuiltinESMExports,
-  TERMINAL_UPLOAD_MAX_BODY_BYTES,
   tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
   writeProjectFile,
 } from "./dashboard-server.helpers.js";
-import type { AgentId } from "../../src/cli/types.js";
+
+const CURRENT_PLAN_MILESTONE_COUNT = 2;
+const SIDE_MENU_TOTAL_TASKS = 2;
+
+/**
+ * Select an expected milestone from the endpoint payload without depending on directory iteration
+ * order.
+ *
+ * @param milestones - milestone summaries returned by `/api/tasks`
+ * @param filename - exact milestone filename that identifies the record under test
+ * @returns the matching milestone summary
+ * @throws AssertionError when the expected milestone is absent
+ */
+function milestoneByFilename(
+  milestones: Record<string, unknown>[],
+  filename: string,
+): Record<string, unknown> {
+  const match = milestones.find((milestone) => milestone.filename === filename);
+  assert.ok(match, `Expected milestone ${filename}`);
+  return match;
+}
+
 describe("dashboard /api/tasks", () => {
   it("parses task directories, active marker, milestones, and malformed fallbacks", async () => {
     const root = await mkdtemp(join(tmpdir(), "goat-flow-tasks-"));
@@ -97,23 +78,27 @@ describe("dashboard /api/tasks", () => {
       assert.ok(Array.isArray(data.milestones));
       const plans = data.plans as Record<string, unknown>[];
       assert.equal(plans[0]?.name, "current");
-      assert.equal(plans[0]?.milestoneCount, 2);
+      assert.equal(plans[0]?.milestoneCount, CURRENT_PLAN_MILESTONE_COUNT);
       assert.equal(plans[0]?.active, true);
 
       const milestones = data.milestones as Record<string, unknown>[];
-      assert.equal(
-        milestones[0]?.filename,
+      const sideMenuMilestone = milestoneByFilename(
+        milestones,
         "Milestone-side-menu-navigation.md",
       );
-      assert.equal(milestones[0]?.title, "Side Menu Navigation");
-      assert.equal(milestones[0]?.status, "in-progress");
-      assert.equal(milestones[0]?.objective, "Build a desktop side menu.");
-      assert.equal(milestones[0]?.totalTasks, 2);
-      assert.equal(milestones[0]?.completedTasks, 1);
-      assert.equal(milestones[1]?.filename, "Milestone-malformed.md");
-      assert.equal(milestones[1]?.title, "Milestone-malformed.md");
-      assert.equal(milestones[1]?.status, "unknown");
-      assert.equal(milestones[1]?.totalTasks, 1);
+      assert.equal(sideMenuMilestone.title, "Side Menu Navigation");
+      assert.equal(sideMenuMilestone.status, "in-progress");
+      assert.equal(sideMenuMilestone.objective, "Build a desktop side menu.");
+      assert.equal(sideMenuMilestone.totalTasks, SIDE_MENU_TOTAL_TASKS);
+      assert.equal(sideMenuMilestone.completedTasks, 1);
+
+      const malformedMilestone = milestoneByFilename(
+        milestones,
+        "Milestone-malformed.md",
+      );
+      assert.equal(malformedMilestone.title, "Milestone-malformed.md");
+      assert.equal(malformedMilestone.status, "unknown");
+      assert.equal(malformedMilestone.totalTasks, 1);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

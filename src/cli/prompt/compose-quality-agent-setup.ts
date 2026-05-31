@@ -1,3 +1,13 @@
+/**
+ * Composer for the agent-setup quality-assessment prompt.
+ *
+ * Builds the long reporting-only prompt that asks an agent to judge how well
+ * goat-flow was installed for one project + agent pairing. It gathers the prompt
+ * context once (`buildAgentSetupContext`), then appends each Markdown section -
+ * rules, audit summary, Step 0 grounding, pre-check, setup quality, skill testing,
+ * system assessment, output format, and the JSON-report contract - as line blocks.
+ * Pure string assembly; inputs are the manifest, agent profile, and QualityInput.
+ */
 import { getAgentProfile } from "../agents/registry.js";
 import { loadManifest } from "../manifest/manifest.js";
 import { getPackageVersion } from "../paths.js";
@@ -18,6 +28,13 @@ import { appendAgentReportContract } from "./compose-quality-agent-report.js";
 
 type SkillFacts = ReturnType<typeof loadManifest>["facts"]["skills"];
 
+/**
+ * Precomputed values every `append*` section needs, resolved once by
+ * `buildAgentSetupContext` so the section helpers stay pure string assembly and
+ * never re-read the manifest or agent profile. Agent-relative paths are already
+ * resolved here (skills dir, settings/hook config, instruction file) and may be
+ * null when the agent profile has no such surface.
+ */
 interface AgentSetupPromptContext {
   input: QualityInput;
   agent: QualityInput["agent"];
@@ -106,6 +123,12 @@ function appendIntroAndContext(
   appendGoatFlowOverview(lines, ctx);
 }
 
+/**
+ * Append the per-finding Rules section (no tracked-file writes, evidence-based,
+ * content-over-existence) that constrains every finding the reviewer reports.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendRules(lines: string[]): void {
   lines.push("## Rules");
   lines.push("");
@@ -138,6 +161,13 @@ function appendRules(lines: string[]): void {
   lines.push("");
 }
 
+/**
+ * Append the Context section listing the project path, agent, and the resolved
+ * instruction/skills/settings/hook locations the reviewer needs to find files.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ * @param ctx - resolved prompt context supplying the agent-relative paths
+ */
 function appendContext(lines: string[], ctx: AgentSetupPromptContext): void {
   lines.push("## Context");
   lines.push("");
@@ -188,6 +218,13 @@ function appendGoatFlowOverview(
   appendDesignNotes(lines);
 }
 
+/**
+ * Append the intentional-design notes the reviewer must NOT flag - gitignored
+ * local state, the advisory `.active` pointer, unchecked task boxes, and the
+ * lean post-ADR-014 config - so known-good shapes are not reported as findings.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendDesignNotes(lines: string[]): void {
   lines.push(
     "**Design notes** (do NOT flag these as findings - they are intentional):",
@@ -292,6 +329,14 @@ function appendGroundingAndReadNext(
   appendReadNext(lines, ctx);
 }
 
+/**
+ * Append the "Read next" reading list - instruction file, config, skill
+ * references, architecture, skills - plus the grep-first learning-loop retrieval
+ * protocol that forbids broad-loading footguns/lessons/decisions.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ * @param ctx - resolved prompt context supplying instruction/skills/hook paths
+ */
 function appendReadNext(lines: string[], ctx: AgentSetupPromptContext): void {
   lines.push("---");
   lines.push("");
@@ -425,6 +470,13 @@ function appendSkillAndSystemSections(
   appendSkillTemplateIntegrity(lines);
 }
 
+/**
+ * Append Part 3 skill-testing instructions: the file-analysis vs live-invocation
+ * options and the per-skill reporting-only probes, including the stop-and-report
+ * rule when a probe attempts a tracked-file write or implementation.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendSkillTesting(lines: string[]): void {
   lines.push("---");
   lines.push("");
@@ -561,6 +613,12 @@ function appendContradictions(
   lines.push("");
 }
 
+/**
+ * Append Part 6 skill-template-integrity checks: version-tag presence and match,
+ * truncation/corruption signs, and quick-vs-full depth-choice coherence.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendSkillTemplateIntegrity(lines: string[]): void {
   lines.push("---");
   lines.push("");
@@ -617,6 +675,12 @@ function appendOutputFormat(
   appendRatingSections(lines);
 }
 
+/**
+ * Append the Setup-Quality and System-Assessment prose prompts plus the two
+ * 0-100 rating rubrics (four 0-25 axes each) the reviewer must score.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendRatingSections(lines: string[]): void {
   lines.push("### Setup Quality");
   lines.push("Answer directly:");
@@ -659,6 +723,12 @@ function appendRatingSections(lines: string[]): void {
   appendRatingBands(lines);
 }
 
+/**
+ * Append the per-axis rating-band definitions (exact 25/20/15/10/5/0 anchors)
+ * and the Top-5-Improvements and What-You-Did-Not-Verify closing sections.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendRatingBands(lines: string[]): void {
   lines.push("### Rating bands");
   lines.push("Use exact 25 / 20 / 15 / 10 / 5 / 0 increments only:");
@@ -703,6 +773,12 @@ function appendRatingBands(lines: string[]): void {
   lines.push("");
 }
 
+/**
+ * Append the closing reminder: respond with the full prose assessment, write the
+ * JSON report to the file path (not inline), and make no tracked-file edits.
+ *
+ * @param lines - prompt line buffer; appended to in place
+ */
 function appendClosing(lines: string[]): void {
   lines.push("---");
   lines.push("");

@@ -1,3 +1,14 @@
+/**
+ * Shell and infrastructure HTTP route handlers for the dashboard server.
+ *
+ * Backs the HTML shell (`/`, with the bootstrap injection), static asset serving (`/assets/`, with
+ * ETag/304 handling), the directory picker (`/api/browse`), hook state read/toggle (`/api/hooks`),
+ * and agent-availability detection (`/api/agents/installed`). Agent detection spawns `which`/`where`
+ * and `--version` probes with short timeouts and caches the result per handler set, refreshing only
+ * on an explicit `fresh=true`. Filesystem and probe failures are reported as JSON error bodies or
+ * recorded as "not installed" rather than thrown. Asset loading lives in dashboard-assets.ts; hook
+ * mutation in hook-registrar.ts.
+ */
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -235,6 +246,14 @@ function handleAgentDetectRequest(
   return true;
 }
 
+/**
+ * Bind the shell/infrastructure handlers to one server's request context and allocate the per-handler
+ * agent-detection cache so probe results persist across requests until a fresh probe is requested.
+ *
+ * @param ctx - per-server dashboard route context with path validation, template/version/token, and IO hooks
+ * @returns the HTML, asset, browse, hooks, and agent-detect handlers; each resolves true once it has
+ *   answered a matching request, or false to let another handler claim the URL
+ */
 export function createShellRouteHandlers(ctx: DashboardRouteContext) {
   const agentDetection: AgentDetectionState = { cached: null };
   return {

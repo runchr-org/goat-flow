@@ -1,3 +1,8 @@
+/**
+ * Artifact discovery for skill-quality: enumerating installed skills, shared references, and playbooks (README
+ * excluded), looking artifacts up by id, aggregating mirrored skills without duplicate rows while marking
+ * agent-mirror-only skills as missing metadata, skipping symlinks, and counting skill-local references.
+ */
 import {
   describe,
   it,

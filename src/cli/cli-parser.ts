@@ -1,3 +1,13 @@
+/**
+ * Turns raw `process.argv` into the fully-resolved ParsedCLI object that command dispatch consumes.
+ * It owns the whole front door: positional command detection, per-flag validation, per-command
+ * positional grammars (quality/skill/events/hooks each have their own arity rules), and cross-flag
+ * checks that strict parseArgs can't express. The deliberate contract is fail-fast for malformed
+ * commands, flags, values, or combinations, throwing CLIError with exit code 2 (usage error) and a
+ * human-readable message, so the entry point can print it and exit without a stack trace. Path
+ * positionals are resolved to absolute paths here so downstream handlers never see relative input.
+ */
+
 import { parseArgs } from "node:util";
 import { join, resolve } from "node:path";
 import type { CLIOptions, AgentId } from "./types.js";
@@ -397,51 +407,71 @@ function rejectFlagOutsideCommand(
   );
 }
 
+/** Return whether a raw `parseArgs` boolean flag was explicitly set. */
+function parsedFlag(values: ParsedArgValues, name: string): boolean {
+  return values[name] === true;
+}
+
+/** Return a raw `parseArgs` string value without trusting the option map shape. */
+function parsedString(
+  values: ParsedArgValues,
+  name: string,
+): string | undefined {
+  const value = values[name];
+  return typeof value === "string" ? value : undefined;
+}
+
 /** Reject shared flags when they are attached to commands that do not support them. */
 function validateCommonFlags(command: Command, values: ParsedArgValues): void {
   rejectFlagOutsideCommand(
     command,
     "audit",
     "--format sarif",
-    values.format === "sarif",
+    parsedString(values, "format") === "sarif",
   );
-  rejectFlagOutsideCommand(command, "quality", "--all", values.all === true);
+  rejectFlagOutsideCommand(
+    command,
+    "quality",
+    "--all",
+    parsedFlag(values, "all"),
+  );
   rejectFlagOutsideCommand(
     command,
     "quality",
     "--mode",
-    values.mode !== undefined,
+    parsedString(values, "mode") !== undefined,
   );
   rejectFlagOutsideCommand(
     command,
     "events",
     "--limit",
-    values.limit !== undefined,
+    parsedString(values, "limit") !== undefined,
   );
   rejectFlagOutsideCommand(
     command,
     "audit",
     "--no-audit-details",
-    values["no-audit-details"] === true,
+    parsedFlag(values, "no-audit-details"),
   );
 }
 
 /** Returns true when the command resolves to a deterministic install/apply path. */
 function isInstallCommand(command: Command, values: ParsedArgValues): boolean {
   return (
-    command === "install" || (command === "setup" && values.apply === true)
+    command === "install" ||
+    (command === "setup" && parsedFlag(values, "apply"))
   );
 }
 
 /** Validate deterministic install/setup flags; throws CLIError when flags target the wrong command. */
 function validateInstallFlags(command: Command, values: ParsedArgValues): void {
-  if (command !== "setup" && values.apply === true) {
+  if (command !== "setup" && parsedFlag(values, "apply")) {
     throw new CLIError("--apply is only valid for the setup command.", 2);
   }
   const installOnly: Array<[string, boolean | undefined]> = [
-    ["--force", values.force],
-    ["--update-config-version", values["update-config-version"]],
-    ["--clean-deprecated", values["clean-deprecated"]],
+    ["--force", parsedFlag(values, "force")],
+    ["--update-config-version", parsedFlag(values, "update-config-version")],
+    ["--clean-deprecated", parsedFlag(values, "clean-deprecated")],
   ];
   for (const [flag, set] of installOnly) {
     if (set === true && !isInstallCommand(command, values)) {
@@ -462,7 +492,7 @@ function validateQualityFlags(
 ): void {
   if (
     command === "quality" &&
-    values.mode !== undefined &&
+    parsedString(values, "mode") !== undefined &&
     !["prompt", "history", "diff"].includes(qualitySubcommand)
   ) {
     throw new CLIError(
@@ -471,7 +501,7 @@ function validateQualityFlags(
     );
   }
   if (
-    values.draft !== undefined &&
+    parsedString(values, "draft") !== undefined &&
     !(
       (command === "quality" && qualitySubcommand === "candidacy") ||
       command === "skill"
@@ -482,13 +512,13 @@ function validateQualityFlags(
       2,
     );
   }
-  if (values.interactive === true && command !== "skill") {
+  if (parsedFlag(values, "interactive") && command !== "skill") {
     throw new CLIError("--interactive is only valid for skill new.", 2);
   }
-  if (values.name !== undefined && command !== "skill") {
+  if (parsedString(values, "name") !== undefined && command !== "skill") {
     throw new CLIError("--name is only valid for skill new.", 2);
   }
-  if (values.yes === true && command !== "skill") {
+  if (parsedFlag(values, "yes") && command !== "skill") {
     throw new CLIError("--yes is only valid for skill new.", 2);
   }
 }
@@ -520,17 +550,17 @@ function buildSkillCLIFields(
   positionals: SkillPositionals,
 ): SkillCLIFields {
   const isSkillCommand = command === "skill";
+  const skillDraftValue = isSkillCommand
+    ? parsedString(values, "draft")
+    : undefined;
   return {
     skillSubcommand: positionals.skillSubcommand,
     skillDescription: positionals.skillDescription,
     skillDraftPath:
-      isSkillCommand && typeof values.draft === "string"
-        ? resolve(values.draft)
-        : null,
-    skillName:
-      isSkillCommand && typeof values.name === "string" ? values.name : null,
-    skillInteractive: isSkillCommand && values.interactive === true,
-    skillSkipConfirm: isSkillCommand && values.yes === true,
+      skillDraftValue === undefined ? null : resolve(skillDraftValue),
+    skillName: isSkillCommand ? (parsedString(values, "name") ?? null) : null,
+    skillInteractive: isSkillCommand && parsedFlag(values, "interactive"),
+    skillSkipConfirm: isSkillCommand && parsedFlag(values, "yes"),
   };
 }
 
@@ -581,7 +611,7 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   const qualityPositionals = parseCommandPositionals(
     command,
     positionals,
-    typeof parsedValues.draft === "string" ? parsedValues.draft : null,
+    parsedString(parsedValues, "draft") ?? null,
   );
   const eventsPositionals =
     command === "events"
@@ -623,33 +653,40 @@ export function parseCLIArgs(argv: string[]): ParsedCLI {
   return {
     command,
     projectPath,
-    format: parseFormatArg(parsedValues.json ? "json" : parsedValues.format),
-    agent: parseAgentArg(parsedValues.agent),
-    verbose: parsedValues.verbose === true,
-    output: resolveOutputPath(parsedValues.output, projectPath),
-    harness: parsedValues.harness === true,
-    checkDrift: parsedValues["check-drift"] === true,
-    checkContent: parsedValues["check-content"] === true,
-    auditDetails: parsedValues["no-audit-details"] !== true,
-    check: parsedValues.check === true,
-    apply: parsedValues.apply === true,
-    force: parsedValues.force === true,
-    updateConfigVersion: parsedValues["update-config-version"] === true,
-    cleanDeprecated: parsedValues["clean-deprecated"] === true,
+    format: parseFormatArg(
+      parsedFlag(parsedValues, "json")
+        ? "json"
+        : parsedString(parsedValues, "format"),
+    ),
+    agent: parseAgentArg(parsedString(parsedValues, "agent")),
+    isVerbose: parsedFlag(parsedValues, "verbose"),
+    output: resolveOutputPath(
+      parsedString(parsedValues, "output"),
+      projectPath,
+    ),
+    includeHarness: parsedFlag(parsedValues, "harness"),
+    checkDrift: parsedFlag(parsedValues, "check-drift"),
+    checkContent: parsedFlag(parsedValues, "check-content"),
+    auditDetails: !parsedFlag(parsedValues, "no-audit-details"),
+    shouldCheck: parsedFlag(parsedValues, "check"),
+    shouldApply: parsedFlag(parsedValues, "apply"),
+    shouldForce: parsedFlag(parsedValues, "force"),
+    updateConfigVersion: parsedFlag(parsedValues, "update-config-version"),
+    cleanDeprecated: parsedFlag(parsedValues, "clean-deprecated"),
     qualitySubcommand: qualityPositionals.qualitySubcommand,
     qualityDiffPair: qualityPositionals.qualityDiffPair,
     qualityValidatePath: qualityPositionals.qualityValidatePath,
-    qualityMode: parseQualityModeArg(parsedValues.mode),
+    qualityMode: parseQualityModeArg(parsedString(parsedValues, "mode")),
     candidacyInput: qualityPositionals.candidacyInput,
     ...skillFields,
     eventsSubcommand: eventsPositionals.eventsSubcommand,
-    eventsLimit: parseEventsLimitArg(parsedValues.limit),
+    eventsLimit: parseEventsLimitArg(parsedString(parsedValues, "limit")),
     hookSubcommand: hooksPositionals.hookSubcommand,
     hookId: hooksPositionals.hookId,
-    all: parsedValues.all === true,
-    dev: parsedValues.dev === true,
-    help: parsedValues.help === true,
-    version: parsedValues.version === true,
+    includeAll: parsedFlag(parsedValues, "all"),
+    isDevMode: parsedFlag(parsedValues, "dev"),
+    showHelp: parsedFlag(parsedValues, "help"),
+    showVersion: parsedFlag(parsedValues, "version"),
   };
 }
 

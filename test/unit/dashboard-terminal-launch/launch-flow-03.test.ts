@@ -1,30 +1,167 @@
+/**
+ * Dashboard terminal launch flow, part 3: session lifecycle and the loading overlay - disconnected local
+ * sessions end when refresh proves them gone, the overlay escalates slow starts and clears on first output while
+ * staying per-session, WebSocket close is treated as detach until an exit/missing-session message arrives, and
+ * stale ended shells reconnect to server-active sessions.
+ */
 import {
   assert,
-  assertExists,
   createFakeTimers,
-  DASHBOARD_APP_PATH,
-  DASHBOARD_TERMINAL_PATH,
-  delay,
   describe,
-  FakeDashboardWebSocket,
-  FakeFitAddon,
-  FakeResizeObserver,
-  FakeTerminal,
   it,
   loadHelpers,
-  loadFixture,
   makeBrowserTerminalGlobals,
-  makeCapturingWebSocket,
   makeContext,
-  makeLaunchPromptContext,
-  PROJECT_ROOT,
-  readFileSync,
-  readDashboardAppSource,
+  makeTerminalSession,
   readDashboardTerminalSource,
-  resolve,
-  SETUP_VIEW_PATH,
-  WORKSPACE_VIEW_PATH,
 } from "./helpers.js";
+
+/**
+ * Build a failed-loading session that records cleanup and retry relaunch metadata, because the pre-output retry
+ * tests need to observe both the backend-cleanup call and the relaunch arguments, which inline setup would hide.
+ */
+function makePreOutputRetryHarness(): {
+  calls: string[];
+  ctx: ReturnType<typeof makeContext>;
+  helpers: ReturnType<typeof loadHelpers>;
+  launchCalls: Array<{ prompt: string; runner?: string; options?: unknown }>;
+  session: ReturnType<typeof makeTerminalSession>;
+} {
+  const calls: string[] = [];
+  const helpers = loadHelpers(async (input, init) => {
+    calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
+    return { json: async () => ({ ok: true }) } as Response;
+  });
+  const launchCalls: Array<{
+    prompt: string;
+    runner?: string;
+    options?: unknown;
+  }> = [];
+  const session = makeTerminalSession({
+    id: "session-error",
+    runner: "claude",
+    promptLabel: "Setup Claude",
+    presetId: "preset-setup",
+    cwd: "/tmp/example",
+    targetPath: "/tmp/target",
+    loadingPhase: "connecting",
+  });
+  const ctx = makeContext({
+    activeSessionId: "session-error",
+    sessions: [session],
+    _terminalRefs: {
+      "session-error": {
+        retryPrompt: "setup prompt",
+        retryPromptLabel: "Setup Claude",
+        retryPresetId: "preset-setup",
+        retryCwdPath: "/tmp/example",
+        retryTargetPath: "/tmp/target",
+        // Stub that records the backend-shell teardown the retry path must perform before relaunching.
+        cleanup(): void {
+          calls.push("cleanup:session-error");
+        },
+      },
+    },
+    // Stub that captures relaunch arguments without starting a second real terminal session.
+    async launchInTerminal(
+      prompt: string,
+      runner?: string,
+      options?: unknown,
+    ): Promise<void> {
+      launchCalls.push({ prompt, runner, options });
+    },
+  });
+  return { calls, ctx, helpers, launchCalls, session };
+}
+
+/** Build the stale-local-session reconnect harness with call ordering exposed. */
+function makeStaleReconnectHarness(): {
+  calls: string[];
+  ctx: ReturnType<typeof makeContext>;
+  helpers: ReturnType<typeof loadHelpers>;
+} {
+  const calls: string[] = [];
+  const helpers = loadHelpers(
+    async () => ({ json: async () => ({}) }) as Response,
+  );
+  const endedLocal = makeTerminalSession({
+    id: "session-live",
+    runner: "codex",
+    promptLabel: "Stale local session",
+    connected: false,
+    ended: true,
+    awaitingInput: false,
+    age: "",
+  });
+  const ctx = makeContext({
+    activeSessionId: "session-live",
+    sessions: [endedLocal],
+    // Stub that records the xterm-load step in the reconnect ordering without loading real assets.
+    async loadXterm(): Promise<void> {
+      calls.push("loadXterm");
+    },
+    // Stub that records the attach call and its arguments instead of opening a real socket.
+    connectTerminal(sessionId: string, wsUrl: string): void {
+      calls.push(`connect:${sessionId}:${wsUrl}`);
+    },
+    // Stub for Alpine's post-render hook, recording where the flow yields during reconnect.
+    async $nextTick(): Promise<void> {
+      calls.push("$nextTick");
+    },
+  });
+  return { calls, ctx, helpers };
+}
+
+/**
+ * Build the end-session harness that records browser cleanup and recent-history state, because the end-session
+ * tests assert on the cleanup, forget, and recent-history side effects together and inline setup would scatter them.
+ */
+function makeRecentHistoryEndHarness(): {
+  calls: string[];
+  ctx: ReturnType<typeof makeContext>;
+  helpers: ReturnType<typeof loadHelpers>;
+} {
+  const calls: string[] = [];
+  const helpers = loadHelpers(async (input, init) => {
+    calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
+    return { json: async () => ({ ok: true }) } as Response;
+  });
+  const ctx = makeContext({
+    activeSessionId: "session-3",
+    promptRunStates: { "preset-debug-ui": "running" },
+    sessions: [
+      makeTerminalSession({
+        id: "session-3",
+        runner: "claude",
+        promptLabel: "Debug UI in Browser",
+        presetId: "preset-debug-ui",
+        startTime: Date.now() - 120_000,
+        awaitingInput: false,
+      }),
+    ],
+    _terminalRefs: {
+      "session-3": {
+        // Stub that records the per-session teardown the end flow runs.
+        cleanup(): void {
+          calls.push("cleanup:session-3");
+        },
+      },
+    },
+    // Stub that records which saved session the end flow drops from browser storage.
+    _forgetSavedSession(sessionId: string): void {
+      calls.push(`forget:${sessionId}`);
+    },
+    // Stub that captures the recent-history row shape so tests can assert what the rail keeps.
+    rememberRecentSession(session: Record<string, unknown>): void {
+      this.recentTerminalSessions.push({
+        id: session.id,
+        promptLabel: session.promptLabel,
+        runner: session.runner,
+      });
+    },
+  });
+  return { calls, ctx, helpers };
+}
 
 describe("dashboard terminal launch flow", () => {
   it("marks disconnected local sessions ended when refresh proves they are gone", async () => {
@@ -40,23 +177,15 @@ describe("dashboard terminal launch flow", () => {
         }) as Response,
       timers,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-gone",
       runner: "claude",
       promptLabel: "Gone session",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
       awaitingInput: true,
       outputTail: "Do you want to proceed?\n1. Yes\n2. No",
-      loadingPhase: "ready",
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       sessions: [session],
       _terminalRefs: { "session-gone": {} },
@@ -169,20 +298,18 @@ describe("dashboard terminal launch flow", () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
     );
-    const connecting = {
+    const connecting = makeTerminalSession({
       id: "session-connecting",
       runner: "claude",
       promptLabel: "Connecting session",
       loadingPhase: "connecting",
-      ended: false,
-    };
-    const loading = {
+    });
+    const loading = makeTerminalSession({
       id: "session-loading",
       runner: "antigravity",
       promptLabel: "Loading session",
       loadingPhase: "loading",
-      ended: false,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-connecting",
       sessions: [connecting, loading],
@@ -206,53 +333,8 @@ describe("dashboard terminal launch flow", () => {
   });
 
   it("loading overlay records pre-output errors and retries the original launch", async () => {
-    const calls: string[] = [];
-    const helpers = loadHelpers(async (input, init) => {
-      calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
-      return { json: async () => ({ ok: true }) } as Response;
-    });
-    const launchCalls: Array<{
-      prompt: string;
-      runner?: string;
-      options?: LaunchOptions;
-    }> = [];
-    const session = {
-      id: "session-error",
-      runner: "claude",
-      promptLabel: "Setup Claude",
-      presetId: "preset-setup",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/target",
-      loadingPhase: "connecting",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
-      ended: false,
-    };
-    const ctx = makeContext({
-      activeSessionId: "session-error",
-      sessions: [session],
-      _terminalRefs: {
-        "session-error": {
-          retryPrompt: "setup prompt",
-          retryPromptLabel: "Setup Claude",
-          retryPresetId: "preset-setup",
-          retryCwdPath: "/tmp/example",
-          retryTargetPath: "/tmp/target",
-          // Retry must clean up the failed backend shell before relaunching.
-          cleanup(): void {
-            calls.push("cleanup:session-error");
-          },
-        },
-      },
-      // Capture retry metadata without starting a second real terminal session.
-      async launchInTerminal(
-        prompt: string,
-        runner?: string,
-        options?: LaunchOptions,
-      ): Promise<void> {
-        launchCalls.push({ prompt, runner, options });
-      },
-    });
+    const { calls, ctx, helpers, launchCalls, session } =
+      makePreOutputRetryHarness();
 
     helpers.dashboardSetTerminalLoadingPhase(
       ctx,
@@ -294,25 +376,15 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-detach",
       runner: "copilot",
       promptLabel: "Detached session",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
       awaitingInput: true,
       outputTail: "Do you want to run this command?\n1. Yes\n2. No",
-      loadingPhase: "ready",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-detach",
       sessions: [session],
@@ -357,25 +429,15 @@ describe("dashboard terminal launch flow", () => {
       timers,
       globals,
     );
-    const session = {
+    const session = makeTerminalSession({
       id: "session-missing",
       runner: "claude",
       promptLabel: "Missing session",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
       connected: false,
-      ended: false,
       awaitingInput: true,
-      outputTail: "",
       loadingPhase: "connecting",
-      loadingShowSlowHint: false,
-      loadingShowRetry: false,
       age: "",
-      presetId: null,
-    };
+    });
     const ctx = makeContext({
       activeSessionId: "session-missing",
       sessions: [session],
@@ -403,43 +465,7 @@ describe("dashboard terminal launch flow", () => {
   });
 
   it("reconnects server-active sessions when an ended local shell is stale", async () => {
-    const calls: string[] = [];
-    const helpers = loadHelpers(
-      async () => ({ json: async () => ({}) }) as Response,
-    );
-    const endedLocal = {
-      id: "session-live",
-      runner: "codex",
-      promptLabel: "Stale local session",
-      projectPath: "/tmp/example",
-      cwd: "/tmp/example",
-      targetPath: "/tmp/example",
-      startTime: Date.now(),
-      lastInputTime: Date.now(),
-      connected: false,
-      ended: true,
-      awaitingInput: false,
-      outputTail: "",
-      loadingPhase: "ready",
-      age: "",
-      presetId: null,
-    };
-    const ctx = makeContext({
-      activeSessionId: "session-live",
-      sessions: [endedLocal],
-      // Reconnect should reopen xterm for the server-active session.
-      async loadXterm(): Promise<void> {
-        calls.push("loadXterm");
-      },
-      // Captures the fresh WebSocket URL chosen for the rehydrated session.
-      connectTerminal(sessionId: string, wsUrl: string): void {
-        calls.push(`connect:${sessionId}:${wsUrl}`);
-      },
-      // Mirrors Alpine's render boundary before reconnecting stale local state.
-      async $nextTick(): Promise<void> {
-        calls.push("$nextTick");
-      },
-    });
+    const { calls, ctx, helpers } = makeStaleReconnectHarness();
 
     await helpers.dashboardOpenServerSession(ctx, {
       id: "session-live",
@@ -530,49 +556,7 @@ describe("dashboard terminal launch flow", () => {
   });
 
   it("keeps the launch title when a local session is ended into recent history", () => {
-    const calls: string[] = [];
-    const helpers = loadHelpers(async (input, init) => {
-      calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
-      return { json: async () => ({ ok: true }) } as Response;
-    });
-    const ctx = makeContext({
-      activeSessionId: "session-3",
-      promptRunStates: { "preset-debug-ui": "running" },
-      sessions: [
-        {
-          id: "session-3",
-          runner: "claude",
-          promptLabel: "Debug UI in Browser",
-          presetId: "preset-debug-ui",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now() - 120_000,
-          awaitingInput: false,
-          outputTail: "",
-        },
-      ],
-      _terminalRefs: {
-        "session-3": {
-          // Ending a session must release browser-side terminal resources.
-          cleanup(): void {
-            calls.push("cleanup:session-3");
-          },
-        },
-      },
-      // Saved session state should be removed alongside the backend delete call.
-      _forgetSavedSession(sessionId: string): void {
-        calls.push(`forget:${sessionId}`);
-      },
-      // Recent history keeps only fields the UI needs after the live record is gone.
-      rememberRecentSession(session: Record<string, unknown>): void {
-        this.recentTerminalSessions.push({
-          id: session.id,
-          promptLabel: session.promptLabel,
-          runner: session.runner,
-        });
-      },
-    });
+    const { calls, ctx, helpers } = makeRecentHistoryEndHarness();
 
     helpers.dashboardEndSession(ctx, "session-3");
 

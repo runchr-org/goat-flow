@@ -1,3 +1,15 @@
+/**
+ * The rubric: one MetricScorer per scoring dimension (trigger clarity, workflow completeness, gate
+ * quality, evidence/testability, cold-start executability, token cost, tool dependencies, write
+ * risk, and skill-vs-reference fit), plus the `ALL_METRICS` list the scorer runs in order.
+ *
+ * Each scorer is a pure function of its MetricInput, runs the artifact text through regex/heading
+ * heuristics, and routes its raw score through `finalizeMetric` for subtype-specific capping - so a
+ * dimension that does not apply to a subtype reports `n/a`, not a low score. Some scorers attach
+ * promote/demote/meta signals that feed recommendations without changing the numeric total. The
+ * heuristics are deliberately conservative (calibrated against the in-tree `.claude/skills` corpus)
+ * to keep false positives low; they are advisory tips, not hard deductions, where noted.
+ */
 import { compilePatternList } from "./quality-config.js";
 import {
   countHeadings,
@@ -402,7 +414,7 @@ const skillReferenceFit: MetricScorer = (input) => {
   let score: number;
 
   if (subtype === "meta" || subtype === "index") {
-    resultSignals.meta = true;
+    resultSignals.isMetaReference = true;
     score = 10;
     notes.push(
       subtype === "index"
@@ -422,14 +434,14 @@ const skillReferenceFit: MetricScorer = (input) => {
       notes.push("weak skill identity - missing some structural signals");
     } else {
       score = 3;
-      resultSignals.demote = true;
+      resultSignals.shouldDemote = true;
       notes.push(
         "artifact lacks skill structure - may belong in skill-reference/",
       );
     }
     if (refSignals >= 3 && subtype === "workflow") {
       score = Math.max(0, score - 3);
-      resultSignals.demote = true;
+      resultSignals.shouldDemote = true;
       notes.push("strong reference signals - consider demoting to reference");
     }
   } else {
@@ -444,7 +456,7 @@ const skillReferenceFit: MetricScorer = (input) => {
     }
     if (skillSignals >= 3) {
       score = Math.max(0, score - 3);
-      resultSignals.promote = true;
+      resultSignals.shouldPromote = true;
       notes.push("strong skill signals - consider promoting to skill");
     }
   }

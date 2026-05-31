@@ -44,8 +44,7 @@ const LEGACY_DENY_DANGEROUS_SCRIPT_NAMES = [
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
 
 /** Per-agent hook installation/config state for one registry hook. */
-interface HookAgentState {
-  supported: boolean;
+interface HookAgentState extends Record<"supported", boolean> {
   installed: boolean;
   scriptPath: string | null;
   configPath: string | null;
@@ -54,19 +53,17 @@ interface HookAgentState {
 }
 
 /** Dashboard-facing hook state including defaults, drift, and per-agent registration status. */
-export interface HookState {
+export interface HookState extends Record<"togglable" | "enabled", boolean> {
   id: string;
   name: string;
   description: string;
-  togglable: boolean;
-  enabled: boolean;
   defaultEnabled: boolean;
   requiresConfirmDialog: boolean;
   agents: Record<AgentId, HookAgentState>;
 }
 
 /** HTTP-safe hook registrar failure with the status code routes should return. */
-export class HookRegistrarError extends Error {
+class HookRegistrarError extends Error {
   constructor(
     message: string,
     readonly statusCode: number,
@@ -75,6 +72,8 @@ export class HookRegistrarError extends Error {
     this.name = "HookRegistrarError";
   }
 }
+
+export { HookRegistrarError };
 
 /** Validate and resolve a hook id into the registry spec; bad ids throw 400 and unknown ids throw 404. Throws on invalid input. */
 function resolveSpec(hookId: string): HookSpec {

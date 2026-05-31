@@ -1,3 +1,16 @@
+/**
+ * Skill-quality view helpers for the dashboard Alpine app. This file backs the "Skills" tab: it
+ * turns a SkillQualityReport into the at-a-glance summary banner the UI shows above the metric
+ * breakdown, deriving a single severity (fail > warn > pass) and a human sentence from the report's
+ * per-metric severities and recommendation. The banner builder is a pure projection over the
+ * report, so the view layer never has to compute severity precedence itself.
+ */
+
+/**
+ * The summary banner shown above the skill-quality breakdown: a title, supporting sentence, and one
+ * rolled-up severity. `severity` is the worst metric severity present (fail beats warn beats pass),
+ * so the banner colour always reflects the most serious issue rather than an average.
+ */
 interface SkillSummaryBanner {
   title: string;
   desc: string;

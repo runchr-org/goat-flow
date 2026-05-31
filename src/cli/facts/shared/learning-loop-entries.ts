@@ -1,3 +1,15 @@
+/**
+ * Builds the compact, ranked list of learning-loop entries (footguns, lessons,
+ * patterns, decisions) used for bounded prompt retrieval - each bucket file is
+ * split into sections, summarized into a small fact with a byte-capped excerpt,
+ * and tagged with reference-validation results.
+ *
+ * The final ordering is deterministic by design (kind, then newest-first by
+ * updated/created date, then path, then discovery order) so prompt context is
+ * stable across runs and machines. The per-kind order offsets (0, 10k, 20k, 30k)
+ * are tiebreak seeds that keep entries from different buckets from interleaving
+ * unpredictably; they are not limits on entry count.
+ */
 import type {
   LearningLoopEntryFact,
   LearningLoopEntryKind,

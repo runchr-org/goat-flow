@@ -1,63 +1,31 @@
+/**
+ * Dashboard /api/quality/evaluate endpoint: measures content/filename/body caps in UTF-8 bytes,
+ * infers artifact kind when omitted, returns a quality report with improvement tips for single and
+ * multi-file bundles (listing every file in composedFrom), and rejects bad input with 400/405/413
+ * (path separators, empty/duplicate/missing files, invalid kind, both-or-neither content, oversize).
+ */
 import {
-  after,
   assert,
-  assertAuditCheckProvenance,
-  assertAuditScope,
-  assertDashboardReport,
-  assertJsonResponse,
-  assertValidEmittedEnvelope,
-  AUDIT_VERSION,
-  baseUrl,
-  before,
-  childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
-  commitDashboardCacheProject,
-  createRequire,
-  DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
-  dashboardToken,
   describe,
-  dirname,
-  existsSync,
   expectRecord,
-  extractDashboardToken,
   fetchJson,
-  getAgentProfileMap,
-  getKnownAgentIds,
   it,
   join,
-  LEGACY_PROJECTS_LIST_PATH,
-  makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
-  MISSING_PATH,
-  mkdir,
-  mkdtemp,
-  normalizeAgentVersionOutput,
-  originalDashboardState,
-  originalExecFileSync,
-  originalLegacyProjectsList,
-  performance,
-  PROJECT_PATH,
-  readEventEnvelopes,
-  readFile,
-  readdir,
-  rename,
-  require,
-  resolve,
-  rm,
-  runGit,
-  server,
-  setEnv,
-  syncBuiltinESMExports,
-  TERMINAL_UPLOAD_MAX_BODY_BYTES,
-  tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
-  writeProjectFile,
 } from "./dashboard-server.helpers.js";
-import type { AgentId } from "../../src/cli/types.js";
+
+/** Assert every expected bundle filename appears in the composedFrom response list. */
+function assertComposedFromIncludes(
+  composed: readonly string[],
+  expectedFiles: readonly string[],
+): void {
+  for (const expected of expectedFiles) {
+    assert.ok(
+      composed.includes(expected),
+      `expected ${expected} in composedFrom (got ${composed.join(", ")})`,
+    );
+  }
+}
+
 describe("dashboard /api/quality/evaluate", () => {
   const SKILL_DRAFT = [
     "---",
@@ -293,12 +261,11 @@ describe("dashboard /api/quality/evaluate", () => {
     const data = expectRecord(body, "Bundle evaluate result");
     const composed = data.composedFrom as string[];
     assert.ok(Array.isArray(composed), "composedFrom must be an array");
-    for (const expected of ["SKILL.md", "workflow.md", "template.md"]) {
-      assert.ok(
-        composed.includes(expected),
-        `expected ${expected} in composedFrom (got ${composed.join(", ")})`,
-      );
-    }
+    assertComposedFromIncludes(composed, [
+      "SKILL.md",
+      "workflow.md",
+      "template.md",
+    ]);
     assert.ok(Array.isArray(data.tips));
     assert.equal(typeof data.totalScore, "number");
   });

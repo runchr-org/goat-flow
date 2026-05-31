@@ -10,9 +10,43 @@ import { join } from "node:path";
 import { runSkillNew, SkillNewInputError } from "../../src/cli/skill-author.js";
 import { assertExists } from "../helpers/assert-exists.ts";
 
+type SkillNewResult = Awaited<ReturnType<typeof runSkillNew>>;
+
 /** Create an isolated project root for skill-author write tests. */
 function makeTempProject(): string {
   return mkdtempSync(join(tmpdir(), "goat-flow-skill-author-"));
+}
+
+/**
+ * Assert skill-author recommended a skill subtype.
+ *
+ * @param result - result returned by the skill-author command helper
+ * @param subtype - subtype the recommendation must carry
+ */
+function assertRecommendedSkillSubtype(
+  result: SkillNewResult,
+  subtype: "workflow" | "report",
+): void {
+  assert.deepEqual(result.candidacy.recommendedArtifact, {
+    type: "skill",
+    subtype,
+  });
+}
+
+/**
+ * Assert skill-author recommended a reference subtype.
+ *
+ * @param result - result returned by the skill-author command helper
+ * @param subtype - subtype the recommendation must carry
+ */
+function assertRecommendedReferenceSubtype(
+  result: SkillNewResult,
+  subtype: "playbook",
+): void {
+  assert.deepEqual(result.candidacy.recommendedArtifact, {
+    type: "reference",
+    subtype,
+  });
 }
 
 describe("skill new - description mode", () => {
@@ -22,7 +56,7 @@ describe("skill new - description mode", () => {
       description:
         "I want a workflow that walks through Postgres index changes.",
       name: "pg-index",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
@@ -46,15 +80,13 @@ describe("skill new - description mode", () => {
     const result = await runSkillNew({
       description: "I want to audit Postgres queries before deploy.",
       name: "pg-audit",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
 
     assert.equal(result.candidacy.recommendedArtifact.type, "skill");
-    if (result.candidacy.recommendedArtifact.type === "skill") {
-      assert.equal(result.candidacy.recommendedArtifact.subtype, "report");
-    }
+    assertRecommendedSkillSubtype(result, "report");
     assert.ok(result.written);
     assertExists(result.proposedPath);
     const content = readFileSync(result.proposedPath, "utf-8");
@@ -67,15 +99,12 @@ describe("skill new - description mode", () => {
       description:
         "I want to document how to use the lefthook pre-commit tool.",
       name: "lefthook",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
 
-    assert.equal(result.candidacy.recommendedArtifact.type, "reference");
-    if (result.candidacy.recommendedArtifact.type === "reference") {
-      assert.equal(result.candidacy.recommendedArtifact.subtype, "playbook");
-    }
+    assertRecommendedReferenceSubtype(result, "playbook");
     assert.ok(result.written);
     assert.ok(
       result.proposedPath?.endsWith(".goat-flow/skill-playbooks/lefthook.md"),
@@ -90,7 +119,7 @@ describe("skill new - description mode", () => {
     const result = await runSkillNew({
       description: "I want to capture a lesson from a recent CI incident.",
       name: "ci-incident",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
@@ -106,7 +135,7 @@ describe("skill new - description mode", () => {
     const result = await runSkillNew({
       description: "Hello.",
       name: "hello",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
@@ -136,7 +165,7 @@ describe("skill new - description mode", () => {
     const result = await runSkillNew({
       description: "I want a workflow.",
       name: "Bad Name With Spaces",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
@@ -151,7 +180,7 @@ describe("skill new - description mode", () => {
       description:
         "I want a workflow that walks through Postgres index changes.",
       name: "pg-index-score",
-      skipConfirm: true,
+      shouldSkipConfirm: true,
       projectRoot,
       stdinAnswers: [],
     });
@@ -170,7 +199,7 @@ describe("skill new - description mode", () => {
       runSkillNew({
         description: "I want a workflow that walks through deploys.",
         draftPath: join(projectRoot, "draft.md"),
-        interactive: true,
+        shouldUseInteractivePrompt: true,
         projectRoot,
         stdinAnswers: [],
       }),
@@ -257,7 +286,7 @@ describe("skill new - interactive mode", () => {
   it("prompts for description and name in interactive mode", async () => {
     const projectRoot = makeTempProject();
     const result = await runSkillNew({
-      interactive: true,
+      shouldUseInteractivePrompt: true,
       projectRoot,
       // First answer = description; second = name; third = confirm.
       stdinAnswers: [
@@ -277,7 +306,7 @@ describe("skill new - interactive mode", () => {
   it("aborts when the description is empty", async () => {
     const projectRoot = makeTempProject();
     const result = await runSkillNew({
-      interactive: true,
+      shouldUseInteractivePrompt: true,
       projectRoot,
       stdinAnswers: [""],
     });

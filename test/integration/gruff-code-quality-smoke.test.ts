@@ -110,6 +110,56 @@ function runHook(
 }
 
 /**
+ * Assert extension-based binary routing through the hook using real payloads.
+ *
+ * @param root - disposable git root containing mock gruff binaries
+ * @param cases - file/rule pairs that prove each extension selects its analyzer
+ */
+function assertExtensionRoutesToExpectedGruff(
+  root: string,
+  cases: ReadonlyArray<{ file: string; expectedRule: string }>,
+): void {
+  cases.forEach(({ file, expectedRule }) => {
+    const result = runHook(
+      root,
+      {
+        tool_name: "Edit",
+        tool_input: {
+          file_path: file,
+          changed_ranges: [{ startLine: 3, endLine: 3 }],
+        },
+      },
+      "/usr/bin:/bin",
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      new RegExp(
+        `\\[warning\\] ${escapeRegex(file)}:3 ${escapeRegex(expectedRule)} - changed line finding`,
+      ),
+    );
+  });
+}
+
+/**
+ * Assert unsupported hook payloads fail soft without surfacing analyzer output.
+ *
+ * @param root - disposable git root with the mock gruff binary installed
+ * @param payloads - payload shapes that should be skipped by hook preflight
+ */
+function assertFailSoftSkipPayloadsSilent(
+  root: string,
+  payloads: ReadonlyArray<unknown>,
+): void {
+  payloads.forEach((payload) => {
+    const result = runHook(root, payload, "/usr/bin:/bin");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+  });
+}
+
+/**
  * Install a mock gruff binary that rejects the project config the way a real
  * gruff does when `.gruff-*.yaml` lacks the required `schemaVersion:` line:
  * it prints a config error naming `schemaVersion` and `init --force` to stderr
@@ -348,51 +398,23 @@ describe("gruff-code-quality hook", () => {
     writeFileSync(join(root, "assets", "example.ts"), "const value = 1;\n");
     writeFileSync(join(root, "strands_agents", "example.py"), "value = 1\n");
 
-    const cases = [
+    assertExtensionRoutesToExpectedGruff(root, [
       { file: "src/example.php", expectedRule: "php.rule" },
       { file: "assets/example.ts", expectedRule: "ts.rule" },
       { file: "strands_agents/example.py", expectedRule: "py.rule" },
-    ];
-
-    for (const { file, expectedRule } of cases) {
-      const result = runHook(
-        root,
-        {
-          tool_name: "Edit",
-          tool_input: {
-            file_path: file,
-            changed_ranges: [{ startLine: 3, endLine: 3 }],
-          },
-        },
-        "/usr/bin:/bin",
-      );
-
-      assert.equal(result.status, 0, result.stderr);
-      assert.match(
-        result.stdout,
-        new RegExp(
-          `\\[warning\\] ${escapeRegex(file)}:3 ${escapeRegex(expectedRule)} - changed line finding`,
-        ),
-      );
-    }
+    ]);
   });
 
   it("exits silently for fail-soft skip cases", () => {
     const root = makeRoot();
     writeMockGruff(root);
     writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    const cases = [
+    assertFailSoftSkipPayloadsSilent(root, [
       { tool_name: "Read", tool_input: { file_path: "src/example.ts" } },
       { tool_name: "Edit", tool_input: { file_path: "README.md" } },
       { tool_name: "Edit", tool_input: { file_path: "node_modules/x.ts" } },
       { tool_name: "Edit", tool_input: { file_path: "../outside.ts" } },
-    ];
-
-    for (const payload of cases) {
-      const result = runHook(root, payload, "/usr/bin:/bin");
-      assert.equal(result.status, 0, result.stderr);
-      assert.equal(result.stdout, "");
-    }
+    ]);
   });
 
   it("exits silently when binary or project config is missing", () => {

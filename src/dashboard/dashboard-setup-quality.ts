@@ -50,7 +50,7 @@ interface DashboardSetupQualityContext {
   /** Copy generated prompt text through the shared dashboard clipboard helper. */
   copyText(text: string): void;
   /** Generate setup guidance for the selected agent and project. */
-  generateSetupPrompt(force?: boolean): Promise<void>;
+  generateSetupPrompt(shouldForce?: boolean): Promise<void>;
   /** Generate the selected quality prompt or report request. */
   generateQuality(options?: DashboardQualityGenerateOptions): Promise<void>;
   /** Load saved quality-history rows for the selected quality mode. */
@@ -58,10 +58,9 @@ interface DashboardSetupQualityContext {
 }
 
 /** Options that choose fast/fresh quality generation behavior from UI controls. */
-interface DashboardQualityGenerateOptions {
-  fast?: boolean;
-  fresh?: boolean;
-}
+type DashboardQualityGenerateOptions = Partial<
+  Record<"fast" | "fresh", boolean>
+>;
 
 function dashboardAgentDisplayName(
   ctx: DashboardSetupQualityContext,
@@ -373,7 +372,7 @@ async function dashboardDetectStack(
 /** Generate setup output for the agent selected in the setup view. */
 async function dashboardGenerateSetupPrompt(
   ctx: DashboardSetupQualityContext,
-  { force = false }: { force?: boolean } = {},
+  { force: shouldForce = false }: Partial<Record<"force", boolean>> = {},
 ): Promise<void> {
   const requestProjectPath = ctx.projectPath;
   const agent = ctx.setupSelectedAgent;
@@ -381,7 +380,7 @@ async function dashboardGenerateSetupPrompt(
     ctx.setupOutputs = {};
     ctx._setupOutputProjectPath = requestProjectPath;
   }
-  if (!force && ctx.setupOutputs[agent]) return;
+  if (!shouldForce && ctx.setupOutputs[agent]) return;
 
   ctx.setupGenerating = true;
   const isCurrentRequest = (): boolean =>
@@ -421,7 +420,10 @@ function dashboardScheduleSetupPrompt(ctx: DashboardSetupQualityContext): void {
 /** Generate a quality prompt for the selected project and agent. */
 async function dashboardGenerateQuality(
   ctx: DashboardSetupQualityContext,
-  { fast = false, fresh = false }: DashboardQualityGenerateOptions = {},
+  {
+    fast: useFastCache = false,
+    fresh: includeFresh = false,
+  }: DashboardQualityGenerateOptions = {},
 ): Promise<void> {
   ctx.qualityLoading = true;
   ctx.qualityResult = null;
@@ -433,8 +435,8 @@ async function dashboardGenerateQuality(
     : ctx.projectPath;
   const requestSelectedProjectPath = ctx.projectPath;
   const requestAgent = ctx.qualityAgent;
-  const fastParam = fast ? "&fast=true" : "";
-  const freshParam = fresh ? "&fresh=true" : "";
+  const fastParam = useFastCache ? "&fast=true" : "";
+  const freshParam = includeFresh ? "&fresh=true" : "";
   const isCurrentRequest = (): boolean =>
     ctx.selectedQualityModeId === requestModeId &&
     ctx.projectPath === requestSelectedProjectPath &&

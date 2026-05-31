@@ -1,3 +1,13 @@
+/**
+ * Dispatch layer for the `goat-flow quality` command and its subcommands (history, diff,
+ * candidacy, validate, and the default prompt builder). Each subcommand is a focused async
+ * handler; the public entry point only routes by `options.qualitySubcommand`.
+ *
+ * Heavy modules (history, candidacy, audit, prompt composition) are dynamically imported inside
+ * each handler so the CLI startup path stays lean and only loads what a given invocation needs.
+ * All filesystem and process behaviour is injected through QualityCommandDeps so the handlers
+ * stay testable; this module performs no I/O of its own beyond reading files the user pointed at.
+ */
 import { basename } from "node:path";
 import type { AgentId } from "../types.js";
 import type { CandidacyResult } from "./candidacy.js";
@@ -5,12 +15,19 @@ import type { ParsedCLI } from "../cli-types.js";
 
 type CLIErrorConstructor = new (message: string, exitCode: number) => Error;
 
+/**
+ * Injected collaborators the quality handlers depend on, kept as an interface so the command can
+ * be exercised in tests without touching the real CLI error type or stdout. Supplied by the CLI
+ * wiring layer; handlers never construct these themselves.
+ */
 export interface QualityCommandDeps {
   CLIError: CLIErrorConstructor;
   formatCandidacyArtifact(
     recommendation: CandidacyResult["recommendedArtifact"],
   ): string;
+  /** Returns the agent ids the CLI accepts for `--agent`; first entry is used as the usage hint. */
   validAgents(): AgentId[];
+  /** Writes the rendered command output to the destination chosen by `options` (stdout or file). */
   writeOutput(options: ParsedCLI, rendered: string): void;
 }
 
@@ -32,12 +49,12 @@ async function handleQualityHistorySubcommand(
 
   const selectedEntries = selectQualityHistoryEntries(history.entries, {
     agent: options.agent,
-    limit: options.all ? null : 20,
+    limit: options.includeAll ? null : 20,
     qualityMode: options.qualityMode,
   });
   const rows = buildQualityHistoryRows(history.entries, {
     agent: options.agent,
-    limit: options.all ? null : 20,
+    limit: options.includeAll ? null : 20,
     qualityMode: options.qualityMode,
   });
   if (options.format === "json") {
@@ -67,7 +84,7 @@ async function handleQualityHistorySubcommand(
     renderQualityHistoryText(rows, {
       agent: options.agent,
       qualityMode: options.qualityMode,
-      all: options.all,
+      includeAll: options.includeAll,
     }),
   );
 }

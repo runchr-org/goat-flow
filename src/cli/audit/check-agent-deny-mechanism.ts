@@ -1,3 +1,10 @@
+/**
+ * Audit checks for each agent's dangerous-command deny mechanism (concern 4). Verifies that a deny
+ * guard is present, that any hook scripts pass `bash -n`, and that deny patterns are registered -
+ * accepting both file-based and config-based mechanisms because agents satisfy the contract in
+ * different ways. Some checks spawn `bash` and copy fixture hooks to a real path, so this file owns
+ * the bridge from the in-memory audit FS to the actual workspace the shell needs.
+ */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";

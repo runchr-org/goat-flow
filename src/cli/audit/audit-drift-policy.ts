@@ -1,3 +1,9 @@
+/**
+ * Auto-run policy for the drift check. Isolated from the orchestrator so the single heuristic that
+ * decides whether `audit` runs drift without an explicit `--check-drift` flag has one home and one
+ * documented rationale. The policy reads the manifest directly rather than the already-filtered
+ * audit context, which is the load-bearing detail the function comment explains.
+ */
 import { loadManifest } from "../manifest/manifest.js";
 import type { AuditContext } from "./types.js";
 
@@ -19,6 +25,10 @@ import type { AuditContext } from "./types.js";
  * matters - the single-agent-filter case is the one stale satellites exploit.
  *
  * Single-agent projects preserve the prior opt-in behaviour.
+ *
+ * @param ctx - audit context; only `ctx.fs` is consulted, to existence-test manifest instruction files
+ * @returns true when more than one agent instruction file is present on disk, signalling a multi-agent
+ *   project where stale satellite skill dirs could otherwise survive a "pass" audit; false otherwise
  */
 export function shouldAutoRunDrift(ctx: AuditContext): boolean {
   const manifest = loadManifest();

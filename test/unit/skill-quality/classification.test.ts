@@ -1,3 +1,8 @@
+/**
+ * Skill subtype classification: certain goat-flow skills score confidence 1.0 while fallback-only matches stay
+ * uncertain, alternatives and consider-reclassifying surface for ambiguous structure, playbook/reference-shaped
+ * content reports without changing the applied subtype, and rubric keywords inside example prose are ignored.
+ */
 import {
   describe,
   it,
@@ -15,6 +20,42 @@ import {
   makeTempProject,
   writeSkill,
 } from "./helpers.js";
+
+/** Evaluate a split uploaded skill bundle whose workflow evidence spans two files. */
+function evaluateSplitUploadedSkillBundle(): ReturnType<
+  typeof evaluateUploadedBundle
+> {
+  return evaluateUploadedBundle(PROJECT_ROOT, {
+    kind: "skill",
+    suggestedName: "split-skill",
+    files: [
+      {
+        name: "SKILL.md",
+        content: [
+          "---",
+          "name: split-skill",
+          'description: "Use when testing bundle composition."',
+          'goat-flow-skill-version: "1.6.1"',
+          "---",
+          "# /split-skill",
+          "## Step 0",
+          "Read workflow.md.",
+        ].join("\n"),
+      },
+      {
+        name: "workflow.md",
+        content: [
+          "## Phase 1",
+          "Plan the change.",
+          "## Phase 2",
+          "CHECKPOINT: human approves before work.",
+          "## Verification",
+          '- [ ] OBSERVED evidence required with `(search: "split-anchor")`.',
+        ].join("\n"),
+      },
+    ],
+  });
+}
 
 describe("classification", () => {
   it("returns confidence 1.0 for unambiguous goat-flow skills", () => {
@@ -239,36 +280,7 @@ describe("classification", () => {
   });
 
   it("classifies uploaded bundles against the composed uploaded surface", () => {
-    const report = evaluateUploadedBundle(PROJECT_ROOT, {
-      kind: "skill",
-      suggestedName: "split-skill",
-      files: [
-        {
-          name: "SKILL.md",
-          content: [
-            "---",
-            "name: split-skill",
-            'description: "Use when testing bundle composition."',
-            'goat-flow-skill-version: "1.6.1"',
-            "---",
-            "# /split-skill",
-            "## Step 0",
-            "Read workflow.md.",
-          ].join("\n"),
-        },
-        {
-          name: "workflow.md",
-          content: [
-            "## Phase 1",
-            "Plan the change.",
-            "## Phase 2",
-            "CHECKPOINT: human approves before work.",
-            "## Verification",
-            '- [ ] OBSERVED evidence required with `(search: "split-anchor")`.',
-          ].join("\n"),
-        },
-      ],
-    });
+    const report = evaluateSplitUploadedSkillBundle();
 
     const workflow = report.metrics.find(
       (m) => m.metric === "workflow-completeness",

@@ -12,8 +12,8 @@ import {
   runAudit,
   computeHarness,
   runAuditBatch,
-  createAuditFactsView,
 } from "../../../src/cli/audit/audit.js";
+import { createAuditFactsView } from "../../../src/cli/audit/audit-facts-view.js";
 import {
   renderAuditJson,
   renderAuditMarkdown,
@@ -110,6 +110,9 @@ export function getRepoAudit(opts: {
  * use backslashes. Test handlers compare against POSIX-shape literals. Wrap
  * every incoming path with a forward-slash normaliser so handlers can match
  * on the documented separator-agnostic shape regardless of host.
+ *
+ * @param value - a path as production code produced it, possibly containing Windows backslash separators
+ * @returns the same path with every backslash rewritten to a forward slash
  */
 export function posixifyPath(value: string): string {
   return value.replace(/\\/g, "/");
@@ -126,7 +129,13 @@ export function wrapPathArg<T>(
   return readNormalizedPath;
 }
 
-/** Build a default-passing ReadonlyFS fake with optional targeted overrides. */
+/**
+ * Build a default-passing ReadonlyFS fake with optional targeted overrides.
+ *
+ * @param overrides - per-method handlers to replace specific defaults; supplied path handlers receive POSIX-normalised
+ *   paths, and any method left out falls back to a benign default (exists true, reads null/empty)
+ * @returns a ReadonlyFS where every method is populated, so a check exercises only the behaviour it overrode
+ */
 export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   const fs: ReadonlyFS = {
     exists: wrapPathArg(overrides.exists, true),
@@ -144,7 +153,13 @@ export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   return fs;
 }
 
-/** Build a valid loaded-config fixture because audit checks only need targeted config overrides. */
+/**
+ * Build a valid loaded-config fixture because audit checks only need targeted config overrides.
+ *
+ * @param overrides - config fields to merge over the default valid config; omit to get a fully-populated
+ *   current-version config that passes structural checks
+ * @returns a LoadedConfig marked exists+valid, wrapping the merged config object
+ */
 export function stubConfig(
   overrides: Partial<GoatFlowConfig> = {},
 ): LoadedConfig {
@@ -196,7 +211,13 @@ export const STUB_AGENT_PROFILE: AgentProfile = {
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
 
-/** Extract deny-hook facts from a single in-memory hook body. */
+/**
+ * Extract deny-hook facts from a single in-memory hook body, wrapping it in a fake FS so a test can probe the
+ * extractor against one hook script without writing files.
+ *
+ * @param denyContent - the full text of a deny-hook script, served as the only readable file at the deny-hook path
+ * @returns the hook facts the extractor derives from that body (secret-path coverage, registration, and so on)
+ */
 export function extractHookFactsForDenyContent(denyContent: string) {
   const fs = stubFS({
     exists: (path) => path === STUB_AGENT_PROFILE.denyHookFile,
@@ -206,7 +227,13 @@ export function extractHookFactsForDenyContent(denyContent: string) {
   return extractHookFacts(fs, STUB_AGENT_PROFILE, {}, true, true);
 }
 
-/** Build complete agent facts for checks that only override one concern. */
+/**
+ * Build complete agent facts for checks that only override one concern.
+ *
+ * @param overrides - the single facts concern (instruction, settings, skills, hooks, ...) a check wants to vary;
+ *   everything else defaults to a healthy, fully-installed agent
+ * @returns an AgentFacts object with every concern populated so the check under test sees a realistic baseline
+ */
 export function stubAgentFacts(
   overrides: Partial<AgentFacts> = {},
 ): AgentFacts {
@@ -299,7 +326,13 @@ export const STUB_STRUCTURE: ProjectStructure = {
   agents: {},
 };
 
-/** Build an audit context fixture because focused checks should override only the facts under test. */
+/**
+ * Build an audit context fixture because focused checks should override only the facts under test.
+ *
+ * @param overrides - the slice of audit context (facts, project path, config, ...) a check wants to set; the rest
+ *   defaults to a benign well-formed context
+ * @returns a complete AuditContext suitable for invoking a single check in isolation
+ */
 export function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
   return {
     projectPath: "/tmp/test-project",
@@ -605,7 +638,13 @@ export function createSpanRecorder(): {
   };
 }
 
-/** Count recorded profile spans with the exact requested name. */
+/**
+ * Count recorded profile spans with the exact requested name.
+ *
+ * @param names - recorded span names in the order they were emitted by the span recorder
+ * @param name - the exact span name to match (no prefix or substring matching)
+ * @returns how many entries in `names` equal `name`, used to assert a span ran the expected number of times
+ */
 export function countSpan(names: string[], name: string): number {
   return names.filter((entry) => entry === name).length;
 }

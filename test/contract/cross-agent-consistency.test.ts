@@ -20,6 +20,41 @@ const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
+/** Assert one runtime agent profile matches its manifest capability contract. */
+function assertProfileMatchesManifest(
+  profile: ReturnType<typeof getAgentProfiles>[number],
+  manifest: ReturnType<typeof loadManifest>,
+): void {
+  const manifestAgent = manifest.agents[profile.id];
+  assert.ok(manifestAgent, `manifest should include ${profile.id}`);
+  assert.equal(
+    profile.terminalBinary,
+    manifestAgent.capabilities.terminal_binary,
+  );
+  assert.deepEqual(
+    profile.setupSurfaces,
+    manifestAgent.capabilities.setup_surfaces,
+  );
+  assert.equal(
+    profile.promptInvocationStyle,
+    manifestAgent.capabilities.prompt_invocation_style,
+  );
+  assert.equal(profile.skillSource, manifestAgent.capabilities.skill_source);
+  assert.equal(
+    profile.supportsPostTurnHook,
+    manifestAgent.hook_events != null &&
+      manifestAgent.hook_events.post_turn !== null,
+  );
+  assert.ok(
+    profile.terminalBinary.trim(),
+    `${profile.id} needs a terminal binary`,
+  );
+  assert.ok(
+    profile.setupSurfaces.length > 0,
+    `${profile.id} needs at least one setup surface`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Package version matches AUDIT_VERSION
 // ---------------------------------------------------------------------------
@@ -115,40 +150,9 @@ describe("dashboard runner type alignment", () => {
 describe("manifest-backed agent capability alignment", () => {
   it("exposes capability metadata through the runtime registry", () => {
     const manifest = loadManifest();
-
-    for (const profile of getAgentProfiles()) {
-      const manifestAgent = manifest.agents[profile.id];
-      assert.ok(manifestAgent, `manifest should include ${profile.id}`);
-      assert.equal(
-        profile.terminalBinary,
-        manifestAgent.capabilities.terminal_binary,
-      );
-      assert.deepEqual(
-        profile.setupSurfaces,
-        manifestAgent.capabilities.setup_surfaces,
-      );
-      assert.equal(
-        profile.promptInvocationStyle,
-        manifestAgent.capabilities.prompt_invocation_style,
-      );
-      assert.equal(
-        profile.skillSource,
-        manifestAgent.capabilities.skill_source,
-      );
-      assert.equal(
-        profile.supportsPostTurnHook,
-        manifestAgent.hook_events != null &&
-          manifestAgent.hook_events.post_turn !== null,
-      );
-      assert.ok(
-        profile.terminalBinary.trim(),
-        `${profile.id} needs a terminal binary`,
-      );
-      assert.ok(
-        profile.setupSurfaces.length > 0,
-        `${profile.id} needs at least one setup surface`,
-      );
-    }
+    getAgentProfiles().forEach((profile) =>
+      assertProfileMatchesManifest(profile, manifest),
+    );
   });
 
   it("keeps dashboard and terminal runner support manifest-backed", () => {

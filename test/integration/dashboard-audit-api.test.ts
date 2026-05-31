@@ -1,60 +1,34 @@
+/**
+ * Dashboard /api/audit report endpoint: returns the full report shape covering all supported
+ * agents regardless of config, keeps the audit cache a gitignored local artifact that invalidates
+ * after instruction/hook/lesson edits yet serves cache hits under budget, and (with quality=true)
+ * folds in harness concerns without running deny-hook self-tests or changing the shared report.
+ */
 import {
-  after,
   assert,
-  assertAuditCheckProvenance,
   assertAuditScope,
   assertDashboardReport,
-  assertJsonResponse,
-  assertValidEmittedEnvelope,
   AUDIT_VERSION,
-  baseUrl,
-  before,
   childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
   commitDashboardCacheProject,
-  createRequire,
-  DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
-  dashboardToken,
   describe,
-  dirname,
-  existsSync,
   expectRecord,
-  extractDashboardToken,
   fetchJson,
   getAgentProfileMap,
   getKnownAgentIds,
   it,
   join,
-  LEGACY_PROJECTS_LIST_PATH,
   makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
   MISSING_PATH,
-  mkdir,
   mkdtemp,
-  normalizeAgentVersionOutput,
-  originalDashboardState,
   originalExecFileSync,
-  originalLegacyProjectsList,
   performance,
   PROJECT_PATH,
-  readEventEnvelopes,
-  readFile,
-  readdir,
-  rename,
-  require,
-  resolve,
   rm,
   runGit,
-  server,
   setEnv,
   syncBuiltinESMExports,
-  TERMINAL_UPLOAD_MAX_BODY_BYTES,
   tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
   writeProjectFile,
 } from "./dashboard-server.helpers.js";
 import type { AgentId } from "../../src/cli/types.js";
@@ -145,6 +119,79 @@ describe("dashboard /api/audit", () => {
     };
   }
 
+  /** Assert each dashboard agent score keeps the shape consumed by Home, Setup, and Quality views. */
+  function dashboardScoresById(
+    report: ReturnType<typeof assertDashboardReport>,
+  ): Map<string, Record<string, unknown>> {
+    const agentScores = report.agentScores as unknown[];
+    assert.ok(agentScores.length > 0, "Dashboard report should include agents");
+    const scoresById = new Map<string, Record<string, unknown>>();
+    for (const [index, score] of agentScores.entries()) {
+      const entry = expectRecord(score, "Dashboard report agent score");
+      const id = String(entry.id);
+      scoresById.set(id, entry);
+      assert.ok(getKnownAgentIds().includes(id as AgentId));
+      assert.equal(entry.name, getAgentProfileMap()[id as AgentId].name);
+      assertAuditScope(entry.agent, "Dashboard report agentScores[].agent");
+      const enforcement = expectRecord(
+        entry.enforcement,
+        "Dashboard report agentScores[].enforcement",
+      );
+      assert.equal(enforcement.agent, id);
+      assert.ok(
+        Array.isArray(enforcement.capabilities),
+        "Dashboard report should include enforcement capabilities",
+      );
+      if (entry.harness !== null) {
+        assertAuditScope(
+          entry.harness,
+          `Dashboard report agentScores[${index}].harness`,
+        );
+      }
+    }
+    return scoresById;
+  }
+
+  /** Assert required agent ids are present without hiding the missing id in a bulk comparison. */
+  function assertAgentScoresInclude(
+    scoresById: Map<string, Record<string, unknown>>,
+    ids: readonly string[],
+  ): void {
+    for (const id of ids) {
+      assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
+    }
+  }
+
+  /** Assert profiled summary responses preserve the per-agent dashboard surfaces. */
+  function assertDashboardSummaryAgentCards(
+    report: ReturnType<typeof assertDashboardReport>,
+  ): void {
+    const agentScores = report.agentScores as unknown[];
+    assert.ok(
+      agentScores.length > 0,
+      "Dashboard summary should preserve per-agent cards",
+    );
+    for (const [index, score] of agentScores.entries()) {
+      const entry = expectRecord(
+        score,
+        `Dashboard report agentScores[${index}]`,
+      );
+      assertAuditScope(
+        entry.agent,
+        `Dashboard report agentScores[${index}].agent`,
+      );
+      assertAuditScope(
+        entry.harness,
+        `Dashboard report agentScores[${index}].harness`,
+      );
+      assert.notEqual(
+        entry.concerns,
+        null,
+        `Dashboard report agentScores[${index}].concerns should be present`,
+      );
+    }
+  }
+
   it("includes all supported agents even when config lists one", async () => {
     const root = await mkdtemp(join(tmpdir(), "goat-flow-dashboard-agents-"));
     try {
@@ -181,15 +228,13 @@ describe("dashboard /api/audit", () => {
       );
       assert.deepEqual(scoreIds, ["claude", "codex", "antigravity", "copilot"]);
 
-      const scoresById = new Map<string, Record<string, unknown>>();
-      for (const score of agentScores) {
-        const entry = expectRecord(score, "Supported-agent score");
-        scoresById.set(String(entry.id), entry);
-      }
-
-      for (const id of ["claude", "codex", "antigravity", "copilot"] as const) {
-        assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
-      }
+      const scoresById = dashboardScoresById(report);
+      assertAgentScoresInclude(scoresById, [
+        "claude",
+        "codex",
+        "antigravity",
+        "copilot",
+      ]);
       const codex = expectRecord(scoresById.get("codex"), "Codex score");
       const codexAgent = expectRecord(codex.agent, "Codex agent scope");
       assert.equal(codexAgent.status, "fail");
@@ -296,36 +341,8 @@ describe("dashboard /api/audit", () => {
     assert.equal(res.status, 200);
 
     const report = assertDashboardReport(body);
-    const agentScores = report.agentScores as unknown[];
-    assert.ok(agentScores.length > 0, "Dashboard report should include agents");
-    const scoresById = new Map<string, Record<string, unknown>>();
-
-    for (const score of agentScores) {
-      const entry = expectRecord(score, "Dashboard report agent score");
-      const id = String(entry.id);
-      scoresById.set(id, entry);
-      assert.ok(getKnownAgentIds().includes(id as AgentId));
-      assert.equal(entry.name, getAgentProfileMap()[id as AgentId].name);
-      assertAuditScope(entry.agent, "Dashboard report agentScores[].agent");
-      const enforcement = expectRecord(
-        entry.enforcement,
-        "Dashboard report agentScores[].enforcement",
-      );
-      assert.equal(enforcement.agent, id);
-      assert.ok(
-        Array.isArray(enforcement.capabilities),
-        "Dashboard report should include enforcement capabilities",
-      );
-      if (entry.harness !== null) {
-        assertAuditScope(
-          entry.harness,
-          "Dashboard report agentScores[].harness",
-        );
-      }
-    }
-    for (const id of ["claude", "codex", "copilot"] as const) {
-      assert.ok(scoresById.has(id), `Dashboard report should include ${id}`);
-    }
+    const scoresById = dashboardScoresById(report);
+    assertAgentScoresInclude(scoresById, ["claude", "codex", "copilot"]);
   });
 
   it("serves cache hits under budget without rerunning audit computation", async () => {
@@ -441,30 +458,7 @@ describe("dashboard /api/audit", () => {
         "Profiled summary route should preserve the Home/Setup/Quality report surface",
       );
 
-      const agentScores = profiledReport.agentScores as unknown[];
-      assert.ok(
-        agentScores.length > 0,
-        "Dashboard summary should preserve per-agent cards",
-      );
-      for (const [index, score] of agentScores.entries()) {
-        const entry = expectRecord(
-          score,
-          `Dashboard report agentScores[${index}]`,
-        );
-        assertAuditScope(
-          entry.agent,
-          `Dashboard report agentScores[${index}].agent`,
-        );
-        assertAuditScope(
-          entry.harness,
-          `Dashboard report agentScores[${index}].harness`,
-        );
-        assert.notEqual(
-          entry.concerns,
-          null,
-          `Dashboard report agentScores[${index}].concerns should be present`,
-        );
-      }
+      assertDashboardSummaryAgentCards(profiledReport);
 
       const spans = getProfileSpans(profiled.body);
       assert.equal(

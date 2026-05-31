@@ -129,8 +129,8 @@ export function createDashboardTerminalHandlers(
     recordEvidenceEvent({
       producer: "dashboard-session-trace",
       actor: "server",
-      eventKind,
-      projectPath,
+      eventType: eventKind,
+      projectRoot: projectPath,
       payload,
     });
   }

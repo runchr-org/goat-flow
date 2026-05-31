@@ -1,3 +1,8 @@
+/**
+ * Uploaded skill evaluation skips host preamble composition: composedFrom omits skill-preamble.md and
+ * skill-conventions.md and lists only the user's uploaded file(s), uploaded scoring does not credit gate/evidence
+ * signals from the preamble, and on-disk scoreArtifact still composes the preamble (regression guard).
+ */
 import {
   describe,
   it,

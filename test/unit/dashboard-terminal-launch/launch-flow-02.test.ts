@@ -1,30 +1,100 @@
+/**
+ * Dashboard terminal launch flow, part 2: the Claude pasted-text retry loop respects the cap and stops once
+ * output advances, multiline pastes (Claude, Antigravity) wait for the pasted-text marker before submitting,
+ * delayed paste submits retry past a briefly-unavailable websocket and queue/clear correctly, and refreshes coalesce.
+ */
 import {
   assert,
-  assertExists,
   createFakeTimers,
-  DASHBOARD_APP_PATH,
-  DASHBOARD_TERMINAL_PATH,
-  delay,
   describe,
-  FakeDashboardWebSocket,
-  FakeFitAddon,
-  FakeResizeObserver,
-  FakeTerminal,
   it,
   loadHelpers,
-  loadFixture,
-  makeBrowserTerminalGlobals,
   makeCapturingWebSocket,
   makeContext,
   makeLaunchPromptContext,
-  PROJECT_ROOT,
-  readFileSync,
-  readDashboardAppSource,
-  readDashboardTerminalSource,
+  makeTerminalSendHarness,
   resolve,
-  SETUP_VIEW_PATH,
-  WORKSPACE_VIEW_PATH,
 } from "./helpers.js";
+
+/** Build a launch harness where xterm readiness is withheld until the test releases it. */
+function makeDelayedXtermLaunchHarness(): {
+  calls: string[];
+  ctx: ReturnType<typeof makeContext>;
+  helpers: ReturnType<typeof loadHelpers>;
+  resolveXterm: () => void;
+} {
+  const calls: string[] = [];
+  let resolveXterm!: () => void;
+  const xtermReady = new Promise<void>((resolveReady) => {
+    resolveXterm = resolveReady;
+  });
+  const helpers = loadHelpers(async (input, init) => {
+    calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
+    return {
+      json: async () => ({
+        id: "session-1",
+        wsUrl: "/ws/terminal/session-1",
+      }),
+    } as Response;
+  });
+  const ctx = makeContext({
+    // Stub that blocks on the test-controlled xtermReady promise so ordering around xterm load can be asserted.
+    async loadXterm(): Promise<void> {
+      calls.push("loadXterm");
+      await xtermReady;
+      calls.push("loadXterm:ready");
+    },
+    // Stub that records the attach call and its session/ws arguments instead of opening a real socket.
+    connectTerminal(sessionId: string, wsUrl: string): void {
+      calls.push(`connect:${sessionId}:${wsUrl}`);
+    },
+    // Stub that records the session-count refresh without hitting the backend.
+    async updateSessionCount(): Promise<void> {
+      calls.push("updateSessionCount");
+    },
+    // Stub for Alpine's post-render hook, recording when the flow yields before attachment.
+    async $nextTick(): Promise<void> {
+      calls.push("$nextTick");
+    },
+  });
+  return { calls, ctx, helpers, resolveXterm };
+}
+
+/** Build a Claude paste harness without outputTail so retry timing matches legacy session records. */
+function makeUnavailableWebSocketPasteHarness(): {
+  ctx: ReturnType<typeof makeContext>;
+  sent: string[];
+  websocket: ReturnType<typeof makeCapturingWebSocket>;
+} {
+  const sent: string[] = [];
+  const websocket = makeCapturingWebSocket(sent);
+  const ctx = makeContext({
+    activeSessionId: "session-upload",
+    sessions: [
+      {
+        id: "session-upload",
+        runner: "claude",
+        promptLabel: "Upload target",
+        projectPath: "/tmp/example",
+        cwd: "/tmp/example",
+        targetPath: "/tmp/example",
+        startTime: Date.now(),
+        lastInputTime: 0,
+        connected: true,
+        ended: false,
+        awaitingInput: false,
+        age: "0s",
+        presetId: null,
+      },
+    ],
+    _terminalRefs: {
+      "session-upload": {
+        ws: websocket,
+      },
+    },
+  });
+  return { ctx, sent, websocket };
+}
 
 describe("dashboard terminal launch flow", () => {
   it("retries up to the cap while Claude composer stays parked at pasted-text", async () => {
@@ -33,32 +103,11 @@ describe("dashboard terminal launch flow", () => {
       async () => ({ json: async () => ({}) }) as Response,
       timers,
     );
-    const sent: string[] = [];
-    const ctx = makeContext({
-      activeSessionId: "session-upload",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-          outputTail:
-            "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: makeCapturingWebSocket(sent),
-        },
+    const { ctx, sent } = makeTerminalSendHarness({
+      runner: "claude",
+      session: {
+        outputTail:
+          "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
       },
     });
 
@@ -100,32 +149,11 @@ describe("dashboard terminal launch flow", () => {
       async () => ({ json: async () => ({}) }) as Response,
       timers,
     );
-    const sent: string[] = [];
-    const ctx = makeContext({
-      activeSessionId: "session-upload",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-          outputTail:
-            "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: makeCapturingWebSocket(sent),
-        },
+    const { ctx, sent, session } = makeTerminalSendHarness({
+      runner: "claude",
+      session: {
+        outputTail:
+          "[Pasted text #1 +2 lines]\n────────────────\npaste again to expand ❯",
       },
     });
 
@@ -145,7 +173,7 @@ describe("dashboard terminal launch flow", () => {
       "[Pasted text #1 +2 lines]",
     );
     timers.tick(helpers.TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS);
-    ctx.sessions[0]!.outputTail = "Running quality assessment";
+    session.outputTail = "Running quality assessment";
     timers.tick(helpers.TERMINAL_PASTE_SUBMIT_RETRY_CADENCE_MS);
 
     const expectedPasteAndSubmitSendCount = 2;
@@ -157,32 +185,7 @@ describe("dashboard terminal launch flow", () => {
     const helpers = loadHelpers(
       async () => ({ json: async () => ({}) }) as Response,
     );
-    const sent: string[] = [];
-    const ctx = makeContext({
-      activeSessionId: "session-upload",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: makeCapturingWebSocket(sent),
-        },
-      },
-    });
+    const { ctx, sent } = makeTerminalSendHarness({ runner: "claude" });
 
     helpers.dashboardHandlePasteSubmitOutput(
       ctx,
@@ -330,33 +333,7 @@ describe("dashboard terminal launch flow", () => {
       async () => ({ json: async () => ({}) }) as Response,
       timers,
     );
-    const sent: string[] = [];
-    const websocket = makeCapturingWebSocket(sent);
-    const ctx = makeContext({
-      activeSessionId: "session-upload",
-      sessions: [
-        {
-          id: "session-upload",
-          runner: "claude",
-          promptLabel: "Upload target",
-          projectPath: "/tmp/example",
-          cwd: "/tmp/example",
-          targetPath: "/tmp/example",
-          startTime: Date.now(),
-          lastInputTime: 0,
-          connected: true,
-          ended: false,
-          awaitingInput: false,
-          age: "0s",
-          presetId: null,
-        },
-      ],
-      _terminalRefs: {
-        "session-upload": {
-          ws: websocket,
-        },
-      },
-    });
+    const { ctx, sent, websocket } = makeUnavailableWebSocketPasteHarness();
 
     assert.equal(
       helpers.dashboardSendToTerminalSession(
@@ -520,41 +497,8 @@ describe("dashboard terminal launch flow", () => {
   });
 
   it("starts xterm loading before create returns and connects after both finish", async () => {
-    const calls: string[] = [];
-    let resolveXterm!: () => void;
-    const xtermReady = new Promise<void>((resolve) => {
-      resolveXterm = resolve;
-    });
-    const helpers = loadHelpers(async (input, init) => {
-      calls.push(`fetch:${init?.method ?? "GET"}:${String(input)}`);
-      return {
-        json: async () => ({
-          id: "session-1",
-          wsUrl: "/ws/terminal/session-1",
-        }),
-      } as Response;
-    });
-    const ctx = makeContext({
-      // Holding xterm readiness open proves backend create can start before
-      // the browser terminal assets finish loading.
-      async loadXterm(): Promise<void> {
-        calls.push("loadXterm");
-        await xtermReady;
-        calls.push("loadXterm:ready");
-      },
-      // The attach call is order-sensitive: it must happen after loadXterm and $nextTick.
-      connectTerminal(sessionId: string, wsUrl: string): void {
-        calls.push(`connect:${sessionId}:${wsUrl}`);
-      },
-      // Count refresh is only evidence here that the successful launch path completed.
-      async updateSessionCount(): Promise<void> {
-        calls.push("updateSessionCount");
-      },
-      // Terminal attach must wait for Alpine to render the workspace container.
-      async $nextTick(): Promise<void> {
-        calls.push("$nextTick");
-      },
-    });
+    const { calls, ctx, helpers, resolveXterm } =
+      makeDelayedXtermLaunchHarness();
 
     const launchPromise = helpers.dashboardLaunchInTerminal(ctx, "", "claude", {
       promptLabel: "Manual session",

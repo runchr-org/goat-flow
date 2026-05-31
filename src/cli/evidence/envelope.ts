@@ -64,9 +64,9 @@ export interface EvidenceEnvelope extends CheckEvidence {
 /** Caller-friendly input shape before camelCase fields are adapted to envelope keys. */
 export interface CreateEvidenceEnvelopeInput {
   producer?: string;
-  eventKind: EvidenceEventKind;
+  eventType: EvidenceEventKind;
   actor: EvidenceActor;
-  projectPath: string;
+  projectRoot: string;
   timestamp?: string | Date;
   payload?: EvidencePayload;
   provenance?: Partial<
@@ -82,8 +82,7 @@ export interface CreateEvidenceEnvelopeInput {
 }
 
 /** Non-throwing append result returned to dashboard and CLI producers. */
-export interface AppendEvidenceEnvelopeResult {
-  ok: boolean;
+export interface AppendEvidenceEnvelopeResult extends Record<"ok", boolean> {
   path: string | null;
   error?: string;
 }
@@ -104,8 +103,8 @@ const SENSITIVE_PAYLOAD_KEY =
 const VALID_ACTORS = new Set<EvidenceActor>(["dashboard", "cli", "server"]);
 
 /** Resolve the gitignored event-log directory under the selected project root. */
-function eventsLogDir(projectPath: string): string {
-  return join(projectPath, EVENTS_LOG_RELATIVE_DIR);
+function eventsLogDir(projectRoot: string): string {
+  return join(projectRoot, EVENTS_LOG_RELATIVE_DIR);
 }
 
 /** Normalize optional caller timestamps while defaulting local events to current time. */
@@ -205,10 +204,10 @@ export function createEvidenceEnvelope(
       ENVELOPE_FRAMEWORK_EVIDENCE,
     ],
     producer: input.producer ?? "goat-flow",
-    event_kind: input.eventKind,
+    event_kind: input.eventType,
     actor: input.actor,
     timestamp,
-    project_path: input.projectPath,
+    project_path: input.projectRoot,
   };
   applyEnvelopeOptionalFields(envelope, input);
   return envelope;
@@ -260,13 +259,13 @@ function warn(
 /**
  * Append one envelope to the local gitignored JSONL event log. Never throws.
  *
- * @param projectPath - Project root that owns `.goat-flow/logs/events`.
+ * @param projectRoot - Project root that owns `.goat-flow/logs/events`.
  * @param envelope - Validated or caller-created envelope to append.
  * @param options - Optional warning callback for non-fatal validation or filesystem failures.
  * @returns Append outcome with a path on success and an error string on failure.
  */
 export function appendEvidenceEnvelope(
-  projectPath: string,
+  projectRoot: string,
   envelope: EvidenceEnvelope,
   options?: EvidenceEnvelopeWriteOptions,
 ): AppendEvidenceEnvelopeResult {
@@ -277,7 +276,7 @@ export function appendEvidenceEnvelope(
       warn(options, `[evidence] ${error}`);
       return { ok: false, path: null, error };
     }
-    const dir = eventsLogDir(projectPath);
+    const dir = eventsLogDir(projectRoot);
     mkdirSync(dir, { recursive: true });
     const path = join(dir, `${envelope.timestamp.slice(0, 10)}.jsonl`);
     appendFileSync(path, `${JSON.stringify(envelope)}\n`, "utf-8");
@@ -301,15 +300,15 @@ export function recordEvidenceEvent(
   options?: EvidenceEnvelopeWriteOptions,
 ): AppendEvidenceEnvelopeResult {
   return appendEvidenceEnvelope(
-    input.projectPath,
+    input.projectRoot,
     createEvidenceEnvelope(input),
     options,
   );
 }
 
 /** Return sorted daily JSONL event logs; invariant: filenames must preserve chronology. */
-function eventLogFiles(projectPath: string): string[] {
-  const dir = eventsLogDir(projectPath);
+function eventLogFiles(projectRoot: string): string[] {
+  const dir = eventsLogDir(projectRoot);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/u.test(name))
@@ -333,16 +332,16 @@ function parseEnvelopeLine(line: string): EvidenceEnvelope | null {
 /**
  * Read the newest local event envelopes, preserving chronological order.
  *
- * @param projectPath - Project root whose gitignored event logs should be tailed.
+ * @param projectRoot - Project root whose gitignored event logs should be tailed.
  * @param limit - Requested maximum number of newest envelopes; capped for bounded reads.
  * @returns Valid envelopes from the newest tail window.
  */
 export function tailEvidenceEvents(
-  projectPath: string,
+  projectRoot: string,
   limit = 20,
 ): EvidenceEnvelope[] {
   const boundedLimit = Math.max(1, Math.min(limit, MAX_TAIL_LIMIT));
-  const entries = eventLogFiles(projectPath).flatMap((path) =>
+  const entries = eventLogFiles(projectRoot).flatMap((path) =>
     readFileSync(path, "utf-8")
       .split(/\r?\n/u)
       .flatMap((line) => {

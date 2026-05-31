@@ -22,7 +22,9 @@ import {
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 
-const V110: Parameters<typeof scanSectionAgainstSnapshot>[1] = {
+const VERSION_1_10_SNAPSHOT_FACTS: Parameters<
+  typeof scanSectionAgainstSnapshot
+>[1] = {
   skills_total: 7,
   skills_functional_count: 6,
   checks_setup: 12,
@@ -318,6 +320,27 @@ function loadSnapshotJson(version: string): Record<string, unknown> {
   ) as Record<string, unknown>;
 }
 
+/**
+ * Assert each historical snapshot can be loaded and matches its frozen facts.
+ *
+ * @param expectedSnapshots - release versions and facts the changelog relies on
+ */
+function assertReleaseSnapshotsMatchFrozenFacts(
+  expectedSnapshots: ReadonlyArray<(typeof EXPECTED_RELEASE_SNAPSHOTS)[number]>,
+): void {
+  expectedSnapshots.forEach((expected) => {
+    const facts = loadSnapshotFacts(expected.version);
+    assert.ok(facts, `expected v${expected.version} snapshot to exist`);
+    Object.entries(expected.facts).forEach(([key, value]) => {
+      assert.equal(
+        facts[key as keyof typeof expected.facts],
+        value,
+        `expected v${expected.version} ${key}=${value}`,
+      );
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // parseChangelogSections
 // ---------------------------------------------------------------------------
@@ -377,7 +400,7 @@ describe("extractReleaseVersion", () => {
 });
 
 // ---------------------------------------------------------------------------
-// scanSectionAgainstSnapshot (claim patterns)
+// Covers scanSectionAgainstSnapshot claim patterns
 // ---------------------------------------------------------------------------
 describe("scanSectionAgainstSnapshot", () => {
   it("flags wrong harness-check count in a CHANGELOG section", () => {
@@ -386,7 +409,11 @@ describe("scanSectionAgainstSnapshot", () => {
       startLine: 3,
       body: "Replaced with 27 advisory harness checks across 5 concerns.",
     };
-    const findings = scanSectionAgainstSnapshot(section, V110, "CHANGELOG.md");
+    const findings = scanSectionAgainstSnapshot(
+      section,
+      VERSION_1_10_SNAPSHOT_FACTS,
+      "CHANGELOG.md",
+    );
     assert.ok(findings.some((f) => f.rule === "changelog-harness-checks"));
     assert.equal(findings[0]!.severity, "warning");
     assert.match(findings[0]!.message, /v1\.1\.0/);
@@ -400,7 +427,11 @@ describe("scanSectionAgainstSnapshot", () => {
       startLine: 3,
       body: "16 advisory harness checks",
     };
-    const findings = scanSectionAgainstSnapshot(section, V110, "CHANGELOG.md");
+    const findings = scanSectionAgainstSnapshot(
+      section,
+      VERSION_1_10_SNAPSHOT_FACTS,
+      "CHANGELOG.md",
+    );
     assert.equal(findings.length, 0);
   });
 
@@ -416,11 +447,19 @@ describe("scanSectionAgainstSnapshot", () => {
       body: "99 AI harness installation checks",
     };
     assert.equal(
-      scanSectionAgainstSnapshot(completenessSec, V110, "x.md").length,
+      scanSectionAgainstSnapshot(
+        completenessSec,
+        VERSION_1_10_SNAPSHOT_FACTS,
+        "x.md",
+      ).length,
       1,
     );
     assert.equal(
-      scanSectionAgainstSnapshot(installationSec, V110, "x.md").length,
+      scanSectionAgainstSnapshot(
+        installationSec,
+        VERSION_1_10_SNAPSHOT_FACTS,
+        "x.md",
+      ).length,
       1,
     );
   });
@@ -431,7 +470,11 @@ describe("scanSectionAgainstSnapshot", () => {
       startLine: 1,
       body: "8 skill templates, 9 canonical skills",
     };
-    const findings = scanSectionAgainstSnapshot(section, V110, "x.md");
+    const findings = scanSectionAgainstSnapshot(
+      section,
+      VERSION_1_10_SNAPSHOT_FACTS,
+      "x.md",
+    );
     assert.ok(findings.some((f) => f.rule === "changelog-skill-templates"));
     assert.ok(findings.some((f) => f.rule === "changelog-skills-canonical"));
   });
@@ -442,7 +485,11 @@ describe("scanSectionAgainstSnapshot", () => {
       startLine: 1,
       body: "13 project-wide setup checks, 5 per-agent checks",
     };
-    const findings = scanSectionAgainstSnapshot(section, V110, "x.md");
+    const findings = scanSectionAgainstSnapshot(
+      section,
+      VERSION_1_10_SNAPSHOT_FACTS,
+      "x.md",
+    );
     assert.ok(findings.some((f) => f.rule === "changelog-setup-checks"));
     assert.ok(findings.some((f) => f.rule === "changelog-agent-checks"));
   });
@@ -453,7 +500,11 @@ describe("scanSectionAgainstSnapshot", () => {
       startLine: 1,
       body: "99 build checks, 8 dashboard views, 21 workspace presets",
     };
-    const findings = scanSectionAgainstSnapshot(section, V110, "x.md");
+    const findings = scanSectionAgainstSnapshot(
+      section,
+      VERSION_1_10_SNAPSHOT_FACTS,
+      "x.md",
+    );
     assert.ok(findings.some((f) => f.rule === "changelog-build-checks"));
     assert.ok(findings.some((f) => f.rule === "changelog-dashboard-views"));
     assert.ok(findings.some((f) => f.rule === "changelog-presets"));
@@ -467,7 +518,11 @@ describe("scanSectionAgainstSnapshot", () => {
         "\n",
       ),
     };
-    const findings = scanSectionAgainstSnapshot(section, V110, "x.md");
+    const findings = scanSectionAgainstSnapshot(
+      section,
+      VERSION_1_10_SNAPSHOT_FACTS,
+      "x.md",
+    );
     assert.equal(findings.length, 0);
   });
 
@@ -480,7 +535,7 @@ describe("scanSectionAgainstSnapshot", () => {
     };
     const findings = scanSectionAgainstSnapshot(
       section,
-      V110,
+      VERSION_1_10_SNAPSHOT_FACTS,
       ".goat-flow/scratchpad/release.md",
     );
     assert.equal(findings.length, 1);
@@ -490,21 +545,11 @@ describe("scanSectionAgainstSnapshot", () => {
 });
 
 // ---------------------------------------------------------------------------
-// loadSnapshotFacts (live repo)
+// Covers loadSnapshotFacts against the live repo
 // ---------------------------------------------------------------------------
 describe("loadSnapshotFacts (real repo)", () => {
   it("loads every release snapshot that CHANGELOG sections rely on", () => {
-    for (const expected of EXPECTED_RELEASE_SNAPSHOTS) {
-      const facts = loadSnapshotFacts(expected.version);
-      assert.ok(facts, `expected v${expected.version} snapshot to exist`);
-      for (const [key, value] of Object.entries(expected.facts)) {
-        assert.equal(
-          facts[key as keyof typeof expected.facts],
-          value,
-          `expected v${expected.version} ${key}=${value}`,
-        );
-      }
-    }
+    assertReleaseSnapshotsMatchFrozenFacts(EXPECTED_RELEASE_SNAPSHOTS);
   });
 
   it("returns null for a version with no snapshot", () => {

@@ -1,3 +1,8 @@
+/**
+ * Audit skill-reference pointer rule: it fails when a skill-reference pack exists but CLAUDE.md lacks the
+ * required READ rule and Router Table pointer, when no skill-reference or skill-playbooks pack is present, or
+ * when the skill-reference directory has no README.md; it passes when the pack and both pointers are present.
+ */
 import {
   PROJECT_ROOT,
   assert,

@@ -1,3 +1,8 @@
+/**
+ * Recommendation gates and tool-dependency scoring: a zero-scoring applicable metric forces needs-human-review,
+ * very low quality skills are retired before demotion, and only real tool dependencies (e.g. browser MCP
+ * commands) count - prose phrases, reference-version frontmatter, and ordinary shell commands do not.
+ */
 import {
   describe,
   it,
@@ -14,6 +19,45 @@ import {
   writeText,
   writeSkill,
 } from "./helpers.js";
+
+/** Create a skill that delegates tool checks to a referenced playbook file. */
+function writePlaybookDelegatorSkill(projectRoot: string): void {
+  writeSkill(
+    projectRoot,
+    "playbook-delegator",
+    [
+      "---",
+      "name: playbook-delegator",
+      'description: "Skill that delegates tool checks."',
+      'goat-flow-skill-version: "1.6.0"',
+      "---",
+      "# /playbook-delegator",
+      "## When to Use",
+      "Use when exercising browser actions.",
+      "NOT this skill: unrelated work.",
+      "## Step 0",
+      "Read references/browser-use.md before acting.",
+      "## Phase 1",
+      "Do browser work.",
+      "## Phase 2",
+      "Verify evidence.",
+      "## Verification",
+      "- [ ] pass/fail evidence required.",
+    ].join("\n"),
+  );
+  writeText(
+    join(
+      projectRoot,
+      ".claude/skills/playbook-delegator/references/browser-use.md",
+    ),
+    [
+      "# Browser Use",
+      "## Availability Check",
+      "Run `command -v browser-use`.",
+      "Fallback: capture manual browser evidence if unavailable.",
+    ].join("\n"),
+  );
+}
 
 describe("recommendation gates", () => {
   it("forces needs-human-review when an applicable metric scores zero", () => {
@@ -244,41 +288,7 @@ describe("recommendation gates", () => {
 
   it("inherits tool dependency handling from a referenced playbook", () => {
     const projectRoot = makeTempProject();
-    writeSkill(
-      projectRoot,
-      "playbook-delegator",
-      [
-        "---",
-        "name: playbook-delegator",
-        'description: "Skill that delegates tool checks."',
-        'goat-flow-skill-version: "1.6.0"',
-        "---",
-        "# /playbook-delegator",
-        "## When to Use",
-        "Use when exercising browser actions.",
-        "NOT this skill: unrelated work.",
-        "## Step 0",
-        "Read references/browser-use.md before acting.",
-        "## Phase 1",
-        "Do browser work.",
-        "## Phase 2",
-        "Verify evidence.",
-        "## Verification",
-        "- [ ] pass/fail evidence required.",
-      ].join("\n"),
-    );
-    writeText(
-      join(
-        projectRoot,
-        ".claude/skills/playbook-delegator/references/browser-use.md",
-      ),
-      [
-        "# Browser Use",
-        "## Availability Check",
-        "Run `command -v browser-use`.",
-        "Fallback: capture manual browser evidence if unavailable.",
-      ].join("\n"),
-    );
+    writePlaybookDelegatorSkill(projectRoot);
     const artifact = findArtifact(projectRoot, "skill:playbook-delegator")!;
     const report = scoreArtifact(projectRoot, artifact);
     const tool = report.metrics.find((m) => m.metric === "tool-deps")!;

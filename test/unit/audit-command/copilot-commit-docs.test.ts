@@ -1,3 +1,8 @@
+/**
+ * Audit rule that a Copilot install references the GitHub commit instructions: agent-instruction provenance
+ * follows the selected agent and keeps Copilot bridge evidence, fails when copilot-instructions.md omits the
+ * commit-guide reference, skips the bridge when .github is absent, and fails the aggregate on an incomplete install.
+ */
 import {
   BUILD_CHECKS,
   PROFILES,

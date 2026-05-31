@@ -50,8 +50,8 @@ function readConfigText(projectPath: string): string {
 }
 
 /** Map legacy hook ids to canonical ids so old config entries keep their state. */
-function normalizeHookId(hookId: string): string {
-  return HOOK_ID_ALIASES.get(hookId) ?? hookId;
+function normalizeHookIdentifier(hookIdentifier: string): string {
+  return HOOK_ID_ALIASES.get(hookIdentifier) ?? hookIdentifier;
 }
 
 /** Parse explicitly configured hook states; malformed YAML uses an empty-map fallback. */
@@ -66,14 +66,14 @@ function readRawHooks(text: string): HookConfigMap {
   const hooks: HookConfigMap = {};
   for (const [hookId, value] of Object.entries(parsed.hooks)) {
     if (!isRecord(value) || typeof value.enabled !== "boolean") continue;
-    const normalizedHookId = normalizeHookId(hookId);
+    const normalizedHookIdentifier = normalizeHookIdentifier(hookId);
     if (
-      normalizedHookId !== hookId &&
-      Object.prototype.hasOwnProperty.call(hooks, normalizedHookId)
+      normalizedHookIdentifier !== hookId &&
+      Object.prototype.hasOwnProperty.call(hooks, normalizedHookIdentifier)
     ) {
       continue;
     }
-    hooks[normalizedHookId] = { enabled: value.enabled };
+    hooks[normalizedHookIdentifier] = { enabled: value.enabled };
   }
   return hooks;
 }

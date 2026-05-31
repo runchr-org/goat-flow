@@ -1,3 +1,7 @@
+/**
+ * checkDrift live-repo guard: runs checkDrift against goat-flow's own root and asserts a pass, so
+ * the committed installed skill/hook copies never drift from their workflow templates in this repo.
+ */
 import {
   assert,
   checkDrift,

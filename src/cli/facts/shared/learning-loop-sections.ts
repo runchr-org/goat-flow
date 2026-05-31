@@ -1,3 +1,15 @@
+/**
+ * Splits a footgun bucket into its individual `## Footgun:` sections and audits
+ * each one's structure: that a Status field exists and is canonical, that active
+ * entries sit above the `## Resolved Entries` marker (and resolved entries below
+ * it), that active entries carry file:line or `(search: ...)` evidence, and that
+ * they do not cite retired-file evidence.
+ *
+ * This is the schema enforcer behind the footguns README contract: section order,
+ * the active/resolved boundary, and the evidence requirement are the invariants a
+ * reviewer relies on. It only reports diagnostic strings; it never mutates the
+ * bucket or throws on malformed input.
+ */
 import {
   EVIDENCE_PATTERN,
   parseMarkdownFrontmatter,
@@ -12,7 +24,14 @@ export interface FootgunSection {
   status: string | null;
 }
 
-/** Split one footgun bucket into its individual `## Footgun:` sections. */
+/**
+ * Slice a footgun bucket body at each `## Footgun:` heading into discrete
+ * sections, capturing each section's source offset (so callers can compare it
+ * against the resolved marker) and its lowercased Status value.
+ *
+ * @param body - bucket markdown with frontmatter already stripped; section bounds run heading-to-next-heading
+ * @returns one section per heading in document order; status is null when the section has no Status field
+ */
 export function splitFootgunSections(body: string): FootgunSection[] {
   const headings = Array.from(
     body.matchAll(/^##\s+Footgun:\s+(.+)$/gm),
@@ -108,7 +127,15 @@ function diagnoseFootgunSection(
   return diagnoseResolvedSection(section, path, resolvedIndex);
 }
 
-/** Detect stale active-footgun structure, evidence patterns, and schema violations. */
+/**
+ * Audit one footgun bucket and return every structure, schema, and evidence
+ * violation as a human-readable diagnostic. The path is woven into each message
+ * so a caller aggregating many buckets can attribute findings without extra state.
+ *
+ * @param path - bucket path used to prefix each diagnostic for attribution
+ * @param content - raw bucket file content; frontmatter is parsed off internally
+ * @returns one diagnostic per violation; an empty array means the bucket is well-formed
+ */
 export function collectFootgunStructureDiagnostics(
   path: string,
   content: string,

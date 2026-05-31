@@ -382,11 +382,11 @@ export interface CLIOptions {
   format: "json" | "text" | "markdown" | "sarif";
   // Null means scan all detected agents
   agent: AgentId | null;
-  verbose: boolean;
+  isVerbose: boolean;
   // Write output to a file instead of stdout
   output: string | null;
   // Enable live reload for dashboard development
-  dev: boolean;
-  help: boolean;
-  version: boolean;
+  isDevMode: boolean;
+  showHelp: boolean;
+  showVersion: boolean;
 }

@@ -1,64 +1,70 @@
+/**
+ * Dashboard HTML shell contract: GET / returns text/html injecting the runtime globals (default
+ * path, version, token, agents, runner ids, presets), links every dashboard asset script, and
+ * renders exactly one Home view root.
+ */
+import { assert, baseUrl, describe, it } from "./dashboard-server.helpers.js";
 import {
-  after,
-  assert,
-  assertAuditCheckProvenance,
-  assertAuditScope,
-  assertDashboardReport,
-  assertJsonResponse,
-  assertValidEmittedEnvelope,
-  AUDIT_VERSION,
-  baseUrl,
-  before,
-  childProcess,
-  CODEX_CONFIG,
-  CODEX_WORKSPACE_ROOT_ENTRIES,
-  commitDashboardCacheProject,
-  createRequire,
-  DASHBOARD_STATE_PATH,
-  dashboardSetupInstruction,
-  dashboardToken,
-  describe,
-  dirname,
-  existsSync,
-  expectRecord,
-  extractDashboardToken,
-  fetchJson,
-  getAgentProfileMap,
-  getKnownAgentIds,
-  it,
-  join,
-  LEGACY_PROJECTS_LIST_PATH,
-  makeDashboardCacheProject,
-  makeDashboardSetupPromptProject,
-  MISSING_PATH,
-  mkdir,
-  mkdtemp,
-  normalizeAgentVersionOutput,
-  originalDashboardState,
-  originalExecFileSync,
-  originalLegacyProjectsList,
-  performance,
-  PROJECT_PATH,
-  readEventEnvelopes,
-  readFile,
-  readdir,
-  rename,
-  require,
-  resolve,
-  rm,
-  runGit,
-  server,
-  setEnv,
-  syncBuiltinESMExports,
-  TERMINAL_UPLOAD_MAX_BODY_BYTES,
-  tmpdir,
-  validateEvidenceEnvelope,
-  withTimeout,
-  writeFile,
-  writeProjectFile,
-} from "./dashboard-server.helpers.js";
-import type { AgentId } from "../../src/cli/types.js";
+  assembleDashboardHtml,
+  loadDashboardAssetCached,
+  loadDashboardPresets,
+} from "../../src/cli/server/dashboard-assets.js";
+import { createAuditRouteHandlers } from "../../src/cli/server/dashboard-audit-routes.js";
+import { createProjectRouteHandlers } from "../../src/cli/server/dashboard-project-routes.js";
+import { resolveProjectIdentity } from "../../src/cli/server/dashboard-project-state.js";
+import { createQualityRouteHandlers } from "../../src/cli/server/dashboard-quality-routes.js";
+import {
+  createDashboardAuditProfiler,
+  shouldProfileAuditRequest,
+} from "../../src/cli/server/dashboard-reporting.js";
+import { createDashboardRouteContext } from "../../src/cli/server/dashboard-route-context.js";
+import { createDashboardRouteHandlers } from "../../src/cli/server/dashboard-routes.js";
+import { createShellRouteHandlers } from "../../src/cli/server/dashboard-shell-routes.js";
+import { createSkillQualityRouteHandlers } from "../../src/cli/server/dashboard-skill-quality-routes.js";
+import { buildDashboardTaskState } from "../../src/cli/server/dashboard-task-state.js";
+import { createDashboardTerminalHandlers } from "../../src/cli/server/dashboard-terminal.js";
+import {
+  buildSetupDetectPayload,
+  isProjectDirectory,
+} from "../../src/cli/server/setup-detect.js";
+
 describe("dashboard HTML", () => {
+  it("keeps dashboard route modules importable behind the server integration surface", () => {
+    const profiler = createDashboardAuditProfiler(true);
+    const profiled = profiler.span("demo", () => "ok");
+
+    assert.equal(typeof assembleDashboardHtml, "function");
+    assert.equal(typeof loadDashboardAssetCached, "function");
+    assert.equal(loadDashboardPresets().length > 0, true);
+    assert.equal(typeof createAuditRouteHandlers, "function");
+    assert.equal(typeof createProjectRouteHandlers, "function");
+    assert.equal(typeof createQualityRouteHandlers, "function");
+    assert.equal(typeof createDashboardRouteContext, "function");
+    assert.equal(typeof createDashboardRouteHandlers, "function");
+    assert.equal(typeof createShellRouteHandlers, "function");
+    assert.equal(typeof createSkillQualityRouteHandlers, "function");
+    assert.equal(typeof buildDashboardTaskState, "function");
+    assert.equal(typeof createDashboardTerminalHandlers, "function");
+    assert.equal(
+      resolveProjectIdentity(process.cwd()).currentPath.length > 0,
+      true,
+    );
+    assert.equal(
+      shouldProfileAuditRequest(
+        new URL("http://localhost/?profile=true"),
+        true,
+      ),
+      true,
+    );
+    assert.equal(profiled, "ok");
+    assert.equal(profiler.spans.length, 1);
+    assert.equal(isProjectDirectory(process.cwd()), true);
+    assert.equal(
+      buildSetupDetectPayload(process.cwd()).languages.length > 0,
+      true,
+    );
+  });
+
   it("GET / returns HTML shell with the expected scripts", async () => {
     const res = await fetch(baseUrl);
     assert.equal(res.status, 200);
