@@ -1,3 +1,6 @@
+/**
+ * Contract tests for skill hardening rules shared across workflow and installed mirrors.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -11,12 +14,24 @@ const MIRRORS = [
   ".github/skills",
 ] as const;
 
+/** Read mirrored skill files from the repo root for byte-level contract checks. */
 function read(path: string): string {
   return readFileSync(resolve(PROJECT_ROOT, path), "utf-8");
 }
 
+/** Build every installed mirror path for a skill so parity tests stay exhaustive. */
 function skillPaths(skill: string): string[] {
   return MIRRORS.map((root) => `${root}/${skill}/SKILL.md`);
+}
+
+/** Apply the same assertion to each contract target without hiding failure labels. */
+function assertEvery<T>(
+  items: readonly T[],
+  assertion: (item: T) => void,
+): void {
+  for (const item of items) {
+    assertion(item);
+  }
 }
 
 describe("skill hardening contracts", () => {
@@ -31,7 +46,7 @@ describe("skill hardening contracts", () => {
   );
 
   it("keeps goat-plan mid-implementation proof explicit and within budget", () => {
-    for (const path of skillPaths("goat-plan")) {
+    assertEvery(skillPaths("goat-plan"), (path) => {
       const body = read(path);
       assert.match(
         body,
@@ -43,7 +58,7 @@ describe("skill hardening contracts", () => {
         /before switching modules or after a bounded edit batch/,
         `${path} missing bounded proof timing`,
       );
-    }
+    });
     assert.ok(
       read("workflow/skills/goat-plan/SKILL.md").split(/\s+/).filter(Boolean)
         .length <= 2500,
@@ -52,7 +67,7 @@ describe("skill hardening contracts", () => {
   });
 
   it("keeps goat-plan path-only task intake read-only", () => {
-    for (const path of skillPaths("goat-plan")) {
+    assertEvery(skillPaths("goat-plan"), (path) => {
       const body = read(path);
       assert.match(body, /Path-only guard runs first/, path);
       assert.match(body, /Path-Only Intake \/ Read-Only Orientation/, path);
@@ -67,11 +82,11 @@ describe("skill hardening contracts", () => {
         /Do NOT mutate `\.goat-flow\/tasks\/\.active`, milestone status, checkboxes, or code/,
         path,
       );
-    }
+    });
   });
 
   it("lets goat-plan File-Write persist without phase-one approval or critique handoff", () => {
-    for (const path of skillPaths("goat-plan")) {
+    assertEvery(skillPaths("goat-plan"), (path) => {
       const body = read(path);
       assert.match(body, /Small File-Write/, path);
       assert.match(body, /no Phase 1 approval pause/, path);
@@ -92,11 +107,11 @@ describe("skill hardening contracts", () => {
         /delegated alternatives pass before writing milestone files/,
         path,
       );
-    }
+    });
   });
 
   it("keeps goat dispatcher from routing bare task paths to implementation", () => {
-    for (const path of skillPaths("goat")) {
+    assertEvery(skillPaths("goat"), (path) => {
       const body = read(path);
       assert.match(
         body,
@@ -108,7 +123,7 @@ describe("skill hardening contracts", () => {
         /Do not update `\.active`, milestone status, or code from a path alone/,
         path,
       );
-    }
+    });
   });
 
   it("documents task-path classifier examples", () => {
@@ -121,8 +136,8 @@ describe("skill hardening contracts", () => {
     );
     assert.match(
       body,
-      /Task directory path plus `start M01`\s+\|\s+Implementation may start after normal gates/,
-      "start M01 input must allow implementation after gates",
+      /Task directory path plus `start current milestone`\s+\|\s+Implementation may start after normal gates/,
+      "start current milestone input must allow implementation after gates",
     );
     assert.match(
       body,
@@ -131,18 +146,18 @@ describe("skill hardening contracts", () => {
     );
     assert.match(
       body,
-      /`update M01` plus a task directory path\s+\|\s+Update the named milestone file only/,
-      "update M01 input must stay plan-file scoped",
+      /`update current milestone` plus a task directory path\s+\|\s+Update the named milestone file only/,
+      "update current milestone input must stay plan-file scoped",
     );
     assert.match(
       body,
-      /`implement M01` plus a task directory path\s+\|\s+Code implementation may proceed after reading gates/,
-      "implement M01 input must allow code implementation after gates",
+      /`implement current milestone` plus a task directory path\s+\|\s+Code implementation may proceed after reading gates/,
+      "implement current milestone input must allow code implementation after gates",
     );
   });
 
   it("requires goat-qa Standard-mode gap output to include Verification Integrity", () => {
-    for (const path of skillPaths("goat-qa")) {
+    assertEvery(skillPaths("goat-qa"), (path) => {
       const body = read(path);
       assert.match(body, /gap analysis plus Verification Integrity/, path);
       assert.match(
@@ -151,11 +166,11 @@ describe("skill hardening contracts", () => {
         path,
       );
       assert.match(body, /Evidence limit:/, path);
-    }
+    });
   });
 
   it("separates goat-review reporting-only DoD from implementation DoD", () => {
-    for (const path of skillPaths("goat-review")) {
+    assertEvery(skillPaths("goat-review"), (path) => {
       const body = read(path);
       assert.match(body, /Review DoD gate/, path);
       assert.match(body, /reporting-only review/, path);
@@ -164,30 +179,30 @@ describe("skill hardening contracts", () => {
         /\*\*DoD gate:\*\* \(1\) tests\/lint pass/,
         path,
       );
-    }
+    });
   });
 
   it("checks goat-critique sub-agent completeness before trusting self-report", () => {
-    for (const path of skillPaths("goat-critique")) {
+    assertEvery(skillPaths("goat-critique"), (path) => {
       const body = read(path);
       assert.match(body, /Check sub-agent completeness/, path);
       assert.match(body, /3-7 findings plus required lens fields/, path);
       assert.match(body, /sub-agent completeness limited/, path);
-    }
+    });
   });
 
   it("keeps report-only finding outputs aligned with the shared proof-class contract", () => {
     const proofClasses =
       /RUNTIME\s*\|\s*CONTRACT-GREP\s*\|\s*STATIC\s*\|\s*NOT-REPRODUCED/;
 
-    for (const path of skillPaths("goat-security")) {
+    assertEvery(skillPaths("goat-security"), (path) => {
       const body = read(path);
       assert.match(body, proofClasses, path);
       assert.match(body, /S-NN:[^\n]+proof-class/, path);
       assert.match(body, /Proof classes:/, path);
-    }
+    });
 
-    for (const path of skillPaths("goat-qa")) {
+    assertEvery(skillPaths("goat-qa"), (path) => {
       const body = read(path);
       assert.match(body, proofClasses, path);
       assert.match(
@@ -197,19 +212,19 @@ describe("skill hardening contracts", () => {
       );
       assert.match(body, /\| Code Change \| Risk[^\n]+\| Proof Class \|/, path);
       assert.match(body, /Proof classes:/, path);
-    }
+    });
 
-    for (const path of skillPaths("goat-critique")) {
+    assertEvery(skillPaths("goat-critique"), (path) => {
       const body = read(path);
       assert.match(body, proofClasses, path);
       assert.match(body, /Each sub-agent MUST return[^\n]+Proof class/, path);
       assert.match(body, /Validated Findings[^\n]+proof class/, path);
       assert.match(body, /Recommended Changes[^\n]+proof class/, path);
-    }
+    });
   });
 
   it("keeps goat-critique direct invocation as delegation consent", () => {
-    for (const path of skillPaths("goat-critique")) {
+    assertEvery(skillPaths("goat-critique"), (path) => {
       const body = read(path);
       assert.match(body, /\$goat-critique/, path);
       assert.match(body, /\/goat-critique/, path);
@@ -218,11 +233,11 @@ describe("skill hardening contracts", () => {
       assert.doesNotMatch(body, badCodexException, path);
       assert.doesNotMatch(body, badCodexConsent, path);
       assert.doesNotMatch(body, badDelegationConfirm, path);
-    }
+    });
   });
 
   it("keeps goat-critique report-only until explicit apply", () => {
-    for (const path of skillPaths("goat-critique")) {
+    assertEvery(skillPaths("goat-critique"), (path) => {
       const body = read(path);
       assert.match(body, /Report-only by default/, path);
       assert.match(body, /Do not mutate the target artifact/, path);
@@ -235,7 +250,7 @@ describe("skill hardening contracts", () => {
       assert.match(body, /After synthesis, stop/, path);
       assert.match(body, /Do not enter implementation mode/, path);
       assert.match(body, /freeze writes/, path);
-    }
+    });
   });
 
   it("keeps shared report-only and interrupt freeze contracts installed", () => {
@@ -307,25 +322,26 @@ describe("ADR-023 word budget tiers", () => {
   ] as const;
 
   it("dispatcher /goat stays within the 555-word cap across all mirrors", () => {
-    for (const path of skillPaths("goat")) {
+    assertEvery(skillPaths("goat"), (path) => {
       const words = bodyWordCount(path);
       assert.ok(
         words <= DISPATCHER_CAP,
         `${path}: ${words} words exceeds dispatcher cap ${DISPATCHER_CAP}`,
       );
-    }
+    });
   });
 
   it("functional skills stay within the 2500-word cap across all mirrors", () => {
-    for (const skill of FUNCTIONAL_SKILLS) {
-      for (const path of skillPaths(skill)) {
+    assertEvery(
+      FUNCTIONAL_SKILLS.flatMap((skill) => skillPaths(skill)),
+      (path) => {
         const words = bodyWordCount(path);
         assert.ok(
           words < FUNCTIONAL_CAP,
           `${path}: ${words} words meets or exceeds functional cap ${FUNCTIONAL_CAP}`,
         );
-      }
-    }
+      },
+    );
   });
 
   it("always-loaded shared references stay within the 1500-word cap", () => {

@@ -64,12 +64,22 @@ quality/
 
 server/
   dashboard.ts             # HTTP server bootstrap, route dispatch, live reload, shutdown
-  dashboard-routes.ts      # Non-terminal dashboard HTTP handlers and response shaping
+  dashboard-routes.ts      # Non-terminal route composition and shared exports
+  dashboard-audit-routes.ts # Audit/reporting HTTP handlers
+  dashboard-project-routes.ts # Project, task, setup, and browse HTTP handlers
+  dashboard-quality-routes.ts # Quality history/analyse HTTP handlers
+  dashboard-shell-routes.ts # Shell command HTTP handlers
+  dashboard-skill-quality-routes.ts # Skill quality inventory/evaluation HTTP handlers
   dashboard-terminal.ts    # Terminal HTTP routes, WebSocket upgrades, startup/shutdown wiring
   dashboard-assets.ts      # Dashboard HTML shell assembly and bundled asset loaders
   decoders.ts              # Runtime-boundary input validation (request params, query strings)
+  hooks-registry.ts        # Manifest-backed hook specs and compatibility metadata
+  hook-registrar.ts        # Applies hook enabled/disabled state to installed agent surfaces
+  agent-hook-writer.ts     # Writes per-agent hook config entries and launcher commands
   setup-detect.ts          # Setup-detection payload helpers for dashboard routes
   terminal.ts              # PTY-backed terminal session manager (xterm.js backend)
+
+hooks-command.ts           # CLI entry for `goat-flow hooks enable|disable|sync`
 
 stats/
   stats.ts                 # Learning-loop health report (goat-flow stats); consumes SharedFacts pipeline
@@ -90,7 +100,7 @@ globals.d.ts               # Global type declarations for the frontend bundle
 index.html                 # Dashboard HTML entry point
 preset-prompts.json        # Built-in prompt templates for quality and setup modes
 styles.css                 # Dashboard stylesheet
-views/                     # HTML view templates (about, coming-soon, home, plans, projects, prompts, quality, settings, setup, skills, workspace)
+views/                     # HTML view templates (about, coming-soon, home, hooks, plans, projects, prompts, quality, settings, setup, skills, workspace)
 ```
 
 ## workflow/ -- Setup templates, skills, and reference docs

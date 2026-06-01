@@ -43,6 +43,7 @@ const BASE_PROVENANCE: CheckEvidence = {
   normative_level: "MUST",
 };
 
+/** Parsed SARIF schema subset asserted by the audit SARIF renderer tests. */
 interface ParsedSarifLog {
   version: string;
   $schema: string;
@@ -72,6 +73,7 @@ interface ParsedSarifLog {
   }>;
 }
 
+/** Build one audit check with SARIF-relevant defaults and caller-specific overrides. */
 function makeCheck(
   id: string,
   overrides: Partial<CheckResult> = {},
@@ -96,17 +98,19 @@ function makeCheck(
   };
 }
 
+/** Convert check fixtures into an audit scope with derived status and failures. */
 function makeScope(checks: CheckResult[]): AuditScope {
   return {
     status: checks.some((check) => check.status === "fail") ? "fail" : "pass",
     checks,
-    failures: checks
-      .filter((check) => check.status === "fail" && check.failure)
-      .map((check) => check.failure!),
+    failures: checks.flatMap((check) =>
+      check.status === "fail" && check.failure ? [check.failure] : [],
+    ),
     summary: {},
   };
 }
 
+/** Build a complete audit report fixture from per-scope checks and optional content data. */
 function makeReport(options: {
   setup?: CheckResult[];
   agent?: CheckResult[];
@@ -141,10 +145,53 @@ function makeReport(options: {
   };
 }
 
+/** Build the report fixture that mixes drift and content findings with locations. */
+function makeReportWithDriftAndContentLocation(
+  expectedAgentFindingLine: number,
+): AuditReport {
+  return makeReport({
+    drift: {
+      status: "fail",
+      findings: [
+        {
+          kind: "missing",
+          path: ".agents/skills/goat/SKILL.md",
+          message: "Skill mirror is missing.",
+        },
+      ],
+      checked: 1,
+    },
+    content: {
+      status: "fail",
+      findings: [
+        {
+          severity: "warning",
+          rule: "vague-term",
+          path: "AGENTS.md",
+          line: expectedAgentFindingLine,
+          message: "Instruction uses vague wording.",
+          suggestion: "Name the concrete command.",
+        },
+        {
+          severity: "info",
+          rule: "generic-guidance",
+          path: "README.md",
+          message: "Guidance is generic.",
+        },
+      ],
+      warnings: 1,
+      infos: 1,
+      filesScanned: 2,
+    },
+  });
+}
+
+/** Render and parse SARIF so tests can assert its typed structure. */
 function parseSarif(report: AuditReport): ParsedSarifLog {
   return JSON.parse(renderAuditSarif(report)) as ParsedSarifLog;
 }
 
+/** Writes a target project path for SARIF location tests. */
 function makeTempProject(): string {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-audit-sarif-"));
   mkdirSync(join(root, ".goat-flow"), { recursive: true });
@@ -229,42 +276,9 @@ describe("renderAuditSarif", () => {
   });
 
   it("maps drift and content findings to SARIF results with file locations", () => {
+    const expectedAgentFindingLine = 42;
     const sarif = parseSarif(
-      makeReport({
-        drift: {
-          status: "fail",
-          findings: [
-            {
-              kind: "missing",
-              path: ".agents/skills/goat/SKILL.md",
-              message: "Skill mirror is missing.",
-            },
-          ],
-          checked: 1,
-        },
-        content: {
-          status: "fail",
-          findings: [
-            {
-              severity: "warning",
-              rule: "vague-term",
-              path: "AGENTS.md",
-              line: 42,
-              message: "Instruction uses vague wording.",
-              suggestion: "Name the concrete command.",
-            },
-            {
-              severity: "info",
-              rule: "generic-guidance",
-              path: "README.md",
-              message: "Guidance is generic.",
-            },
-          ],
-          warnings: 1,
-          infos: 1,
-          filesScanned: 2,
-        },
-      }),
+      makeReportWithDriftAndContentLocation(expectedAgentFindingLine),
     );
 
     const results = sarif.runs[0].results;
@@ -286,7 +300,7 @@ describe("renderAuditSarif", () => {
     );
     assert.equal(
       results[2].locations?.[0].physicalLocation.region?.startLine,
-      42,
+      expectedAgentFindingLine,
     );
   });
 

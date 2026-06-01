@@ -1,6 +1,18 @@
 ---
 category: test-fixtures
-last_reviewed: 2026-05-26
+last_reviewed: 2026-06-01
+---
+
+## Lesson: CI must use package test scripts after suite splits
+
+**Status:** active | **Created:** 2026-06-01
+
+**What happened:** PR #45 split the audit-drift and dashboard integration tests into standalone files and updated `package.json` so fast tests exclude stateful dashboard suites while `test:slow` runs them serially. The GitHub Actions `Test` step still invoked the raw `node --import tsx --test --test-reporter=spec test/*/*.test.ts` glob, so CI bypassed the split-suite contract and failed on `test/integration/audit-drift.test.ts` with `ReferenceError: describe is not defined`. A local raw-glob rerun also exposed dashboard state cross-contamination in `dashboard /api/projects`.
+
+**Root cause:** I updated the npm test scripts as the canonical suite entry points but did not update CI to call them, leaving Actions on an older invocation shape that no longer matched the test layout.
+
+**Prevention:** After splitting, renaming, or serialising test files, compare `.github/workflows/ci.yml` against `package.json` test scripts before trusting local runs. CI should call the package script that encodes exclusions/concurrency instead of duplicating a raw test glob. Evidence anchors: `.github/workflows/ci.yml` (search: `npm run test:full`), `CHANGELOG.md` (search: `CI uses the split test contract`), `package.json` (search: `"test:slow": "npm run build && node --import tsx --test --test-concurrency=1`), `test/integration/audit-drift.helpers.ts` (search: `export {`), `test/integration/dashboard-server.helpers.ts` (search: `DASHBOARD_STATE_PATH`).
+
 ---
 
 ## Lesson: Workflow parser refactors need both fixture coverage and typecheck
@@ -69,7 +81,7 @@ last_reviewed: 2026-05-26
 
 **Root cause:** I mixed live manifest facts with frozen release-snapshot facts. Snapshot tests are supposed to preserve historical release state, so current repo counts are the wrong source unless the current release snapshot itself is being updated.
 
-**Prevention:** Before editing `EXPECTED_RELEASE_SNAPSHOTS` or `workflow/manifest-snapshots/README.md`, read the matching versioned snapshot JSON files and copy their `snapshot_facts` values. Only update the current release snapshot after confirming the catalog/check change is intentionally part of that release. Evidence anchors: `test/unit/check-snapshot-claims.test.ts` (search: `EXPECTED_RELEASE_SNAPSHOTS`), `workflow/manifest-snapshots/v1.3.2.json` (search: `"checks_harness": 16`), `workflow/manifest-snapshots/v1.4.0.json` (search: `"presets_count": 26`).
+**Prevention:** Before editing snapshot-claim expectations or `workflow/manifest-snapshots/README.md`, read the matching versioned snapshot JSON files and copy their `snapshot_facts` values. Only update the current release snapshot after confirming the catalog/check change is intentionally part of that release. Evidence anchors: `src/cli/audit/check-snapshot-claims.ts` (search: `loadSnapshotFacts`), `workflow/manifest-snapshots/v1.3.2.json` (search: `"checks_harness": 16`), `workflow/manifest-snapshots/v1.4.0.json` (search: `"presets_count": 26`).
 
 ---
 
@@ -81,4 +93,16 @@ last_reviewed: 2026-05-26
 
 **Root cause:** I wrote the test against an internal diagnostic phrase rather than the audit result field users and dashboard consumers actually receive.
 
-**Prevention:** For harness-audit regressions, assert the serialized/public `CheckResult` contract first: `status`, `displayStatus`, `impact`, `failure.message`, and `howToFix` when relevant. Only assert raw finding phrasing if that phrasing is intentionally part of the public contract. Evidence anchors: `src/cli/audit/audit.ts` (search: `Convert a harness check`), `test/unit/audit-command.test.ts` (search: `execution loop smoke check only accepts step words inside the section`).
+**Prevention:** For harness-audit regressions, assert the serialized/public `CheckResult` contract first: `status`, `displayStatus`, `impact`, `failure.message`, and `howToFix` when relevant. Only assert raw finding phrasing if that phrasing is intentionally part of the public contract. Evidence anchors: `src/cli/audit/audit.ts` (search: `Convert a harness check`), `src/cli/audit/harness/check-context.ts` (search: `missing step words inside the section`).
+
+---
+
+## Lesson: Fixture-heavy tests need a higher setup-bloat threshold
+
+**Status:** active | **Created:** 2026-05-30
+
+**What happened:** During the M00 gruff cleanup, `test-quality.setup-bloat` reported 158 advisory findings at the default 12-line threshold. The top offenders were not opaque unit tests; they were harness, dashboard, quality-history, and terminal tests that build temp projects, fake servers, injected browser globals, or serialized audit payloads before the assertion.
+
+**Root cause:** The default threshold is tuned for small unit tests. goat-flow has many contract tests where visible fixture construction is part of the evidence. Extracting all of that setup into generic helpers would hide the behavioural contract the test is meant to preserve.
+
+**Prevention:** Keep `test-quality.setup-bloat.threshold` at `30` in `.gruff-ts.yaml` unless a future fixture helper makes those setup blocks clearer without hiding the SUT call or assertion. Still fix tests above that threshold case-by-case: extract reusable temp-project builders, keep assertions visible, and do not add empty `arrange()` wrappers only to satisfy the analyzer. Evidence anchors: `.gruff-ts.yaml` (search: `test-quality.setup-bloat`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `test-quality.setup-bloat`).

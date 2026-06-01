@@ -7,6 +7,7 @@ import { loadConfig } from "../../src/cli/config/reader.js";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
+/** Build a config-only readonly filesystem for reader merge tests. */
 function configFS(content: string | null): ReadonlyFS {
   return {
     exists: (path: string) =>
@@ -27,11 +28,13 @@ function configFS(content: string | null): ReadonlyFS {
 // ---------------------------------------------------------------------------
 describe("config defaults when file is missing", () => {
   it("returns defaults with exists=false", () => {
+    const expectedDefaultLineTarget = 125;
+    const expectedDefaultLineLimit = 150;
     const result = loadConfig("/tmp", configFS(null));
     assert.equal(result.exists, false);
     assert.equal(result.valid, true);
-    assert.equal(result.config.lineLimits.target, 125);
-    assert.equal(result.config.lineLimits.limit, 150);
+    assert.equal(result.config.lineLimits.target, expectedDefaultLineTarget);
+    assert.equal(result.config.lineLimits.limit, expectedDefaultLineLimit);
     assert.equal(result.config.userRole, "developer");
     assert.deepStrictEqual(result.config.toolchain.test, []);
     assert.equal(result.config.learningLoop.autoCapture.enabled, false);
@@ -209,7 +212,7 @@ describe("config parse errors", () => {
 });
 
 // ---------------------------------------------------------------------------
-// M17-7: Config loading fails closed
+// Config loading fails closed.
 // ---------------------------------------------------------------------------
 describe("config fails closed on validation errors", () => {
   it("keeps defaults when legacy agents has bad element types", () => {
@@ -256,7 +259,7 @@ toolchain:
 });
 
 // ---------------------------------------------------------------------------
-// M01: harness.acknowledge list
+// harness.acknowledge list.
 // ---------------------------------------------------------------------------
 describe("harness.acknowledge in config", () => {
   it("defaults to an empty list when absent", () => {

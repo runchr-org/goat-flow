@@ -1,3 +1,6 @@
+/**
+ * Unit tests for quality configuration defaults, validation, and profile overrides.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -17,15 +20,18 @@ import {
   scoreArtifact,
 } from "../../src/cli/quality/skill-quality.js";
 
+/** Create an isolated project root for quality-config file discovery. */
 function makeTempProject(): string {
   return mkdtempSync(join(tmpdir(), "goat-flow-quality-config-"));
 }
 
+/** Writes the project quality YAML after creating the harness directory. */
 function writeYaml(projectRoot: string, body: string): void {
   mkdirSync(join(projectRoot, ".goat-flow"), { recursive: true });
   writeFileSync(join(projectRoot, ".goat-flow/config.yaml"), body);
 }
 
+/** Writes a skill fixture under the default Claude skill root. */
 function writeSkill(projectRoot: string, name: string, content: string): void {
   mkdirSync(join(projectRoot, ".claude/skills", name), { recursive: true });
   writeFileSync(join(projectRoot, ".claude/skills", name, "SKILL.md"), content);
@@ -89,6 +95,7 @@ describe("loadQualityConfig", () => {
 
   it("accepts a custom subtype profile", () => {
     const projectRoot = makeTempProject();
+    const customProfileScore = 20;
     writeYaml(
       projectRoot,
       [
@@ -96,13 +103,19 @@ describe("loadQualityConfig", () => {
         "  subtypes:",
         "    workflow:",
         "      profile:",
-        "        trigger-clarity: 20",
-        "        workflow-completeness: 20",
+        `        trigger-clarity: ${customProfileScore}`,
+        `        workflow-completeness: ${customProfileScore}`,
       ].join("\n"),
     );
     const config = loadQualityConfig(projectRoot);
-    assert.equal(config.subtypes.workflow.profile["trigger-clarity"], 20);
-    assert.equal(config.subtypes.workflow.profile["workflow-completeness"], 20);
+    assert.equal(
+      config.subtypes.workflow.profile["trigger-clarity"],
+      customProfileScore,
+    );
+    assert.equal(
+      config.subtypes.workflow.profile["workflow-completeness"],
+      customProfileScore,
+    );
     assert.equal(
       config.subtypes.workflow.profile["gate-quality"],
       DEFAULT_QUALITY_CONFIG.subtypes.workflow.profile["gate-quality"],

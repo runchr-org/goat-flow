@@ -1,7 +1,74 @@
+/**
+ * Unit tests for skill candidacy scoring across draft and description inputs.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { runCandidacyCheck } from "../../src/cli/quality/candidacy.js";
+
+type CandidacyResult = ReturnType<typeof runCandidacyCheck>;
+type RecommendedArtifact = CandidacyResult["recommendedArtifact"];
+type SkillRecommendation = Extract<RecommendedArtifact, { type: "skill" }>;
+type ReferenceRecommendation = Extract<
+  RecommendedArtifact,
+  { type: "reference" }
+>;
+type LearningLoopRecommendation = Extract<
+  RecommendedArtifact,
+  { type: "learning-loop" }
+>;
+type InstructionFileRecommendation = Extract<
+  RecommendedArtifact,
+  { type: "instruction-file" }
+>;
+
+/** Assert a recommended artifact type and return the narrowed recommendation. */
+function assertRecommendedArtifact<T extends RecommendedArtifact["type"]>(
+  result: CandidacyResult,
+  type: T,
+): Extract<RecommendedArtifact, { type: T }> {
+  assert.equal(result.recommendedArtifact.type, type);
+  return result.recommendedArtifact as Extract<
+    RecommendedArtifact,
+    { type: T }
+  >;
+}
+
+/** Assert a skill subtype while keeping branch logic out of individual tests. */
+function assertSkillSubtype(
+  result: CandidacyResult,
+  subtype: SkillRecommendation["subtype"],
+): void {
+  const artifact = assertRecommendedArtifact(result, "skill");
+  assert.equal(artifact.subtype, subtype);
+}
+
+/** Assert a reference subtype while keeping each test focused on one route. */
+function assertReferenceSubtype(
+  result: CandidacyResult,
+  subtype: ReferenceRecommendation["subtype"],
+): void {
+  const artifact = assertRecommendedArtifact(result, "reference");
+  assert.equal(artifact.subtype, subtype);
+}
+
+/** Assert a learning-loop subtype while preserving union narrowing in one place. */
+function assertLearningLoopSubtype(
+  result: CandidacyResult,
+  subtype: LearningLoopRecommendation["subtype"],
+): void {
+  const artifact = assertRecommendedArtifact(result, "learning-loop");
+  assert.equal(artifact.subtype, subtype);
+}
+
+/** Assert an instruction-file reason while preserving the route contract. */
+function assertInstructionFileReason(
+  result: CandidacyResult,
+  reason: InstructionFileRecommendation["reason"],
+): void {
+  const artifact = assertRecommendedArtifact(result, "instruction-file");
+  assert.equal(artifact.reason, reason);
+}
 
 describe("runCandidacyCheck - draft mode", () => {
   it("recommends skill (workflow) when ## Step 0 and ## Verification are present", () => {
@@ -17,10 +84,7 @@ describe("runCandidacyCheck - draft mode", () => {
         "- [ ] evidence required.",
       ].join("\n"),
     });
-    assert.equal(result.recommendedArtifact.type, "skill");
-    if (result.recommendedArtifact.type === "skill") {
-      assert.equal(result.recommendedArtifact.subtype, "workflow");
-    }
+    assertSkillSubtype(result, "workflow");
     assert.ok(result.confidence >= 0.8);
   });
 
@@ -29,10 +93,7 @@ describe("runCandidacyCheck - draft mode", () => {
       kind: "draft",
       content: ["# /goat-thing", "## Route Map", "Routes go here."].join("\n"),
     });
-    assert.equal(result.recommendedArtifact.type, "skill");
-    if (result.recommendedArtifact.type === "skill") {
-      assert.equal(result.recommendedArtifact.subtype, "dispatcher");
-    }
+    assertSkillSubtype(result, "dispatcher");
   });
 
   it("recommends skill (report) for Quick Scan Path / Audit Mode without File-Write", () => {
@@ -46,10 +107,7 @@ describe("runCandidacyCheck - draft mode", () => {
         "Scan procedure.",
       ].join("\n"),
     });
-    assert.equal(result.recommendedArtifact.type, "skill");
-    if (result.recommendedArtifact.type === "skill") {
-      assert.equal(result.recommendedArtifact.subtype, "report");
-    }
+    assertSkillSubtype(result, "report");
   });
 
   it("recommends reference (playbook) when Availability Check is present", () => {
@@ -61,10 +119,7 @@ describe("runCandidacyCheck - draft mode", () => {
         "Run command -v browser-use.",
       ].join("\n"),
     });
-    assert.equal(result.recommendedArtifact.type, "reference");
-    if (result.recommendedArtifact.type === "reference") {
-      assert.equal(result.recommendedArtifact.subtype, "playbook");
-    }
+    assertReferenceSubtype(result, "playbook");
     assert.ok(
       result.nextSteps.some((step) =>
         step.action.includes(".goat-flow/skill-playbooks/<name>.md"),
@@ -81,10 +136,7 @@ describe("runCandidacyCheck - draft mode", () => {
         "deployment.md for deploy concerns; rubrics.md for grading.",
       ].join("\n"),
     });
-    assert.equal(result.recommendedArtifact.type, "reference");
-    if (result.recommendedArtifact.type === "reference") {
-      assert.equal(result.recommendedArtifact.subtype, "index");
-    }
+    assertReferenceSubtype(result, "index");
     assert.ok(
       result.nextSteps.some((step) =>
         step.action.includes(".goat-flow/skill-playbooks/<name>.md"),
@@ -99,10 +151,7 @@ describe("runCandidacyCheck - draft mode", () => {
         "# incident-2026-05-09\n\nWe shipped a regression because tests passed locally but not in CI.",
       suggestedName: "incident-2026-05-09",
     });
-    assert.equal(result.recommendedArtifact.type, "learning-loop");
-    if (result.recommendedArtifact.type === "learning-loop") {
-      assert.equal(result.recommendedArtifact.subtype, "lesson");
-    }
+    assertLearningLoopSubtype(result, "lesson");
   });
 
   it("recommends learning-loop (footgun) for footgun-named drafts", () => {
@@ -111,10 +160,7 @@ describe("runCandidacyCheck - draft mode", () => {
       content: "# footgun: empty config\n\nDo not assume null = unset.",
       suggestedName: "footgun-empty-config",
     });
-    assert.equal(result.recommendedArtifact.type, "learning-loop");
-    if (result.recommendedArtifact.type === "learning-loop") {
-      assert.equal(result.recommendedArtifact.subtype, "footgun");
-    }
+    assertLearningLoopSubtype(result, "footgun");
   });
 
   it("recommends learning-loop (decision) for ADR-named drafts with structure", () => {
@@ -131,10 +177,7 @@ describe("runCandidacyCheck - draft mode", () => {
       ].join("\n"),
       suggestedName: "ADR-042-deterministic-ids",
     });
-    assert.equal(result.recommendedArtifact.type, "learning-loop");
-    if (result.recommendedArtifact.type === "learning-loop") {
-      assert.equal(result.recommendedArtifact.subtype, "decision");
-    }
+    assertLearningLoopSubtype(result, "decision");
   });
 
   it("recommends instruction-file for short rule-shaped drafts", () => {
@@ -143,10 +186,7 @@ describe("runCandidacyCheck - draft mode", () => {
       content:
         "MUST never commit secrets. MUST always use environment variables.",
     });
-    assert.equal(result.recommendedArtifact.type, "instruction-file");
-    if (result.recommendedArtifact.type === "instruction-file") {
-      assert.equal(result.recommendedArtifact.reason, "rule-shaped");
-    }
+    assertInstructionFileReason(result, "rule-shaped");
   });
 
   it("recommends do-not-create for very short content with no signal", () => {
@@ -205,10 +245,7 @@ describe("runCandidacyCheck - description mode", () => {
       kind: "description",
       text: "I want to audit Postgres queries before deploy.",
     });
-    assert.equal(result.recommendedArtifact.type, "skill");
-    if (result.recommendedArtifact.type === "skill") {
-      assert.equal(result.recommendedArtifact.subtype, "report");
-    }
+    assertSkillSubtype(result, "report");
   });
 
   it("recommends reference (playbook) for documenting how to use a tool", () => {
@@ -232,10 +269,7 @@ describe("runCandidacyCheck - description mode", () => {
       kind: "description",
       text: "I want to capture a lesson from a recent incident in CI.",
     });
-    assert.equal(result.recommendedArtifact.type, "learning-loop");
-    if (result.recommendedArtifact.type === "learning-loop") {
-      assert.equal(result.recommendedArtifact.subtype, "lesson");
-    }
+    assertLearningLoopSubtype(result, "lesson");
   });
 
   it("recommends learning-loop (footgun) for footgun-shaped descriptions", () => {
@@ -243,10 +277,7 @@ describe("runCandidacyCheck - description mode", () => {
       kind: "description",
       text: "I want to document a footgun about empty config files.",
     });
-    assert.equal(result.recommendedArtifact.type, "learning-loop");
-    if (result.recommendedArtifact.type === "learning-loop") {
-      assert.equal(result.recommendedArtifact.subtype, "footgun");
-    }
+    assertLearningLoopSubtype(result, "footgun");
   });
 
   it("recommends learning-loop (decision) for architecture-decision descriptions", () => {
@@ -254,10 +285,7 @@ describe("runCandidacyCheck - description mode", () => {
       kind: "description",
       text: "I want an ADR for our retry strategy.",
     });
-    assert.equal(result.recommendedArtifact.type, "learning-loop");
-    if (result.recommendedArtifact.type === "learning-loop") {
-      assert.equal(result.recommendedArtifact.subtype, "decision");
-    }
+    assertLearningLoopSubtype(result, "decision");
   });
 
   it("recommends cli-command for one-shot deterministic tasks", () => {

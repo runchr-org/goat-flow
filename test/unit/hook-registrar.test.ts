@@ -1,3 +1,6 @@
+/**
+ * Unit tests for dashboard hook registration, drift detection, and script materialization.
+ */
 import assert from "node:assert/strict";
 import {
   existsSync,
@@ -10,28 +13,39 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { PROFILES } from "../../src/cli/detect/agents.js";
+import {
+  readAgentHookState,
+  writeAgentHookState,
+} from "../../src/cli/server/agent-hook-writer.js";
 import {
   applyHookState,
   syncHookStates,
 } from "../../src/cli/server/hook-registrar.js";
+import {
+  getHookSpec,
+  isValidHookIdShape,
+  listHookSpecs,
+} from "../../src/cli/server/hooks-registry.js";
 
-const HOOK_ID = "guard-secret-paths";
+const HOOK_ID = "deny-dangerous";
 
 const GENERATED_AGENT_SURFACES = [
   ".claude/settings.json",
-  ".claude/hooks/guard-common.sh",
-  ".claude/hooks/guard-secret-paths.sh",
+  ".claude/hooks/deny-dangerous.sh",
   ".codex/hooks.json",
-  ".codex/hooks/guard-common.sh",
-  ".codex/hooks/guard-secret-paths.sh",
+  ".codex/hooks/deny-dangerous.sh",
   ".agents/hooks.json",
-  ".agents/hooks/guard-common.sh",
-  ".agents/hooks/guard-secret-paths.sh",
+  ".agents/hooks/deny-dangerous.sh",
   ".github/hooks/hooks.json",
-  ".github/hooks/guard-common.sh",
-  ".github/hooks/guard-secret-paths.sh",
+  ".github/hooks/deny-dangerous.sh",
+  ".goat-flow/hook-lib/patterns-shell.sh",
+  ".goat-flow/hook-lib/patterns-paths.sh",
+  ".goat-flow/hook-lib/patterns-writes.sh",
+  ".goat-flow/hook-lib/deny-dangerous-self-test.sh",
 ];
 
+/** Writes a cleaned temporary target project for hook-registrar assertions. */
 function withTempProject(fn: (root: string) => void): void {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-hook-registrar-"));
   try {
@@ -41,16 +55,19 @@ function withTempProject(fn: (root: string) => void): void {
   }
 }
 
+/** Check fixture-relative generated hook paths. */
 function pathExists(root: string, path: string): boolean {
   return existsSync(join(root, path));
 }
 
+/** Assert generated surfaces remain absent when a hook toggle should not scaffold. */
 function assertMissing(root: string, paths: string[]): void {
   for (const path of paths) {
     assert.equal(pathExists(root, path), false, `${path} should be absent`);
   }
 }
 
+/** Assert generated surfaces are present after an explicit hook sync. */
 function assertPresent(root: string, paths: string[]): void {
   for (const path of paths) {
     assert.equal(pathExists(root, path), true, `${path} should exist`);
@@ -58,6 +75,24 @@ function assertPresent(root: string, paths: string[]): void {
 }
 
 describe("hook registrar", () => {
+  it("persists hook state through the writer and exposes registry specs", () => {
+    withTempProject((root) => {
+      const spec = getHookSpec("deny-dangerous");
+      assert.ok(spec);
+
+      writeAgentHookState(root, PROFILES.codex, spec, true);
+      const state = readAgentHookState(root, PROFILES.codex, spec);
+
+      assert.equal(state.installed, true);
+      assert.equal(
+        listHookSpecs().some((hookSpec) => hookSpec.id === spec.id),
+        true,
+      );
+      assert.equal(isValidHookIdShape("gruff-code-quality"), true);
+      assert.equal(isValidHookIdShape("../bad"), false);
+    });
+  });
+
   it("does not scaffold uninstalled agent surfaces on clean target toggles", () => {
     withTempProject((root) => {
       applyHookState(HOOK_ID, false, root);
@@ -89,20 +124,23 @@ describe("hook registrar", () => {
 
       assertPresent(root, [
         ".codex/hooks.json",
-        ".codex/hooks/guard-common.sh",
-        ".codex/hooks/guard-secret-paths.sh",
+        ".codex/hooks/deny-dangerous.sh",
+        ".goat-flow/hook-lib/patterns-shell.sh",
+        ".goat-flow/hook-lib/patterns-paths.sh",
+        ".goat-flow/hook-lib/patterns-writes.sh",
+        ".goat-flow/hook-lib/deny-dangerous-self-test.sh",
       ]);
       assertMissing(root, [
         ".claude/settings.json",
-        ".claude/hooks/guard-secret-paths.sh",
+        ".claude/hooks/deny-dangerous.sh",
         ".agents/hooks.json",
-        ".agents/hooks/guard-secret-paths.sh",
+        ".agents/hooks/deny-dangerous.sh",
         ".github/hooks/hooks.json",
-        ".github/hooks/guard-secret-paths.sh",
+        ".github/hooks/deny-dangerous.sh",
       ]);
       assert.match(
         readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
-        /guard-secret-paths\.sh/u,
+        /deny-dangerous\.sh/u,
       );
     });
   });
@@ -116,9 +154,9 @@ describe("hook registrar", () => {
 
       assertMissing(root, [
         ".codex/hooks.json",
-        ".codex/hooks/guard-secret-paths.sh",
+        ".codex/hooks/deny-dangerous.sh",
         ".agents/hooks.json",
-        ".agents/hooks/guard-secret-paths.sh",
+        ".agents/hooks/deny-dangerous.sh",
       ]);
     });
   });
@@ -165,6 +203,7 @@ describe("hook registrar", () => {
 
       assertMissing(root, [
         ".claude/settings.json",
+        ".claude/hooks/guard-common.sh",
         ".claude/hooks/guard-secret-paths.sh",
       ]);
     });

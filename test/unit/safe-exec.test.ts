@@ -1,8 +1,13 @@
+/**
+ * Unit tests for safe process execution and project-bounded atomic file writes.
+ */
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { tmpdir } from "node:os";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
+
+import { withEnv } from "../helpers/global-fixtures.js";
 
 import {
   execSafely,
@@ -86,15 +91,16 @@ describe("safe-exec/execSafely", () => {
   });
 
   it("reports exit code non-zero as ok:false", async () => {
+    const failingExitCode = 7;
     const result = await execSafely({
       command: "node",
-      args: ["-e", "process.exit(7)"],
+      args: ["-e", `process.exit(${failingExitCode})`],
       cwd: tmpdir(),
       allowList: ["node"],
       timeoutMs: 5_000,
     });
     assert.equal(result.ok, false);
-    assert.equal(result.exitCode, 7);
+    assert.equal(result.exitCode, failingExitCode);
   });
 
   it("kills long-running processes on timeout", async () => {
@@ -138,27 +144,21 @@ describe("safe-exec/execSafely", () => {
   });
 
   it("does not inherit parent environment variables by default", async () => {
-    const previous = process.env.GOAT_SAFE_EXEC_SECRET;
-    process.env.GOAT_SAFE_EXEC_SECRET = "parent-secret";
-    try {
-      const result = await execSafely({
-        command: "node",
-        args: [
-          "-e",
-          'process.stdout.write(process.env.GOAT_SAFE_EXEC_SECRET ? process.env.GOAT_SAFE_EXEC_SECRET : "missing")',
-        ],
-        cwd: tmpdir(),
-        allowList: ["node"],
-        timeoutMs: 5_000,
-      });
-      assert.equal(result.stdout, "missing");
-    } finally {
-      if (previous === undefined) {
-        delete process.env.GOAT_SAFE_EXEC_SECRET;
-      } else {
-        process.env.GOAT_SAFE_EXEC_SECRET = previous;
-      }
-    }
+    const result = await withEnv(
+      { GOAT_SAFE_EXEC_SECRET: "parent-secret" },
+      () =>
+        execSafely({
+          command: "node",
+          args: [
+            "-e",
+            'process.stdout.write(process.env.GOAT_SAFE_EXEC_SECRET ? process.env.GOAT_SAFE_EXEC_SECRET : "missing")',
+          ],
+          cwd: tmpdir(),
+          allowList: ["node"],
+          timeoutMs: 5_000,
+        }),
+    );
+    assert.equal(result.stdout, "missing");
   });
 
   it("populates commandBasename from the command path", async () => {

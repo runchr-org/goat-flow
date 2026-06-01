@@ -1,5 +1,5 @@
 /**
- * Template-vs-installed drift detection for goat-flow skills (M04).
+ * Template-vs-installed drift detection for goat-flow skills.
  *
  * Compares the canonical templates shipped in goat-flow against the
  * installed copies inside a consumer project (or the goat-flow repo
@@ -255,6 +255,7 @@ function readTemplate(templateRoot: string, relative: string): string | null {
   }
 }
 
+/** Narrow parsed YAML/JSON values before reading hook and manifest properties. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&
@@ -263,6 +264,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   );
 }
 
+/** Keep dynamic manifest keys inside the known agent-id union for hook-specific logic. */
 function isAgentId(value: string): value is AgentId {
   return KNOWN_AGENT_IDS.has(value);
 }
@@ -426,11 +428,13 @@ function hookEventKey(agentId: AgentId, spec: HookSpec): string {
   return spec.event;
 }
 
+/** Resolve a hook command path the same way installed agent configs store it. */
 function hookCommandPath(agent: AgentProfile, script: string): string {
   if (!agent.hooks_dir) return script;
   return pathPosix.join(agent.hooks_dir, script);
 }
 
+/** Build the optional Copilot hook entry that drift comparison expects when a toggle is enabled. */
 function copilotHookEntry(agent: AgentProfile, spec: HookSpec): object {
   const path = hookCommandPath(agent, spec.primaryScript);
   return {
@@ -441,6 +445,7 @@ function copilotHookEntry(agent: AgentProfile, spec: HookSpec): object {
   };
 }
 
+/** Detect managed hook entries by script reference so drift repair preserves unrelated hooks. */
 function entryReferencesSpec(entry: unknown, spec: HookSpec): boolean {
   if (!isRecord(entry)) return false;
   const commands = [
@@ -479,6 +484,7 @@ function ensureHookEntries(
   return next;
 }
 
+/** Read explicit hook toggles from project config, returning null as the fallback when config is absent or invalid. */
 function readExplicitHooks(fs: ReadonlyFS): Record<string, unknown> | null {
   const config = fs.readFile(".goat-flow/config.yaml");
   if (config === null) return null;
@@ -492,11 +498,13 @@ function readExplicitHooks(fs: ReadonlyFS): Record<string, unknown> | null {
   return parsed.hooks;
 }
 
+/** Extract an explicit enabled boolean without treating missing config as disabled. */
 function enabledFromHookConfig(value: unknown): boolean | null {
   if (!isRecord(value) || typeof value.enabled !== "boolean") return null;
   return value.enabled;
 }
 
+/** Resolve a hook toggle, including the legacy gruff-on-change alias used by existing configs. */
 function explicitHookEnabled(fs: ReadonlyFS, hookId: string): boolean | null {
   const hooks = readExplicitHooks(fs);
   if (hooks === null) return null;
@@ -506,6 +514,7 @@ function explicitHookEnabled(fs: ReadonlyFS, hookId: string): boolean | null {
   return enabledFromHookConfig(hooks["gruff-on-change"]);
 }
 
+/** Keep hook-object access centralized because callers mutate the returned config object. */
 function hooksObject(config: Record<string, unknown>): Record<string, unknown> {
   return ensureHooksObject(config);
 }
@@ -557,11 +566,11 @@ function expectedHookConfig(
   }
   if (!isRecord(config)) return template;
 
-  let changed = false;
+  let hasHookConfigChanged = false;
   for (const spec of listHookSpecs()) {
     const enabled = explicitHookEnabled(fs, spec.id);
     if (enabled === null) continue;
-    changed = true;
+    hasHookConfigChanged = true;
     const event = hookEventKey(agentId, spec);
     removeHookEntries(config, event, spec);
     if (!enabled) {
@@ -571,7 +580,7 @@ function expectedHookConfig(
     ensureHookEntries(config, event).push(copilotHookEntry(agent, spec));
   }
 
-  if (!changed) return template;
+  if (!hasHookConfigChanged) return template;
   return `${JSON.stringify(config, null, 2)}\n`;
 }
 

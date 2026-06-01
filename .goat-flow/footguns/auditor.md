@@ -1,6 +1,6 @@
 ---
 category: auditor
-last_reviewed: 2026-05-27
+last_reviewed: 2026-06-01
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
@@ -17,10 +17,10 @@ The selected-agent audit validates hook syntax, self-test behavior, registration
 
 **Evidence:**
 - `src/cli/audit/harness/check-constraints.ts` (search: `deny-hook-registered`) - cross-checks hook file existence against settings.json registration.
-- `src/cli/audit/check-agent-setup.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed.
-- `src/cli/audit/check-agent-setup.ts` (search: `checkHookRuntimeSmoke`) - sends a runtime-shaped structured Bash payload through the registered deny hook path and expects a deny result for `git push origin main`. This is local hook execution, not proof that the external agent binary delivered the hook event.
-- `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - derives the harness secret-coverage fact from static markers in the hook file; it must stay aligned with `workflow/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`).
-- `test/unit/audit-command.test.ts` (search: `detects current deny hook secret coverage from generalized path matcher`) - regression coverage for the static detector against the canonical hook template.
+- `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed.
+- `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookRuntimeSmoke`) - sends a runtime-shaped structured Bash payload through the registered deny hook path and expects a deny result for `git push origin main`. This is local hook execution, not proof that the external agent binary delivered the hook event.
+- `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - derives the harness secret-coverage fact from static markers in the hook file; it must stay aligned with `workflow/hooks/hook-lib/patterns-paths.sh` (search: `is_secret_path_touch`).
+- `test/unit/audit-command/hook-facts.test.ts` (search: `detects current deny hook secret coverage from generalized path matcher`) - regression coverage for the static detector against the canonical hook template.
 
 ---
 
@@ -52,6 +52,20 @@ Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agen
 - `src/cli/audit/check-content-quality.ts` and `src/cli/audit/check-factual-claims.ts` exist because structural correctness alone did not catch cold-path truth drift.
 
 **Prevention:** Keep structural audit and content-truth checks separate and explicit. Never treat a build PASS as proof that docs, ADRs, or prompts are semantically current.
+
+---
+
+## Footgun: Learning-loop stale-ref detection misses bare-path `Evidence anchors:` entries
+
+**Status:** active | **Created:** 2026-06-01 | **Evidence:** ACTUAL_MEASURED
+
+`goat-flow stats --check` existence-checks a learning-loop file reference in only three anchor shapes: `` `file:line` `` (backtick path with a line range), `` `file` (search: `needle`) `` (the footgun evidence form), and `(search: "needle")`. A bare backtick path with no line number and no `(search: ...)` suffix - the `Evidence anchors: \`path/to/file.ts\`` convention - is never checked. `Evidence anchors:` lines appear in 15 learning-loop files as of 2026-06-01, so a whole class of anchor silently bypasses the integrity gate.
+
+This is why `stats --check` stayed green while `.goat-flow/lessons/gruff-cleanup.md` cited two deleted tests (`test/unit/audit-command/harness.test.ts`, `test/unit/dashboard-toast.test.ts`) and `.goat-flow/lessons/verification.md` cited a deleted task milestone under `.goat-flow/tasks/1.8.0/`; a Codex quality run found them by hand, not the detector. A full sweep on 2026-06-01 found exactly those three dead bare-path anchors across the whole learning loop - blast radius small but real.
+
+**Invariant:** durable learning-loop evidence should use the sanctioned `(search: "needle")` form so the detector can verify it. Never anchor to `.goat-flow/tasks/**` milestone files - they are gitignored WIP and get cleaned up (the deleted M14 ref proves it).
+
+**Open decision (not actioned):** extend the detector (or add a lint) to existence-check bare backtick paths on `Evidence anchors:` lines. Deferred because a naive check false-positives on command examples (`bash scripts/x.sh`) and globs (`src/dashboard/*.ts`) that also sit in backticks; a correct version must scope to path-shaped, space-free, non-glob tokens on anchor lines, and would then also flag the `tasks/**` form above. Evidence anchors: `src/cli/facts/shared/learning-loop-common.ts` (search: `staleRefs`), `src/cli/stats/stats.ts` (search: `stale-ref`).
 
 ---
 

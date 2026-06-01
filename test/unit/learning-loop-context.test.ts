@@ -1,3 +1,6 @@
+/**
+ * Unit tests for selecting and rendering learning-loop context snippets.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { LearningLoopEntryFact } from "../../src/cli/types.js";

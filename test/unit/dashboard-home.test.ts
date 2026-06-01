@@ -17,20 +17,33 @@ const HOME_VIEW_PATH = resolve(
 );
 
 type HomeModel = {
+  /** Return true when every harness concern for an agent is passing. */
   agentAllConcernsPassing(agent: Record<string, unknown>): boolean;
+  /** Return the score shown for one agent summary card. */
   agentScore(agent: Record<string, unknown>): number | null;
+  /** Return the compact enforcement capability badge label. */
   enforcementBadge(row: Record<string, unknown>): string;
+  /** Return the CSS class used for one enforcement badge. */
   enforcementBadgeClass(row: Record<string, unknown>): string;
+  /** Return the enforcement rows rendered in the Home detail panel. */
   enforcementRows(agent: Record<string, unknown>): Record<string, unknown>[];
+  /** Return the concern summary text rendered for one concern key. */
   formatConcernSummary(agent: Record<string, unknown>, key: string): string;
+  /** Return the average harness score across agents. */
   harnessAverage(): number | null;
+  /** Return the Home harness pill detail text. */
   harnessPillDetail(): string;
+  /** Return the Home harness pill tone. */
   harnessPillTone(): string;
+  /** Return the Home harness pill headline value. */
   harnessPillValue(): string;
+  /** Return the recommendation summary for one agent card. */
   recommendationSummary(agent: Record<string, unknown>): string;
+  /** Return the section metadata text for the Home harness summary. */
   sectionMeta(): string;
 };
 
+/** Load the inline Home x-data model into a VM context for unit assertions. */
 function loadHomeModel(report: unknown): HomeModel {
   const source = readFileSync(HOME_VIEW_PATH, "utf-8");
   const start = source.indexOf('x-data="{');
@@ -50,6 +63,7 @@ function loadHomeModel(report: unknown): HomeModel {
   return (context as typeof context & { __home: HomeModel }).__home;
 }
 
+/** Build one concern score fixture with the Home summary fields populated. */
 function concern(
   status: "pass" | "fail",
   score: number,
@@ -66,8 +80,99 @@ function concern(
   };
 }
 
+/**
+ * Load a Home model with one score-only metric warning on the Claude agent, because several tests need that exact
+ * warning shape and building the full agent/scores fixture inline in each would obscure what they assert.
+ */
+function loadScoreOnlyWarningHomeModel(): {
+  home: HomeModel;
+  agent: Record<string, unknown>;
+} {
+  const agent = {
+    id: "claude",
+    name: "Claude Code",
+    agent: { status: "pass", checks: [] },
+    harness: {
+      status: "pass",
+      checks: [
+        { id: "instruction", status: "pass", type: "integrity" },
+        { id: "verification", status: "pass", type: "integrity" },
+        {
+          id: "post-turn-hook-integrity",
+          status: "fail",
+          type: "metric",
+          impact: "score-only",
+        },
+      ],
+    },
+    concerns: {
+      context: concern("pass", 100),
+      constraints: concern("pass", 100),
+      verification: concern("pass", 67, {
+        findings: ["No post-turn hooks installed"],
+      }),
+      recovery: concern("pass", 100),
+      feedback_loop: concern("pass", 100),
+    },
+  };
+  const home = loadHomeModel({
+    scopes: {
+      setup: {
+        status: "pass",
+        checks: [{ id: "config-parses", status: "pass" }],
+      },
+    },
+    agentScores: [agent],
+  });
+  return { home, agent };
+}
+
+/**
+ * Load a Home model with hard and unknown enforcement rows for detail-panel assertions, because the detail-panel
+ * tests need both enforcement variants present at once and assembling that agent fixture inline would repeat noise.
+ */
+function loadAdvisoryEnforcementHomeModel(): {
+  home: HomeModel;
+  agent: Record<string, unknown>;
+} {
+  const agent = {
+    id: "claude",
+    name: "Claude Code",
+    agent: { status: "pass", checks: [] },
+    harness: { status: "pass", checks: [] },
+    concerns: {},
+    enforcement: {
+      capabilities: [
+        {
+          id: "shell-dangerous",
+          label: "Dangerous shell commands",
+          status: "hard",
+          summary: "Deny mechanism blocks dangerous commands",
+        },
+        {
+          id: "file-read-restrictions",
+          label: "General file-read restrictions",
+          status: "unknown",
+          summary: "Not inferred from secret-path coverage",
+        },
+      ],
+    },
+  };
+  const home = loadHomeModel({
+    scopes: {
+      setup: {
+        status: "pass",
+        checks: [{ id: "config-parses", status: "pass" }],
+      },
+    },
+    agentScores: [agent],
+  });
+  return { home, agent };
+}
+
 describe("Home harness summary", () => {
   it("does not show Passing when high-score agents have hard harness failures", () => {
+    const expectedHarnessAverage = 93;
     const harnessChecks = Array.from({ length: 14 }, (_, index) => ({
       id: `check-${index}`,
       status: index === 0 ? "fail" : "pass",
@@ -97,7 +202,7 @@ describe("Home harness summary", () => {
       ],
     });
 
-    assert.equal(home.harnessAverage(), 93);
+    assert.equal(home.harnessAverage(), expectedHarnessAverage);
     assert.equal(home.harnessPillValue(), "Needs work");
     assert.equal(home.harnessPillTone(), "bad");
     assert.equal(
@@ -111,44 +216,10 @@ describe("Home harness summary", () => {
   });
 
   it("surfaces score-only metric warnings in headline scoring and summaries", () => {
-    const agent = {
-      id: "claude",
-      name: "Claude Code",
-      agent: { status: "pass", checks: [] },
-      harness: {
-        status: "pass",
-        checks: [
-          { id: "instruction", status: "pass", type: "integrity" },
-          { id: "verification", status: "pass", type: "integrity" },
-          {
-            id: "post-turn-hook-integrity",
-            status: "fail",
-            type: "metric",
-            impact: "score-only",
-          },
-        ],
-      },
-      concerns: {
-        context: concern("pass", 100),
-        constraints: concern("pass", 100),
-        verification: concern("pass", 67, {
-          findings: ["No post-turn hooks installed"],
-        }),
-        recovery: concern("pass", 100),
-        feedback_loop: concern("pass", 100),
-      },
-    };
-    const home = loadHomeModel({
-      scopes: {
-        setup: {
-          status: "pass",
-          checks: [{ id: "config-parses", status: "pass" }],
-        },
-      },
-      agentScores: [agent],
-    });
+    const expectedScoreOnlyAgentScore = 67;
+    const { home, agent } = loadScoreOnlyWarningHomeModel();
 
-    assert.equal(home.agentScore(agent), 67);
+    assert.equal(home.agentScore(agent), expectedScoreOnlyAgentScore);
     assert.equal(home.recommendationSummary(agent), "1 score warning");
     assert.equal(home.agentAllConcernsPassing(agent), false);
     assert.equal(
@@ -158,41 +229,11 @@ describe("Home harness summary", () => {
   });
 
   it("exposes advisory enforcement rows for the detail panel", () => {
-    const agent = {
-      id: "claude",
-      name: "Claude Code",
-      agent: { status: "pass", checks: [] },
-      harness: { status: "pass", checks: [] },
-      concerns: {},
-      enforcement: {
-        capabilities: [
-          {
-            id: "shell-dangerous",
-            label: "Dangerous shell commands",
-            status: "hard",
-            summary: "Deny mechanism blocks dangerous commands",
-          },
-          {
-            id: "file-read-restrictions",
-            label: "General file-read restrictions",
-            status: "unknown",
-            summary: "Not inferred from secret-path coverage",
-          },
-        ],
-      },
-    };
-    const home = loadHomeModel({
-      scopes: {
-        setup: {
-          status: "pass",
-          checks: [{ id: "config-parses", status: "pass" }],
-        },
-      },
-      agentScores: [agent],
-    });
+    const expectedEnforcementRows = 2;
+    const { home, agent } = loadAdvisoryEnforcementHomeModel();
 
     const rows = home.enforcementRows(agent);
-    assert.equal(rows.length, 2);
+    assert.equal(rows.length, expectedEnforcementRows);
     assert.equal(home.enforcementBadge(rows[0]!), "Hard");
     assert.equal(home.enforcementBadgeClass(rows[0]!), "pass");
     assert.equal(home.enforcementBadge(rows[1]!), "Unk");

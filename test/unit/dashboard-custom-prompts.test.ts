@@ -15,10 +15,19 @@ const CUSTOM_PROMPTS_PATH = resolve(
   "dashboard",
   "dashboard-custom-prompts.ts",
 );
+const CUSTOM_PROMPTS_ACTIONS_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-custom-prompts-actions.ts",
+);
 
 type HelperContext = {
+  /** Return a fresh browser-local custom prompt draft with default flags. */
   dashboardDefaultCustomPromptDraft(): Record<string, unknown>;
+  /** Infer the route style from prompt text before saving a custom prompt. */
   dashboardInferPromptRoute(prompt: string): string;
+  /** Open a blank custom-prompt editor in the test context. */
   dashboardOpenNewCustomPrompt(ctx: TestContext): void;
   dashboardOpenEditCustomPrompt(
     ctx: TestContext,
@@ -28,20 +37,32 @@ type HelperContext = {
     ctx: TestContext,
     preset: TestPreset | null,
   ): void;
+  /** Save the current draft into the mocked custom prompt list. */
   dashboardSaveCustomPrompt(ctx: TestContext): TestCustomPrompt | null;
+  /** Delete the selected custom prompt from the mocked custom prompt list. */
   dashboardDeleteSelectedCustomPrompt(ctx: TestContext): void;
+  /** Load persisted custom prompts from the mocked localStorage. */
   dashboardLoadCustomPrompts(ctx: TestContext): void;
+  /** Return route options rendered by the custom prompt editor. */
   dashboardCustomPromptRouteOptions(): Array<Record<string, unknown>>;
+  /** Return grouped flag options rendered by the custom prompt editor. */
   dashboardCustomPromptFlagGroups(): Array<Record<string, unknown>>;
+  /** Build the preset-shaped preview for the current custom prompt draft. */
   dashboardPreviewCustomPromptPreset(ctx: TestContext): TestPreset;
+  /** Return normalized target-surface tags for the current draft. */
   dashboardCustomPromptSurfaceTags(ctx: TestContext): string[];
+  /** Add one target-surface tag to the draft when it is not already present. */
   dashboardAddCustomPromptSurface(ctx: TestContext, surface: string): void;
+  /** Remove one target-surface tag from the draft. */
   dashboardRemoveCustomPromptSurface(ctx: TestContext, surface: string): void;
+  /** Return user-facing validation messages for the current draft. */
   dashboardValidateCustomPromptDraft(ctx: TestContext): string[];
   dashboardValidateCustomPromptDraftDetails(
     ctx: TestContext,
   ): Array<Record<string, unknown>>;
+  /** Convert a saved custom prompt into a preset row for dashboard rendering. */
   dashboardCustomPromptToPreset(custom: TestCustomPrompt): TestPreset;
+  /** Decide whether a prompt can be launched safely against external targets. */
   dashboardGlobalSafeAllowed(prompt: Record<string, unknown>): boolean;
 };
 
@@ -69,6 +90,7 @@ type TestContext = {
   allPresets: TestPreset[];
   toast: string | null;
   toastError: boolean;
+  /** Capture toast text and error state for assertions. */
   showToast(msg: string, isError?: boolean): void;
 };
 
@@ -79,7 +101,10 @@ function loadHelpers(
   storage: Map<string, string>;
 } {
   const storage = new Map<string, string>();
-  const source = readFileSync(CUSTOM_PROMPTS_PATH, "utf-8");
+  const source = [
+    readFileSync(CUSTOM_PROMPTS_PATH, "utf-8"),
+    readFileSync(CUSTOM_PROMPTS_ACTIONS_PATH, "utf-8"),
+  ].join("\n");
   const js = transpileModule(source, {
     compilerOptions: { target: ScriptTarget.ES2023 },
   }).outputText;
@@ -135,6 +160,7 @@ globalThis.__helpers = {
   };
 }
 
+/** Build the minimal dashboard context required by custom-prompt helpers. */
 function makeContext(helpers: HelperContext): TestContext {
   const ctx = {
     customPrompts: [],
@@ -147,6 +173,7 @@ function makeContext(helpers: HelperContext): TestContext {
     allPresets: [],
     toast: null,
     toastError: false,
+    /** Capture toast text and error state for assertions. */
     showToast(msg: string, isError?: boolean): void {
       ctx.toast = msg;
       ctx.toastError = isError ?? false;
@@ -175,6 +202,7 @@ describe("custom prompt helpers", () => {
   it("saves, loads, edits, duplicates, and deletes custom prompts locally", () => {
     const { helpers } = loadHelpers();
     const ctx = makeContext(helpers);
+    const expectedDuplicatedPromptCount = 2;
 
     helpers.dashboardOpenNewCustomPrompt(ctx);
     ctx.customPromptDraft.name = "Review target";
@@ -201,12 +229,12 @@ describe("custom prompt helpers", () => {
 
     helpers.dashboardDuplicateCustomPrompt(ctx, ctx.selectedPreset);
     helpers.dashboardSaveCustomPrompt(ctx);
-    assert.equal(ctx.customPrompts.length, 2);
+    assert.equal(ctx.customPrompts.length, expectedDuplicatedPromptCount);
     assert.notEqual(ctx.customPrompts[0]!.id, ctx.customPrompts[1]!.id);
 
     const reloaded = makeContext(helpers);
     helpers.dashboardLoadCustomPrompts(reloaded);
-    assert.equal(reloaded.customPrompts.length, 2);
+    assert.equal(reloaded.customPrompts.length, expectedDuplicatedPromptCount);
 
     reloaded.selectedPreset = helpers.dashboardCustomPromptToPreset(
       reloaded.customPrompts[1]!,
@@ -462,6 +490,7 @@ describe("custom prompt helpers", () => {
 
   it("loads older saved custom prompts with safe metadata defaults", () => {
     const { helpers, storage } = loadHelpers();
+    const expectedStoredPromptCount = 2;
     storage.set(
       "goat-flow-custom-prompts",
       JSON.stringify([
@@ -485,7 +514,7 @@ describe("custom prompt helpers", () => {
 
     helpers.dashboardLoadCustomPrompts(ctx);
 
-    assert.equal(ctx.customPrompts.length, 2);
+    assert.equal(ctx.customPrompts.length, expectedStoredPromptCount);
     assert.equal(ctx.customPrompts[0]!.artifactRequired, false);
     assert.equal(ctx.customPrompts[0]!.globalSafe, true);
     assert.equal(ctx.customPrompts[1]!.artifactRequired, false);

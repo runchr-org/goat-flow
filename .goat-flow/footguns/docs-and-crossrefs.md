@@ -1,7 +1,47 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-31
 ---
+
+## Footgun: Playbooks reference goat-flow repo-internal files absent from consumer installs
+
+**Status:** active | **Created:** 2026-05-29 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A playbook under `workflow/skills/playbooks/` (installed to `.goat-flow/skill-playbooks/` inside consumer projects) cites goat-flow's own repo-internal files - an ADR (`.goat-flow/decisions/ADR-NNN`), CLI source (`check-drift.ts`, `src/cli/...`), a learning-loop file (`.goat-flow/lessons|patterns|footguns`), roadmap jargon (`DESIGN_TARGET`, milestone ids), or a not-yet-existing file ("`conventional-comments.md` (when it exists)"). The reference resolves in this repo but is dead and confusing in a consumer install where those files never ship.
+
+**Why it happens:** Playbooks are dual-purpose - goat-flow's own working docs AND shipped artifacts installed into consumer projects. Anything that resolves in this repo but is not installed becomes a dead reference downstream. Only sibling playbooks (`observability.md`, `code-comments.md`) and the consumer's own instruction files (`CLAUDE.md` / `AGENTS.md` / `.github/copilot-instructions.md`) are present in both contexts. `check-drift.ts` enforces template-vs-installed byte parity but does NOT catch this: a repo-internal reference drifts identically in both copies and passes drift.
+
+**Evidence:** 2026-05-29 portability pass on `workflow/skills/playbooks/code-comments.md` (search: `Related References`) removed an ADR-024 pointer, `check-drift.ts`/`check-goat-flow.ts` source refs, `DESIGN_TARGET` jargon, and a "conventional-comments.md (when it exists)" entry. `workflow/skills/playbooks/gruff-code-quality.md` (search: `Project-specific anti-pattern scans`) had the same class: `.goat-flow/patterns|lessons|footguns` Related-References, a goat-flow-only `node --import tsx src/cli/cli.ts stats --check` gate, and a repo-historical `contract:` marker scan - all genericized or removed.
+
+**Prevention:** Keep playbook rules self-contained; reference only installed siblings (other playbooks) or the consumer's instruction files. Move goat-flow-repo-specific commands, scans, and ADR pointers to goat-flow's own instruction files, not the shipped playbook. Internal milestone files under `.goat-flow/tasks/` are exempt - they are repo-local. Before declaring a playbook done, grep it for `\.goat-flow/(decisions|lessons|patterns|footguns)|src/cli|ADR-|check-(drift|goat-flow)|stats --check|DESIGN_TARGET`.
+
+## Footgun: Flipping a doctrine in one playbook leaves siblings citing the old stance
+
+**Status:** active | **Created:** 2026-05-29 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A policy change in one doc passes its own review, but a sibling playbook or instruction file still encodes - and triages by - the OLD stance. The two cross-reference each other, so they now contradict. A sibling may even quote another file's stance that no longer exists. Structural checks (drift parity, path resolution) stay green because nothing moved or renamed; only the meaning changed.
+
+**Why it happens:** Doctrine lives in prose spread across densely cross-referencing docs. Changing the canonical statement does not update the docs that cite or depend on it, and no structural check compares *meaning*.
+
+**Evidence:** After `code-comments.md` flipped from "default no comments" to mandatory doc comments on every unit (2026-05-29), `.goat-flow/skill-playbooks/gruff-code-quality.md` still triaged `docs.missing-internal-function-doc` as "gold-plating the playbook forbids" per the old "no comment unless WHY" default, and attributed that default to `CLAUDE.md` - which contains no such stance (grep of `CLAUDE.md` / `AGENTS.md` / `.github/copilot-instructions.md` returned zero comment-policy hits). Reconciled at `.goat-flow/skill-playbooks/gruff-code-quality.md` (search: `docs.missing-internal-function-doc under the mandatory-doc rule`).
+
+**Prevention:** When you flip a doctrine, grep sibling playbooks, instruction files, and reference docs for the OLD stance's phrasing AND for any doc that cites the changed file by name; reconcile them in the same change. Grep the ACTUAL old wording, not a guessed token - the first cross-ref pass missed "Default to writing no comments" by grepping for "default-no-comment". Verify cross-file quotes: a doc that says `X says "..."` must actually match X.
+
+## Footgun: Adding an instruction-file section ripples across four section-list sources plus the line target
+
+**Status:** active | **Created:** 2026-05-29 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Adding one `## <Section>` heading to an instruction file (e.g. `## Commit Messages` in the 2026-05-29 commit-doc consolidation) fails seemingly-unrelated contracts: the instruction-parity script reports "canonical H2 order mismatch"; live instruction files can overflow the `line_target` budget; setup-guide ordering and the shared skeleton can drift; and - if the heading is added to manifest `required_sections` - the harness `instruction-sections-present` check fails every stub instruction fixture that lacks it (`boundaryInstruction` / `completeInstruction`).
+
+**Why it happens:** The canonical instruction-file section set is declared in multiple places that must agree, and a separate line-count contract caps the same files:
+- `scripts/check-instruction-parity.mjs` (search: `CANONICAL_SECTIONS`) - exact H2-order match across all 7 instruction files (3 live + 4 setup guides).
+- `workflow/manifest.json` (search: `"required_sections"`) - drives the harness `instruction-sections-present` check on EVERY audited project, including test stubs and downstream installs.
+- `workflow/setup/reference/execution-loop.md` (search: `Required Sections`) - the lettered skeleton each setup guide mirrors; a test asserts it names every section.
+Live instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) also cap at `line_target` 125 (search: `line_target`), so adding a section to an already-full file (they sit at ~124) overflows.
+
+**Evidence:** `scripts/check-instruction-parity.mjs` (search: `"Commit Messages"`), `workflow/setup/agents/codex.md` (search: `## Commit Messages`), and `workflow/setup/reference/execution-loop.md` (search: `e) Commit Messages`) gained the section in lock-step. `workflow/manifest.json` `required_sections` deliberately does NOT list it because the stub instructions lack the heading. Room was reclaimed by condensing the numbered Truth Order to one prose line (search: `User's explicit instruction (this session) >`).
+
+**Prevention:** To add a canonical instruction-file section, update the parity `CANONICAL_SECTIONS`, the setup guides, and the skeleton `execution-loop.md` (with re-lettering) together, then add the section to all 7 instruction files. Leave manifest `required_sections` alone unless you also give every stub instruction fixture the heading - enforce instead via parity (own files) and setup templates (downstream). Budget the ~125-line live-file cap by condensing existing content. See ADR-031.
 
 ## Footgun: Agent capability metadata goes stale when upstream docs add hooks
 
@@ -16,7 +56,7 @@ last_reviewed: 2026-05-28
 - `src/cli/server/agent-hook-writer.ts` (search: `spec.id === "gruff-code-quality"`) maps `gruff-code-quality` to Antigravity file-edit tool names.
 - `workflow/hooks/gruff-code-quality.sh` (search: `file_paths_for_payload`) falls back to git-changed supported files when a PostToolUse payload omits the edited path.
 - `workflow/hooks/agent-config/antigravity-hooks.json` (search: `run_command|view_file`) is the new Antigravity config template.
-- `.agents/hooks.json` (search: `guard-secret-paths`) is the installed mirror that proves this controlling workspace no longer treats Antigravity as hookless.
+- `.agents/hooks.json` (search: `deny-dangerous`) is the installed mirror that proves this controlling workspace no longer treats Antigravity as hookless.
 
 **Prevention:** Before marking an agent capability "unsupported" or "capability-limited", check current primary product docs and the local binary version, then test whether an agent-specific matcher or repository-state fallback can preserve the contract. Use hook-specific unsupported reasons only after the fallback path is disproven. After correcting capability metadata, grep docs, changelog, footguns, manifest, audit, dashboard, templates, and installed mirrors for the old unsupported wording.
 
@@ -26,9 +66,9 @@ last_reviewed: 2026-05-28
 
 **Symptoms:** A hook script can exist and pass its own smoke test while the dashboard registry, installer, manifest, preflight parity, audit facts, agent config templates, installed mirrors, and docs disagree about whether it is installed or togglable.
 
-**Evidence:** The 2026-05-25 guardrails split and `gruff-code-quality` addition touched `src/cli/server/hooks-registry.ts` (search: `guard-destructive-shell`), `workflow/hooks/` (search: `guardrails-self-test.sh`), `workflow/manifest.json` (search: `guard-repository-writes.sh`), `workflow/install-goat-flow.sh` (search: `guardrails-self-test.sh`), `scripts/preflight-checks.sh` (search: `guardrail_hooks`), per-agent config templates under `workflow/hooks/agent-config/`, installed mirrors under `.claude/hooks/`, `.codex/hooks/`, `.github/hooks/`, audit fact extraction in `src/cli/facts/agent/hooks.ts` (search: `GUARDRAIL_HOOK_FILES`), and dashboard/CLI surfaces in `src/dashboard/views/hooks.html` plus `src/cli/cli.ts` (search: `handleHooksCommand`).
+**Evidence:** The 2026-05-25 guardrails split and `gruff-code-quality` addition touched `src/cli/server/hooks-registry.ts` (search: `deny-dangerous`), `workflow/hooks/` (search: `deny-dangerous-self-test.sh`), `workflow/manifest.json` (search: `patterns-writes.sh`), `workflow/install-goat-flow.sh` (search: `deny-dangerous-self-test.sh`), `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), per-agent config templates under `workflow/hooks/agent-config/`, installed mirrors under `.claude/hooks/`, `.codex/hooks/`, `.github/hooks/`, audit fact extraction in `src/cli/facts/agent/hooks.ts` (search: `LEGACY_GUARDRAIL_HOOK_FILES`), and dashboard/CLI surfaces in `src/dashboard/views/hooks.html` plus `src/cli/hooks-command.ts` (search: `handleHooksCommand`).
 
-**Recurrence 2026-05-26:** The `gruff-code-quality` hook rename focused drift run failed because `test/integration/audit-drift.test.ts` (search: `writeHookFixtures`) copied only `guard-repository-writes.sh` and `guardrails-self-test.sh` into its temporary hook fixture. The live manifest now declares all split guardrails, so the fixture had to copy `guard-destructive-shell.sh`, `guard-secret-paths.sh`, and `guard-repository-writes.sh` in lock-step.
+**Recurrence 2026-05-26:** The `gruff-code-quality` hook rename focused drift run failed because `test/integration/audit-drift-checkdrift-hook-templates.test.ts` (search: `writeHookFixtures`) copied only `patterns-writes.sh` and `deny-dangerous-self-test.sh` into its temporary hook fixture. The live manifest now declares all split guardrails, so the fixture had to copy `patterns-shell.sh`, `patterns-paths.sh`, and `patterns-writes.sh` in lock-step.
 
 **Prevention:** When adding, renaming, or deleting a goat-flow hook, update this lock-step list: canonical script(s), central self-test, registry entry, config default, installer copy list, manifest `hooks[]`, per-agent config templates, installed repo mirrors, audit fact extraction, preflight self-test/parity/runtime smoke, dashboard view/API if response shape changes, CLI help if command surface changes, docs/code-map/architecture/changelog, and tests. Then run a source grep for the old hook id and a runtime-shaped smoke through an installed hook.
 
@@ -68,7 +108,7 @@ last_reviewed: 2026-05-28
 8. `test/integration/audit-build.test.ts` (search: `requiredSkillReferenceFiles`) - required-files list
 9. `src/cli/audit/check-goat-flow.ts` (search: `REQUIRED_SKILL_REFERENCE_FILES`) - two lists: the `Set` used for the manifest-catch-all gate AND the `REQUIRED_SKILL_REFERENCE_FILES` const used for agent-skill audits
 10. `src/cli/audit/check-drift.ts` (search: `template: "workflow/skills/playbooks/`) - drift comparison entries plus a parallel comment header at the top of the file
-11. `src/cli/prompt/compose-quality.ts` (search: `Standalone playbooks`) - prompt-context description string
+11. `workflow/setup/03-install-skills.md` (search: `Standalone playbooks`) - prompt-context description string
 12. `.goat-flow/architecture.md` (search: `the standalone playbooks indexed by`) - inline playbook list in the Committed knowledge row
 13. `.goat-flow/code-map.md` - two entries: inline list comment on the `playbooks/` template line AND the per-file description block under `skill-playbooks/`
 14. `knip.json` (search: `ignoreDependencies`) - only when the playbook relies on a CLI-only devDependency that is invoked from docs/scripts instead of imported by TypeScript.
@@ -127,70 +167,6 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 
 ---
 
-## Footgun: Cold-path docs drift while structural audit passes
-
-**Status:** active | **Created:** 2026-04-15 | **Evidence:** ACTUAL_MEASURED
-
-**Symptoms:** The CLI audit reports PASS while cold-path documentation contains false claims, wrong check descriptions, dead paths, and glossary misdirections. Contributors reading docs instead of code form incorrect mental models of what the system does.
-
-**Why it happens:** The audit validates structure (files exist, paths resolve, versions match). Partial content automation exists - `src/cli/audit/check-factual-claims.ts` catches count-claim drift across PROSE_TARGETS plus `docs/*.md`, and `src/cli/audit/check-content-quality.ts` lints vague terms and generic instructions on a fixed QUALITY_TARGETS list (instruction files, skill-reference, public docs, ADRs, workflow/setup templates). Coverage is incomplete: footgun/lesson content is only schema-enforced via `stats --check` (status field and `(search:...)` anchors), not fact-checked. Cold-path surfaces outside these target lists still drift manually as code changes.
-
-**Evidence (verified by 8 independent critiques, 2026-04-15; recurrence confirmed by 4-critique cross-review, 2026-04-16):**
-
-*Round 1 (2026-04-15, all resolved):*
-- ~~`docs/audit-and-critique.md` - describes checks that no longer exist~~ (resolved 2026-04-15: check descriptions updated to match current code)
-- ~~`docs/coding-standards/conventions.md` - claims "Zero runtime dependencies"~~ (resolved 2026-04-15: now says "Runtime dependencies: js-yaml, ws")
-- ~~`docs/coding-standards/conventions.md` - claims `src/cli/prompt/types.ts` exists~~ (resolved 2026-04-15: reference removed)
-- ~~`.goat-flow/glossary.md` - Handoff entry says "See Task Tracking in `.goat-flow/skill-preamble.md`"~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`; the reference was later moved to `.goat-flow/skill-reference/` as a subdir but that change is separate from this resolution)
-- ~~`.goat-flow/glossary.md` - Working Memory points to `skill-preamble.md`~~ (resolved 2026-04-16: glossary now correctly points to `skill-conventions.md`)
-- ~~`.goat-flow/code-map.md` - listed a retired validator under `scripts/`~~ (resolved 2026-04-16: code-map moved that entry to `workflow/` with an explanatory note; the validator was later removed)
-- ~~`src/cli/prompt/compose-critique.ts` - ships literal placeholder `<your-hooks-dir>`~~ (resolved 2026-04-16: placeholder removed)
-
-*Round 2 (2026-04-16, all resolved - same pattern recurred after dashboard TS migration and skill directory restructure):*
-- ~~`CONTRIBUTING.md` - claimed "8 build checks" and "18 advisory checks"; actual: 16 and 16~~ (resolved 2026-04-16)
-- ~~`CONTRIBUTING.md` - referenced `app.js` and `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
-- ~~`.goat-flow/code-map.md` - claimed 15 harness checks; actual: 16~~ (resolved 2026-04-16)
-- ~~`.goat-flow/code-map.md` - showed flat skill file structure after directory restructure~~ (resolved 2026-04-16)
-- ~~`.goat-flow/architecture.md` - referenced `preset-prompts.js` after .ts rename~~ (resolved 2026-04-16)
-- ~~`src/cli/cli.ts` - help text said 15 harness checks; actual: 16~~ (resolved 2026-04-16)
-- ~~`workflow/setup/03-install-skills.md` - referenced old flat skill file names~~ (resolved 2026-04-16)
-- ~~historical upgrade guide entry - referenced `goat-debug.md` instead of `goat-debug/SKILL.md`~~ (resolved 2026-04-16)
-
-*Round 3 (2026-04-24, all resolved - surfaced by 3 independent Copilot quality reports):*
-- ~~`docs/skills.md` - /goat-plan summary said "defaults to inline/read-only output" and "MUST NOT write milestone files unless the user explicitly asks"; the same file and the installed skill both say File-Write is the default at Standard+~~ (resolved 2026-04-24: summary rewritten to describe the 4-mode picker accurately)
-- ~~`docs/harness-quality.md` + `docs/audit-and-quality.md` - claimed quality assessment "runs 7 skill invocations" on real code; `src/cli/prompt/compose-quality.ts` (search: `Option A`) prefers file analysis and only does live invocation "if context allows"~~ (resolved 2026-04-24: language updated to reflect file-analysis-preferred approach)
-- ~~`.goat-flow/architecture.md` - hot-path listing named only CLAUDE.md, AGENTS.md, GEMINI.md; omitted `.github/copilot-instructions.md` which `workflow/setup/agents/copilot.md` (search: `standalone hot-path`) and `workflow/setup/01-system-overview.md` (search: `## What goat-flow is`) both treat as hot-path~~ (resolved 2026-04-24: copilot-instructions.md added to hot-path listing)
-
-*Round 4 (2026-05-11, all resolved - surfaced by full documentation audit; same pattern recurred during the v1.6.0 release wave):*
-- ~~`CONTRIBUTING.md` - claimed "17 checks grouped by 5 concerns" while `src/cli/audit/harness/check-*.ts` exports 16 distinct ids and every other doc surface (audit-checks.md, cli.md, audit-and-quality.md, harness-audit.md, glossary.md, architecture.md) said 16~~ (resolved 2026-05-11)
-- ~~`CONTRIBUTING.md` - placed `skill-quality-testing.md` in `workflow/skills/reference/`; the v1.4.x reference/playbook split moved it to `workflow/skills/playbooks/` and it installs to `.goat-flow/skill-playbooks/`~~ (resolved 2026-05-11)
-- ~~`docs/cli.md` - missing `goat-flow skill new` and `goat-flow quality candidacy` (both shipped in v1.6.0 and documented in `docs/skill-authoring.md`)~~ (resolved 2026-05-11)
-- ~~`docs/dashboard.md` - API endpoints table missing `/api/quality/evaluate` (canonical per v1.6.0), `/api/quality/analyse`, `/api/quality/history`, `/api/skill-quality/inventory`, `/api/skill-quality`, `/api/browse`, `POST /api/projects/list`, `POST /api/terminal/:id/upload-image`~~ (resolved 2026-05-11)
-- ~~`.goat-flow/code-map.md` - docs/ listing missing `skill-authoring.md`, `skill-quality-config.md`, `site/`; `.goat-flow/` listing missing `logs/critiques/`, `logs/security/`, `logs/uploads/`~~ (resolved 2026-05-11)
-- ~~`.goat-flow/architecture.md` - "Local report history" row missing `.goat-flow/logs/security/`~~ (resolved 2026-05-11)
-- ~~`.goat-flow/glossary.md` - Hot Path entry omitted `.github/copilot-instructions.md` despite the same fix being applied to `architecture.md` in Round 3~~ (resolved 2026-05-11)
-- ~~`CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `.github/copilot-instructions.md` - "Never" tier listed materially different forbidden actions across the four files; `scripts/check-instruction-parity.mjs` did not catch it because it validates section headings only~~ (resolved 2026-05-11: aligned to canonical CLAUDE.md/copilot wording; AGENTS.md and GEMINI.md updated)
-- ~~All four instruction-file headers - dated `(2026-05-04)` against `v1.6.0`; CHANGELOG shows v1.6.0 shipped on 2026-05-10; `2026-05-04` was the date of v1.4.3~~ (resolved 2026-05-11)
-- ~~`.goat-flow/decisions/ADR-025` / `ADR-026` / `ADR-027` - `**Status:** accepted` (lowercase) violated the README's documented status vocabulary `Proposed | Accepted | Implemented | Superseded`~~ (resolved 2026-05-11)
-- ~~`README.md` - "Skills (seven `/goat-*` commands + dispatcher)" miscounted; there are 6 `/goat-*` skills plus the dispatcher = 7 total~~ (resolved 2026-05-11)
-- ~~`.github/PULL_REQUEST_TEMPLATE.md` - test plan said `node dist/cli/cli.js audit .` while every other doc uses `npx goat-flow audit .`; `dist/` may not exist when contributors run the test plan~~ (resolved 2026-05-11)
-- ~~`workflow/evaluation/README.md` - file table listed `footguns.md` and `lessons.md` only; directory also contains `patterns.md`~~ (resolved 2026-05-11)
-- ~~`docs/dashboard.md`, `.goat-flow/skill-playbooks/skill-quality-testing.md`, `.goat-flow/skill-playbooks/skill-quality-testing/tdd-iteration.md`, `workflow/skills/reference/skill-preamble.md` (and the workflow source mirrors of the playbook files) - cited evidence under `.goat-flow/scratchpad/` (gitignored) or vaguely "the prime corpus", so readers cloning the repo could not follow the references; same surfaces also leaked third-party / competitor skill names (MySQL, Valyu, frontend-design) and a vendor env var (`VALYU_API_KEY`) into goat-flow's own committed docs~~ (resolved 2026-05-11: scratchpad-path citations replaced with in-repo references or guidance-only framing; competitor names removed and patterns rewritten provider-neutrally; new lesson added at `.goat-flow/lessons/agent-behavior.md` (search: `Agent cited gitignored content as evidence in committed docs`))
-- ~~`docs/skill-quality-config.md` - used a bare skill-file basename in code formatting while explaining uploaded skill evaluation; path-integrity treated it as a repo-local path and failed `test/integration/audit-drift.test.ts` in PR #36~~ (resolved 2026-05-11: now uses prose at `docs/skill-quality-config.md` (search: `uploaded skill file can keep`))
-
-**Impact:** The framework demands "real evidence only" and "MUST maintain cross-file consistency" while its own cold-path surfaces violate both rules. Agents consulting docs for orientation get wrong information. The audit's PASS stamp creates false confidence. Round 4 also surfaced two new failure modes worth promoting to a preflight check (see Prevention #5 and #6 below).
-
-**Prevention:**
-1. Add content-drift checks to preflight: compare doc check descriptions against exported check names from code
-2. Extend path-integrity checks to cover code-map, glossary canonical-file paths, and convention claims
-3. Consider auto-generating audit docs from check code to prevent drift permanently
-4. Change Step 01 early-stop rule (`workflow/setup/01-system-overview.md` (search: `## State check`)) to require content-drift checks, not just structural audit pass
-5. **Block citations of gitignored paths from committed files** - add a preflight grep for `\.goat-flow/(scratchpad|tasks|logs/sessions|logs/quality|logs/critiques|logs/security|logs/uploads)/` inside `*.md` and `*.ts` files (excluding the gitignored trees themselves and the documented "where to write artifacts" instructions). The `instruction-file-skill-reference-pointer` audit check already understands which paths are gitignored; reuse that classification here.
-6. **Block competitor / third-party skill names in goat-flow-owned committed surfaces** - maintain a small denylist (`Valyu`, `MySQL skill`, `prime corpus`, `frontend-design skill`, `writing-skills`, plus any future external skill references discovered) and grep `*.md` / `*.ts` outside `node_modules`, `.claude/worktrees`, `.goat-flow/scratchpad`, `.goat-flow/tasks`, `.goat-flow/logs`. Generic patterns must be stated provider-neutrally (`<VENDOR>_API_KEY`, `a domain skill`, `a vendor-SDK skill`).
-7. **Do not format illustrative basenames as path-like code spans** unless they resolve from the repo root. If a filename is an example rather than an actual path, write it in prose or include a valid parent directory.
-
----
-
 ## Footgun: Version bump checks do not cover synthetic project config strings
 
 **Status:** active | **Created:** 2026-04-30 | **Evidence:** ACTUAL_MEASURED
@@ -199,14 +175,14 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 
 **Why it happens:** The bump script intentionally updates a curated list of release surfaces, and `check-versions.mjs` verifies the version surfaces it knows about. Synthetic project builders that embed a config file as an inline string, or newly split reference directories that are not added to both the bump script and checker, stay outside both surfaces unless they are manually grepped.
 
-**Evidence:** During the v1.3.2 M07 release gate, `npm run check-versions` printed `All template and reference versions match 1.3.2`, but `rg -n "1\\.3\\.1" ... scripts/profile-dashboard-audit.mjs test` still found current-version strings in `scripts/profile-dashboard-audit.mjs` (search: `writeSyntheticProject`) and `test/integration/dashboard-server.test.ts` (search: `makeDashboardCacheProject`). During the v1.6.1 bump on 2026-05-11, `bash scripts/bump-version.sh 1.6.1` and `npm run check-versions` passed while `rg -n 'goat-flow-reference-version: "1\\.6\\.0"' workflow/skills/playbooks .goat-flow/skill-playbooks` still found stale playbook frontmatter.
+**Evidence:** During the v1.3.2 M07 release gate, `npm run check-versions` printed `All template and reference versions match 1.3.2`, but `rg -n "1\\.3\\.1" ... scripts/profile-dashboard-audit.mjs test` still found current-version strings in `scripts/profile-dashboard-audit.mjs` (search: `writeSyntheticProject`) and `test/integration/dashboard-server.helpers.ts` (search: `makeDashboardCacheProject`). During the v1.6.1 bump on 2026-05-11, `bash scripts/bump-version.sh 1.6.1` and `npm run check-versions` passed while `rg -n 'goat-flow-reference-version: "1\\.6\\.0"' workflow/skills/playbooks .goat-flow/skill-playbooks` still found stale playbook frontmatter.
 
 **Structural anchors:**
 - `scripts/bump-version.sh` (search: `# ── Source files (version string replacement)`) lists the curated surfaces the bump workflow edits.
 - `scripts/check-versions.mjs` (search: `goat-flow-reference-version`) verifies skill and reference frontmatter, not arbitrary embedded config stubs.
 - `workflow/skills/playbooks/README.md` (search: `goat-flow-reference-version`) is a standalone playbook tree that must be included alongside `workflow/skills/reference/`.
 - `scripts/profile-dashboard-audit.mjs` (search: `writeSyntheticProject`) creates a synthetic `.goat-flow/config.yaml` for profiler runs.
-- `test/integration/dashboard-server.test.ts` (search: `makeDashboardCacheProject`) creates a dashboard-cache fixture project with an embedded config string.
+- `test/integration/dashboard-server.helpers.ts` (search: `makeDashboardCacheProject`) creates a dashboard-cache fixture project with an embedded config string.
 
 **Prevention:** After every release bump, run a targeted stale-version grep across scripts, tests, packages, workflow templates, installed skill/reference/playbook mirrors, and config files, not just `npm run check-versions`: `rg -n "<old-version>" scripts test package.json package-lock.json .goat-flow/config.yaml workflow .agents .claude .github/skills .goat-flow/skill-reference .goat-flow/skill-playbooks`.
 
@@ -282,5 +258,5 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 - **CONTRIBUTING.md directs contributors to the wrong subsystem** (resolved 2026-04-13) - Rewritten to describe build checks in `check-goat-flow.ts` + `check-agent-setup.ts` and quality checks in `src/cli/audit/harness/`.
 - **Stale references from old project structure** (resolved 2026-04-15) - `ai-workflow-framework` no longer appears anywhere in the repo (verified by `rg "ai-workflow-framework"`).
 - **Preflight validates doc totals but not sub-breakdowns** (resolved 2026-04-17) - `scripts/preflight-checks.sh` (search: `B.8a2: Sub-breakdown validation`) now extracts `setup_count` and `agent_count` from the audit modules and validates the `(N setup + M agent)` breakdown claim in `.goat-flow/architecture.md`, not just the total. Verified by grep of preflight source.
-- **Dashboard session-limit constants drift across server, UI, docs, and tests** (resolved 2026-04-19) - `src/cli/server/terminal.ts` (search: `MAX_SESSIONS`) exports the constant, `src/cli/server/dashboard-terminal.ts` (search: `MAX_SESSIONS`) imports it, `test/integration/dashboard-server.test.ts` (search: `data.maxSessions`) asserts the value, and `docs/dashboard.md` says "Maximum 10 concurrent sessions" - all four surfaces agree on 10. Pattern-class hygiene ("single exported constant reused in API payload, UI guards, and static copy") remains good practice for any future repo-wide cap; grep `maxSessions`, `serverSessions.length >=`, `Maximum of` before closing a similar change.
+- **Dashboard session-limit constants drift across server, UI, docs, and tests** (resolved 2026-04-19) - `src/cli/server/terminal.ts` (search: `MAX_SESSIONS`) exports the constant, `src/cli/server/dashboard-terminal.ts` (search: `MAX_SESSIONS`) imports it, `test/integration/dashboard-server-dashboard-terminal-endpoints.test.ts` (search: `data.maxSessions`) asserts the value, and `docs/dashboard.md` says "Maximum 10 concurrent sessions" - all four surfaces agree on 10. Pattern-class hygiene ("single exported constant reused in API payload, UI guards, and static copy") remains good practice for any future repo-wide cap; grep `maxSessions`, `serverSessions.length >=`, `Maximum of` before closing a similar change.
 - **ADR renumbering concrete examples** (resolved 2026-05-27) - Historical stale references to `ADR-010-confusion-log-disposition.md`, `ADR-023-expand-inline-conventions.md`, and `ADR-016-dispatcher-is-canonical-skill.md` were already fixed before M11; the active entry now keeps only the failure pattern.

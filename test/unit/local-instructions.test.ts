@@ -3,7 +3,17 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import {
+  extractInstructionFacts,
+  extractSection,
+} from "../../src/cli/facts/agent/instruction.js";
+import {
+  extractRouterFacts,
+  pushUniquePath,
+} from "../../src/cli/facts/agent/routing.js";
+import { extractGitignoreFacts } from "../../src/cli/facts/shared/ci.js";
 import { extractLocalInstructions } from "../../src/cli/facts/shared/local-instructions.js";
+import type { AgentProfile } from "../../src/cli/types.js";
 import type { ReadonlyFS } from "../../src/cli/types.js";
 
 function stubFS(
@@ -25,6 +35,20 @@ function stubFS(
   };
 }
 
+const AGENT_PROFILE: AgentProfile = {
+  id: "claude",
+  name: "Claude Code",
+  instructionFile: "CLAUDE.md",
+  skillsDir: ".claude/skills",
+  localPattern: "*/CLAUDE.md",
+  denyMechanism: {
+    type: "deny-script",
+    path: ".claude/hooks/deny-dangerous.sh",
+  },
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
+};
+
+/** Provide a representative project-conventions document for extraction tests. */
 function conventionsContent(): string {
   return [
     "# Project Conventions",
@@ -47,6 +71,39 @@ function conventionsContent(): string {
 }
 
 describe("extractLocalInstructions", () => {
+  it("extracts agent instruction, router, and gitignore facts from local files", () => {
+    const instruction = [
+      "# Agent",
+      "",
+      "## Router Table",
+      "`src/cli/index.ts`",
+      "[docs](docs/cli.md)",
+      "",
+      "## Verify",
+      "Run npm test.",
+    ].join("\n");
+    const fs = stubFS(
+      {
+        "CLAUDE.md": instruction,
+        ".gitignore": ".env\nsettings.local.json\n",
+      },
+      {},
+    );
+    const paths: string[] = [];
+
+    pushUniquePath(paths, "src/cli/index.ts");
+    pushUniquePath(paths, "src/cli/index.ts");
+
+    assert.equal(extractSection(instruction, "verify"), "Run npm test.");
+    assert.equal(extractInstructionFacts(fs, AGENT_PROFILE).lineCount, 8);
+    assert.deepEqual(extractRouterFacts(fs, instruction).paths, [
+      "src/cli/index.ts",
+      "docs/cli.md",
+    ]);
+    assert.deepEqual(paths, ["src/cli/index.ts"]);
+    assert.equal(extractGitignoreFacts(fs).hasRequiredEntries, true);
+  });
+
   it("returns an empty payload when no local instruction directory exists", () => {
     const facts = extractLocalInstructions(stubFS({}, {}));
 
@@ -59,6 +116,7 @@ describe("extractLocalInstructions", () => {
   });
 
   it("detects .github/instructions files, flags, content, and line counts", () => {
+    const expectedInstructionFileCount = 3;
     const content = conventionsContent();
     const fs = stubFS(
       {
@@ -81,7 +139,7 @@ describe("extractLocalInstructions", () => {
     assert.equal(facts.dirExists, true);
     assert.equal(facts.location, "github");
     assert.equal(facts.githubDirExists, true);
-    assert.equal(facts.fileCount, 3);
+    assert.equal(facts.fileCount, expectedInstructionFileCount);
     assert.equal(facts.hasConventions, true);
     assert.equal(facts.conventionsHasContent, true);
     assert.equal(facts.hasFrontend, true);

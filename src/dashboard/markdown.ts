@@ -1,9 +1,9 @@
 /**
- * Client-side markdown renderer wrapper for the goat-flow dashboard (M32).
+ * Client-side markdown renderer wrapper for the goat-flow dashboard.
  *
  * Loaded as a classic script after `/assets/markdown-it.js` and
  * `/assets/js-yaml.js` (UMD builds).
- * Exposes `window.renderMarkdown` so the markdown viewer modal (M18) and any
+ * Exposes `window.renderMarkdown` so the markdown viewer modal and any
  * other consumer can render footgun/lesson/ADR/session/playbook content
  * without each call site re-inventing sanitization.
  *
@@ -17,22 +17,24 @@
  * Frontmatter parsing uses `js-yaml` so nested arrays/objects in future
  * artifacts do not need another dashboard renderer change.
  */
-interface RenderMarkdownOptions {
+type RenderMarkdownOptions = Partial<Record<"breaks", boolean>> & {
   /** "strip" (default): drop the YAML block. "passthrough": leave it in. */
   frontmatter?: "strip" | "passthrough";
-  /** Enable GFM line breaks. Defaults to true. */
-  breaks?: boolean;
-}
+};
 
+/** Rendered markdown plus optional parsed frontmatter used by dashboard prompt previews. */
 interface RenderMarkdownResult {
   html: string;
   frontmatter: Record<string, unknown> | null;
 }
 
+/** Minimal markdown-it instance contract used after loading the browser global. */
 interface MarkdownItInstance {
+  /** Render markdown text to sanitized HTML according to the configured markdown-it options. */
   render(text: string): string;
 }
 
+/** Browser global factory installed by markdown-it for dashboard rendering. */
 interface MarkdownItGlobal {
   (options?: {
     html?: boolean;
@@ -42,14 +44,17 @@ interface MarkdownItGlobal {
   }): MarkdownItInstance;
 }
 
+/** Browser global installed by js-yaml for optional frontmatter parsing. */
 interface JsYamlGlobal {
+  /** Parse YAML frontmatter into JavaScript data for the dashboard metadata panel. */
   load(text: string): unknown;
 }
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
+/** Parse frontmatter only when js-yaml is loaded and the YAML root is an object. */
 function parseFrontmatter(block: string): Record<string, unknown> | null {
-  const yaml = (window as unknown as { jsyaml?: JsYamlGlobal }).jsyaml;
+  const yaml = (window as { jsyaml?: JsYamlGlobal }).jsyaml;
   if (!yaml) return null;
   const parsed = yaml.load(block);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -58,12 +63,12 @@ function parseFrontmatter(block: string): Record<string, unknown> | null {
   return parsed as Record<string, unknown>;
 }
 
+/** Build the global markdown renderer with reusable line-break and no-line-break instances. */
 function buildRenderer(): (
   text: string,
   opts?: RenderMarkdownOptions,
 ) => RenderMarkdownResult {
-  const md = (window as unknown as { markdownit?: MarkdownItGlobal })
-    .markdownit;
+  const md = (window as { markdownit?: MarkdownItGlobal }).markdownit;
   if (!md) {
     return () => ({
       html: '<pre class="gf-md-error">markdown-it not loaded</pre>',

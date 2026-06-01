@@ -10,18 +10,20 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { AUDIT_VERSION } from "../../src/cli/constants.js";
 
-const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
-const SCRIPT = join(PROJECT_ROOT, "scripts", "check-path-integrity.sh");
+const REPOSITORY_ROOT = resolve(import.meta.dirname, "..", "..");
+const SCRIPT = join(REPOSITORY_ROOT, "scripts", "check-path-integrity.sh");
 
-function runScript(projectRoot: string): { ok: boolean; output: string } {
-  const r = spawnSync("bash", [SCRIPT, projectRoot], {
+/** Spawns the path-integrity script against an isolated project fixture. */
+function runScript(projectRoot: string): { passed: boolean; output: string } {
+  const result = spawnSync("bash", [SCRIPT, projectRoot], {
     encoding: "utf-8",
     timeout: 10000,
   });
-  const output = (r.stderr ?? "") + (r.stdout ?? "");
-  return { ok: r.status === 0, output };
+  const output = (result.stderr ?? "") + (result.stdout ?? "");
+  return { passed: result.status === 0, output };
 }
 
+/** Writes the minimum goat-flow filesystem layout required by path-integrity checks. */
 function makeTempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), "gf-path-test-"));
   // Minimal .goat-flow with config
@@ -63,7 +65,7 @@ describe("path-integrity script: router table", () => {
       writeFileSync(join(dir, ".goat-flow", "architecture.md"), "# Arch");
 
       const result = runScript(dir);
-      assert.equal(result.ok, false, "Should fail on dead router path");
+      assert.equal(result.passed, false, "Should fail on dead router path");
       assert.ok(
         result.output.includes("does not exist"),
         `Should mention dead path: ${result.output}`,
@@ -93,7 +95,7 @@ describe("path-integrity script: router table", () => {
 
       const result = runScript(dir);
       assert.equal(
-        result.ok,
+        result.passed,
         true,
         `Should pass when all paths exist: ${result.output}`,
       );
@@ -124,7 +126,11 @@ describe("path-integrity script: copilot surfaces", () => {
       );
 
       const result = runScript(dir);
-      assert.equal(result.ok, false, "Should fail on dead Copilot router path");
+      assert.equal(
+        result.passed,
+        false,
+        "Should fail on dead Copilot router path",
+      );
       assert.ok(
         result.output.includes(
           ".github/copilot-instructions.md router table: path does not exist: .goat-flow/missing.md",
@@ -160,7 +166,7 @@ describe("path-integrity script: copilot surfaces", () => {
 
       const result = runScript(dir);
       assert.equal(
-        result.ok,
+        result.passed,
         false,
         "Should fail on missing nested skill path",
       );

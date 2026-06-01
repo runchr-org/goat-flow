@@ -21,8 +21,8 @@ import type { CheckEvidence } from "./provenance-types.js";
 export interface AuditFailure {
   check: string;
   message: string;
-  evidence?: string;
-  howToFix?: string;
+  evidence?: string | undefined;
+  howToFix?: string | undefined;
 }
 
 /** Stable per-check JSON shape consumed by CLI renderers, dashboard readers, and SARIF. */
@@ -35,19 +35,19 @@ export interface CheckResult {
   /** Whether this result affects audit status, concern score only, or neither. */
   impact: CheckImpact;
   provenance: CheckEvidence;
-  failure?: AuditFailure;
+  failure?: AuditFailure | undefined;
   /** Harness-check classification; absent for build checks. */
   type?: HarnessCheckType;
   /** True when an advisory failure is silenced by `harness.acknowledge` in config. */
-  acknowledged?: boolean;
+  acknowledged?: boolean | undefined;
   /** Evidence strength label for smoke checks that prove structure, not content semantics. */
-  evidenceKind?: CheckEvidenceKind;
+  evidenceKind?: CheckEvidenceKind | undefined;
   /** Assurance label for checks that pass with a known platform limitation. */
-  assurance?: CheckAssurance;
-  /** M30: Structured per-check detail. Forwarded verbatim from
+  assurance?: CheckAssurance | undefined;
+  /** Structured per-check detail. Forwarded verbatim from
    *  `HarnessCheckResult.details`; absent for build checks and for harness
    *  checks that haven't been extended yet. */
-  details?: HarnessCheckDetails;
+  details?: HarnessCheckDetails | undefined;
 }
 
 /** Scope aggregate plus the original checks used to build it. */
@@ -90,10 +90,12 @@ export type AuditConcernKey =
   | "recovery"
   | "feedback_loop";
 
+/** Stable `harness` JSON field retained for existing CLI and dashboard consumers. */
+type AuditHarnessJsonField = Record<"harness", boolean>;
+
 /** Top-level audit JSON schema returned by CLI and dashboard audit routes. */
-export interface AuditReport {
+export interface AuditReport extends AuditHarnessJsonField {
   command: "audit";
-  harness: boolean;
   status: "pass" | "fail";
   target: string;
   scopes: {
@@ -125,7 +127,7 @@ export type CheckEvidenceKind = "semantic" | "structural";
 /** Assurance label for passes that are correct but limited by platform evidence. */
 export type CheckAssurance = "full" | "limited";
 
-// === Drift check (M04) ===
+// === Drift check ===
 
 type DriftFindingKind = "content" | "missing" | "orphan" | "deprecated";
 
@@ -143,7 +145,7 @@ export interface DriftReport {
   checked: number;
 }
 
-// === Content lint (M05) ===
+// === Content lint ===
 
 /** WARNING findings fail the content scope; INFO findings are advisory. */
 export type ContentSeverity = "info" | "warning";
@@ -210,7 +212,7 @@ export interface AuditContext {
   /** Fact extraction profile backing this context. Summary contexts omit stack facts. */
   factProfile?: AuditFactProfile;
   /** Optional downgrade for expensive per-agent summary checks used by dashboard routes. */
-  denyMechanismEvidenceLevel?: "full" | "static" | "present-only";
+  denyMechanismEvidenceLevel?: "full" | "static" | "present-only" | undefined;
 }
 
 /** Build-check scopes that exist before optional harness checks are requested. */
@@ -239,7 +241,7 @@ export interface BuildCheck {
 }
 
 /**
- * Harness check classification (M01):
+ * Harness check classification:
  * - `integrity`: drift from install state; failing integrity gates concern status.
  * - `advisory`: best practice; failing advisory gates concern status unless
  *   the check id is listed in `harness.acknowledge` in config.yaml.
@@ -271,16 +273,16 @@ export interface HarnessCheckResult {
   displayStatus?: CheckDisplayStatus;
   /** Optional assurance label for checks that pass with caveats. */
   assurance?: CheckAssurance;
-  /** M30: Structured per-check detail for dashboard consumers. Discriminated by
+  /** Structured per-check detail for dashboard consumers. Discriminated by
    *  the parent `HarnessCheck.id`; each consuming page reads the keys it knows.
    *  Plain-text and markdown audit renderers ignore this block. */
   details?: HarnessCheckDetails;
 }
 
-/** M30: Structured per-check detail union. Keyed by `HarnessCheck.id`.
+/** Structured per-check detail union. Keyed by `HarnessCheck.id`.
  *  Pages that consume the dashboard `/api/audit` response read the keys for
  *  their concern; unknown keys are ignored. Keep this synced with the per-check
- *  shapes declared in `.goat-flow/tasks/_archived/1.7.0/M30-audit-payload-structured-detail.md`. */
+ *  shapes declared by the dashboard audit payload contract. */
 export interface HarnessCheckDetails {
   /** instruction-line-count */
   lineCounts?: {

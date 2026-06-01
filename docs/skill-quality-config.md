@@ -82,5 +82,5 @@ Run the focused tests after config changes:
 
 ```bash
 node --import tsx --test test/unit/quality-config.test.ts
-node --import tsx --test test/unit/skill-quality.test.ts
+node --import tsx --test test/unit/skill-quality/*.test.ts
 ```

@@ -32,6 +32,7 @@ const MAX_BODY_BYTES = 64 * 1024; // 64 KB
 const PACKAGE_VERSION = getPackageVersion();
 const DASHBOARD_TOKEN_HEADER = "x-goat-flow-dashboard-token";
 
+/** Request-body limits and error text used by JSON POST handlers. */
 interface ReadBodyOptions {
   maxBytes?: number;
   tooLargeMessage?: string;
@@ -47,12 +48,12 @@ function readBody(
     const tooLargeMessage = options.tooLargeMessage ?? "Request body too large";
     const chunks: Buffer[] = [];
     let size = 0;
-    let rejected = false;
+    let hasRejectedBody = false;
     req.on("data", (chunk: Buffer) => {
-      if (rejected) return;
+      if (hasRejectedBody) return;
       size += chunk.length;
       if (size > maxBytes) {
-        rejected = true;
+        hasRejectedBody = true;
         chunks.length = 0;
         req.resume();
         reject(new Error(tooLargeMessage));
@@ -61,11 +62,11 @@ function readBody(
       chunks.push(chunk);
     });
     req.on("end", () => {
-      if (rejected) return;
+      if (hasRejectedBody) return;
       resolve(Buffer.concat(chunks).toString("utf-8"));
     });
     req.on("error", (err) => {
-      if (!rejected) reject(err);
+      if (!hasRejectedBody) reject(err);
     });
   });
 }
@@ -83,7 +84,7 @@ function jsonResponse(
 /** Configuration options for launching the dashboard server */
 interface DashboardOptions {
   projectPath: string;
-  dev?: boolean;
+  isDevMode?: boolean;
 }
 
 /** Handle returned by serveDashboard for closing the server and reading the port */
@@ -93,62 +94,17 @@ interface DashboardServer {
   url: string;
 }
 
-/** Route inventory for the local privileged dashboard control plane.
- *  Exported for the route-classification test. */
-export const DASHBOARD_ROUTE_INVENTORY = [
-  { method: "GET", path: "/", class: "bootstrap" },
-  { method: "GET", path: "/assets/*", class: "static" },
-  { method: "GET", path: "/api/health", class: "privileged-read" },
-  { method: "GET", path: "/api/audit", class: "privileged-read" },
-  { method: "GET", path: "/api/setup/detect", class: "privileged-read" },
-  { method: "GET", path: "/api/setup", class: "privileged-read" },
-  { method: "GET", path: "/api/quality", class: "privileged-read" },
-  { method: "GET", path: "/api/quality/history", class: "privileged-read" },
-  { method: "GET", path: "/api/browse", class: "privileged-read" },
-  { method: "GET", path: "/api/agents/installed", class: "privileged-read" },
-  { method: "GET", path: "/api/tasks", class: "privileged-read" },
-  { method: "POST", path: "/api/tasks", class: "side-effectful" },
-  { method: "GET", path: "/api/hooks", class: "privileged-read" },
-  {
-    method: "POST",
-    path: "/api/hooks/:hookId/toggle",
-    class: "side-effectful",
-  },
-  { method: "GET", path: "/api/projects/list", class: "privileged-read" },
-  { method: "POST", path: "/api/projects/list", class: "side-effectful" },
-  { method: "GET", path: "/api/projects/status", class: "privileged-read" },
-  { method: "POST", path: "/api/quality/evaluate", class: "side-effectful" },
-  // Deprecated alias for /api/quality/evaluate. Same handler, response carries
-  // Deprecation + Link headers. Slated for removal one release after the
-  // dashboard-side migration completes.
-  { method: "POST", path: "/api/quality/analyse", class: "side-effectful" },
-  { method: "POST", path: "/api/terminal/create", class: "side-effectful" },
-  { method: "GET", path: "/api/terminal/list", class: "privileged-read" },
-  { method: "GET", path: "/api/terminal/sessions", class: "privileged-read" },
-  { method: "DELETE", path: "/api/terminal/:id", class: "side-effectful" },
-  {
-    method: "POST",
-    path: "/api/terminal/:id/upload-image",
-    class: "side-effectful",
-  },
-  { method: "GET", path: "/ws/terminal/:id", class: "privileged-websocket" },
-] as const;
-
 /**
- * Side-effectful API route registry (M31).
+ * Side-effectful API route registry.
  *
  * Every POST/DELETE handler that mutates local state, executes a command, or
  * could be CSRF-bait MUST appear in this set. The Origin/CSRF check fires via
- * `isSideEffectfulApiRoute → SIDE_EFFECTFUL_EXACT_API_ROUTES.has(routeKey)`;
- * adding `class: "side-effectful"` to `DASHBOARD_ROUTE_INVENTORY` alone does
- * NOT enable enforcement.
+ * `isSideEffectfulApiRoute → SIDE_EFFECTFUL_EXACT_API_ROUTES.has(routeKey)`.
  *
  * Convention: register the exact route key `"<METHOD> <path>"` here whenever
- * you add a side-effectful endpoint. The companion test
- * `test/unit/route-classification.test.ts` flags drift between this set and
- * the inventory at CI time.
+ * you add a side-effectful endpoint.
  */
-export const SIDE_EFFECTFUL_EXACT_API_ROUTES = new Set([
+const SIDE_EFFECTFUL_EXACT_API_ROUTES = new Set([
   "POST /api/projects/list",
   "POST /api/tasks",
   "POST /api/quality/evaluate",
@@ -176,14 +132,19 @@ function tokenMatches(expected: string, actual: string | null): boolean {
   return timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
-/** Start the local dashboard server and expose its API endpoints. */
+/**
+ * Start the local dashboard server and expose its API endpoints.
+ *
+ * @param options - selected project path plus optional dev-mode/dashboard configuration
+ * @returns running dashboard handle with URL, token, and close method
+ */
 export function serveDashboard(
   options: DashboardOptions,
 ): Promise<DashboardServer> {
   return new Promise((resolveStart) => {
     const shellPath = getTemplatePath("dist/dashboard/index.html");
     const dashboardPresets = loadDashboardPresets();
-    const devMode = options.dev === true;
+    const devMode = options.isDevMode === true;
     const dashboardToken = randomBytes(32).toString("base64url");
     // In dev mode, re-read on every request. In prod, cache once.
     let cachedTemplate: string | null = devMode
@@ -478,9 +439,10 @@ export function serveDashboard(
       }
     });
 
-    // Gracefully stop any live terminal sessions before the process exits.
+    // Shutdown joins HTTP, WebSocket, watcher, and terminal cleanup so callers
+    // can await one idempotent close even when signals and tests race.
     let closePromise: Promise<void> | null = null;
-    /** Close the dashboard server, watchers, and terminal sessions cleanly. */
+    /** Close the dashboard server, watchers, and terminal sessions through one promise because signals can race. */
     async function closeServer(): Promise<void> {
       if (closePromise) return closePromise;
 

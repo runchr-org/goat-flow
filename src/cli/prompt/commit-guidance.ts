@@ -7,8 +7,13 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-export const GIT_COMMIT_INSTRUCTIONS_PATH =
-  ".github/git-commit-instructions.md";
+/**
+ * Canonical project-relative location for generated commit guidance.
+ *
+ * A docs path - not a bespoke .github file - because IDEs only auto-read .github/copilot-instructions.md;
+ * the instruction file points here, so one doc serves humans and every agent. See ADR-031.
+ */
+const GIT_COMMIT_INSTRUCTIONS_PATH = "docs/coding-standards/git-commit.md";
 
 type CommitSubjectKind = "conventional" | "ticket-prefixed" | "free-form";
 
@@ -24,7 +29,7 @@ interface CommitConventionCounts {
   freeForm: number;
 }
 
-/** Observed commit-history style and metadata rendered into `.github/git-commit-instructions.md`. */
+/** Observed commit-history style and metadata rendered into `docs/coding-standards/git-commit.md`. */
 export interface CommitConventionDetection {
   status: CommitGuidanceStatus;
   total: number;
@@ -41,7 +46,7 @@ export interface CommitConventionDetection {
 
 /** Outcome from trying to create commit guidance without overwriting user-maintained instructions. */
 export interface CommitGuidanceWriteResult {
-  status: "written" | "skipped-no-github" | "skipped-existing";
+  status: "written" | "skipped-existing";
   path: string;
   detection: CommitConventionDetection | null;
 }
@@ -192,7 +197,7 @@ function exampleFor(
   );
 }
 
-export function detectCommitConventions(
+function detectCommitConventions(
   targetRoot: string,
 ): CommitConventionDetection {
   const root = resolve(targetRoot);
@@ -290,7 +295,7 @@ function renderStub(detection: CommitConventionDetection): string {
   ].join("\n");
 }
 
-export function renderGitCommitInstructions(
+function renderGitCommitInstructions(
   detection: CommitConventionDetection,
 ): string {
   if (detection.status === "insufficient-history") return renderStub(detection);
@@ -357,20 +362,22 @@ export function renderGitCommitInstructions(
   return lines.join("\n");
 }
 
+/**
+ * Create the canonical commit-guidance doc from detected history, never clobbering existing rules.
+ *
+ * Writes docs/coding-standards/git-commit.md (creating parent dirs) only when it is absent, so a
+ * project owner's hand-maintained conventions are preserved across re-installs. No .github/
+ * directory is required - the doc lives under docs/ regardless of which agent is installed.
+ *
+ * @param targetRoot - Project root to write commit guidance into; resolved to an absolute path.
+ * @returns A result describing whether the doc was written or skipped because one already exists, plus the detection used.
+ */
 export function ensureGitCommitInstructions(
   targetRoot: string,
 ): CommitGuidanceWriteResult {
   const root = resolve(targetRoot);
-  const githubDir = join(root, ".github");
   const outputPath = join(root, GIT_COMMIT_INSTRUCTIONS_PATH);
 
-  if (!existsSync(githubDir)) {
-    return {
-      status: "skipped-no-github",
-      path: GIT_COMMIT_INSTRUCTIONS_PATH,
-      detection: null,
-    };
-  }
   if (existsSync(outputPath)) {
     return {
       status: "skipped-existing",

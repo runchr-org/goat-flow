@@ -67,7 +67,7 @@ interface SarifReportingDescriptor {
   name: string;
   shortDescription?: SarifMessage;
   fullDescription?: SarifMessage;
-  helpUri?: string;
+  helpUri?: string | undefined;
   properties?: SarifPropertyBag;
 }
 

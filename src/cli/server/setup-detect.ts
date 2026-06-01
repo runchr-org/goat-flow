@@ -10,13 +10,20 @@ import { getAgentProfiles } from "../agents/registry.js";
 const AGENT_PROFILES = getAgentProfiles();
 
 /** Existing goat-flow surfaces shown as setup-view checkboxes. */
-interface ExistingArtifacts {
-  skills: boolean;
+type ExistingArtifactPresence = Record<
+  "skills" | "lessons" | "footguns" | "config",
+  boolean
+>;
+
+/**
+ * Per-surface presence flags driving the setup view's prefill checkboxes. Extends the skill/lessons/
+ * footguns/config presence flags with the two Copilot instruction surfaces (repo-wide
+ * `copilot-instructions.md` versus path-scoped `.github/instructions/`). Each flag is advisory: true
+ * means the surface was detected, false means absent or unreadable, never an error.
+ */
+interface ExistingArtifacts extends ExistingArtifactPresence {
   instructionsRepoWide: boolean;
   instructionsPathScoped: boolean;
-  lessons: boolean;
-  footguns: boolean;
-  config: boolean;
 }
 
 /** Command slots inferred for the generated setup prompt. */

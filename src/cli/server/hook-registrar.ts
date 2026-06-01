@@ -26,10 +26,25 @@ import {
 } from "./agent-hook-writer.js";
 import { writeFileAtomic } from "./safe-exec.js";
 
+const DENY_DANGEROUS_HOOK_LIB_FILES = [
+  "patterns-shell.sh",
+  "patterns-paths.sh",
+  "patterns-writes.sh",
+  "deny-dangerous-self-test.sh",
+];
+const LEGACY_DENY_DANGEROUS_SCRIPT_NAMES = [
+  "guard-common.sh",
+  "guard-destructive-shell.sh",
+  "guard-secret-paths.sh",
+  "guard-repository-writes.sh",
+  "guardrails-self-test.sh",
+  "deny-dangerous.self-test.sh",
+];
+
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
 
-interface HookAgentState {
-  supported: boolean;
+/** Per-agent hook installation/config state for one registry hook. */
+interface HookAgentState extends Record<"supported", boolean> {
   installed: boolean;
   scriptPath: string | null;
   configPath: string | null;
@@ -37,18 +52,18 @@ interface HookAgentState {
   reason?: string;
 }
 
-export interface HookState {
+/** Dashboard-facing hook state including defaults, drift, and per-agent registration status. */
+export interface HookState extends Record<"togglable" | "enabled", boolean> {
   id: string;
   name: string;
   description: string;
-  togglable: boolean;
-  enabled: boolean;
   defaultEnabled: boolean;
   requiresConfirmDialog: boolean;
   agents: Record<AgentId, HookAgentState>;
 }
 
-export class HookRegistrarError extends Error {
+/** HTTP-safe hook registrar failure with the status code routes should return. */
+class HookRegistrarError extends Error {
   constructor(
     message: string,
     readonly statusCode: number,
@@ -58,6 +73,9 @@ export class HookRegistrarError extends Error {
   }
 }
 
+export { HookRegistrarError };
+
+/** Validate and resolve a hook id into the registry spec; bad ids throw 400 and unknown ids throw 404. Throws on invalid input. */
 function resolveSpec(hookId: string): HookSpec {
   if (!isValidHookIdShape(hookId)) {
     throw new HookRegistrarError("Invalid hook id", 400);
@@ -67,6 +85,7 @@ function resolveSpec(hookId: string): HookSpec {
   return spec;
 }
 
+/** Confirm an agent profile has all manifest paths needed for hook registration. */
 function isSupportedAgent(agent: AgentProfile): boolean {
   return (
     agent.hooksDir !== null &&
@@ -82,6 +101,7 @@ function unsupportedReasonForSpec(
   return spec.unsupportedAgents?.[agent.id] ?? null;
 }
 
+/** Block hook script writes that would escape the selected project root; throws a 400 registrar error. */
 function assertWithinProject(projectPath: string, targetPath: string): void {
   const root = resolve(projectPath);
   const target = resolve(targetPath);
@@ -105,8 +125,13 @@ function scriptExists(
   agent: AgentProfile,
   spec: HookSpec,
 ): boolean {
-  return spec.scriptFiles.every((script) =>
+  const agentScriptsExist = spec.scriptFiles.every((script) =>
     existsSync(scriptTarget(projectPath, agent, script)),
+  );
+  if (!agentScriptsExist) return false;
+  if (spec.id !== "deny-dangerous") return true;
+  return DENY_DANGEROUS_HOOK_LIB_FILES.every((file) =>
+    existsSync(join(projectPath, ".goat-flow", "hook-lib", file)),
   );
 }
 
@@ -154,7 +179,11 @@ function hookScriptResidueExists(
   spec: HookSpec,
 ): boolean {
   if (!agent.hooksDir) return false;
-  return spec.scriptFiles.some((script) =>
+  const scriptFiles =
+    spec.id === "deny-dangerous"
+      ? [...spec.scriptFiles, ...LEGACY_DENY_DANGEROUS_SCRIPT_NAMES]
+      : spec.scriptFiles;
+  return scriptFiles.some((script) =>
     existsSync(scriptTarget(projectPath, agent, script)),
   );
 }
@@ -171,6 +200,7 @@ function shouldReconcileAgent(
   );
 }
 
+/** Check for an existing hook config before writing disabled state for optional hooks. */
 function hookConfigExists(projectPath: string, agent: AgentProfile): boolean {
   return (
     agent.hookConfigFile !== null &&
@@ -191,6 +221,33 @@ function copyHookScripts(
     writeFileAtomic(target, readFileSync(source, "utf-8"), projectPath);
     chmodSync(target, 0o755);
   }
+  if (spec.id === "deny-dangerous") {
+    const targetDir = join(projectPath, ".goat-flow", "hook-lib");
+    mkdirSync(targetDir, { recursive: true });
+    for (const file of DENY_DANGEROUS_HOOK_LIB_FILES) {
+      const source = getTemplatePath(`workflow/hooks/hook-lib/${file}`);
+      const target = join(targetDir, file);
+      assertWithinProject(projectPath, target);
+      writeFileAtomic(target, readFileSync(source, "utf-8"), projectPath);
+      chmodSync(target, 0o755);
+    }
+    for (const script of LEGACY_DENY_DANGEROUS_SCRIPT_NAMES) {
+      removeScriptIfPresent(projectPath, agent, script);
+    }
+  }
+}
+
+function removeScriptIfPresent(
+  projectPath: string,
+  agent: AgentProfile,
+  script: string,
+): void {
+  const target = scriptTarget(projectPath, agent, script);
+  try {
+    unlinkSync(target);
+  } catch {
+    /* target already gone - script removal is idempotent, missing file is fine */
+  }
 }
 
 function removeHookScripts(
@@ -198,14 +255,15 @@ function removeHookScripts(
   agent: AgentProfile,
   spec: HookSpec,
 ): void {
-  const target = scriptTarget(projectPath, agent, spec.primaryScript);
-  try {
-    unlinkSync(target);
-  } catch {
-    /* already absent */
+  removeScriptIfPresent(projectPath, agent, spec.primaryScript);
+  if (spec.id === "deny-dangerous") {
+    for (const script of LEGACY_DENY_DANGEROUS_SCRIPT_NAMES) {
+      removeScriptIfPresent(projectPath, agent, script);
+    }
   }
 }
 
+/** Build the state payload for an agent that cannot host the requested hook. */
 function unsupportedAgentHookState(reason: string): HookAgentState {
   return {
     supported: false,
@@ -265,6 +323,7 @@ function agentHookState(
   return supportedAgentHookState(projectPath, agent, spec, desired);
 }
 
+/** Read persisted desired hook state, falling back to the registry default. */
 function readDesired(projectPath: string, spec: HookSpec): boolean {
   return readHookEnabled(projectPath, spec.id, spec.defaultEnabled);
 }
@@ -287,6 +346,7 @@ function reconcileHook(
   }
 }
 
+/** Snapshot one hook across all known agents for dashboard and CLI consumers. */
 function readHookState(hookId: string, projectPath: string): HookState {
   const spec = resolveSpec(hookId);
   const enabled = readDesired(projectPath, spec);
@@ -308,6 +368,9 @@ function readHookState(hookId: string, projectPath: string): HookState {
   };
 }
 
+// Snapshots the current enabled/installed state of every known hook for one
+// project; reads settings + script presence, so the result reflects on-disk
+// reality, not the in-memory registry defaults.
 export function readAllHookStates(projectPath: string): HookState[] {
   return listHookSpecs().map((spec) => readHookState(spec.id, projectPath));
 }
@@ -326,6 +389,9 @@ export function applyHookState(
   return readHookState(spec.id, projectPath);
 }
 
+// Side-effecting: rewrites each togglable hook's installed files to match its
+// persisted desired state, repairing drift (e.g. after a manual settings edit),
+// then returns the refreshed snapshot. Non-togglable hooks are left untouched.
 export function syncHookStates(projectPath: string): HookState[] {
   for (const spec of listHookSpecs()) {
     if (!spec.togglable) continue;

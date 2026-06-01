@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/**
+ * Profiles dashboard audit reads against a synthetic project to expose filesystem hot paths.
+ */
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -17,6 +20,7 @@ const CODEX_CONFIG = [
   "",
 ].join("\n");
 
+/** Parse CLI flags; throws on unknown or malformed options because profiling must not guess intent. */
 function parseArgs(argv) {
   const args = {
     project: process.cwd(),
@@ -63,6 +67,7 @@ function parseArgs(argv) {
   return args;
 }
 
+/** Print the operator-facing usage text for this profiling script. */
 function printHelp() {
   console.log(`Usage: node scripts/profile-dashboard-audit.mjs [options]
 
@@ -75,6 +80,7 @@ Options:
 `);
 }
 
+/** Fail before profiling when dashboard imports would resolve to missing built runtime files; throws with rebuild hint. */
 function ensureBuiltRuntime() {
   const required = [
     "dist/cli/server/dashboard.js",
@@ -90,14 +96,17 @@ function ensureBuiltRuntime() {
   }
 }
 
+/** Convert a built runtime path to a file URL for dynamic ESM imports. */
 function distUrl(relative) {
   return pathToFileURL(join(REPO_ROOT, relative)).href;
 }
 
+/** Build a span collector because dashboard endpoint timings do not expose lower-level filesystem costs. */
 function createProfiler() {
   const spans = [];
   return {
     spans,
+    /** Run a synchronous span and record its rounded duration even when the callback throws. */
     span(name, fn) {
       const start = performance.now();
       try {
@@ -112,6 +121,9 @@ function createProfiler() {
   };
 }
 
+/**
+ * Wrap the project filesystem because cold-path profile runs otherwise hide repeated file probes behind one elapsed-time total.
+ */
 function createCountingFS(base) {
   const counts = {
     glob: 0,
@@ -128,6 +140,7 @@ function createCountingFS(base) {
     glob: new Map(),
     existsGlob: new Map(),
   };
+  /** Aggregate glob pattern timing by method so repeated probes show up as one row. */
   const recordPattern = (name, pattern, durationMs) => {
     const existing = patterns[name].get(pattern) ?? {
       count: 0,
@@ -139,30 +152,35 @@ function createCountingFS(base) {
     existing.maxMs = Math.max(existing.maxMs, durationMs);
     patterns[name].set(pattern, existing);
   };
-  const wrap = (name) =>
-    function countedMethod(...args) {
-      counts[name] += 1;
+  /** Create a counted filesystem method wrapper while preserving the base method's return value. */
+  function wrapInstrumentedMethod(methodName) {
+    /** Count and time one filesystem method call, including glob-pattern detail when present. */
+    return function countedMethod(...args) {
+      counts[methodName] += 1;
       const start = performance.now();
       try {
-        return base[name](...args);
+        return base[methodName](...args);
       } finally {
         const durationMs = performance.now() - start;
-        timings[name] = Number((timings[name] + durationMs).toFixed(3));
-        if ((name === "glob" || name === "existsGlob") && args[0]) {
-          recordPattern(name, String(args[0]), durationMs);
+        timings[methodName] = Number(
+          (timings[methodName] + durationMs).toFixed(3),
+        );
+        if ((methodName === "glob" || methodName === "existsGlob") && args[0]) {
+          recordPattern(methodName, String(args[0]), durationMs);
         }
       }
     };
+  }
 
   return {
     fs: {
       ...base,
-      glob: wrap("glob"),
-      exists: wrap("exists"),
-      readFile: wrap("readFile"),
-      readJson: wrap("readJson"),
-      listDir: wrap("listDir"),
-      existsGlob: wrap("existsGlob"),
+      glob: wrapInstrumentedMethod("glob"),
+      exists: wrapInstrumentedMethod("exists"),
+      readFile: wrapInstrumentedMethod("readFile"),
+      readJson: wrapInstrumentedMethod("readJson"),
+      listDir: wrapInstrumentedMethod("listDir"),
+      existsGlob: wrapInstrumentedMethod("existsGlob"),
     },
     counts,
     timings,
@@ -170,6 +188,7 @@ function createCountingFS(base) {
   };
 }
 
+/** Collapse raw span events into a deterministic slowest-first summary contract. */
 function summarizeSpans(spans) {
   const summary = new Map();
   for (const span of spans) {
@@ -193,6 +212,7 @@ function summarizeSpans(spans) {
     .sort((a, b) => b.totalMs - a.totalMs);
 }
 
+/** Measure a synchronous operation and return the label, result value, and elapsed milliseconds. */
 function timeSync(label, fn) {
   const start = performance.now();
   const value = fn();
@@ -203,6 +223,7 @@ function timeSync(label, fn) {
   };
 }
 
+/** Measure an async operation and return the label, awaited value, and elapsed milliseconds. */
 async function timeAsync(label, fn) {
   const start = performance.now();
   const value = await fn();
@@ -213,10 +234,12 @@ async function timeAsync(label, fn) {
   };
 }
 
+/** Extract the per-server dashboard token from the started server URL. */
 function dashboardToken(server) {
   return new URL(server.url).searchParams.get("token") ?? "";
 }
 
+/** Fetch one dashboard audit endpoint variant and retain the small response fields needed for timing output. */
 async function fetchAudit(baseUrl, token, projectPath, fresh) {
   const params = new URLSearchParams({
     path: projectPath,
@@ -243,118 +266,14 @@ async function fetchAudit(baseUrl, token, projectPath, fresh) {
   });
 }
 
-function writeSyntheticProject(fileCount, agents = ["codex"]) {
-  const root = mkdtempSync(join(tmpdir(), "goat-flow-profile-"));
-  mkdirSync(join(root, ".goat-flow", "footguns"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "lessons"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "decisions"), { recursive: true });
-  mkdirSync(join(root, ".goat-flow", "scratchpad"), { recursive: true });
-  mkdirSync(join(root, "src"), { recursive: true });
-
-  writeFileSync(
-    join(root, ".goat-flow", "config.yaml"),
-    `version: "1.3.2"\nagents:\n${agents.map((agent) => `  - ${agent}`).join("\n")}\n`,
-  );
-  writeFileSync(
-    join(root, "package.json"),
-    '{"scripts":{"test":"node --test"}}\n',
-  );
-  writeFileSync(join(root, "tsconfig.json"), "{}\n");
-
-  if (agents.includes("claude")) {
-    mkdirSync(join(root, ".claude", "hooks"), { recursive: true });
-    mkdirSync(join(root, ".claude", "skills", "goat"), { recursive: true });
-    writeFileSync(join(root, "CLAUDE.md"), "# CLAUDE.md\n\nSynthetic.\n");
-    writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
-    writeFileSync(
-      join(root, ".claude", "hooks", "guard-common.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".claude", "hooks", "guard-repository-writes.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".claude", "hooks", "guardrails-self-test.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".claude", "skills", "goat", "SKILL.md"),
-      "---\nname: goat\n---\n# goat\n",
-    );
-  }
-
-  if (agents.includes("codex")) {
-    mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
-    mkdirSync(join(root, ".agents", "skills", "goat"), { recursive: true });
-    writeFileSync(join(root, "AGENTS.md"), "# AGENTS.md\n\nSynthetic.\n");
-    writeFileSync(join(root, ".codex", "config.toml"), CODEX_CONFIG);
-    writeFileSync(
-      join(root, ".codex", "hooks.json"),
-      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/guard-repository-writes.sh"}]}]}}\n',
-    );
-    writeFileSync(
-      join(root, ".codex", "hooks", "guard-common.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".codex", "hooks", "guard-repository-writes.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".codex", "hooks", "guardrails-self-test.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".agents", "skills", "goat", "SKILL.md"),
-      "---\nname: goat\n---\n# goat\n",
-    );
-  }
-
-  if (agents.includes("copilot")) {
-    mkdirSync(join(root, ".github", "hooks"), { recursive: true });
-    mkdirSync(join(root, ".github", "skills", "goat"), { recursive: true });
-    writeFileSync(
-      join(root, ".github", "copilot-instructions.md"),
-      "# Copilot Instructions\n\nSynthetic.\n",
-    );
-    writeFileSync(
-      join(root, ".github", "git-commit-instructions.md"),
-      "# Git Commit Instructions\n\nSynthetic.\n",
-    );
-    writeFileSync(
-      join(root, ".github", "hooks", "hooks.json"),
-      '{"hooks":{"preToolUse":[{"command":".github/hooks/guard-repository-writes.sh"}]}}\n',
-    );
-    writeFileSync(
-      join(root, ".github", "hooks", "guard-common.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".github", "hooks", "guard-repository-writes.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".github", "hooks", "guardrails-self-test.sh"),
-      "#!/usr/bin/env bash\nexit 0\n",
-    );
-    writeFileSync(
-      join(root, ".github", "skills", "goat", "SKILL.md"),
-      "---\nname: goat\n---\n# goat\n",
-    );
-  }
-
-  for (let i = 0; i < fileCount; i++) {
-    const dir = join(root, "src", `group-${Math.floor(i / 100)}`);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, `file-${i}.ts`),
-      `export const value${i} = ${i};\n`,
-    );
-  }
-  return root;
-}
-
+/**
+ * Compare fresh dashboard audit timing for one-agent and three-agent synthetic projects.
+ * Each case gets its own freshly-served dashboard and a `?fresh=true` fetch because the goal is to
+ * isolate how per-agent audit work scales with configured agent count - sharing a server or
+ * reusing the cache would let one case's warm state mask the other's cold cost. The leading
+ * `/api/health` call is intentional: it forces first-request module/route warmup so the measured
+ * audit fetch reflects steady-state work, not one-time server boot.
+ */
 async function runAgentCountComparison(serveDashboard, fileCount) {
   const cases = [
     { label: "one-agent", agents: ["codex"] },
@@ -379,6 +298,7 @@ async function runAgentCountComparison(serveDashboard, fileCount) {
   }
 }
 
+/** Print the HTTP endpoint timing summary and the slowest endpoint profile spans. */
 function printEndpointResult(result) {
   const body = result.value;
   console.log(
@@ -393,6 +313,7 @@ function printEndpointResult(result) {
   }
 }
 
+/** Print direct audit timings, filesystem counters, and pattern costs captured outside the HTTP route. */
 function printDirectProfile(result) {
   console.log(`direct timings:`);
   for (const row of result.timings) {
@@ -426,6 +347,12 @@ function printDirectProfile(result) {
   }
 }
 
+/**
+ * Flatten the per-method glob-pattern timing maps into one rows array for tabular profile output.
+ * Maintains the same slowest-first contract as summarizeSpans: rows are sorted by descending
+ * totalMs so the heaviest pattern is always row 0, and the `glob`-before-`existsGlob` method order
+ * is fixed so two runs over the same data produce a deterministic, diffable ordering.
+ */
 function summarizePatternTimings(patterns) {
   const rows = [];
   for (const method of ["glob", "existsGlob"]) {
@@ -442,6 +369,7 @@ function summarizePatternTimings(patterns) {
   return rows.sort((a, b) => b.totalMs - a.totalMs);
 }
 
+/** Run the dashboard profile flow for the requested project or generated synthetic project. */
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   ensureBuiltRuntime();
@@ -559,6 +487,105 @@ async function main() {
     stackFsTimings: stackCounted.timings,
     stackPatternTimings: summarizePatternTimings(stackCounted.patterns),
   });
+}
+
+/** Writes a temporary goat-flow project because profiling needs a repeatable large-repo audit fixture. */
+function writeSyntheticProject(fileCount, agents = ["codex"]) {
+  const root = mkdtempSync(join(tmpdir(), "goat-flow-profile-"));
+  mkdirSync(join(root, ".goat-flow", "footguns"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "lessons"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "decisions"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "scratchpad"), { recursive: true });
+  mkdirSync(join(root, ".goat-flow", "hook-lib"), { recursive: true });
+  mkdirSync(join(root, "src"), { recursive: true });
+
+  writeFileSync(
+    join(root, ".goat-flow", "config.yaml"),
+    `version: "1.3.2"\nagents:\n${agents.map((agent) => `  - ${agent}`).join("\n")}\n`,
+  );
+  writeFileSync(
+    join(root, "package.json"),
+    '{"scripts":{"test":"node --test"}}\n',
+  );
+  writeFileSync(join(root, "tsconfig.json"), "{}\n");
+  for (const file of [
+    "patterns-shell.sh",
+    "patterns-paths.sh",
+    "patterns-writes.sh",
+    "deny-dangerous-self-test.sh",
+  ]) {
+    writeFileSync(
+      join(root, ".goat-flow", "hook-lib", file),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+  }
+
+  if (agents.includes("claude")) {
+    mkdirSync(join(root, ".claude", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".claude", "skills", "goat"), { recursive: true });
+    writeFileSync(join(root, "CLAUDE.md"), "# CLAUDE.md\n\nSynthetic.\n");
+    writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
+    writeFileSync(
+      join(root, ".claude", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".claude", "skills", "goat", "SKILL.md"),
+      "---\nname: goat\n---\n# goat\n",
+    );
+  }
+
+  if (agents.includes("codex")) {
+    mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".agents", "skills", "goat"), { recursive: true });
+    writeFileSync(join(root, "AGENTS.md"), "# AGENTS.md\n\nSynthetic.\n");
+    writeFileSync(join(root, ".codex", "config.toml"), CODEX_CONFIG);
+    writeFileSync(
+      join(root, ".codex", "hooks.json"),
+      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/deny-dangerous.sh"}]}]}}\n',
+    );
+    writeFileSync(
+      join(root, ".codex", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".agents", "skills", "goat", "SKILL.md"),
+      "---\nname: goat\n---\n# goat\n",
+    );
+  }
+
+  if (agents.includes("copilot")) {
+    mkdirSync(join(root, ".github", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".github", "skills", "goat"), { recursive: true });
+    writeFileSync(
+      join(root, ".github", "copilot-instructions.md"),
+      "# Copilot Instructions\n\nSynthetic. Commit rules: `docs/coding-standards/git-commit.md`.\n",
+    );
+    mkdirSync(join(root, "docs", "coding-standards"), { recursive: true });
+    writeFileSync(
+      join(root, "docs", "coding-standards", "git-commit.md"),
+      "# Git Commit Instructions\n\nSynthetic.\n",
+    );
+    writeFileSync(
+      join(root, ".github", "hooks", "hooks.json"),
+      '{"hooks":{"preToolUse":[{"command":".github/hooks/deny-dangerous.sh"}]}}\n',
+    );
+    writeFileSync(
+      join(root, ".github", "hooks", "deny-dangerous.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+    writeFileSync(
+      join(root, ".github", "skills", "goat", "SKILL.md"),
+      "---\nname: goat\n---\n# goat\n",
+    );
+  }
+
+  for (let i = 0; i < fileCount; i++) {
+    const dir = join(root, "src", `group-${Math.floor(i / 100)}`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `file-${i}.ts`), `const value${i} = ${i};\n`);
+  }
+  return root;
 }
 
 main().catch((err) => {

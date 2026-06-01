@@ -11,11 +11,12 @@ A documentation framework that provides structured AI coding agent workflows. Pr
 | Setup prompts | `workflow/setup/` | Agent-specific setup instructions, upgrade guides |
 | Setup steps | `workflow/setup/0*.md` | Six numbered setup steps (system overview, instruction file, skills, architecture + code map, customise, final verification) |
 | Skill templates | `workflow/skills/` | Reference prompts for the 7 goat-flow skill templates (6 functional + 1 dispatcher) |
-| Hook scripts | `workflow/hooks/` | Copyable guardrail hooks (`guard-destructive-shell.sh`, `guard-secret-paths.sh`, `guard-repository-writes.sh`), central `guardrails-self-test.sh`, opt-in `gruff-code-quality.sh`, and per-agent config templates |
+| Hook scripts | `workflow/hooks/` | Copyable `deny-dangerous.sh` dispatcher, shared `hook-lib/` policy templates, opt-in `gruff-code-quality.sh`, and per-agent config templates |
 | Evaluation templates | `workflow/evaluation/` | Footguns/lessons/patterns templates |
 | Docs | `docs/` | CLI usage, dashboard guide |
 | CLI auditor | `src/cli/` | 19 build checks (15 setup scope + 4 agent scope) + 17 AI harness installation checks (5 concerns), audit-driven setup prompts, quality prompt/history/diff surfaces, multi-agent support |
-| Dashboard | `src/cli/server/` (server modules), `src/dashboard/` (HTML + views) | HTML dashboard with views for about, coming-soon, home, hooks, plans, projects, prompts, quality, settings, setup, skills, workspace; `dashboard.ts` owns bootstrap/dispatch/live reload, `dashboard-routes.ts` owns non-terminal HTTP handlers, and `dashboard-terminal.ts` owns terminal HTTP/WebSocket wiring |
+| Dashboard | `src/cli/server/` (server modules), `src/dashboard/` (HTML + views) | HTML dashboard with views for about, coming-soon, home, hooks, plans, projects, prompts, quality, settings, setup, skills, workspace; `dashboard.ts` owns bootstrap/dispatch/live reload, `dashboard-routes.ts` composes non-terminal route modules, `dashboard-{audit,project,quality,shell,skill-quality}-routes.ts` own route groups, and `dashboard-terminal.ts` owns terminal HTTP/WebSocket wiring |
+| Hook registration | `src/cli/hooks-command.ts`, `src/cli/server/hooks-registry.ts`, `src/cli/server/hook-registrar.ts`, `src/cli/server/agent-hook-writer.ts` | CLI and dashboard hook toggles backed by manifest hook specs, installed-agent detection, and per-agent hook config writers |
 | Maintenance scripts | `scripts/maintenance/` | Repo hygiene: git cleanup, secret scanning, Zone.Identifier removal |
 
 ## Data Flow
@@ -45,9 +46,14 @@ src/cli/
   audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
   server/             # Dashboard server modules:
                      #   dashboard.ts (bootstrap, dispatch, live reload)
-                     #   dashboard-routes.ts (non-terminal HTTP handlers)
+                     #   dashboard-routes.ts (non-terminal route composition)
+                     #   dashboard-audit-routes.ts, dashboard-project-routes.ts,
+                     #   dashboard-quality-routes.ts, dashboard-shell-routes.ts,
+                     #   dashboard-skill-quality-routes.ts (route groups)
                      #   dashboard-terminal.ts (terminal HTTP/WebSocket wiring)
                      #   dashboard-assets.ts (HTML shell + bundled asset loading)
+                     #   hooks-registry.ts, hook-registrar.ts, agent-hook-writer.ts
+                     #     (manifest-backed hook registration)
                      #   setup-detect.ts (setup-detection payload helpers)
                      #   terminal.ts, types.ts
   agents/             # Manifest-backed agent registry (M12)

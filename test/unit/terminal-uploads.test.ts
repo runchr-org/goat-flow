@@ -1,3 +1,6 @@
+/**
+ * Unit tests for terminal image upload validation, limits, and persistence.
+ */
 import { describe, it } from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +18,7 @@ import { join, resolve as resolvePath } from "node:path";
 
 /** Symlink with EPERM-skip for Windows hosts that block unprivileged symlinks. */
 function symlinkOrSkip(
-  t: TestContext,
+  testContext: TestContext,
   target: string,
   link: string,
   type?: "dir" | "file" | "junction",
@@ -28,7 +31,7 @@ function symlinkOrSkip(
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "EPERM"
     ) {
-      t.skip(
+      testContext.skip(
         "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
       );
       return false;
@@ -57,9 +60,25 @@ const WEBP_HEADER = Buffer.concat([
   Buffer.from([0x00, 0x00, 0x00, 0x00]),
   Buffer.from("WEBP"),
 ]);
+type UploadDecodeResult = ReturnType<typeof decodeUploadFile>;
+type DecodedUpload = Extract<UploadDecodeResult, { ok: true }>;
+type UploadDecodeFailure = Extract<UploadDecodeResult, { ok: false }>;
 
+/** Build a minimal binary image with a chosen signature and padded body. */
 function makeFakeImage(header: Buffer, bodyBytes = 32): Buffer {
   return Buffer.concat([header, Buffer.alloc(bodyBytes, 0xff)]);
+}
+
+/** Return a decoded upload after asserting the payload was accepted. */
+function assertUploadOk(result: UploadDecodeResult): DecodedUpload {
+  assert.equal(result.ok, true);
+  return result as DecodedUpload;
+}
+
+/** Return a decoded upload failure after asserting the payload was rejected. */
+function assertUploadFailure(result: UploadDecodeResult): UploadDecodeFailure {
+  assert.equal(result.ok, false);
+  return result as UploadDecodeFailure;
 }
 
 describe("sanitizeUploadFilename", () => {
@@ -113,11 +132,9 @@ describe("decodeUploadFile", () => {
   it("accepts a valid base64-encoded PNG", () => {
     const png = makeFakeImage(PNG_HEADER);
     const result = decodeUploadFile("photo.png", png.toString("base64"));
-    assert.equal(result.ok, true);
-    if (result.ok) {
-      assert.equal(result.sanitized.ext, ".png");
-      assert.equal(result.bytes.length, png.length);
-    }
+    const decoded = assertUploadOk(result);
+    assert.equal(decoded.sanitized.ext, ".png");
+    assert.equal(decoded.bytes.length, png.length);
   });
 
   it("rejects an unsupported extension", () => {
@@ -125,10 +142,7 @@ describe("decodeUploadFile", () => {
       "note.txt",
       Buffer.from("hi").toString("base64"),
     );
-    assert.equal(result.ok, false);
-    if (!result.ok) {
-      assert.match(result.reason, /Unsupported extension/);
-    }
+    assert.match(assertUploadFailure(result).reason, /Unsupported extension/);
   });
 
   it("rejects content whose magic bytes do not match any supported format", () => {
@@ -136,10 +150,7 @@ describe("decodeUploadFile", () => {
       "fake.png",
       Buffer.from("plain text payload").toString("base64"),
     );
-    assert.equal(result.ok, false);
-    if (!result.ok) {
-      assert.match(result.reason, /supported image format/);
-    }
+    assert.match(assertUploadFailure(result).reason, /supported image format/);
   });
 
   it("trusts magic bytes over a misleading extension", () => {
@@ -147,10 +158,7 @@ describe("decodeUploadFile", () => {
     const result = decodeUploadFile("trick.gif", png.toString("base64"));
     // .gif extension passes sanitize because it is in the allowed set, but
     // the bytes are PNG. The decoder rewrites the saved extension to match.
-    assert.equal(result.ok, true);
-    if (result.ok) {
-      assert.equal(result.sanitized.ext, ".png");
-    }
+    assert.equal(assertUploadOk(result).sanitized.ext, ".png");
   });
 
   it("rejects an empty payload", () => {
@@ -192,14 +200,14 @@ describe("uploadDirForSession", () => {
     );
   });
 
-  it("rejects upload paths that escape through symlinked components", (t) => {
+  it("rejects upload paths that escape through symlinked components", (testContext) => {
     const target = mkdtempSync(join(tmpdir(), "gf-upload-target-"));
     const outside = mkdtempSync(join(tmpdir(), "gf-upload-outside-"));
     try {
       mkdirSync(join(target, ".goat-flow", "logs"), { recursive: true });
       if (
         !symlinkOrSkip(
-          t,
+          testContext,
           outside,
           join(target, ".goat-flow", "logs", "uploads"),
           "dir",
@@ -222,9 +230,9 @@ describe("uploadDirForSession", () => {
 
 describe("persistUploads", () => {
   it("writes accepted PNGs to the upload directory and rejects non-images", () => {
-    const tmp = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
     try {
-      const dir = uploadDirForSession(tmp, "sess1");
+      const dir = uploadDirForSession(tempDir, "sess1");
       const png = makeFakeImage(PNG_HEADER);
       const text = Buffer.from("not an image");
       const result = persistUploads(dir, [
@@ -247,14 +255,14 @@ describe("persistUploads", () => {
       const onDisk = readFileSync(savedPath);
       assert.deepEqual(new Uint8Array(onDisk), new Uint8Array(png));
     } finally {
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it("does not create the upload directory when every file is rejected", () => {
-    const tmp = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "gf-upload-test-"));
     try {
-      const dir = uploadDirForSession(tmp, "sess2");
+      const dir = uploadDirForSession(tempDir, "sess2");
       const result = persistUploads(dir, [
         { name: "bad.txt", data: Buffer.from("hi").toString("base64") },
       ]);
@@ -262,7 +270,7 @@ describe("persistUploads", () => {
       assert.equal(result.rejected.length, 1);
       assert.throws(() => statSync(dir.absPath), /ENOENT/);
     } finally {
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 });
@@ -311,6 +319,7 @@ describe("buildAttachmentNote", () => {
 
 describe("upload count limit", () => {
   it("exposes the documented max-files constant", () => {
-    assert.equal(TERMINAL_UPLOAD_MAX_FILES, 5);
+    const expectedUploadMaxFiles = 5;
+    assert.equal(TERMINAL_UPLOAD_MAX_FILES, expectedUploadMaxFiles);
   });
 });

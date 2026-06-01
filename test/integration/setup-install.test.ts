@@ -1,94 +1,23 @@
 /**
- * Integration tests for deterministic setup/install scaffolding.
+ * setup --apply installer behaviour: scaffolds config.yaml without an agents allowlist and manages
+ * that allowlist on existing configs (removing single/multi-agent lists or a null value, leaving an
+ * absent one absent), prunes orphaned artifacts on upgrade (legacy deny-dangerous self-test files,
+ * 1.8.0 split guard hooks and their registrations, stale per-skill reference files), and does not
+ * duplicate an existing node_modules gitignore entry.
  */
-import { after, describe, it } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
-
-const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
-const disposables: string[] = [];
-const gitAvailable =
-  spawnSync("git", ["--version"], {
-    encoding: "utf-8",
-  }).status === 0;
-
-after(() => {
-  for (const dir of disposables) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-function makeTempProject(): string {
-  const root = mkdtempSync(join(tmpdir(), "goat-flow-setup-install-"));
-  disposables.push(root);
-  return root;
-}
-
-function runInstaller(root: string, ...extraArgs: string[]) {
-  return spawnSync(
-    "bash",
-    [
-      join(PROJECT_ROOT, "workflow", "install-goat-flow.sh"),
-      root,
-      ...extraArgs,
-    ],
-    {
-      cwd: PROJECT_ROOT,
-      encoding: "utf-8",
-      timeout: 30000,
-    },
-  );
-}
-
-function runCliInstaller(root: string, ...extraArgs: string[]) {
-  return spawnSync(
-    "node",
-    [
-      "--import",
-      "tsx",
-      join(PROJECT_ROOT, "src", "cli", "cli.ts"),
-      "install",
-      root,
-      ...extraArgs,
-    ],
-    {
-      cwd: PROJECT_ROOT,
-      encoding: "utf-8",
-      timeout: 30000,
-    },
-  );
-}
-
-function git(root: string, args: string[]): void {
-  const result = spawnSync("git", args, {
-    cwd: root,
-    encoding: "utf-8",
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: "GOAT Test",
-      GIT_AUTHOR_EMAIL: "goat@example.test",
-      GIT_COMMITTER_NAME: "GOAT Test",
-      GIT_COMMITTER_EMAIL: "goat@example.test",
-    },
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-}
-
-function addCommit(root: string, subject: string): void {
-  writeFileSync(join(root, "history.txt"), `${subject}\n`, { flag: "a" });
-  git(root, ["add", "history.txt"]);
-  git(root, ["commit", "-m", subject]);
-}
+  addCommit,
+  git,
+  gitAvailable,
+  makeTempProject,
+  runCliInstaller,
+  runInstaller,
+} from "./setup-install.helpers.js";
 
 describe("setup --apply installer", () => {
   it("scaffolds config.yaml without an agents allowlist", () => {
@@ -108,17 +37,113 @@ describe("setup --apply installer", () => {
       true,
     );
     assert.equal(
-      existsSync(join(root, ".codex", "hooks", "guard-common.sh")),
+      existsSync(join(root, ".codex", "hooks", "deny-dangerous.sh")),
       true,
     );
     assert.equal(
-      existsSync(join(root, ".codex", "hooks", "guard-repository-writes.sh")),
+      existsSync(join(root, ".goat-flow", "hook-lib", "patterns-shell.sh")),
       true,
     );
     assert.equal(
-      existsSync(join(root, ".codex", "hooks", "guardrails-self-test.sh")),
+      existsSync(
+        join(root, ".goat-flow", "hook-lib", "deny-dangerous-self-test.sh"),
+      ),
       true,
     );
+  });
+
+  it("prunes legacy deny-dangerous self-test files during upgrades", () => {
+    const root = makeTempProject();
+    mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
+    writeFileSync(
+      join(root, ".codex", "hooks", "deny-dangerous.self-test.sh"),
+      "#!/usr/bin/env bash\nexit 0\n",
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    assert.equal(
+      existsSync(join(root, ".codex", "hooks", "deny-dangerous.self-test.sh")),
+      false,
+    );
+    assert.equal(
+      existsSync(join(root, ".codex", "hooks", "deny-dangerous.sh")),
+      true,
+    );
+    assert.equal(
+      existsSync(
+        join(root, ".goat-flow", "hook-lib", "deny-dangerous-self-test.sh"),
+      ),
+      true,
+    );
+    assert.match(result.stdout, /removed stale hook/);
+  });
+
+  // Fixture writes the 1.8.0 split-hook layout because upgrade pruning must collapse files and registrations.
+  it("prunes 1.8.0 split guard hook files and registrations during upgrades", () => {
+    const root = makeTempProject();
+    // Fixture recreates the old split-hook layout so upgrade pruning proves both
+    // files and registrations collapse to the single dispatcher.
+    mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
+    mkdirSync(join(root, ".goat-flow"), { recursive: true });
+    for (const file of [
+      "guard-common.sh",
+      "guard-destructive-shell.sh",
+      "guard-secret-paths.sh",
+      "guard-repository-writes.sh",
+      "guardrails-self-test.sh",
+    ]) {
+      writeFileSync(
+        join(root, ".codex", "hooks", file),
+        "#!/usr/bin/env bash\n",
+      );
+    }
+    writeFileSync(
+      join(root, ".codex", "hooks.json"),
+      '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":".codex/hooks/guard-repository-writes.sh"}]}]}}\n',
+    );
+    writeFileSync(
+      join(root, ".goat-flow", "config.yaml"),
+      [
+        'version: "1.8.0"',
+        "hooks:",
+        "  guard-destructive-shell:",
+        "    enabled: true",
+        "  guard-secret-paths:",
+        "    enabled: true",
+        "  guard-repository-writes:",
+        "    enabled: true",
+        "",
+      ].join("\n"),
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    for (const file of [
+      "guard-common.sh",
+      "guard-destructive-shell.sh",
+      "guard-secret-paths.sh",
+      "guard-repository-writes.sh",
+      "guardrails-self-test.sh",
+    ]) {
+      assert.equal(existsSync(join(root, ".codex", "hooks", file)), false);
+    }
+    const hooksJson = readFileSync(join(root, ".codex", "hooks.json"), "utf-8");
+    assert.doesNotMatch(hooksJson, /guard-repository-writes/);
+    assert.match(hooksJson, /deny-dangerous\.sh/);
+    const config = readFileSync(
+      join(root, ".goat-flow", "config.yaml"),
+      "utf-8",
+    );
+    assert.doesNotMatch(
+      config,
+      /guard-(destructive-shell|secret-paths|repository-writes)/,
+    );
+    assert.match(config, /deny-dangerous:\n    enabled: true/);
+    assert.match(result.stdout, /removed stale hook/);
+    assert.match(result.stdout, /migrated deny hook registration/);
   });
 
   it("prunes stale per-skill reference files during upgrades", () => {
@@ -265,7 +290,7 @@ describe("setup --apply installer", () => {
       assert.equal(result.status, 0, result.stderr || result.stdout);
 
       const guidance = readFileSync(
-        join(root, ".github", "git-commit-instructions.md"),
+        join(root, "docs", "coding-standards", "git-commit.md"),
         "utf-8",
       );
       assert.match(guidance, /generated from recent git history/);
@@ -276,374 +301,3 @@ describe("setup --apply installer", () => {
 });
 
 // ── Bug 1: Config version stuck on upgrade ──────────────────────────────
-
-describe("--update-config-version flag", () => {
-  it("updates only the version field in existing config.yaml", () => {
-    const root = makeTempProject();
-    const configDir = join(root, ".goat-flow");
-    mkdirSync(configDir, { recursive: true });
-    writeFileSync(
-      join(configDir, "config.yaml"),
-      'version: "1.4.3"\n\nagents:\n  - claude\n  - codex\n\nskills:\n  install: all\n\ncustom_key: preserve_me\n',
-    );
-
-    const result = runInstaller(
-      root,
-      "--agent",
-      "claude",
-      "--update-config-version",
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.doesNotMatch(config, /1\.4\.3/, "old version should be replaced");
-    assert.doesNotMatch(config, /^agents:/m, "agents list must be removed");
-    assert.match(
-      config,
-      /custom_key: preserve_me/,
-      "custom keys must be preserved",
-    );
-  });
-
-  it("preserves config.yaml version when --update-config-version is not passed", () => {
-    const root = makeTempProject();
-    const configDir = join(root, ".goat-flow");
-    mkdirSync(configDir, { recursive: true });
-    writeFileSync(
-      join(configDir, "config.yaml"),
-      'version: "1.3.0"\n\nagents:\n  - claude\n',
-    );
-
-    const result = runInstaller(root, "--agent", "claude");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(configDir, "config.yaml"), "utf-8");
-    assert.match(config, /1\.3\.0/, "version should remain unchanged");
-    assert.doesNotMatch(config, /^agents:/m, "agents list should be removed");
-  });
-});
-
-// ── Bug 2: Settings skip warning ────────────────────────────────────────
-
-describe("settings skip warning", () => {
-  it("warns when guardrail hooks are installed but settings.json was skipped", () => {
-    const root = makeTempProject();
-    const claudeDir = join(root, ".claude");
-    mkdirSync(claudeDir, { recursive: true });
-    writeFileSync(join(claudeDir, "settings.json"), '{"permissions":{}}');
-
-    const result = runInstaller(root, "--agent", "claude");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    assert.match(
-      result.stdout,
-      /Settings file was preserved/,
-      "should warn about preserved settings",
-    );
-    assert.match(
-      result.stdout,
-      /guardrail hooks.*were installed but may not be/i,
-      "should mention the guardrail hooks may not be registered",
-    );
-  });
-});
-
-describe("codex config migration", () => {
-  it("migrates deprecated codex_hooks without overwriting custom config", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      'model = "gpt-5"\napproval_policy = "on-request"\n\n[features]\ncodex_hooks = true\n',
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.match(config, /model = "gpt-5"/);
-    assert.match(config, /approval_policy = "on-request"/);
-    assert.match(config, /\[features\]\nhooks = true\n/);
-    assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
-    assert.match(result.stdout, /migrated:.*deprecated hooks flag/);
-  });
-
-  it("migrates invalid filesystem permission globs in place", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'model = "gpt-5"',
-        'default_permissions = "goat-flow"',
-        "",
-        "[features]",
-        "hooks = true",
-        "",
-        "[permissions.goat-flow.filesystem]",
-        "glob_scan_max_depth = 3",
-        "",
-        '[permissions.goat-flow.filesystem.":workspace_roots"]',
-        '"." = "write"',
-        '"**/*.key" = "none"',
-        '"*.pem" = "none"',
-        '"secrets/**" = "none"',
-        "",
-        "[other]",
-        'preserved = "yes"',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.doesNotMatch(config, /"\*\*\/\*\.key"/);
-    assert.doesNotMatch(config, /"\*\.pem"/);
-    assert.match(config, /":workspace_roots"\s*=\s*\{[^}]*"secrets\/\*\*"/);
-    assert.match(config, /model = "gpt-5"/);
-    assert.match(config, /\[other\]\s*\npreserved = "yes"/);
-    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
-  });
-
-  it("migrates the legacy :project_roots anchor to :workspace_roots", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'default_permissions = "goat-flow"',
-        "",
-        "[features]",
-        "hooks = true",
-        "",
-        "[permissions.goat-flow.filesystem]",
-        "glob_scan_max_depth = 3",
-        "",
-        '[permissions.goat-flow.filesystem.":project_roots"]',
-        '"." = "write"',
-        '"secrets/**" = "none"',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.doesNotMatch(config, /:project_roots/);
-    assert.match(config, /":workspace_roots"\s*=\s*\{/);
-  });
-
-  it("migrates the active custom Codex permission profile", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'default_permissions = "custom"',
-        "",
-        "[permissions.custom.filesystem]",
-        "glob_scan_max_depth = 3",
-        "",
-        '[permissions.custom.filesystem.":project_roots"]',
-        '"." = "write"',
-        '"*.pem" = "none"',
-        '"secrets/**" = "none"',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.match(config, /default_permissions = "custom"/);
-    assert.match(config, /\[permissions\.custom\.filesystem\]/);
-    assert.doesNotMatch(config, /\[permissions\.goat-flow\.filesystem\]/);
-    assert.doesNotMatch(config, /:project_roots/);
-    assert.doesNotMatch(config, /"\*\.pem"/);
-    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
-  });
-
-  it("preserves a custom valid /** deny entry when no invalid entries are present", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'default_permissions = "goat-flow"',
-        "",
-        "[permissions.goat-flow.filesystem]",
-        "glob_scan_max_depth = 3",
-        '":workspace_roots" = { "." = "write", "secrets/**" = "none", "private/**" = "none" }',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.match(config, /"private\/\*\*"\s*=\s*"none"/);
-    assert.doesNotMatch(
-      result.stdout,
-      /migrated:.*invalid filesystem permissions/,
-    );
-  });
-
-  it("migrates invalid globs inside an inline :workspace_roots table", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'default_permissions = "goat-flow"',
-        "",
-        "[permissions.goat-flow.filesystem]",
-        "glob_scan_max_depth = 3",
-        '":workspace_roots" = { "." = "write", "*.pem" = "none", "secrets/**" = "none" }',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.doesNotMatch(config, /"\*\.pem"/);
-    assert.match(config, /":workspace_roots"\s*=\s*\{[^}]*"secrets\/\*\*"/);
-    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
-  });
-
-  it("does not treat comment-only :project_roots references as legacy anchors", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'default_permissions = "goat-flow"',
-        "",
-        "[permissions.goat-flow.filesystem]",
-        "glob_scan_max_depth = 3",
-        "# legacy :project_roots anchor was replaced with :workspace_roots",
-        '":workspace_roots" = { "." = "write", "secrets/**" = "none" }',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.match(config, /# legacy :project_roots anchor was replaced/);
-    assert.doesNotMatch(
-      result.stdout,
-      /migrated:.*invalid filesystem permissions/,
-    );
-  });
-
-  it("post-install validator does not flag a glob 'none' entry in an unrelated table", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      [
-        'default_permissions = "goat-flow"',
-        "",
-        "[permissions.goat-flow.filesystem]",
-        "glob_scan_max_depth = 3",
-        '":workspace_roots" = { "." = "write", "secrets/**" = "none" }',
-        "",
-        "[my_custom_section]",
-        '"*.pem" = "none"',
-        "",
-      ].join("\n"),
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.doesNotMatch(
-      result.stderr,
-      /still has invalid Codex permission entries/,
-    );
-  });
-
-  it("removes deprecated codex_hooks when hooks is already present", () => {
-    const root = makeTempProject();
-    const codexDir = join(root, ".codex");
-    mkdirSync(codexDir, { recursive: true });
-    writeFileSync(
-      join(codexDir, "config.toml"),
-      "[features]\nhooks = true\ncodex_hooks = true\n",
-    );
-
-    const result = runInstaller(root, "--agent", "codex");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.equal(config.match(/^hooks = true$/gm)?.length, 1);
-    assert.doesNotMatch(config, /^\s*codex_hooks\s=/m);
-  });
-});
-
-// ── Bug 3: Deprecated skill cleanup ─────────────────────────────────────
-
-describe("--clean-deprecated flag", () => {
-  it("removes deprecated skill directories when flag is passed", () => {
-    const root = makeTempProject();
-    // Simulate a v0.9 project with deprecated skills
-    const deprecatedDirs = ["goat-audit", "goat-test", "goat-investigate"];
-    for (const name of deprecatedDirs) {
-      const dir = join(root, ".claude", "skills", name);
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(join(dir, "SKILL.md"), `# ${name}`);
-    }
-
-    const result = runInstaller(
-      root,
-      "--agent",
-      "claude",
-      "--clean-deprecated",
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    for (const name of deprecatedDirs) {
-      assert.equal(
-        existsSync(join(root, ".claude", "skills", name)),
-        false,
-        `deprecated skill ${name} should be removed`,
-      );
-    }
-    assert.equal(
-      existsSync(join(root, ".claude", "skills", "goat", "SKILL.md")),
-      true,
-      "canonical skills should still be installed",
-    );
-  });
-
-  it("does not remove deprecated skills without the flag", () => {
-    const root = makeTempProject();
-    const deprecatedDir = join(root, ".claude", "skills", "goat-audit");
-    mkdirSync(deprecatedDir, { recursive: true });
-    writeFileSync(join(deprecatedDir, "SKILL.md"), "# goat-audit");
-
-    const result = runInstaller(root, "--agent", "claude");
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    assert.equal(
-      existsSync(deprecatedDir),
-      true,
-      "deprecated skill should be preserved without flag",
-    );
-  });
-});

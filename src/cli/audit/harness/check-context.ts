@@ -10,7 +10,7 @@ import type {
   HarnessCheckDetails,
 } from "../types.js";
 import type { CheckEvidence } from "../provenance-types.js";
-import { getRequiredInstructionSections } from "../../manifest/manifest.js";
+import { getRequiredInstructionSections } from "../../manifest/manifest-json.js";
 import { pass, fail, extractBacktickPaths } from "./helpers.js";
 
 /** The execution-loop section label the manifest declares. Used by

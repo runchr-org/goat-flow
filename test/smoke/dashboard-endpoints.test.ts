@@ -4,7 +4,7 @@
  * dashboard exports plus terminal WebSocket boundary behavior that does not
  * require launching a real PTY.
  */
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -26,12 +26,17 @@ const childProcess =
 
 type TerminalWebSocket = Parameters<TerminalManager["attachWebSocket"]>[1];
 
+/** Minimal PTY surface TerminalManager needs for endpoint smoke tests. */
 interface TestPty {
+  /** Writes terminal input sent through the fake PTY. */
   write(data: string): void;
+  /** Record terminal resize requests without opening a real PTY. */
   resize(cols: number, rows: number): void;
+  /** Terminate the fake PTY lifecycle used by shutdown assertions. */
   kill(): void;
 }
 
+/** Mutable terminal session shape used to seed TerminalManager internals. */
 interface TestTerminalSession {
   id: string;
   status: "active" | "terminated";
@@ -48,6 +53,7 @@ interface TestTerminalSession {
   detachBufferSize: number;
 }
 
+/** Private TerminalManager fields initialized directly for focused tests. */
 interface TestTerminalManagerInternals {
   sessions: Map<string, TestTerminalSession>;
   runnerPaths: Map<string, string>;
@@ -64,27 +70,32 @@ class FakeWebSocket {
   closed = false;
   private handlers = new Map<string, Array<(raw: Buffer | string) => void>>();
 
+  /** Capture serialized server messages for WebSocket boundary assertions. */
   send(payload: string): void {
     this.sent.push(JSON.parse(payload) as ServerMessage);
   }
 
+  /** Move the fake socket to closed state and notify close listeners. */
   close(): void {
     this.closed = true;
     this.emit("close", "");
   }
 
+  /** Register a fake socket listener using the server-facing callback shape. */
   on(event: string, handler: (raw: Buffer | string) => void): void {
     const existing = this.handlers.get(event) ?? [];
     existing.push(handler);
     this.handlers.set(event, existing);
   }
 
+  /** Dispatch a fake socket event to registered terminal handlers. */
   emit(event: string, raw: Buffer | string): void {
     for (const handler of this.handlers.get(event) ?? []) {
       handler(raw);
     }
   }
 
+  /** Cast this focused fake to the WebSocket subset TerminalManager consumes. */
   asTerminalSocket(): TerminalWebSocket {
     return this as unknown as TerminalWebSocket;
   }
@@ -96,6 +107,20 @@ function managerInternals(
   return manager as unknown as TestTerminalManagerInternals;
 }
 
+/**
+ * Enable mocked timers for TerminalManager launch-prompt timing tests.
+ *
+ * @returns the node:test timer controller, with Date and timer APIs mocked
+ */
+function enableTerminalMockTimers(): typeof mock.timers {
+  mock.timers.enable({
+    apis: ["Date", "setTimeout", "setInterval"],
+    now: 0,
+  });
+  return mock.timers;
+}
+
+/** Build a TerminalManager instance with explicit test-owned internals. */
 function makeManager(): TerminalManager {
   const manager = Object.create(TerminalManager.prototype) as TerminalManager;
   const internals = managerInternals(manager);
@@ -108,6 +133,7 @@ function makeManager(): TerminalManager {
   return manager;
 }
 
+/** Create an active session fixture plus arrays that record PTY calls. */
 function makeSession(overrides: Partial<TestTerminalSession> = {}): {
   session: TestTerminalSession;
   writes: string[];
@@ -116,8 +142,11 @@ function makeSession(overrides: Partial<TestTerminalSession> = {}): {
   const writes: string[] = [];
   const resizes: Array<{ cols: number; rows: number }> = [];
   const pty: TestPty = {
+    /** Capture input routed from decoded WebSocket messages. */
     write: (data) => writes.push(data),
+    /** Capture clamped resize dimensions routed from WebSocket messages. */
     resize: (cols, rows) => resizes.push({ cols, rows }),
+    /** Keep shutdown paths synchronous for session-list tests. */
     kill: () => undefined,
   };
   const session: TestTerminalSession = {
@@ -139,6 +168,7 @@ function makeSession(overrides: Partial<TestTerminalSession> = {}): {
   return { session, writes, resizes };
 }
 
+/** Create the fake spawned PTY used by prompt-delivery timing tests. */
 function makeSpawnedPty(): {
   pty: TestPty & {
     onData(handler: (data: string) => void): void;
@@ -147,6 +177,7 @@ function makeSpawnedPty(): {
     ): void;
   };
   writes: string[];
+  /** Emit fake runner output into TerminalManager's PTY data handler. */
   emitData(data: string): void;
 } {
   const writes: string[] = [];
@@ -158,16 +189,22 @@ function makeSpawnedPty(): {
   return {
     writes,
     pty: {
+      /** Capture delayed prompt input written into the spawned PTY. */
       write: (data) => writes.push(data),
+      /** Ignore resize calls because prompt timing tests do not inspect them. */
       resize: () => undefined,
+      /** Route termination through the registered exit handler. */
       kill: () => exitHandler({ exitCode: 0 }),
+      /** Store the data handler so tests can emit runner output deterministically. */
       onData: (handler) => {
         dataHandler = handler;
       },
+      /** Store the exit handler so fake kill mirrors node-pty shutdown. */
       onExit: (handler) => {
         exitHandler = handler;
       },
     },
+    /** Emit fake runner output into TerminalManager's PTY data handler. */
     emitData(data: string): void {
       dataHandler(data);
     },
@@ -296,6 +333,7 @@ describe("terminal exports", () => {
   });
 
   it("waits for runner output to settle before initial prompt delivery", async () => {
+    const timers = enableTerminalMockTimers();
     const manager = makeManager();
     const internals = managerInternals(manager);
     const spawned = makeSpawnedPty();
@@ -308,21 +346,23 @@ describe("terminal exports", () => {
     try {
       await manager.create("review this", PROJECT_ROOT, "claude");
       spawned.emitData("runner banner\n");
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+      timers.tick(100);
       spawned.emitData("runner prompt\n");
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 80));
+      timers.tick(80);
 
       assert.deepStrictEqual(spawned.writes, []);
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 120));
+      timers.tick(70);
       assert.deepStrictEqual(spawned.writes, [
         "\x1b[200~review this\x1b[201~\r",
       ]);
     } finally {
       manager.shutdown();
+      timers.reset();
     }
   });
 
   it("uses the fallback deadline when runner output keeps updating", async () => {
+    const timers = enableTerminalMockTimers();
     const manager = makeManager();
     const internals = managerInternals(manager);
     const spawned = makeSpawnedPty();
@@ -336,7 +376,9 @@ describe("terminal exports", () => {
     try {
       await manager.create("review this", PROJECT_ROOT, "claude");
       interval = setInterval(() => spawned.emitData("status redraw\n"), 100);
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5600));
+      timers.tick(4999);
+      assert.deepStrictEqual(spawned.writes, []);
+      timers.tick(1);
 
       assert.deepStrictEqual(spawned.writes, [
         "\x1b[200~review this\x1b[201~\r",
@@ -344,6 +386,7 @@ describe("terminal exports", () => {
     } finally {
       if (interval) clearInterval(interval);
       manager.shutdown();
+      timers.reset();
     }
   });
 

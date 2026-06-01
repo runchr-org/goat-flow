@@ -1,22 +1,22 @@
 ---
 category: hooks
-last_reviewed: 2026-05-27
+last_reviewed: 2026-06-01
 ---
 
-**Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: guardrails self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `guard-secret-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
+**Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: deny-dangerous self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `patterns-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
 
 ## Footgun: Hook toggles can scaffold uninstalled agent surfaces
 
 **Status:** active | **Created:** 2026-05-27 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** Running a hook toggle against a clean target creates agent config and hook files for agents the target never opted into. That pollution can make setup and audit state look agent-aware when the project only asked to change one hook toggle.
+**Regression symptom:** A hook toggle against a clean target created agent config and hook files for agents the target never opted into. That pollution made setup and audit state look agent-aware when the project only asked to change one hook toggle.
 
-**Why it happens:** A registrar loop over supported agents treats support metadata as installation evidence. The hook config writer also treats a missing JSON config as `{}`, so an unguarded disable or enable can create `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.github/hooks/hooks.json`, and hook script directories from nothing.
+**Why it happened:** A registrar loop over supported agents treated support metadata as installation evidence. The hook config writer also treated a missing JSON config as `{}`, so an unguarded disable or enable could create `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.github/hooks/hooks.json`, and hook script directories from nothing.
 
 **Evidence:**
-- Pre-fix runtime probe: `node --import tsx src/cli/cli.ts hooks disable guard-secret-paths <clean-temp-dir>` created `.agents/hooks.json`, `.claude/settings.json`, `.codex/hooks.json`, `.github/hooks/hooks.json`, and `.goat-flow/config.yaml`.
-- Pre-fix runtime probe: `node --import tsx src/cli/cli.ts hooks enable guard-secret-paths <clean-temp-dir>` created hook scripts under `.agents/hooks/`, `.claude/hooks/`, `.codex/hooks/`, and `.github/hooks/`.
-- Current anchors: `src/cli/server/hook-registrar.ts` (search: `shouldReconcileAgent`) gates writes on detected installed surfaces or existing hook residue; `test/unit/hook-registrar.test.ts` (search: `does not scaffold uninstalled agent surfaces`) locks the clean-target regression.
+- Pre-fix runtime probe: `node --import tsx src/cli/cli.ts hooks disable deny-dangerous <clean-temp-dir>` created `.agents/hooks.json`, `.claude/settings.json`, `.codex/hooks.json`, `.github/hooks/hooks.json`, and `.goat-flow/config.yaml`.
+- Pre-fix runtime probe: `node --import tsx src/cli/cli.ts hooks enable deny-dangerous <clean-temp-dir>` created hook scripts under `.agents/hooks/`, `.claude/hooks/`, `.codex/hooks/`, and `.github/hooks/`.
+- Current guard anchors: `src/cli/server/hook-registrar.ts` (search: `shouldReconcileAgent`) gates writes on detected installed surfaces or existing hook residue; `test/unit/hook-registrar.test.ts` (search: `does not scaffold uninstalled agent surfaces`) locks the clean-target regression.
 
 **Prevention:**
 1. Treat hook support and agent installation as different facts. Support comes from the manifest; installation must come from target-project surfaces.
@@ -27,13 +27,13 @@ last_reviewed: 2026-05-27
 
 **Status:** active | **Created:** 2026-05-26 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** A hook split looks cleaner because `guard-destructive-shell.sh`, `guard-secret-paths.sh`, and `guard-repository-writes.sh` each block the obvious happy-path examples (`rm -rf /`, `cat .env`, `git push`). The pre-M10 monolithic guardrail carried much broader parser coverage, though: wrapper normalization, quoted read-only search literals, `git -C` / `git -c` push forms, global `gh --repo` grammar, split-quoted `.env`, `.envrc`, safe-scoped recursive deletion, and structured Copilot/Antigravity payload variants. A small split can pass smoke tests while re-opening old bypasses and false positives.
+**Symptoms:** A hook split looks cleaner because `patterns-shell.sh`, `patterns-paths.sh`, and `patterns-writes.sh` each block the obvious happy-path examples (`rm -rf /`, `cat .env`, `git push`). The pre-M10 monolithic guardrail carried much broader parser coverage, though: wrapper normalization, quoted read-only search literals, `git -C` / `git -c` push forms, global `gh --repo` grammar, split-quoted `.env`, `.envrc`, safe-scoped recursive deletion, and structured Copilot/Antigravity payload variants. A small split can pass smoke tests while re-opening old bypasses and false positives.
 
 **Evidence:**
 - Git history before the split had a monolithic workflow guard with 1,997 lines and a paired self-test with 629 lines; the first split replaced them with three small guards totaling 393 lines plus a 195-line self-test.
 - Runtime probes before the restoration allowed `git -C /tmp push origin main`, `git -c core.sshCommand=foo push origin main`, `/usr/bin/git push origin main`, `gh --repo owner/repo issue comment ...`, `gh workflow run deploy.yml`, `rm -r src`, `cat .envrc`, `cat '.'env`, and `python3 -c 'print(open(".env").read())'`.
 - Runtime probes before the restoration also blocked allowed commands such as `rm -rf ./node_modules`, `rg "&& rm -rf /" src/`, `bash -c "echo hello"`, and `python -c 'print(1)'`.
-- Current anchors: `workflow/hooks/guard-repository-writes.sh` (search: `is_gh_write_operation`), `workflow/hooks/guard-destructive-shell.sh` (search: `rm_has_recursive`), `workflow/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`), and `workflow/hooks/guardrails-self-test.sh` (search: `git -C push`, `quoted destructive search literal`).
+- Current anchors: `workflow/hooks/hook-lib/patterns-writes.sh` (search: `is_gh_write_operation`), `workflow/hooks/hook-lib/patterns-shell.sh` (search: `rm_has_recursive`), `workflow/hooks/hook-lib/patterns-paths.sh` (search: `is_secret_path_touch`), and `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `git -C push`, `quoted destructive search literal`).
 
 **Prevention:**
 1. Treat guardrail splits as parser migrations, not simple renames. Port the old parser normalization and the old false-positive corpus before deleting the monolith.
@@ -47,17 +47,55 @@ last_reviewed: 2026-05-27
 
 **Symptoms:** Direct hook self-tests pass, but an agent session reports a PreToolUse failure with exit 126 or 127 before any `BLOCKED:` or deny JSON response appears. The script exists and works when launched manually, so the failure looks like a runtime mystery instead of a stale or unsupported command string.
 
-**Why it happens:** Agent configs execute registered strings, not the abstract hook file. A stale path, lost executable bit, unsupported shell substitution, or cwd assumption can fail before `guard-common.sh` and the thin hook code start. Direct `bash workflow/hooks/<guard>.sh` smoke tests skip that surface entirely.
+**Why it happens:** Agent configs name launch paths, not the abstract hook file. A stale path, lost executable bit, unsupported shell substitution, or cwd assumption can fail before `deny-dangerous.sh` and the thin hook code start. Direct `bash workflow/hooks/<guard>.sh` smoke tests skip that surface entirely.
 
 **Evidence:**
-- M12 preflight and audit now parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json` and run each guard with safe deny payloads. Evidence anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`) and `src/cli/audit/check-agent-setup.ts` (search: `configuredGuardCommands`).
-- `test/unit/audit-command.test.ts` (search: `exact configured hook command exits 127`) locks the failure case where a configured command exits before a valid installed hook can run.
+- Current preflight and audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Evidence anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`) and `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configuredGuardCommands`).
+- 2026-06-01 release-review recurrence: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runConfiguredHookCommandSmoke`) parses the configured command but launches `bash` against `configured.scriptPath`, so a broken `$root` resolver, stale wrapper, shell syntax error, or direct executable-bit failure can still pass audit while the configured agent command fails before guard startup.
+- `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case, and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case.
 - Runtime contract anchors: `workflow/hooks/README.md` (search: `Failure Modes / Runtime Contracts`) and `src/cli/server/agent-hook-writer.ts` (search: `Guard cannot start: git repository root unavailable`).
 
 **Prevention:**
-1. Treat configured-command replay as part of hook verification, not an optional integration smoke.
+1. Treat configured guard-script replay as part of hook verification, not an optional integration smoke.
 2. Fail hard on exit 126/127 even if direct script self-tests pass.
 3. Keep command-shape differences documented: Claude and Antigravity resolve the git root and fail closed when unavailable; Codex and Copilot use direct project-local paths and require project-root cwd.
+4. Runtime smoke must execute the configured command string, or a parser-backed equivalent that validates every wrapper component. Do not replace a configured command with `bash <scriptPath>` when the command contains resolver logic or direct executable invocation.
+
+## Footgun: Hook sync can copy required policy files into ignored paths
+
+**Status:** active | **Created:** 2026-06-01 | **Evidence:** OBSERVED
+
+**Symptoms:** `goat-flow hooks enable deny-dangerous` or `goat-flow hooks sync` repairs local hook files and the agent config, and local runtime checks pass in that working tree. After committing and cloning, the dispatcher starts without `.goat-flow/hook-lib/` because the copied policy modules were still ignored by a stale `.goat-flow/.gitignore`.
+
+**Why it happens:** `src/cli/server/hook-registrar.ts` (search: `copyHookScripts`) writes `.goat-flow/hook-lib/` for `deny-dangerous` but does not apply the installer's `ensure_gitignore_entry` step. Pre-1.9 `.goat-flow/.gitignore` templates use a leading `*`, so new `.goat-flow/hook-lib/*` paths remain untracked unless `!hook-lib/` and `!hook-lib/**` are added.
+
+**Evidence:**
+- `src/cli/server/hook-registrar.ts` (search: `copyHookScripts`) writes each `DENY_DANGEROUS_HOOK_LIB_FILES` entry into `.goat-flow/hook-lib/` during `applyHookState` and `syncHookStates`.
+- `workflow/install-goat-flow.sh` (search: `ensure_gitignore_entry ".goat-flow/.gitignore" "!hook-lib/"`) handles the same files during install by appending both `!hook-lib/` and `!hook-lib/**`.
+- `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Filesystem-backed validation can miss untracked or ignored replacement files`) records the broader validation trap: filesystem checks can pass with `.goat-flow/*` files that remain ignored.
+
+**Prevention:**
+1. Any CLI/dashboard path that writes required committed files under `.goat-flow/` must update `.goat-flow/.gitignore` in the same operation, not rely on `install`.
+2. Add a regression fixture with a pre-1.9 `.goat-flow/.gitignore` that starts with `*`; after `hooks enable` / `sync`, verify `! git check-ignore -q .goat-flow/hook-lib/patterns-shell.sh`.
+3. Before release, test the clone path: commit hook config plus hook-lib, clone a fresh checkout, then run `.goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke`.
+
+## Footgun: Hook launchers using --show-toplevel resolve to the worktree, not the main repo
+
+**Status:** active | **Created:** 2026-05-28 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A Claude or Antigravity session running inside a `git worktree add` checkout fails every Bash with a PreToolUse error like `bash: /path/to/repo/.claude/worktrees/<branch>/.claude/hooks/<guard>.sh: No such file or directory`. Direct self-tests in the main repo pass; the same guards run fine outside the worktree. The same failure shape can appear after a hook rename if a stale launcher still references the old script name.
+
+**Why it happens:** Inside a worktree, `git rev-parse --show-toplevel` returns the worktree's working directory, not the main repo's working directory. The earlier Claude/Antigravity launcher resolved the script path against `--show-toplevel`, so it looked for `<worktree>/.claude/hooks/<guard>.sh`. That path only exists if `.claude/hooks/` is git-tracked — many projects gitignore `.claude/` entirely, so `git worktree add` checks out no hook scripts and every guard fails before its code starts. Goat-flow's own repo tracks `.claude/hooks/`, which masked the failure in development.
+
+**Evidence:**
+- Pre-fix runtime probe: a fresh worktree at `<project>/.claude/worktrees/feat+x/` with `.claude/` gitignored started every Bash with `bash: <worktree>/.claude/hooks/patterns-shell.sh: No such file or directory`.
+- Pre-fix repro inside goat-flow itself succeeded only because `git ls-files | grep '^\.claude/hooks/'` lists all guard scripts; a freshly created worktree therefore inherited them via the branch checkout.
+- Current anchors: `workflow/hooks/agent-config/claude.json` (search: `git rev-parse --git-common-dir`), `workflow/hooks/agent-config/antigravity-hooks.json` (search: `git rev-parse --git-common-dir`), `workflow/install-goat-flow.sh` (search: `git rev-parse --git-common-dir`), and the normalizer at `src/cli/facts/agent/hook-registration.ts` (search: `Hook launchers prefix the script path`) which now strips both `$(...)` and `$var/` prefixes when extracting the script path for audit.
+
+**Prevention:**
+1. Hook launchers MUST resolve to the main repo root, not the current working tree. Use `git rev-parse --git-common-dir` and take its parent when the result is absolute (worktree) or fall back to `--show-toplevel` when relative (main checkout).
+2. When renaming or splitting a guard, regenerate every launcher string the installer writes, not just the hook script file. A stale launcher reproduces this failure mode even when the main repo has the new scripts.
+3. Add worktree coverage to any future configured-command smoke probe: run the literal launcher from a freshly created worktree, not just the main checkout, before claiming the launcher works.
 
 ## Footgun: Extension-based secret checks can confuse filenames with query syntax
 
@@ -69,9 +107,9 @@ last_reviewed: 2026-05-27
 
 **Evidence:**
 - M12 pre-fix probes blocked `git status # .env` and `jq -r .key file.json`; post-fix probes return status 0 while `cat path/to/id_rsa.key` still returns status 2.
-- `workflow/hooks/guard-common.sh` (search: `strip_unquoted_shell_comments`) strips inert comments before policy matching.
-- `workflow/hooks/guard-secret-paths.sh` (search: `key_material_path_touch`) requires a meaningful filename/path stem for `.pem`, `.key`, and `.pfx`.
-- `workflow/hooks/guardrails-self-test.sh` (search: `jq bare key query`) locks both allow and block cases.
+- `workflow/hooks/deny-dangerous.sh` (search: `strip_unquoted_shell_comments`) strips inert comments before policy matching.
+- `workflow/hooks/hook-lib/patterns-paths.sh` (search: `key_material_path_touch`) requires a meaningful filename/path stem for `.pem`, `.key`, and `.pfx`.
+- `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `jq bare key query`) locks both allow and block cases.
 
 **Prevention:**
 1. Secret-path tests must include inert dotted query expressions as allow controls alongside real key-file paths.
@@ -89,10 +127,10 @@ last_reviewed: 2026-05-27
 
 **Evidence:**
 - `.claude/settings.json` (search: `"Read(**/.env*)"`) - tool-scoped deny patterns. Not applied to Bash.
-- `.claude/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across hook-capable agents.
+- `.goat-flow/hook-lib/patterns-paths.sh` (search: `is_secret_path_touch`) - the Bash-side sentinel function added 2026-04-19. Blocks `cat .env`, `source .env`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `.pem/.key/.pfx` across hook-capable agents.
 - `src/cli/audit/harness/check-constraints.ts` (search: `bashDenyCoversSecrets`) - the harness now requires BOTH `readDenyCoversSecrets` (settings/Codex permission file-read coverage) AND `bashDenyCoversSecrets` (Bash hook pattern) before classifying an agent as covered.
 - `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - fact derivation: scans the deny hook file for the active secret sentinel plus family markers for `.env*`, `.env.example` parity, normalized `./` / `../` / `~/` roots, `.ssh/`, `.aws/`, `secrets/`, credentials, and `.pem/.key/.pfx`.
-- Runtime probe: `bash .claude/hooks/guard-secret-paths.sh --check="cat .env"` now returns exit 2 with `BLOCKED: Secret-file access blocked`.
+- Runtime probe: `bash .goat-flow/hook-lib/patterns-paths.sh --check="cat .env"` now returns exit 2 with `BLOCKED: Secret-file access blocked`.
 
 **Prevention:**
 1. For any new secret-path family added to the harness, extend BOTH `checkReadDenyCoversSecrets` in `src/cli/facts/agent/settings.ts` AND `detectBashDenyCoversSecrets` in `src/cli/facts/agent/hooks.ts`. A settings-only addition creates the same false-pass; a hook-regex refactor without detector coverage creates a false-fail.
@@ -111,10 +149,10 @@ last_reviewed: 2026-05-27
 
 **Evidence:**
 - Reported incident: an assistant posted a GitHub issue comment to `owner/repo#64620` from forwarded Slack text; the user deleted the comment and reported the command was `gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md`.
-- Runtime probes before the fix returned exit 0 for `bash workflow/hooks/guard-repository-writes.sh --check "gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md"` and `bash workflow/hooks/guard-repository-writes.sh --check "gh api repos/owner/repo/issues/1/comments -X POST -f body=hi"`.
-- Runtime probes before the second fix returned exit 0 for `bash workflow/hooks/guard-repository-writes.sh --check "gh issue --repo owner/repo comment 64620 --body hi"` and `bash workflow/hooks/guard-repository-writes.sh --check "printf '%s\n' body | xargs -I{} gh issue comment 64620 --body {}"`.
-- `workflow/hooks/guard-repository-writes.sh` (search: `is_gh_write_operation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
-- `workflow/hooks/guardrails-self-test.sh` (search: `gh issue comment`) - locks the current `gh issue comment` path plus read-only allow cases.
+- Runtime probes before the fix returned exit 0 for `bash workflow/hooks/hook-lib/patterns-writes.sh --check "gh issue comment 64620 --repo owner/repo --body-file /tmp/issue_64620_comment.md"` and `bash workflow/hooks/hook-lib/patterns-writes.sh --check "gh api repos/owner/repo/issues/1/comments -X POST -f body=hi"`.
+- Runtime probes before the second fix returned exit 0 for `bash workflow/hooks/hook-lib/patterns-writes.sh --check "gh issue --repo owner/repo comment 64620 --body hi"` and `bash workflow/hooks/hook-lib/patterns-writes.sh --check "printf '%s\n' body | xargs -I{} gh issue comment 64620 --body {}"`.
+- `workflow/hooks/hook-lib/patterns-writes.sh` (search: `is_gh_write_operation`) - classifies known GitHub-mutating `gh` subcommands and `gh api` write/default-body POST forms.
+- `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `gh issue comment`) - locks the current `gh issue comment` path plus read-only allow cases.
 
 **Prevention:**
 1. Treat `git push` as only one GitHub write path. Any new shared-system GitHub mutation route must get both a hook rule and a self-test case.
@@ -138,8 +176,8 @@ last_reviewed: 2026-05-27
 3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json" because both exit 0.
 
 **Evidence:**
-- `workflow/hooks/guard-common.sh` (search: `detect_output_mode`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
-- Self-test (`bash .github/hooks/guardrails-self-test.sh --self-test=smoke`) covers Copilot-shaped Bash payloads with deny JSON assertions.
+- `workflow/hooks/deny-dangerous.sh` (search: `detect_output_mode`) - split hooks preserve Copilot JSON deny responses for Bash payloads.
+- Self-test (`bash .goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke`) covers Copilot-shaped Bash payloads with deny JSON assertions.
 
 ---
 
@@ -217,10 +255,10 @@ last_reviewed: 2026-05-27
 **Why it happens:** A token check that only normalizes the start of a simple command misses shell grammar around the command word. `env -i git push ...` starts with an env option after `env`; `FOO='a b' git push ...` contains whitespace inside an assignment value; `if true; then git push ...; fi` leaves a segment starting with `then`; `f(){ git push ...; }; f` leaves a segment starting with a function declaration.
 
 **Evidence:**
-- `workflow/hooks/guard-repository-writes.sh` (search: `is_git_push`) - current split hook blocks git push and destructive git mutations.
-- `workflow/hooks/guardrails-self-test.sh` (search: `sudo git push`) - self-test coverage for wrapper-prefixed git push.
-- Runtime probes before the fix returned exit 0 for `bash workflow/hooks/guard-repository-writes.sh --check 'env -i git push origin main'`, `bash workflow/hooks/guard-repository-writes.sh --check "FOO='a b' git push origin main"`, `bash workflow/hooks/guard-repository-writes.sh --check 'if true; then git push origin main; fi'`, and `bash workflow/hooks/guard-repository-writes.sh --check 'f(){ git push origin main; }; f'`.
-- Runtime probes before the `-lc` fix returned exit 0 for `bash workflow/hooks/guard-repository-writes.sh --check "bash -lc 'git push origin main'"` and `bash workflow/hooks/guard-repository-writes.sh --check "sh -lc 'git push origin main'"`.
+- `workflow/hooks/hook-lib/patterns-writes.sh` (search: `is_git_push`) - current split hook blocks git push and destructive git mutations.
+- `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `sudo git push`) - self-test coverage for wrapper-prefixed git push.
+- Runtime probes before the fix returned exit 0 for `bash workflow/hooks/hook-lib/patterns-writes.sh --check 'env -i git push origin main'`, `bash workflow/hooks/hook-lib/patterns-writes.sh --check "FOO='a b' git push origin main"`, `bash workflow/hooks/hook-lib/patterns-writes.sh --check 'if true; then git push origin main; fi'`, and `bash workflow/hooks/hook-lib/patterns-writes.sh --check 'f(){ git push origin main; }; f'`.
+- Runtime probes before the `-lc` fix returned exit 0 for `bash workflow/hooks/hook-lib/patterns-writes.sh --check "bash -lc 'git push origin main'"` and `bash workflow/hooks/hook-lib/patterns-writes.sh --check "sh -lc 'git push origin main'"`.
 
 **Prevention:**
 1. Any future `git push` deny edit must include runtime probes for env options, quoted assignments, shell control keywords, function bodies, and `sh`/`bash -c` plus `-lc` wrappers, not only direct `git push` and pipe/semicolon chains.
@@ -238,9 +276,9 @@ last_reviewed: 2026-05-27
 **Why it happens:** Top-level hook input is split on `&&`, `||`, semicolons, and newlines before checking each segment. Recursive paths for command substitution, process substitution, and `bash -c` can accidentally call the raw segment checker directly. If the nested string starts with a read-only verb such as `echo`, the read-only whitelist returns before the later destructive segment is inspected.
 
 **Evidence:**
-- `workflow/hooks/guard-destructive-shell.sh` (search: `rm_has_recursive`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
-- `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
-- Runtime proof before the fix: `bash workflow/hooks/guardrails-self-test.sh --self-test=full` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
+- `workflow/hooks/hook-lib/patterns-shell.sh` (search: `rm_has_recursive`) - split destructive guardrail is the current owner for recursive deletion, shell execution, and destructive-command policy.
+- `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
+- Runtime proof before the fix: `bash workflow/hooks/deny-dangerous.sh --self-test=full` returned `FAIL [bash -c semicolon dangerous]: expected 2, got 0`, `FAIL [bash -c and-chain dangerous]: expected 2, got 0`, and `FAIL [bash -c semicolon git push]: expected 2, got 0`.
 
 **Prevention:**
 1. Recursive hook paths MUST call `check_command_segments`, not `check_segment`, unless the caller has already split shell control operators.
@@ -259,8 +297,8 @@ last_reviewed: 2026-05-27
 
 **Evidence:**
 - Runtime probe before the 2026-05-25 fix returned exit 0 for a `cat <<-'EOF' ... EOF` command followed by `rm -rf /`, because the tab-indented delimiter was not recognized and the later `rm` line was masked as body data.
-- `workflow/hooks/guard-destructive-shell.sh` (search: `rm_has_recursive`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
-- `workflow/hooks/guardrails-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
+- `workflow/hooks/hook-lib/patterns-shell.sh` (search: `rm_has_recursive`) - split destructive guardrail owns shell execution and destructive-command checks after the M10 hook split.
+- `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `rm -rf`) - central self-test locks representative destructive-command blocking.
 
 **Prevention:**
 1. Any heredoc masking edit must test both sides of the boundary: safe quoted report data is allowed, shell-fed heredoc bodies stay inspectable, and commands after `<<-` tab-indented delimiters are scanned.
@@ -277,4 +315,4 @@ last_reviewed: 2026-05-27
 - **Advisory hooks create unfixable quality warning after setup** (resolved 2026-04-14) - Hook scripts now ship in enforce mode by default (`GOAT_LINT_ENFORCE` defaults to 1).
 - **Codex hooks registered in config.toml instead of hooks.json** (resolved 2026-04-15) - Moved hook definitions to `.codex/hooks.json` per official Codex docs; TOML hook sections were silently ignored.
 - **Codex hook migrations drift across live files, templates, installer, and docs** (resolved 2026-04-15) - Restored the missing Codex guardrail hook registration and aligned all four Codex hook surfaces (live files, templates, installer, docs).
-- **Deny hook blocks read-only commands containing dangerous string literals** (resolved 2026-04-17) - the current split guardrails keep representative read-only allow paths in `workflow/hooks/guardrails-self-test.sh` (search: `expect_allow`). Template hooks and installed per-agent hook directories are checked by preflight config parity.
+- **Deny hook blocks read-only commands containing dangerous string literals** (resolved 2026-04-17) - the current split guardrails keep representative read-only allow paths in `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `expect_allow`). Template hooks and installed per-agent hook directories are checked by preflight config parity.

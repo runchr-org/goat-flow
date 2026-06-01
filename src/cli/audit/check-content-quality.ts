@@ -1,5 +1,5 @@
 /**
- * Cold-path content quality linting (M05 § 1).
+ * Cold-path content quality linting.
  *
  * Three detector families, all running on truth-bearing prose (instruction
  * files, installed skills, canonical docs). Ports logic inline from cclint
@@ -211,13 +211,12 @@ const NON_ACTIONABLE: PatternRule[] = [
 ];
 
 /**
- * Legacy v1.0 six-step Execution Loop drift (M19-9a). Matches only the
+ * Legacy v1.0 six-step Execution Loop drift. Matches only the
  * arrow-sequence declaration, not incidental historical prose mentioning
  * CLASSIFY or LOG. All four reviewed v1.2 consumer projects (ambient-scribe,
  * sus-form-detector, blundergoat-platform, rampart) shipped AGENTS.md with
  * the legacy six-step loop while CLAUDE.md + skill-preamble.md used the v1.2
- * four-step. See `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md`
- * slice M19-9a.
+ * four-step.
  */
 const LEGACY_EXECUTION_LOOP: PatternRule[] = [
   {
@@ -241,6 +240,13 @@ const LEGACY_EXECUTION_LOOP: PatternRule[] = [
 /** One iteration of code-block state: toggled on fence lines, guards all matchers. */
 function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
+}
+
+/** Detect a Markdown table separator row, e.g. `| --- | :---: | ---: |`.
+ *  A header row is identified by being immediately followed by such a separator;
+ *  cells in header rows are column labels, not instructional prose. */
+function isTableSeparatorLine(line: string): boolean {
+  return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(line);
 }
 
 /** Apply a PatternRule array to a line, accumulating any matches into findings. */
@@ -330,6 +336,9 @@ export function scanContentQuality(
       continue;
     }
     if (inCodeBlock) continue;
+    if (line.includes("|") && isTableSeparatorLine(lines[i + 1] ?? "")) {
+      continue;
+    }
     scanLine(line, i + 1, path, findings, mode);
   }
   return findings;

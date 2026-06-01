@@ -1,15 +1,15 @@
 /**
- * Evidence-provenance schema for audit checks (M05).
+ * Evidence-provenance schema for audit checks.
  *
  * Co-located with each check's implementation so provenance travels with the
  * check and can't drift from its source. Defined here as the stable import
- * path so M11's back-fill work can consume it without redefining.
+ * path so back-fill work can consume it without redefining.
  *
  * Schema adapted from agnix rules.json + rust emission in
  * `/home/devgoat/projects/goat-flow-related/agnix/crates/agnix-core/`.
  *
  * The `"unknown"` source_type + required `reason` field is the critique-locked
- * escape hatch: M11 back-fills ~32 existing checks, ~50% of which cannot
+ * escape hatch: existing checks include historical entries that cannot
  * have their provenance reconstructed. Such checks declare `source_type:
  * "unknown"` and state the reason (e.g. "pre-dates v1.1.0 cleanup"),
  * rather than fabricating a citation or stalling the back-fill.
@@ -22,7 +22,7 @@ type ProvenanceSource =
   | "paper" // research paper with a URL
   | "incident" // real incident in this repo with a footgun/lesson trail
   | "community" // community post / blog / benchmark
-  | "unknown"; // reason required - escape hatch for M11 back-fill
+  | "unknown"; // reason required - escape hatch for historical back-fill
 
 /**
  * Strength of the rule the check enforces.

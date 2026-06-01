@@ -1,3 +1,6 @@
+/**
+ * Unit tests for hook-enabled config reads and managed hook-block writes.
+ */
 import assert from "node:assert/strict";
 import {
   mkdirSync,
@@ -14,6 +17,7 @@ import {
   setHookEnabled,
 } from "../../src/cli/config/writer.js";
 
+/** Writes a cleaned temporary project for each config-writer assertion. */
 function withTempProject(fn: (root: string) => void): void {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-config-writer-"));
   try {
@@ -68,13 +72,14 @@ describe("config writer", () => {
         ].join("\n"),
       );
 
-      setHookEnabled(root, "guard-secret-paths", false);
+      setHookEnabled(root, "deny-dangerous", false);
 
       const next = readFileSync(configPath, "utf-8");
       assert.equal(next.match(/Togglable goat-flow hook state/gu)?.length, 1);
       assert.equal(next.includes("gruff-on-change:"), false);
+      assert.equal(next.includes("guard-secret-paths:"), false);
       assert.match(next, /gruff-code-quality:\n    enabled: false/u);
-      assert.match(next, /guard-secret-paths:\n    enabled: false/u);
+      assert.match(next, /deny-dangerous:\n    enabled: false/u);
       assert.match(next, /# Project-wide toggles/u);
       assert.match(next, /line-limits:\n  target: 125/u);
     });

@@ -36,8 +36,11 @@
 #   primary reported line intersects the changed ranges, then one compact
 #   suppressed-count line for same-file findings outside those ranges.
 #   The playbook footer is printed only when at least one changed-line
-#   finding is shown. Exit status stays 0 for analyzer findings and
-#   fail-soft diagnostics.
+#   finding is shown. If the analyzer reports the edited file as ignored by
+#   its `paths.ignore` config, the hook instead prints a single
+#   `skipped <path> - out of scope` line and surfaces no findings, so the
+#   agent does not try to fix a file the project deliberately excludes. Exit
+#   status stays 0 for analyzer findings and fail-soft diagnostics.
 
 set -euo pipefail
 
@@ -205,10 +208,12 @@ file_paths_for_payload() {
   git_changed_supported_paths "$root"
 }
 
-# Discovery covers package-manager installs, sibling gruff checkouts, root and
-# one-level nested virtualenv/debug builds, user-local installs, and finally
-# PATH. The nested virtualenv case supports project layouts such as
-# `strands_agents/.venv/bin/gruff-py`.
+# Discovery covers each ecosystem's standard install location - package-manager
+# bin dirs (vendor/bin for composer, node_modules/.bin for npm), an in-repo bin/,
+# the root virtualenv (.venv/bin), user-local installs (~/.local/bin), and finally
+# PATH. It deliberately excludes a `*/.venv/bin` subdirectory glob and the
+# `target/debug` build-output dir: auto-executing a name-matched binary from an
+# arbitrary subtree or build artifact on every edit is RCE-shaped for little gain.
 discover_binary() {
   local root="$1"
   local binary="$2"
@@ -218,8 +223,6 @@ discover_binary() {
     "$root/node_modules/.bin/$binary" \
     "$root/bin/$binary" \
     "$root/.venv/bin/$binary" \
-    "$root"/*/.venv/bin/"$binary" \
-    "$root/target/debug/$binary" \
     "${HOME:-}/.local/bin/$binary"
   do
     if [[ -n "$candidate" && -x "$candidate" ]]; then
@@ -466,12 +469,50 @@ suppressed_count() {
   ' 2>/dev/null || printf '0'
 }
 
+# When the analyzer reports the edited file as ignored by its config
+# (`paths.ignore`), return a short human descriptor (for example
+# "ignored by gruff config (matched *.css)") so the hook can tell the agent the
+# file is out of scope instead of surfacing findings for it. The verdict is read
+# from gruff's own output (`paths.ignoredPaths`, or `paths.skipped` for
+# gruff-go); the hook never re-derives ignore rules. Handles bare-string and
+# `{path,source,pattern,reason}` entry shapes, and prints nothing when the file
+# is not ignored. No-op on gruff binaries that still bypass `paths.ignore` for
+# explicitly-passed files (the list comes back empty).
+ignored_descriptor() {
+  local output="$1"
+  local rel_path="$2"
+  local abs_path="$3"
+  printf '%s' "$output" | jq -r --arg rel "$rel_path" --arg abs "$abs_path" '
+    def normalize_path:
+      tostring | gsub("\\\\"; "/") | sub("^\\./"; "");
+    def entry_path:
+      if type == "string" then . else (.path? // .file? // "") end;
+    def entry_detail:
+      if type == "object" then (.pattern? // .source? // .reason? // "") else "" end;
+    def is_match($p):
+      ($p | normalize_path) as $n
+      | ($n == ($rel | normalize_path)
+        or $n == ($abs | normalize_path)
+        or $n == ("./" + ($rel | normalize_path))
+        or ($n | endswith("/" + ($rel | normalize_path))));
+
+    ((.paths.ignoredPaths? // .ignoredPaths? // .paths.skipped? // []))
+    | map(select(is_match(entry_path)))
+    | first
+    | if . == null then empty
+      else (entry_detail) as $d
+        | if ($d | length) > 0 then "ignored by gruff config (matched \($d))"
+          else "ignored by gruff config" end
+      end
+  ' 2>/dev/null || true
+}
+
 process_file() {
   local payload="$1"
   local root="$2"
   local file_path="$3"
   local rel_path abs_path binary binary_path config_file
-  local ranges help output status changed_output suppressed
+  local ranges help output status changed_output suppressed ignored_desc
 
   [[ -n "$file_path" ]] || return 0
   [[ "$file_path" =~ $SKIP_DIR_PATTERN ]] && return 0
@@ -520,7 +561,30 @@ process_file() {
     return 0
   fi
   if ! valid_gruff_json "$output"; then
+    # gruff returned no JSON. $output holds gruff's merged stdout+stderr, which
+    # on current builds is usually a config-schema rejection: the project's
+    # `.<binary>.yaml` lacks the required `schemaVersion:` line, so `analyse`
+    # exits non-zero with an error instead of findings. Relay gruff's own words
+    # (which name its fix, e.g. `<binary> init --force`) to the agent on stdout
+    # so the cause is visible, not buried under a generic note. The hook never
+    # edits the project's gruff config; that file is the project's to own.
+    if [[ "$output" == *schemaVersion* ]]; then
+      printf 'gruff-code-quality: %s could not analyse - its project config (.%s.yaml) was rejected. gruff reported:\n' "$binary" "$binary"
+      printf '%s\n' "$output" | awk 'NR <= 12 { print "  " $0 }'
+      return 0
+    fi
     printf 'gruff-code-quality: %s produced non-JSON output; changed-line filtering skipped\n' "$binary" >&2
+    return 0
+  fi
+
+  # If gruff reports the edited file as ignored by config (`paths.ignore`), tell
+  # the agent it is out of scope and stop - never surface findings for a file the
+  # project deliberately excludes. The verdict is gruff's own (`ignoredPaths`);
+  # the hook does not re-derive ignore rules. No-op on gruff binaries that still
+  # bypass `paths.ignore` for explicitly-passed files.
+  ignored_desc="$(ignored_descriptor "$output" "$rel_path" "$abs_path")"
+  if [[ -n "$ignored_desc" ]]; then
+    printf 'gruff-code-quality: skipped %s - %s; out of scope, do not modify to satisfy gruff.\n' "$rel_path" "$ignored_desc"
     return 0
   fi
 

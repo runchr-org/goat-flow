@@ -5,16 +5,21 @@ import type { AgentFacts, ReadonlyFS } from "../../types.js";
 import { extractSection } from "./instruction.js";
 
 /** Return true if a string contains '/' or '.', suggesting a file path. */
-function looksLikePath(s: string): boolean {
-  return s.includes("/") || s.includes(".");
+function looksLikePath(value: string): boolean {
+  return value.includes("/") || value.includes(".");
 }
 
 /** Return true if a string contains glob or template characters. */
-function hasGlobChars(s: string): boolean {
-  return s.includes("*") || s.includes("{");
+function hasGlobChars(value: string): boolean {
+  return value.includes("*") || value.includes("{");
 }
 
-/** Add a discovered path once without duplicating earlier matches. */
+/**
+ * Add a discovered router path once without duplicating earlier matches.
+ *
+ * @param paths - mutable path accumulator for one instruction file
+ * @param path - router path candidate to append when not already present
+ */
 export function pushUniquePath(paths: string[], path: string): void {
   if (paths.includes(path) === false) {
     paths.push(path);
@@ -82,7 +87,13 @@ function resolveReferencedPaths(
   return { resolved, unresolved };
 }
 
-/** Extract router table facts: paths found and their resolution status. */
+/**
+ * Extract router table facts: paths found and their resolution status.
+ *
+ * @param fs - project filesystem adapter used to verify referenced paths
+ * @param content - instruction file content, or null when the file is absent
+ * @returns router table presence plus resolved/unresolved path counts
+ */
 export function extractRouterFacts(
   fs: ReadonlyFS,
   content: string | null,

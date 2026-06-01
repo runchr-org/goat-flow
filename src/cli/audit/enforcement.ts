@@ -58,7 +58,7 @@ type DenyMechanismEvidenceLevel = "full" | "static" | "present-only";
 /** Evidence-mode switches from the audit runner that affect how strongly hook checks can be claimed. */
 interface BuildOptions {
   agentScope?: AuditScope;
-  denyMechanismEvidenceLevel?: DenyMechanismEvidenceLevel;
+  denyMechanismEvidenceLevel?: DenyMechanismEvidenceLevel | undefined;
 }
 
 const CAPABILITY_LABELS: Record<EnforcementCapabilityId, string> = {

@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.8.0 (2026-05-20)
+# Copilot Instructions - v1.9.0 (2026-05-20)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 
 goat-flow is a harness - guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -11,7 +11,7 @@ User instruction > `.github/copilot-instructions.md` > `.goat-flow/architecture.
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when context compaction occurs without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
+**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when context compaction occurs without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) are conditional: update only when VERIFY caught a failure or you corrected course.
 
 **Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 
@@ -28,9 +28,14 @@ Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `
 - Sub-agents: ONE objective, structured return (paths, evidence, confidence, next step), 5-call budget. Blocked → one question with recommended default.
 - No features, abstractions, or error handling beyond what was asked. Gold-plating is scope creep.
 - Ambiguous requirements: present interpretations, don't pick silently.
+- Commit format: see **## Commit Messages** below; full rules in `docs/coding-standards/git-commit.md`.
 - Use current Copilot CLI commands (`/agent`, `/review`, `/research`, `/tasks`) when appropriate; use `/fleet` only for explicit or genuinely independent parallel work.
-- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/guard-*.sh`, `.github/hooks/guardrails-self-test.sh`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
+- Treat `.github/actions/**`, `.github/hooks/hooks.json`, `.github/hooks/deny-dangerous.sh`, `.goat-flow/hook-lib/**`, `.github/skills/**`, `.github/copilot-instructions.md`, and `.copilotignore` as security-sensitive runtime surfaces; verify after touching them.
 - `.github/agents/` is intentionally out of scope; CI/CD, hooks, prompts, or skills work should prefer `goat-security` or `goat-review`.
+
+## Commit Messages
+
+Conventional `type(scope): subject` - imperative, ≤72 chars, concrete verbs not weak ones (*enhance, improve, update*); one change per subject. On a `feat/<digits>` branch the subject starts `#<digits> ` (e.g. `#123 feat(audit): add drift cache`), from the branch name only; otherwise no prefix. Full rules + bad→good rewrites: `docs/coding-standards/git-commit.md`.
 
 ## Key Resources
 
@@ -40,14 +45,14 @@ Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `
 ## Essential Commands
 
 ```bash
-shellcheck scripts/*.sh scripts/maintenance/*.sh
-bash -n scripts/*.sh scripts/maintenance/*.sh
+shellcheck scripts/*.sh scripts/maintenance/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
+bash -n scripts/*.sh scripts/maintenance/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
 npm run typecheck
 npm test
 bash scripts/preflight-checks.sh
 ```
 
-Situational: `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.github/hooks/guardrails-self-test.sh --self-test=smoke` (hook check).
+Situational: `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke` (hook check).
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 
@@ -104,7 +109,7 @@ When asked to add/update a goat-flow artifact, route to docs, not runtime code: 
 | Workflow source | `workflow/` (setup, skills, hooks, evaluation, agent config templates) |
 | CLI + dashboard | `src/cli/`, `src/dashboard/` |
 | Scripts | `scripts/` |
-| Hooks | `.github/hooks/hooks.json`, `.github/hooks/guard-*.sh`, `.github/hooks/guardrails-self-test.sh` |
+| Hooks | `.github/hooks/hooks.json`, `.github/hooks/deny-dangerous.sh`, `.goat-flow/hook-lib/` |
 | Config | `.goat-flow/config.yaml` |
 | Documentation | `docs/` |
 | Session logs, workspace | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |

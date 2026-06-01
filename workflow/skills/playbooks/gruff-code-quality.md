@@ -1,15 +1,27 @@
 ---
-goat-flow-reference-version: "1.8.0"
+goat-flow-reference-version: "1.9.0"
 ---
 # Gruff Code Quality
 
 Use this when the user asks to run or fix findings from the gruff static-analysis family: `gruff-go`, `gruff-rs`, `gruff-ts`, `gruff-php`, or `gruff-py`. Gruff is a composite-score code-quality analyzer: it grades quality pillars and emits per-rule findings without executing the code.
+
+**Why gruff exists.** The goal is to force the agent to produce code a human can actually sign off on: legible enough to verify, secure where the eye fails, and tested for real rather than padded with low-signal ceremony. The findings are the lever, not the goal - a doc comment a reviewer can diff against the body, a name that carries intent, a security finding that catches what a reading review misses, a test that asserts behavior instead of just exercising mocks. Each closes the gap between code that *looks* done and code that *is* done; see [`code-comments.md`](./code-comments.md) for the verification-surface principle underneath.
 
 Gruff is not a correctness checker. It does not replace typecheckers, linters, test suites, or maintainer judgment. It also does not know every project convention; a short variable, repeated test setup, or public parameter name may be intentional.
 
 Composite score is a weak cleanup KPI during active work. High-count accepted-debt rules can dominate penalty weight, so report per-rule deltas for APPLY / APPLY-WITH-CHECK clusters instead of treating score movement as proof of progress.
 
 For comment-specific findings, load [`code-comments.md`](./code-comments.md) as the quality bar before editing source comments.
+
+## Gruff at a glance
+
+- **Loop:** measure -> pick one cohesive cluster -> fix the root cause -> rerun gruff on the touched paths -> run the project's normal verify.
+- **The targeted gruff rerun is the reproduction** - never claim a finding fixed from inspection alone.
+- **Fix, don't silence.** Rename, extract, or document to satisfy a finding; never `enabled: false`, and never baseline mid-cleanup.
+- **Triage high-volume rules first** (APPLY / APPLY-WITH-CHECK / CONFIGURE / BASELINE / LARGER-REFACTOR / SKIP-CODEBASE) before editing individual findings.
+- **Doc findings:** load `code-comments.md` as the quality bar - doc comments are mandatory there, so `docs.missing-*` is mostly FIX, not noise.
+- **API safety:** don't rename public/exported names to satisfy a rule; prefer config or accepted debt.
+- Gruff is not a correctness checker - it never replaces typecheck, tests, or judgment.
 
 ## Availability Check
 
@@ -38,7 +50,7 @@ For Node-installed `gruff-ts`, `npx` is also valid:
 npx gruff-ts --version
 ```
 
-Then confirm the command surface for the specific tool before relying on flags. The examples below were checked against local `gruff-ts` 0.1.1; substitute the target binary and verify the installed tool before assuming another gruff family member supports the same subcommands or flags.
+Then confirm the command surface for the specific tool before relying on flags. The examples below are illustrative; substitute the target binary and verify the installed tool before assuming another gruff family member or release supports the same subcommands or flags.
 
 ```bash
 gruff-ts --help
@@ -81,10 +93,10 @@ Use the smallest command that answers the current question. Examples use `gruff-
 
 ```bash
 gruff-ts summary
-gruff-ts summary src/cli/audit
-gruff-ts analyse src/cli/audit/render.ts
+gruff-ts summary src/
+gruff-ts analyse src/payments/charge.ts
 gruff-ts analyse --diff working-tree
-gruff-ts analyse --format json src/cli/audit/render.ts
+gruff-ts analyse --format json src/payments/charge.ts
 gruff-ts list-rules
 ```
 
@@ -194,7 +206,7 @@ Revisit trigger or expiry:
 For each cluster:
 
 1. Read the relevant source and nearby tests before editing.
-2. If a naming or extraction fix can remove the need for a comment, do that first.
+2. If a Rewrite-First fix (rename, extract, or simplify) can remove the need for a comment, do that first, per [`code-comments.md`](./code-comments.md).
 3. Patch the code.
 4. Run `<gruff-binary> analyse <touched paths>`.
 5. If findings remain, decide whether the remaining issue is real, out of scope, or better handled in a later cluster.
@@ -263,9 +275,9 @@ Language footnotes:
 
 ## Documentation Findings
 
-Documentation findings should produce maintainable comments, not analyzer bait. Use [`code-comments.md`](./code-comments.md) and write comments that explain the hidden contract.
+Documentation findings should produce maintainable comments, not analyzer bait. Use [`code-comments.md`](./code-comments.md) and write comments that explain the hidden contract. A `docs.missing-*` fix is not about satisfying the analyzer - the doc comment is a verification surface: it states the intent a reviewer can diff against the body, and a promise the code doesn't keep is exactly the mismatch the bar exists to catch.
 
-The no-boilerplate rule does not mean "skip `docs.missing-*` findings." It means "do not write comments that restate syntax." A useful doc comment describes caller obligation, edge values, side effects, errors, determinism, compatibility, or rationale. If a language's ecosystem consumes tags, keep accurate tags; if a tag only duplicates the type signature, prefer prose.
+`code-comments.md`'s omit-by-default stance is about *inline* comments - it never licensed skipping `docs.missing-*`. Doc comments are mandatory there, so a missing one is a real gap, and the bar is "do not restate syntax," not "write fewer comments." A useful doc comment describes caller obligation, edge values, side effects, errors, determinism, compatibility, or rationale. If a language's ecosystem consumes tags, keep accurate tags; and give every `@param`/`@returns` a real description - if a tag only restates the type signature, rewrite it with meaning (units, edge values, caller obligation) rather than dropping it, per [`code-comments.md`](./code-comments.md).
 
 Gruff documentation rules often need explicit vocabulary near the declaration:
 
@@ -278,16 +290,21 @@ Gruff documentation rules often need explicit vocabulary near the declaration:
 
 Language conventions matter:
 
-- TypeScript: prefer JSDoc/TSDoc for exported contracts and non-obvious behavior; avoid type-only `@param` boilerplate that duplicates the signature.
+- TypeScript: prefer JSDoc/TSDoc; give every `@param`/`@returns` a real description (not a type-only restatement of the signature), per `code-comments.md`.
 - PHP: PHPDoc tags may be part of local static-analysis and IDE contracts; verify project convention before deleting tags.
-- Go: exported identifiers normally need godoc comments even when the generic project stance is "comment only the non-obvious."
-- Rust: use rustdoc `///` or `//!` for public items and keep parameter facts in the type signature when possible.
+- Go: all identifiers, exported and internal, need godoc comments per `code-comments.md` - not just exported ones.
+- Rust: use rustdoc `///` or `//!` for items (public and internal) and keep parameter facts in the type signature when possible.
 - Python: use PEP 257 docstrings for caller-visible contracts and type hints for type facts.
 
 Bad:
 
 ```ts
-/** Handles paths. */
+/**
+ * Handles paths.
+ *
+ * @param paths - a string array of paths
+ * @returns a string array
+ */
 function collect(paths: string[]): string[] {
   return paths.filter(Boolean);
 }
@@ -301,13 +318,30 @@ Good:
  *
  * Empty strings are ignored here because setup prompts may emit optional
  * fields as blank lines; callers still receive the original ordering.
+ *
+ * @param paths - raw path list from setup prompts; may contain blank entries
+ * @returns the non-empty paths - original input order preserved
  */
 function collectAuditPaths(paths: string[]): string[] {
   return paths.filter(Boolean);
 }
 ```
 
+The Bad version pairs a vague summary with type-only tags (`a string array of paths` just restates `string[]`); the Good version's tags add what the signature can't show - provenance, blank-entry handling, and preserved order. A type-only tag fails the bar as surely as a missing one.
+
 Do not add `contract:` prefixes or other marker words as a substitute for meaning. If gruff still reports the comment, improve the comment around the real boundary the rule is asking for.
+
+### docs.missing-internal-function-doc under the mandatory-doc rule
+
+This rule fires on every internal helper that lacks a leading maintainer comment. Under [`code-comments.md`](./code-comments.md)'s mandatory-doc rule - every function/method carries a doc comment - these findings are mostly genuine, not noise: the helper is missing a contract it is required to have. Default response is FIX, not suppress.
+
+Triage `docs.missing-internal-function-doc`:
+
+1. **FIX (default)** - add the doc comment `code-comments.md` requires. A trivial, name-clear helper gets a single tight contract line; a helper hiding a non-obvious WHY (tradeoff, workaround, threshold rationale, side effect, caller obligation) gets that orientation too. Both satisfy the rule.
+2. **RENAME first where it helps** - a better name (`phaseFor` over `processItem`) makes the required doc comment shorter, per the "Rewrite First" ladder. Renaming does not remove the requirement: the mandate stands regardless of name clarity.
+3. **Never baseline `docs.missing-*` as accepted noise** - under the mandate there is no name-clear-helper tail to write off; those get a one-line doc comment too. Do not set `enabled: false`, and do not baseline these away to dodge the work - satisfy them.
+
+Test functions are the one carve-out: under the mandate they still need a doc comment, but a descriptive test name plus a single line is enough (per `code-comments.md`'s "Test code" note) - don't expand test helpers into full contract blocks just to clear the finding.
 
 ## Naming Findings
 
@@ -378,7 +412,7 @@ Do not blindly abstract test setup. A little explicit setup is often better than
 
 Never add no-op helpers, fake SUT calls, or meaningless wrappers just to satisfy a test-quality heuristic. Extraction is valid only when it improves the test's signal: clearer setup, isolated I/O, reusable fixtures, or a more direct assertion.
 
-When a mock-expectation test is flagged as assertion-free, remember that some gruff rules count only explicit assertion calls. To clear without weakening the test, capture collaborator arguments in a spy/callback and assert them outside the mock, or assert an externally observable return value/state.
+When a mock-expectation test is flagged as assertion-free, treat the warning as "no explicit assertion call found" - some gruff rules count only explicit assertion calls. To clear without weakening the test, capture collaborator arguments in a spy/callback and assert them outside the mock, or assert an externally observable return value/state.
 
 ## Mechanical Patterns
 
@@ -428,8 +462,8 @@ Use this shape:
 
 ```text
 Rule cluster fixed:
-- tool: gruff-ts 0.1.1
-- docs.missing-error-behavior-doc: 12 -> 0 on src/cli/server
+- tool: gruff-ts <version>
+- docs.missing-error-behavior-doc: 12 -> 0 on src/payments
 - naming.short-variable: 9 -> 1 on test helpers
 
 Remaining accepted/larger-refactor:
@@ -466,17 +500,7 @@ Before claiming gruff work is done, show current-session evidence for the univer
 - Lint or formatter checks when code style changed.
 - Existing project linter configs checked before overriding gruff findings; when project lint explicitly allows a pattern, decide CONFIGURE/SKIP-CODEBASE rather than churn.
 
-Project-specific anti-pattern scans may also apply. In goat-flow, scan for the historical low-value `contract:` comment marker across TypeScript, Markdown, shell, and agent files:
-
-```bash
-rg -n '^\s*(?://|/\*+|\*|#)\s*contract:\s' src test .goat-flow workflow
-```
-
-For goat-flow itself, also run learning-loop stats after adding lessons, footguns, patterns, or decisions:
-
-```bash
-node --import tsx src/cli/cli.ts stats --check
-```
+Project-specific anti-pattern scans may also apply: run any comment-marker scans, learning-loop, or housekeeping checks your project defines after the fix, so analyzer-driven edits don't reintroduce a banned pattern.
 
 ## Troubleshooting
 
@@ -488,10 +512,9 @@ node --import tsx src/cli/cli.ts stats --check
 
 **The global summary still looks bad after the cluster is fixed.** Report both the global state and the targeted state. A cluster can be clean while unrelated debt remains.
 
+**`analyse` exits non-zero with no findings and an error mentioning `schemaVersion`.** Recent gruff releases require a `schemaVersion:` line at the top of the project config (`.gruff-<lang>.yaml`); without it `analyse` fails closed instead of scanning, so any wrapper that only reads `.findings` sees empty or non-JSON output. The error names the expected value (for example `gruff-ts.config.v0.1`). Fix by regenerating the config: `gruff-<lang> init --force` rewrites it with the required `schemaVersion` while preserving your existing `paths.ignore` and severity entries (plain `init` refuses to overwrite an existing file). Do not hand-invent the version string or strip the field - run `init` so the value matches the installed binary.
+
 ## Related References
 
 - [`code-comments.md`](./code-comments.md) - comment quality bar for documentation findings.
 - [`observability.md`](./observability.md) - logging, metrics, and span guidance when a gruff fix touches instrumentation.
-- `.goat-flow/patterns/workflow.md` (search: `Gruff docs cleanup is a tight analyzer loop`) - project-local pattern from previous gruff cleanup work.
-- `.goat-flow/lessons/verification.md` (search: `Gruff comment fixes must satisfy both humans and the analyzer`) - project-local lesson on analyzer wording and verification.
-- `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Adding a skill-playbook requires lock-step updates`) - maintainer note for editing this playbook without drifting its mirrors and audit surfaces.

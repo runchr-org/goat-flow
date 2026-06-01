@@ -7,7 +7,12 @@ import type { SharedFacts, ReadonlyFS } from "../../types.js";
 /** Gitignore entries that every project must include for secret protection. */
 const REQUIRED_GITIGNORE_ENTRIES = [".env", "settings.local.json"];
 
-/** Extract `.gitignore` presence and required-entry coverage. */
+/**
+ * Extract `.gitignore` presence and required-entry coverage.
+ *
+ * @param fs - project filesystem adapter used to read `.gitignore`
+ * @returns gitignore coverage facts consumed by shared harness checks
+ */
 export function extractGitignoreFacts(
   fs: ReadonlyFS,
 ): SharedFacts["gitignore"] {

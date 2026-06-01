@@ -121,7 +121,7 @@
   },
 
   "snapshot_facts": {
-    "_note": "Numeric facts as shipped at v1.1.0. Used by CHANGELOG lint to validate claims inside the `## v1.1.0` section of CHANGELOG.md. v1.1.0 shipped before M06 added the live `facts:` block; these values are captured here for historical lint only.",
+    "_note": "Numeric facts as shipped at v1.1.0. Used by CHANGELOG lint to validate claims inside the `## v1.1.0` section of CHANGELOG.md. v1.1.0 shipped before the live `facts:` block; these values are captured here for historical lint only.",
     "skills_total": 7,
     "skills_functional_count": 6,
     "checks_setup": 12,

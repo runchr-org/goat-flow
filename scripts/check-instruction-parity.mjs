@@ -30,6 +30,7 @@ const CANONICAL_SECTIONS = [
   "Truth Order",
   "Autonomy Tiers",
   "Hard Rules",
+  "Commit Messages",
   "Key Resources",
   "Essential Commands",
   "Execution Loop",
@@ -105,28 +106,33 @@ const SHARED_PHRASES = [
   },
 ];
 
+/** Render a repository-relative path for deterministic failure messages. */
 function pathLabel(path) {
   return relative(ROOT, resolve(ROOT, path)) || path;
 }
 
+/** Normalize headings that include explanatory suffixes before parity comparison. */
 function normalizeHeading(text) {
   const trimmed = text.trim();
   if (/^Execution Loop\b/i.test(trimmed)) return "Execution Loop";
   return trimmed;
 }
 
+/** Extract normalized H2 section names in document order. */
 function h2Sections(content) {
   return Array.from(content.matchAll(/^##\s+(.+)$/gm), (m) =>
     normalizeHeading(m[1] ?? ""),
   );
 }
 
+/** Extract H3 section names in document order from one section body. */
 function h3Sections(content) {
   return Array.from(content.matchAll(/^###\s+(.+)$/gm), (m) =>
     (m[1] ?? "").trim(),
   );
 }
 
+/** Split a markdown document into H2-keyed section bodies for targeted phrase checks. */
 function splitSections(content) {
   const matches = Array.from(content.matchAll(/^##\s+(.+)$/gm));
   const sections = new Map();
@@ -141,6 +147,7 @@ function splitSections(content) {
   return sections;
 }
 
+/** Record one ordered-array parity failure without throwing so all files report in one run. */
 function assertEqualArray(actual, expected, path, label, failures) {
   if (
     actual.length !== expected.length ||
@@ -152,6 +159,7 @@ function assertEqualArray(actual, expected, path, label, failures) {
   }
 }
 
+/** Record missing required contract phrases for a specific file section. */
 function requirePhrases(path, sectionName, section, phrases, label, failures) {
   for (const phrase of phrases) {
     if (!section.includes(phrase)) {
@@ -162,7 +170,8 @@ function requirePhrases(path, sectionName, section, phrases, label, failures) {
   }
 }
 
-function run() {
+/** Validate shared instruction contracts because parity errors need a complete mismatch list before it exits. */
+function validateInstructionParity() {
   const failures = [];
 
   for (const file of ALL_FILES) {
@@ -190,9 +199,9 @@ function run() {
     }
 
     const executionLoop = sectionBodies.get("Execution Loop") ?? "";
-    const loopH3 = h3Sections(executionLoop);
+    const executionLoopHeadings = h3Sections(executionLoop);
     assertEqualArray(
-      loopH3.slice(0, H3_LOOP_SECTIONS.length),
+      executionLoopHeadings.slice(0, H3_LOOP_SECTIONS.length),
       H3_LOOP_SECTIONS,
       label,
       "Execution Loop H3 order",
@@ -255,4 +264,4 @@ function run() {
   );
 }
 
-run();
+validateInstructionParity();

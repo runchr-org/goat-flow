@@ -22,12 +22,15 @@ const PERF_ENABLED = process.env["GOAT_FLOW_PERF_TESTS"] === "1";
 const PERF_SKIP = PERF_ENABLED
   ? false
   : "Set GOAT_FLOW_PERF_TESTS=1 or run `npm run test:performance`.";
-const BUDGET_SCALE = Number.parseFloat(
+const PERF_BUDGET_SCALE = Number.parseFloat(
   process.env["GOAT_FLOW_PERF_BUDGET_SCALE"] ?? "1",
 );
-const budgetScale =
-  Number.isFinite(BUDGET_SCALE) && BUDGET_SCALE > 0 ? BUDGET_SCALE : 1;
+const performanceBudgetMultiplier =
+  Number.isFinite(PERF_BUDGET_SCALE) && PERF_BUDGET_SCALE > 0
+    ? PERF_BUDGET_SCALE
+    : 1;
 
+/** Stable timing summary contract used by performance budget assertions. */
 interface DurationStats {
   samples: number[];
   mean: number;
@@ -35,16 +38,19 @@ interface DurationStats {
   max: number;
 }
 
+/** Minimal server handle imported dynamically from the built dashboard server. */
 interface DashboardServerHandle {
   port: number;
   url: string;
   close: () => Promise<void>;
 }
 
+/** Scale performance budgets from one env-controlled multiplier. */
 function budget(ms: number): number {
-  return ms * budgetScale;
+  return ms * performanceBudgetMultiplier;
 }
 
+/** Summarize repeated timings with a stable p95 contract used by assertions. */
 function summarize(samples: number[]): DurationStats {
   assert.ok(samples.length > 0, "duration samples should not be empty");
   const sorted = [...samples].sort((a, b) => a - b);
@@ -61,12 +67,14 @@ function summarize(samples: number[]): DurationStats {
   };
 }
 
+/** Render timing stats in a stable format for local performance runs. */
 function formatStats(label: string, stats: DurationStats): string {
   return `${label}: mean=${stats.mean.toFixed(1)}ms p95=${stats.p95.toFixed(
     1,
   )}ms max=${stats.max.toFixed(1)}ms n=${stats.samples.length}`;
 }
 
+/** Fail with a budget-specific message instead of a generic assertion. */
 function assertUnderBudget(label: string, actualMs: number, budgetMs: number) {
   assert.ok(
     actualMs <= budgetMs,
@@ -91,10 +99,11 @@ async function measure(
   }
 
   const stats = summarize(samples);
-  console.log(formatStats(label, stats));
+  process.stdout.write(`${formatStats(label, stats)}\n`);
   return stats;
 }
 
+/** Ensure opt-in performance tests run against built distribution files. */
 function requireBuiltArtifacts(): void {
   assert.ok(
     existsSync(CLI_PATH),
@@ -106,6 +115,7 @@ function requireBuiltArtifacts(): void {
   );
 }
 
+/** Spawns the built CLI so startup measurements match packaged execution. */
 function runCli(args: string[]): string {
   const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
     cwd: PROJECT_ROOT,
@@ -182,7 +192,7 @@ describe("performance: dashboard", { skip: PERF_SKIP }, () => {
     startupMs = performance.now() - start;
     baseUrl = `http://127.0.0.1:${server.port}`;
     dashboardToken = new URL(server.url).searchParams.get("token") ?? "";
-    console.log(`dashboard startup: ${startupMs.toFixed(1)}ms`);
+    process.stdout.write(`dashboard startup: ${startupMs.toFixed(1)}ms\n`);
   });
 
   after(async () => {
@@ -202,8 +212,8 @@ describe("performance: dashboard", { skip: PERF_SKIP }, () => {
       async () => {
         const res = await fetchOk(baseUrl, "/");
         assert.match(res.headers.get("content-type") ?? "", /text\/html/i);
-        const html = await res.text();
-        assert.match(html, /__GOAT_FLOW_DEFAULT_PATH__/);
+        const dashboardMarkup = await res.text();
+        assert.match(dashboardMarkup, /__GOAT_FLOW_DEFAULT_PATH__/);
       },
     );
 

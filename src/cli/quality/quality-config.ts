@@ -6,7 +6,7 @@
  * `.goat-flow/config.yaml` under the top-level `quality` section.
  *
  * Zero-config behaviour (no `quality` section in config) is identical to the
- * pre-M08 hardcoded defaults; M07 fixtures still pass without any project
+ * older hardcoded defaults; fixtures still pass without any project
  * override.
  */
 import { loadConfig } from "../config/reader.js";
@@ -181,7 +181,7 @@ const DEFAULT_PROFILES: Record<ArtifactSubtype, Record<MetricName, number>> = {
   },
 };
 
-/** Goat-flow's calibrated defaults. Mirrors M07's hardcoded values exactly. */
+/** Goat-flow's calibrated defaults. Mirrors the legacy hardcoded values exactly. */
 export const DEFAULT_QUALITY_CONFIG: QualityConfig = {
   walkRoots: {
     skills: [

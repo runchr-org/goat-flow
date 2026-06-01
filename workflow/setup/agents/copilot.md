@@ -12,7 +12,7 @@
 
 ## Autonomy Tiers
 
-**Always:** Set up Copilot-owned surfaces: `.github/copilot-instructions.md`, `.github/git-commit-instructions.md`, `.github/skills/`, `.github/hooks/`, `.copilotignore`, and shared `.goat-flow/`.
+**Always:** Set up Copilot-owned surfaces: `.github/copilot-instructions.md` (including its `## Commit Messages` section), `docs/coding-standards/git-commit.md`, `.github/skills/`, `.github/hooks/`, `.copilotignore`, and shared `.goat-flow/`.
 
 **Ask First:** Before touching non-Copilot surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
@@ -24,9 +24,16 @@
 - `.github/copilot-instructions.md` is standalone and must not defer to `AGENTS.md`.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
 - Keep `.github/copilot-instructions.md` within the 150-line hard limit and 125-line target.
-- Commit guidance belongs at `.github/git-commit-instructions.md` when `.github/` exists; `goat-flow install` seeds it from git history when missing, and manual setup follows the same detector in Step 02.
+- Commit guidance belongs at `docs/coding-standards/git-commit.md`; `.github/copilot-instructions.md` summarises it under `## Commit Messages` and points there, because IDEs auto-read the instruction file, not the doc. `goat-flow install` seeds the doc from git history when missing, and manual setup follows the same detector in Step 02.
 - Keep a single Copilot hook config file at `.github/hooks/hooks.json`; do not split one file per event.
 - Do not create `.github/agents/` unless a future concrete gap justifies it.
+
+## Commit Messages
+
+Summarise the target project's commit conventions here - subject format, any branch/issue prefix
+rule, and the weak-verb ban - then point to the full reference at `docs/coding-standards/git-commit.md`.
+Keep it to a few lines: the detector seeds that doc from git history (Step 02) and the full rules
+live there, not inline.
 
 ## Key Resources
 
@@ -96,6 +103,7 @@ If VERIFY caught a failure or you corrected course, update the learning loop bef
 ## Definition of Done
 
 - `.github/copilot-instructions.md` exists, follows the canonical section order where compatible with Copilot compression, and stays under the hard line limit.
+- `docs/coding-standards/git-commit.md` exists and `.github/copilot-instructions.md` references it under a `## Commit Messages` section.
 - Essential Commands list only real target-project commands.
 - Router Table contains installed project resources only; no `workflow/setup/`, `workflow/hooks/`, or manifest paths.
 - Tool playbook pointer to `.goat-flow/skill-playbooks/` is present.
@@ -115,7 +123,7 @@ Requests to add footguns, lessons, decisions, or patterns route to the matching 
 | Skill playbooks (tools) | `.goat-flow/skill-playbooks/` |
 | Orientation | `.goat-flow/code-map.md`, `.goat-flow/glossary.md` |
 | Architecture | `.goat-flow/architecture.md` |
-| Copilot skills/config | `.github/skills/`, `.github/git-commit-instructions.md`, `.github/hooks/`, `.copilotignore` when installed |
+| Copilot skills/config | `.github/skills/`, `docs/coding-standards/git-commit.md`, `.github/hooks/`, `.copilotignore` when installed |
 | Project source/docs/config | adapt to detected project paths |
 | Workspace notes | `.goat-flow/logs/sessions/`, `.goat-flow/tasks/` |
 | Peer instructions | `CLAUDE.md`, `AGENTS.md` when present |

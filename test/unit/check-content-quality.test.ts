@@ -1,5 +1,5 @@
 /**
- * Unit tests for M05 content-quality detection.
+ * Unit tests for content-quality detection.
  *
  * Fixes pinned:
  *  - cclint ContentOrganizationRule.ts:163-166 bug: fence-line skip without
@@ -16,15 +16,16 @@ import {
   scanContentQuality,
 } from "../../src/cli/audit/check-content-quality.js";
 import { makeCtx, stubFS } from "../fixtures/projects/index.js";
+import { assertExists } from "../helpers/assert-exists.ts";
 
 describe("scanContentQuality: vague terms", () => {
   it("flags 'properly' as INFO", () => {
     const findings = scanContentQuality("x.md", "Handle errors properly.");
     const vague = findings.find((f) => f.rule === "vague-term");
-    assert.ok(vague, "expected vague-term finding");
-    assert.equal(vague!.severity, "info");
-    assert.match(vague!.message, /properly/);
-    assert.ok(vague!.suggestion, "should include suggestion");
+    assertExists(vague, "expected vague-term finding");
+    assert.equal(vague.severity, "info");
+    assert.match(vague.message, /properly/);
+    assert.ok(vague.suggestion, "should include suggestion");
   });
 
   it("does not flag 'properly' inside a fenced code block", () => {
@@ -46,7 +47,12 @@ describe("scanContentQuality: vague terms", () => {
   it("context-aware suggestion for format/style", () => {
     const findings = scanContentQuality("x.md", "Format the file properly.");
     const vague = findings.find((f) => f.rule === "vague-term");
-    assert.match(vague!.suggestion!, /Prettier|style guide|indentation/i);
+    assertExists(vague, "expected vague-term finding");
+    assertExists(
+      vague.suggestion,
+      "vague-term finding should carry a suggestion",
+    );
+    assert.match(vague.suggestion, /Prettier|style guide|indentation/i);
   });
 });
 
@@ -54,15 +60,15 @@ describe("scanContentQuality: generic instructions", () => {
   it("flags 'follow best practices' as WARNING", () => {
     const findings = scanContentQuality("x.md", "Follow best practices.");
     const generic = findings.find((f) => f.rule === "generic-best-practices");
-    assert.ok(generic, "expected generic-best-practices finding");
-    assert.equal(generic!.severity, "warning");
+    assertExists(generic, "expected generic-best-practices finding");
+    assert.equal(generic.severity, "warning");
   });
 
   it("flags 'be careful' as WARNING", () => {
     const findings = scanContentQuality("x.md", "Be careful with paths.");
     const generic = findings.find((f) => f.rule === "generic-be-careful");
-    assert.ok(generic);
-    assert.equal(generic!.severity, "warning");
+    assertExists(generic, "expected generic-be-careful finding");
+    assert.equal(generic.severity, "warning");
   });
 
   it("does not flag generic patterns inside a code block", () => {
@@ -85,9 +91,14 @@ describe("scanContentQuality: non-actionable patterns", () => {
       "x.md",
       "Remember: paths are absolute.",
     );
-    const na = findings.find((f) => f.rule === "non-actionable-remember");
-    assert.ok(na, "expected non-actionable-remember finding");
-    assert.equal(na!.severity, "info");
+    const nonActionableFinding = findings.find(
+      (finding) => finding.rule === "non-actionable-remember",
+    );
+    assertExists(
+      nonActionableFinding,
+      "expected non-actionable-remember finding",
+    );
+    assert.equal(nonActionableFinding.severity, "info");
   });
 
   it("does not flag 'remember to run tests' (has 'to <verb>')", () => {
@@ -123,18 +134,49 @@ describe("scanContentQuality: non-actionable patterns", () => {
     );
   });
 
+  it("does not flag 'remember' in a Markdown table header row", () => {
+    const text = [
+      "| Tool | Rule | Mechanic to remember |",
+      "|---|---|---|",
+      "| gruff-ts | rule-x | filter on field y, not z |",
+    ].join("\n");
+    const findings = scanContentQuality("x.md", text);
+    assert.equal(
+      findings.filter((f) => f.rule === "non-actionable-remember").length,
+      0,
+      "table header cells are column labels, not instructional prose",
+    );
+  });
+
+  it("still flags 'remember' in a table data row", () => {
+    const text = [
+      "| Col1 | Col2 |",
+      "|---|---|",
+      "| foo | remember the answer |",
+    ].join("\n");
+    const findings = scanContentQuality("x.md", text);
+    assert.equal(
+      findings.filter((f) => f.rule === "non-actionable-remember").length,
+      1,
+      "data-row prose is in scope; only the header row is skipped",
+    );
+  });
+
   it("flags 'it's important' without 'to <verb>'", () => {
     const findings = scanContentQuality(
       "x.md",
       "It's important that readers pay attention.",
     );
-    const na = findings.find((f) => f.rule === "non-actionable-important");
-    assert.ok(na);
+    const nonActionableFinding = findings.find(
+      (finding) => finding.rule === "non-actionable-important",
+    );
+    assert.ok(nonActionableFinding);
   });
 });
 
 describe("scanContentQuality: code-block state tracking", () => {
   it("resumes matching after a closed code block", () => {
+    const expectedOutsideBlockLine = 5;
     const text = [
       "```",
       "follow best practices",
@@ -149,14 +191,15 @@ describe("scanContentQuality: code-block state tracking", () => {
       1,
       "only the outside-block occurrence should match",
     );
-    assert.equal(warnings[0]!.line, 5);
+    assert.equal(warnings[0]!.line, expectedOutsideBlockLine);
   });
 
   it("handles nested pseudo-fences correctly (single toggle per fence line)", () => {
+    const expectedOutsideBlockLine = 4;
     const text = ["```", "properly", "```", "properly"].join("\n");
     const findings = scanContentQuality("x.md", text);
     assert.equal(findings.length, 1, "one finding outside the block");
-    assert.equal(findings[0]!.line, 4);
+    assert.equal(findings[0]!.line, expectedOutsideBlockLine);
   });
 });
 
@@ -201,7 +244,7 @@ describe("scanContentQuality: restricted mode (learning-loop surfaces)", () => {
   });
 });
 
-describe("scanContentQuality: legacy execution loop (M19-9a)", () => {
+describe("scanContentQuality: legacy execution loop", () => {
   it("flags 'READ → CLASSIFY → SCOPE → ACT → VERIFY → LOG' as WARNING", () => {
     const findings = scanContentQuality(
       "AGENTS.md",
@@ -210,9 +253,9 @@ describe("scanContentQuality: legacy execution loop (M19-9a)", () => {
     const legacy = findings.find(
       (f) => f.rule === "legacy-execution-loop-classify",
     );
-    assert.ok(legacy, "expected legacy-execution-loop-classify finding");
-    assert.equal(legacy!.severity, "warning");
-    assert.match(legacy!.message, /v1\.2 loop is four steps/);
+    assertExists(legacy, "expected legacy-execution-loop-classify finding");
+    assert.equal(legacy.severity, "warning");
+    assert.match(legacy.message, /v1\.2 loop is four steps/);
   });
 
   it("flags 'VERIFY → LOG' alone as WARNING even without CLASSIFY context", () => {
@@ -223,8 +266,8 @@ describe("scanContentQuality: legacy execution loop (M19-9a)", () => {
     const legacy = findings.find(
       (f) => f.rule === "legacy-execution-loop-trailing-log",
     );
-    assert.ok(legacy, "expected legacy-execution-loop-trailing-log finding");
-    assert.equal(legacy!.severity, "warning");
+    assertExists(legacy, "expected legacy-execution-loop-trailing-log finding");
+    assert.equal(legacy.severity, "warning");
   });
 
   it("flags ASCII arrows 'READ -> CLASSIFY -> SCOPE'", () => {

@@ -11,6 +11,7 @@ import type { AgentProfile } from "../types.js";
 import { writeFileAtomic } from "./safe-exec.js";
 import type { HookSpec } from "./hooks-registry.js";
 
+/** Result of reading an agent hook config without mutating it. */
 export interface AgentHookReadState {
   installed: boolean;
   configMissing?: boolean;
@@ -19,6 +20,30 @@ export interface AgentHookReadState {
 
 type JsonObject = Record<string, unknown>;
 
+const LEGACY_DENY_DANGEROUS_SCRIPT_NAMES = [
+  "guard-common.sh",
+  "guard-destructive-shell.sh",
+  "guard-secret-paths.sh",
+  "guard-repository-writes.sh",
+  "guardrails-self-test.sh",
+  "deny-dangerous.self-test.sh",
+];
+
+const LEGACY_DENY_DANGEROUS_HOOK_IDS = [
+  "guard-destructive-shell",
+  "guard-secret-paths",
+  "guard-repository-writes",
+];
+
+/**
+ * Type guard for a JSON object - the only shape we can safely read keyed properties off. Excludes the two
+ * `typeof x === "object"` footguns, `null` and arrays, so callers can treat untrusted `JSON.parse` output
+ * as a record without crashing on `null.foo` or silently mis-reading an array as a map. Centralised because
+ * the writer parses pre-existing agent config files that may legally contain any JSON value.
+ *
+ * @param value - parsed JSON of unknown shape (e.g. JSON.parse output) to test
+ * @returns true - when value is a non-null, non-array object, narrowed to JsonObject
+ */
 function isObject(value: unknown): value is JsonObject {
   return (
     value !== null &&
@@ -27,6 +52,7 @@ function isObject(value: unknown): value is JsonObject {
   );
 }
 
+/** Resolve the agent hook config file; throws when the profile does not support hook writes. */
 function configPath(projectPath: string, agent: AgentProfile): string {
   if (!agent.hookConfigFile) {
     throw new Error(`${agent.id} has no hook config file`);
@@ -34,6 +60,7 @@ function configPath(projectPath: string, agent: AgentProfile): string {
   return join(projectPath, agent.hookConfigFile);
 }
 
+/** Read an existing agent hook config; malformed JSON uses an empty-object fallback with `invalid=true`. */
 function readJsonFile(path: string): {
   value: JsonObject;
   missing: boolean;
@@ -52,6 +79,7 @@ function readJsonFile(path: string): {
   }
 }
 
+/** Map goat-flow hook events to the event-key spelling required by each agent config format. */
 function hookEventKey(agent: AgentProfile, spec: HookSpec): string {
   if (agent.id === "copilot") {
     return spec.event === "PreToolUse" ? "preToolUse" : "postToolUse";
@@ -59,17 +87,20 @@ function hookEventKey(agent: AgentProfile, spec: HookSpec): string {
   return spec.event;
 }
 
+/** Ensure the shared hooks container is an object before mutating event arrays inside it. */
 function ensureHooksObject(config: JsonObject): JsonObject {
   if (!isObject(config.hooks)) config.hooks = {};
   return config.hooks as JsonObject;
 }
 
+/** Return the mutable event-entry array, creating it when an agent config lacks the event key. */
 function eventEntries(config: JsonObject, event: string): unknown[] {
   const hooks = ensureHooksObject(config);
   if (!Array.isArray(hooks[event])) hooks[event] = [];
   return hooks[event] as unknown[];
 }
 
+/** Split pipe-delimited matcher strings because Claude and Codex store one matcher per entry. */
 function matcherParts(matcher: string): string[] {
   return matcher
     .split("|")
@@ -77,25 +108,32 @@ function matcherParts(matcher: string): string[] {
     .filter(Boolean);
 }
 
+/** Build the repo-relative hook script path stored in agent config files; throws for unsupported agents. */
 function commandPath(agent: AgentProfile, script: string): string {
   if (!agent.hooksDir) throw new Error(`${agent.id} has no hooks dir`);
   return `${agent.hooksDir}/${script}`.replace(/\/+/gu, "/");
 }
 
+/** Build the shell command variant that matches each agent's hook response protocol. */
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
   if (agent.id === "codex") return path;
+  // dirname(--git-common-dir) is the main repo root in both main and worktree checkouts; --show-toplevel returns the worktree's working dir and would break worktree hooks.
+  const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"`;
+  const selectRoot = `case "$gcd" in /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel)" ;; esac`;
   if (agent.id === "antigravity") {
-    return `root="$(git rev-parse --show-toplevel 2>/dev/null)" || { printf '{"decision":"deny","reason":"Guard cannot start: git repository root unavailable."}\\n'; exit 0; }; bash "$root/${path}"`;
+    return `${resolveRoot} || { printf '{"decision":"deny","reason":"Guard cannot start: git repository root unavailable."}\\n'; exit 0; }; ${selectRoot}; bash "$root/${path}"`;
   }
-  return `root="$(git rev-parse --show-toplevel 2>/dev/null)" || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; bash "$root/${path}"`;
+  return `${resolveRoot} || { printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }; ${selectRoot}; bash "$root/${path}"`;
 }
 
+/** Build Copilot's Windows hook command with a denial response when bash is unavailable. */
 function powershellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
   return `if (Get-Command bash -ErrorAction SilentlyContinue) { bash ${path} } else { Write-Output '{"permissionDecision":"deny","permissionDecisionReason":"Bash, Git Bash, or WSL is required to run ${path} on Windows."}' }`;
 }
 
+/** Detect any existing hook entry that already points at one of the spec's managed scripts. */
 function entryReferencesSpec(entry: unknown, spec: HookSpec): boolean {
   if (!isObject(entry)) return false;
   const commands = [
@@ -104,12 +142,21 @@ function entryReferencesSpec(entry: unknown, spec: HookSpec): boolean {
     typeof entry.powershell === "string" ? entry.powershell : "",
   ].join("\n");
   if (spec.scriptFiles.some((script) => commands.includes(script))) return true;
+  if (
+    spec.id === "deny-dangerous" &&
+    LEGACY_DENY_DANGEROUS_SCRIPT_NAMES.some((script) =>
+      commands.includes(script),
+    )
+  ) {
+    return true;
+  }
   if (Array.isArray(entry.hooks)) {
     return entry.hooks.some((hook) => entryReferencesSpec(hook, spec));
   }
   return false;
 }
 
+/** Translate generic hook matchers into Antigravity's tool names while leaving other agents unchanged. */
 function matcherForAgent(agent: AgentProfile, spec: HookSpec): string {
   if (agent.id !== "antigravity") return spec.matcher;
   if (spec.id === "gruff-code-quality") {
@@ -119,13 +166,7 @@ function matcherForAgent(agent: AgentProfile, spec: HookSpec): string {
       "multi_replace_file_content",
     ].join("|");
   }
-  if (
-    spec.id === "guard-destructive-shell" ||
-    spec.id === "guard-repository-writes"
-  ) {
-    return "run_command";
-  }
-  if (spec.id === "guard-secret-paths") {
+  if (spec.id === "deny-dangerous") {
     return [
       "run_command",
       "view_file",
@@ -137,6 +178,7 @@ function matcherForAgent(agent: AgentProfile, spec: HookSpec): string {
   return spec.matcher;
 }
 
+/** Remove only goat-flow-managed hook entries so unrelated user hook config is preserved. */
 function removeHookEntries(config: JsonObject, event: string, spec: HookSpec) {
   const entries = eventEntries(config, event);
   const next = entries.filter((entry) => !entryReferencesSpec(entry, spec));
@@ -148,6 +190,7 @@ function removeHookEntries(config: JsonObject, event: string, spec: HookSpec) {
   hooks[event] = next;
 }
 
+/** Create the Claude/Codex hook entries for each matcher segment in the managed spec. */
 function claudeCodexEntries(agent: AgentProfile, spec: HookSpec): JsonObject[] {
   return matcherParts(spec.matcher).map((matcher) => {
     const command: JsonObject = {
@@ -162,6 +205,7 @@ function claudeCodexEntries(agent: AgentProfile, spec: HookSpec): JsonObject[] {
   });
 }
 
+/** Create Copilot's single hook entry shape with both bash and PowerShell commands. */
 function copilotEntry(agent: AgentProfile, spec: HookSpec): JsonObject {
   return {
     type: "command",
@@ -274,6 +318,11 @@ export function writeAgentHookState(
   const event = hookEventKey(agent, spec);
   if (agent.id === "antigravity") {
     Reflect.deleteProperty(config.value, spec.id);
+    if (spec.id === "deny-dangerous") {
+      for (const legacyId of LEGACY_DENY_DANGEROUS_HOOK_IDS) {
+        Reflect.deleteProperty(config.value, legacyId);
+      }
+    }
     if (enabled) appendHookEntries(config.value, agent, spec);
     writeFileAtomic(
       path,

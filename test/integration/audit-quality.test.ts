@@ -4,6 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
+import { assertExists } from "../helpers/assert-exists.ts";
 import { HARNESS_CHECKS } from "../../src/cli/audit/harness/index.js";
 import { runAudit } from "../../src/cli/audit/audit.js";
 import { createFS } from "../../src/cli/facts/fs.js";
@@ -42,18 +43,25 @@ function getRepoAudit(opts: {
 // ---------------------------------------------------------------------------
 // Harness concerns produce pass/fail status
 // ---------------------------------------------------------------------------
+/** Assert harness concerns use only dashboard-supported status values. */
+function assertConcernStatusesAreTerminal(
+  concerns: NonNullable<ReturnType<typeof getRepoAudit>["concerns"]>,
+): void {
+  for (const key of Object.keys(concerns) as AuditConcernKey[]) {
+    const status = concerns[key].status;
+    assert.ok(
+      status === "pass" || status === "fail",
+      `${key} status ${status} should be pass or fail`,
+    );
+  }
+}
+
 describe("harness concern statuses", () => {
   it("all concern statuses are pass or fail", () => {
     const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
-    assert.notEqual(report.concerns, null);
-    for (const key of Object.keys(report.concerns!) as AuditConcernKey[]) {
-      const status = report.concerns![key].status;
-      assert.ok(
-        status === "pass" || status === "fail",
-        `${key} status ${status} should be pass or fail`,
-      );
-    }
+    assertExists(report.concerns);
+    assertConcernStatusesAreTerminal(report.concerns);
   });
 });
 
@@ -117,13 +125,13 @@ describe("commit-guidance harness check", () => {
     (c) => c.id === "commit-guidance",
   );
 
-  it("passes when commit guidance is in the .github canonical path", () => {
+  it("passes when commit guidance is in the docs canonical path", () => {
     assert.ok(commitGuidanceCheck, "commit-guidance check must exist");
     const shared = makeSharedFacts();
     shared.gitCommitInstructions = {
       exists: true,
-      path: ".github/git-commit-instructions.md",
-      requiredPath: ".github/git-commit-instructions.md",
+      path: "docs/coding-standards/git-commit.md",
+      requiredPath: "docs/coding-standards/git-commit.md",
       misplacedPaths: [],
     };
 
@@ -139,18 +147,18 @@ describe("commit-guidance harness check", () => {
     assert.equal(result.status, "pass");
     assert.match(
       result.findings.join("\n"),
-      /\.github\/git-commit-instructions\.md/,
+      /docs\/coding-standards\/git-commit\.md/,
     );
   });
 
-  it("fails when a .github project keeps commit guidance only in docs", () => {
+  it("fails when commit guidance is only in a legacy .github location", () => {
     assert.ok(commitGuidanceCheck, "commit-guidance check must exist");
     const shared = makeSharedFacts();
     shared.gitCommitInstructions = {
       exists: false,
       path: null,
-      requiredPath: ".github/git-commit-instructions.md",
-      misplacedPaths: ["docs/coding-standards/git-commit.md"],
+      requiredPath: "docs/coding-standards/git-commit.md",
+      misplacedPaths: [".github/git-commit-instructions.md"],
     };
 
     const result = commitGuidanceCheck.run(
@@ -165,11 +173,11 @@ describe("commit-guidance harness check", () => {
     assert.equal(result.status, "fail");
     assert.match(
       result.findings.join("\n"),
-      /belongs at \.github\/git-commit-instructions\.md/,
+      /belongs at docs\/coding-standards\/git-commit\.md/,
     );
     assert.match(
       result.howToFix?.join("\n") ?? "",
-      /docs\/coding-standards\/git-commit\.md/,
+      /\.github\/git-commit-instructions\.md/,
     );
   });
 });
@@ -210,7 +218,7 @@ describe("deny-hook-registered harness check", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             denyIsRegistered: true,
-            denyRegisteredPath: ".claude/hooks/guard-repository-writes.sh",
+            denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
           },
         }),
       ],
@@ -228,7 +236,7 @@ describe("deny-hook-registered harness check", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             denyIsRegistered: true,
-            denyRegisteredPath: ".codex/hooks/guard-repository-writes.sh",
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
           },
         }),
       ],
@@ -237,8 +245,8 @@ describe("deny-hook-registered harness check", () => {
     assert.equal(result.status, "fail");
     const finding = result.findings.find((f) => f.includes("does not match"));
     assert.ok(finding, "should report path mismatch");
-    assert.ok(finding.includes(".codex/hooks/guard-repository-writes.sh"));
-    assert.ok(finding.includes(".claude/hooks/guard-repository-writes.sh"));
+    assert.ok(finding.includes(".codex/hooks/deny-dangerous.sh"));
+    assert.ok(finding.includes(".claude/hooks/deny-dangerous.sh"));
   });
 });
 
@@ -249,10 +257,10 @@ describe("zero-entry fresh install", () => {
   it("a project with zero footguns and lessons passes harness", () => {
     const report = getRepoAudit({ agentFilter: "claude", harness: true });
 
-    assert.notEqual(report.concerns, null);
+    assertExists(report.concerns);
     // feedback_loop concern should pass even with zero entries
     // (the real project has entries, but the check only requires directories to exist)
-    const feedbackLoop = report.concerns!.feedback_loop;
+    const feedbackLoop = report.concerns.feedback_loop;
     assert.equal(
       feedbackLoop.status,
       "pass",
@@ -284,11 +292,12 @@ describe("harness scoring honesty", () => {
     const ctx = makeCtx({
       fs: stubFS({
         exists: (path) => path === ".goat-flow/tasks",
-        listDir: (path) => (path === ".goat-flow/tasks" ? ["M01-demo.md"] : []),
+        listDir: (path) =>
+          path === ".goat-flow/tasks" ? ["Milestone-demo.md"] : [],
         readFile: (path) =>
-          path === ".goat-flow/tasks/M01-demo.md"
+          path === ".goat-flow/tasks/Milestone-demo.md"
             ? [
-                "# M01 Demo",
+                "# Milestone Demo",
                 "**Status:** in-progress",
                 "## Tasks",
                 "- [ ] Add feature",

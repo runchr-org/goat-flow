@@ -8,12 +8,13 @@ import { parseCLIArgs } from "../../src/cli/cli.js";
 
 describe("events command parsing", () => {
   it("parses events tail with a project path and limit", () => {
+    const requestedLimit = 5;
     const parsed = parseCLIArgs([
       "events",
       "tail",
       ".",
       "--limit",
-      "5",
+      String(requestedLimit),
       "--format",
       "json",
     ]);
@@ -21,7 +22,7 @@ describe("events command parsing", () => {
     assert.equal(parsed.command, "events");
     assert.equal(parsed.eventsSubcommand, "tail");
     assert.equal(parsed.projectPath, resolve("."));
-    assert.equal(parsed.eventsLimit, 5);
+    assert.equal(parsed.eventsLimit, requestedLimit);
     assert.equal(parsed.format, "json");
   });
 

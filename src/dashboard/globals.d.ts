@@ -220,12 +220,11 @@ interface TaskMilestoneSummary {
 }
 
 /** Top-level task directory summary from `.goat-flow/tasks/`. */
-interface TaskPlanSummary {
+interface TaskPlanSummary extends Record<"active", boolean> {
   name: string;
   path: string;
   modifiedAt: string;
   milestoneCount: number;
-  active: boolean;
 }
 
 /** Response from `/api/tasks` after reading or changing active task-plan state. */
@@ -241,8 +240,8 @@ interface TaskState {
 
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
 
-interface HookAgentState {
-  supported: boolean;
+/** Per-agent hook installation and drift state delivered to the browser. */
+interface HookAgentState extends Record<"supported", boolean> {
   installed: boolean;
   scriptPath: string | null;
   configPath: string | null;
@@ -250,12 +249,11 @@ interface HookAgentState {
   reason?: string;
 }
 
-interface HookState {
+/** Browser-side hook state used by the Hooks view and confirmation dialog. */
+interface HookState extends Record<"togglable" | "enabled", boolean> {
   id: string;
   name: string;
   description: string;
-  togglable: boolean;
-  enabled: boolean;
   defaultEnabled: boolean;
   requiresConfirmDialog: boolean;
   agents: Partial<Record<RunnerId, HookAgentState>>;
@@ -311,16 +309,19 @@ interface ServerSessionInfo {
   targetPath: string;
   runner: RunnerId;
   lastInputAt: number;
-  age?: number;
-  idleDuration?: number;
-  projectName?: string;
+  age?: number | undefined;
+  idleDuration?: number | undefined;
+  projectName?: string | undefined;
 }
 
 /** Local terminal session tracked by the frontend Alpine state. */
 type TerminalLoadingPhase = "connecting" | "loading" | "ready" | "error";
 
 /** Alpine-reactive terminal session state; xterm/WebSocket handles live in TerminalRefs. */
-interface LocalSession {
+interface LocalSession
+  extends
+    Record<"connected" | "ended", boolean>,
+    Partial<Record<"awaitingInput", boolean>> {
   id: string;
   runner: RunnerId;
   promptLabel: string;
@@ -329,13 +330,10 @@ interface LocalSession {
   targetPath: string;
   startTime: number;
   lastInputTime: number;
-  connected: boolean;
-  ended: boolean;
-  awaitingInput?: boolean;
   outputTail?: string;
   /** Loading overlay state: create/mount -> connecting, ws open -> loading, first output -> ready, pre-output failure -> error. */
   loadingPhase: TerminalLoadingPhase;
-  loadingError?: string;
+  loadingError?: string | undefined;
   loadingShowSlowHint?: boolean;
   loadingShowRetry?: boolean;
   age: string;
@@ -347,23 +345,25 @@ interface TerminalRefs {
   ws?: WebSocket;
   xterm?: XTermInstance;
   cleanup?: () => void;
-  ageInterval?: ReturnType<typeof setInterval>;
-  awaitingInputTimer?: ReturnType<typeof setTimeout>;
-  pasteSubmitTimer?: ReturnType<typeof setTimeout>;
-  pasteSubmitQueue?: Array<{ data: string; shouldDelaySubmit: boolean }>;
-  pasteSubmitOutputTail?: string;
+  ageInterval?: ReturnType<typeof setInterval> | undefined;
+  awaitingInputTimer?: ReturnType<typeof setTimeout> | undefined;
+  pasteSubmitTimer?: ReturnType<typeof setTimeout> | undefined;
+  pasteSubmitQueue?:
+    | Array<{ data: string; shouldDelaySubmit: boolean }>
+    | undefined;
+  pasteSubmitOutputTail?: string | undefined;
   pasteSubmitAwaitingCommit?: boolean;
   pasteSubmitFallbackSubmitted?: boolean;
-  launchPrompt?: string;
+  launchPrompt?: string | undefined;
   retryPrompt?: string;
   retryPromptLabel?: string | null;
   retryPresetId?: string | null;
   retryCwdPath?: string | null;
   retryTargetPath?: string | null;
-  loadingSlowTimer?: ReturnType<typeof setTimeout>;
-  loadingRetryTimer?: ReturnType<typeof setTimeout>;
-  launchPromptFallbackTimer?: ReturnType<typeof setTimeout>;
-  launchPromptQuietTimer?: ReturnType<typeof setTimeout>;
+  loadingSlowTimer?: ReturnType<typeof setTimeout> | undefined;
+  loadingRetryTimer?: ReturnType<typeof setTimeout> | undefined;
+  launchPromptFallbackTimer?: ReturnType<typeof setTimeout> | undefined;
+  launchPromptQuietTimer?: ReturnType<typeof setTimeout> | undefined;
   launchPromptOutputSeen?: boolean;
 }
 
@@ -388,24 +388,24 @@ interface Preset {
   desc: string;
   prompt: string;
   cat: string;
-  route?: string;
-  source?: string;
-  globalSafe?: boolean;
-  internalOnly?: boolean;
-  qualityMode?: boolean;
-  requiresGh?: boolean;
-  requiresPrOrIssue?: boolean;
-  requiresLocalDiff?: boolean;
-  requiresUiApp?: boolean;
-  requiresDependencyFiles?: boolean;
-  requiresGoatFlowInstall?: boolean;
-  mayCheckoutBranch?: boolean;
-  requiresCleanWorktree?: boolean;
-  mayWriteFiles?: boolean;
-  artifactRequired?: boolean;
-  bestTargetSurfaces?: string[];
-  fallbackPrompt?: string;
-  costTier?: "low" | "medium" | "high";
+  route?: string | undefined;
+  source?: string | undefined;
+  globalSafe?: boolean | undefined;
+  internalOnly?: boolean | undefined;
+  qualityMode?: boolean | undefined;
+  requiresGh?: boolean | undefined;
+  requiresPrOrIssue?: boolean | undefined;
+  requiresLocalDiff?: boolean | undefined;
+  requiresUiApp?: boolean | undefined;
+  requiresDependencyFiles?: boolean | undefined;
+  requiresGoatFlowInstall?: boolean | undefined;
+  mayCheckoutBranch?: boolean | undefined;
+  requiresCleanWorktree?: boolean | undefined;
+  mayWriteFiles?: boolean | undefined;
+  artifactRequired?: boolean | undefined;
+  bestTargetSurfaces?: string[] | undefined;
+  fallbackPrompt?: string | undefined;
+  costTier?: "low" | "medium" | "high" | undefined;
 }
 
 /** Compact compatibility badge shown for preset prerequisites and fit. */
@@ -576,9 +576,9 @@ interface QualityModeOption {
   label: string;
   desc: string;
   source: "api" | "preset" | "registry";
-  presetId?: string;
+  presetId?: string | undefined;
   targetScope: string;
-  prompt?: string;
+  prompt?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -594,13 +594,21 @@ interface SetupCommands {
 }
 
 /** Existing GOAT Flow artifacts detected in the selected project. */
-interface ExistingArtifacts {
-  skills: boolean;
+type ExistingArtifactPresence = Record<
+  "skills" | "lessons" | "footguns" | "config",
+  boolean
+>;
+
+/**
+ * What goat-flow content already exists in the selected project, as detected by `/api/setup/detect`.
+ * Extends the skills/lessons/footguns/config presence flags with how instruction files are scoped:
+ * `instructionsRepoWide` true means a root instruction file (e.g. CLAUDE.md) is present, while
+ * `instructionsPathScoped` true means per-directory scoped instruction files were found. Both can be
+ * true; both false means the project has no instruction file yet, which the setup view treats as bare.
+ */
+interface ExistingArtifacts extends ExistingArtifactPresence {
   instructionsRepoWide: boolean;
   instructionsPathScoped: boolean;
-  lessons: boolean;
-  footguns: boolean;
-  config: boolean;
 }
 
 /** Aggregated setup-view detection data returned by `/api/setup/detect`. */

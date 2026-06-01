@@ -33,6 +33,16 @@ import type {
   SkillFacts,
 } from "./types.js";
 import { ManifestValidationError } from "./types.js";
+import { readManifestJson } from "./manifest-json.js";
+
+// Re-exported here for API stability. These declarations moved into a sibling
+// module to break a circular dependency (its header explains the full story);
+// consumers and tests still reference them through this module.
+// (search: "design.circular-import")
+export {
+  validateSkillReferenceSchema,
+  getRequiredInstructionSections,
+} from "./manifest-json.js";
 
 /** goat-flow architectural fact: `goat` is the dispatcher, the rest are functional. */
 const DISPATCHER_NAME = "goat";
@@ -45,73 +55,6 @@ interface AgentCapabilityCandidate {
   setup_surfaces?: unknown;
   prompt_invocation_style?: unknown;
   skill_source?: unknown;
-}
-
-/** Read the on-disk manifest JSON. Throws on missing or malformed file. */
-function readManifestJson(): ManifestJson {
-  const path = getTemplatePath("workflow/manifest.json");
-  const raw = readFileSync(path, "utf-8");
-  const json = JSON.parse(raw) as ManifestJson;
-  validateSkillReferenceSchema(json);
-  return json;
-}
-
-/** Validate optional `skills.references` shape before any consumer reads it. */
-function validateOneSkillReference(
-  canonical: ReadonlySet<string>,
-  skillName: string,
-  files: unknown,
-): string[] {
-  const findings: string[] = [];
-  if (!canonical.has(skillName)) {
-    findings.push(
-      `skills.references.${skillName} must reference a canonical skill name.`,
-    );
-  }
-  if (!Array.isArray(files)) {
-    findings.push(`skills.references.${skillName} must be a string array.`);
-    return findings;
-  }
-  if (files.some((file) => typeof file !== "string")) {
-    findings.push(`skills.references.${skillName} must contain only strings.`);
-  }
-  return findings;
-}
-
-/**
- * Validate optional skill-reference metadata before consumers read it.
- *
- * Throws `ManifestValidationError` on malformed references because stale or
- * misspelled reference lists change what the installer copies.
- *
- * @param json - Parsed manifest JSON to validate.
- */
-export function validateSkillReferenceSchema(json: ManifestJson): void {
-  const references: unknown = json.skills.references;
-  if (references === undefined) return;
-  if (
-    typeof references !== "object" ||
-    references === null ||
-    Array.isArray(references)
-  ) {
-    throw new ManifestValidationError(
-      "workflow/manifest.json has an invalid `skills.references` value.",
-      ["skills.references must be an object keyed by canonical skill name."],
-    );
-  }
-
-  const findings: string[] = [];
-  const canonical = new Set(json.skills.canonical);
-  for (const [skillName, files] of Object.entries(references)) {
-    findings.push(...validateOneSkillReference(canonical, skillName, files));
-  }
-
-  if (findings.length > 0) {
-    throw new ManifestValidationError(
-      `workflow/manifest.json has invalid skill reference metadata (${findings.length} finding${findings.length === 1 ? "" : "s"}).`,
-      findings,
-    );
-  }
 }
 
 function readAgentCapabilityCandidate(
@@ -289,8 +232,7 @@ export function validateManifest(
   findings.push(...validateAgentCapabilities(json));
 
   if (!json.facts) {
-    const msg =
-      "workflow/manifest.json is missing the top-level `facts` key (M06 expected shape).";
+    const msg = "workflow/manifest.json is missing the top-level `facts` key.";
     throw new ManifestValidationError(msg, [msg]);
   }
 
@@ -355,26 +297,6 @@ export function composeManifest(
     instruction_file: json.instruction_file,
     facts,
   };
-}
-
-/** Regex for a markdown heading whose text equals `label` (case-insensitive).
- *  Used by harness checks to find required instruction-file sections. */
-function instructionSectionRegex(label: string): RegExp {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^#+\\s+${escaped}`, "im");
-}
-
-/** Resolved (label, pattern) pairs built from the manifest's required_sections.
- *  Harness checks import this instead of hand-rolling their own section list. */
-export function getRequiredInstructionSections(): {
-  label: string;
-  pattern: RegExp;
-}[] {
-  const sections = loadManifest().instruction_file.required_sections;
-  return sections.map((label) => ({
-    label,
-    pattern: instructionSectionRegex(label),
-  }));
 }
 
 /**

@@ -1,10 +1,11 @@
 /**
- * Integration tests for `goat-flow stats` and `goat-flow stats --check` (M09).
+ * Integration tests for `goat-flow stats` and `goat-flow stats --check`.
  * Exercises the extractor + report + render pipeline end-to-end against
  * temp-dir fixtures so the live repo's learning-loop content does not leak in.
  */
 import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
+import { assertExists } from "../helpers/assert-exists.ts";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,6 +28,7 @@ import type {
   GoatFlowConfig,
 } from "../../src/cli/config/types.js";
 
+/** Build a valid loaded config because stats fixtures only need a few targeted overrides. */
 function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
   return {
     exists: true,
@@ -94,6 +96,7 @@ after(() => {
   for (const dir of disposables) rmSync(dir, { recursive: true, force: true });
 });
 
+/** Load a stats report from a seeded learning-loop fixture repo. */
 function loadReport(spec: Parameters<typeof makeFixtureRepo>[0]) {
   const root = makeFixtureRepo(spec);
   disposables.push(root);
@@ -106,6 +109,7 @@ function loadReport(spec: Parameters<typeof makeFixtureRepo>[0]) {
   });
 }
 
+/** Load a stats report when the learning-loop directories are absent. */
 function loadReportWithoutLoopDirs() {
   const root = mkdtempSync(join(tmpdir(), "goatflow-stats-missing-"));
   disposables.push(root);
@@ -120,6 +124,8 @@ function loadReportWithoutLoopDirs() {
 
 describe("goat-flow stats - happy path", () => {
   it("reports per-bucket freshness and live entry counts", () => {
+    const expectedFootgunEntries = 2;
+    const expectedLessonFreshnessDays = 30;
     const report = loadReport({
       footguns: {
         "hooks.md":
@@ -131,12 +137,15 @@ describe("goat-flow stats - happy path", () => {
       },
     });
 
-    assert.equal(report.footguns.totalEntries, 2);
-    assert.equal(report.footguns.buckets[0]!.freshnessBand, "fresh");
-    assert.equal(report.footguns.buckets[0]!.freshnessDays, 0);
+    assert.equal(report.footguns.totalEntries, expectedFootgunEntries);
+    assert.equal(report.footguns.buckets[0].freshnessBand, "fresh");
+    assert.equal(report.footguns.buckets[0].freshnessDays, 0);
     assert.equal(report.lessons.totalEntries, 1);
-    assert.equal(report.lessons.buckets[0]!.freshnessDays, 30);
-    assert.equal(report.lessons.buckets[0]!.freshnessBand, "fresh");
+    assert.equal(
+      report.lessons.buckets[0].freshnessDays,
+      expectedLessonFreshnessDays,
+    );
+    assert.equal(report.lessons.buckets[0].freshnessBand, "fresh");
 
     const text = renderStatsText(report);
     assert.ok(text.includes("Footguns"));
@@ -144,7 +153,7 @@ describe("goat-flow stats - happy path", () => {
     assert.ok(text.includes("verification.md"));
 
     const json = JSON.parse(renderStatsJson(report));
-    assert.equal(json.footguns.totalEntries, 2);
+    assert.equal(json.footguns.totalEntries, expectedFootgunEntries);
   });
 });
 
@@ -166,6 +175,7 @@ describe("goat-flow stats --check", () => {
   });
 
   it("passes with warnings for fresh empty learning-loop directories", () => {
+    const expectedEmptyLoopWarningCount = 2;
     const report = loadReport({
       footguns: {},
       lessons: {},
@@ -174,7 +184,7 @@ describe("goat-flow stats --check", () => {
 
     assert.equal(verdict.status, "pass");
     assert.deepEqual(verdict.findings, []);
-    assert.equal(verdict.warnings.length, 2);
+    assert.equal(verdict.warnings.length, expectedEmptyLoopWarningCount);
     assert.ok(
       verdict.warnings.some(
         (warning) =>
@@ -228,8 +238,8 @@ describe("goat-flow stats --check", () => {
     const finding = verdict.findings.find(
       (f) => f.rule === "missing-last-reviewed",
     );
-    assert.ok(finding, "expected a missing-last-reviewed finding");
-    assert.ok(finding!.message.includes("hooks.md"));
+    assertExists(finding, "expected a missing-last-reviewed finding");
+    assert.ok(finding.message.includes("hooks.md"));
   });
 
   it("fails when last_reviewed has an invalid format", () => {
@@ -263,8 +273,8 @@ describe("goat-flow stats --check", () => {
     const verdict = checkStats(report);
     assert.equal(verdict.status, "fail");
     const finding = verdict.findings.find((f) => f.rule === "stale-ref");
-    assert.ok(finding, "expected a stale-ref finding");
-    assert.ok(finding!.message.includes("src/gone.ts:42"));
+    assertExists(finding, "expected a stale-ref finding");
+    assert.ok(finding.message.includes("src/gone.ts:42"));
   });
 
   it("fails when a bucket uses line-number evidence without a semantic anchor", () => {
@@ -278,8 +288,8 @@ describe("goat-flow stats --check", () => {
     const verdict = checkStats(report);
     assert.equal(verdict.status, "fail");
     const finding = verdict.findings.find((f) => f.rule === "invalid-line-ref");
-    assert.ok(finding, "expected an invalid-line-ref finding");
-    assert.ok(finding!.message.includes("missing semantic anchor"));
+    assertExists(finding, "expected an invalid-line-ref finding");
+    assert.ok(finding.message.includes("missing semantic anchor"));
   });
 
   it("fails when an active footgun appears below ## Resolved Entries", () => {
@@ -414,10 +424,10 @@ describe("goat-flow stats --check", () => {
     const finding = verdict.findings.find(
       (f) => f.rule === "decision-filename",
     );
-    assert.ok(finding, "expected a decision-filename finding");
-    assert.ok(finding!.message.includes(".goat-flow/tasks/"));
-    assert.ok(finding!.message.includes(".goat-flow/footguns/"));
-    assert.ok(finding!.message.includes(".goat-flow/scratchpad/"));
+    assertExists(finding, "expected a decision-filename finding");
+    assert.ok(finding.message.includes(".goat-flow/tasks/"));
+    assert.ok(finding.message.includes(".goat-flow/footguns/"));
+    assert.ok(finding.message.includes(".goat-flow/scratchpad/"));
   });
 
   it("keeps custom decisions README advisory while legacy notes fail validation", () => {

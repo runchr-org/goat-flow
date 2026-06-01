@@ -11,12 +11,18 @@ import { writeFileAtomic } from "../server/safe-exec.js";
 
 type HookConfigMap = Record<string, { enabled: boolean }>;
 
-const HOOK_ID_ALIASES = new Map([["gruff-on-change", "gruff-code-quality"]]);
+const HOOK_ID_ALIASES = new Map([
+  ["gruff-on-change", "gruff-code-quality"],
+  ["guard-destructive-shell", "deny-dangerous"],
+  ["guard-secret-paths", "deny-dangerous"],
+  ["guard-repository-writes", "deny-dangerous"],
+]);
 const HOOK_BLOCK_COMMENT_LINES = new Set([
   "# Togglable goat-flow hook state. Missing entries use registry defaults.",
   "# Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.",
 ]);
 
+/** Narrow parsed YAML values before reading the hooks block. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&
@@ -25,10 +31,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   );
 }
 
+/** Resolve the project-local goat-flow config path used by dashboard hook toggles. */
 function configPath(projectPath: string): string {
   return join(projectPath, ".goat-flow", "config.yaml");
 }
 
+/** Read existing config text or synthesize the minimal config needed before the first toggle write. */
 function readConfigText(projectPath: string): string {
   const path = configPath(projectPath);
   if (!existsSync(path)) {
@@ -41,10 +49,12 @@ function readConfigText(projectPath: string): string {
   return readFileSync(path, "utf-8");
 }
 
-function normalizeHookId(hookId: string): string {
-  return HOOK_ID_ALIASES.get(hookId) ?? hookId;
+/** Map legacy hook ids to canonical ids so old config entries keep their state. */
+function normalizeHookIdentifier(hookIdentifier: string): string {
+  return HOOK_ID_ALIASES.get(hookIdentifier) ?? hookIdentifier;
 }
 
+/** Parse explicitly configured hook states; malformed YAML uses an empty-map fallback. */
 function readRawHooks(text: string): HookConfigMap {
   let parsed: unknown;
   try {
@@ -56,18 +66,19 @@ function readRawHooks(text: string): HookConfigMap {
   const hooks: HookConfigMap = {};
   for (const [hookId, value] of Object.entries(parsed.hooks)) {
     if (!isRecord(value) || typeof value.enabled !== "boolean") continue;
-    const normalizedHookId = normalizeHookId(hookId);
+    const normalizedHookIdentifier = normalizeHookIdentifier(hookId);
     if (
-      normalizedHookId !== hookId &&
-      Object.prototype.hasOwnProperty.call(hooks, normalizedHookId)
+      normalizedHookIdentifier !== hookId &&
+      Object.prototype.hasOwnProperty.call(hooks, normalizedHookIdentifier)
     ) {
       continue;
     }
-    hooks[normalizedHookId] = { enabled: value.enabled };
+    hooks[normalizedHookIdentifier] = { enabled: value.enabled };
   }
   return hooks;
 }
 
+/** Render the managed hooks block with stable ordering and the operator-facing ownership comment. */
 function renderHooksBlock(hooks: HookConfigMap): string {
   const ordered = Object.fromEntries(
     Object.entries(hooks).sort(([a], [b]) => a.localeCompare(b)),
@@ -80,10 +91,12 @@ function renderHooksBlock(hooks: HookConfigMap): string {
   ].join("\n");
 }
 
+/** Detect top-level YAML keys so hook-block replacement preserves following config sections. */
 function isTopLevelLine(line: string): boolean {
   return /^[A-Za-z0-9_-]+:/u.test(line);
 }
 
+/** Replace only the managed top-level hooks block, preserving all unrelated config text. */
 function replaceTopLevelHooksBlock(text: string, block: string): string {
   const lines = text.replace(/\s*$/u, "\n").split("\n");
   const start = lines.findIndex((line) => /^hooks:\s*(?:#.*)?$/u.test(line));
@@ -115,7 +128,14 @@ function readHookConfig(projectPath: string): HookConfigMap {
   return readRawHooks(readConfigText(projectPath));
 }
 
-/** Return one hook's desired enabled state using the registry default on absence. */
+/**
+ * Return one hook's desired enabled state using the registry default on absence.
+ *
+ * @param projectPath - project whose goat-flow config stores hook overrides
+ * @param hookId - canonical hook id to read
+ * @param defaultEnabled - registry default to use when config omits the hook
+ * @returns configured enabled state, or the registry default when absent
+ */
 export function readHookEnabled(
   projectPath: string,
   hookId: string,
@@ -124,7 +144,13 @@ export function readHookEnabled(
   return readHookConfig(projectPath)[hookId]?.enabled ?? defaultEnabled;
 }
 
-/** Set one hook's desired enabled state in `.goat-flow/config.yaml`. */
+/**
+ * Set one hook's desired enabled state in `.goat-flow/config.yaml`.
+ *
+ * @param projectPath - project whose goat-flow config should be written
+ * @param hookId - canonical hook id to update
+ * @param enabled - desired enabled state to persist
+ */
 export function setHookEnabled(
   projectPath: string,
   hookId: string,

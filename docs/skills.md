@@ -92,10 +92,10 @@ The dispatcher classifies intent conversationally - not by keyword lookup. It as
 | Input | Expected mode |
 |-------|---------------|
 | Bare task directory path | Read-only orientation; no writes |
-| Task directory path plus `start M01` | Implementation may start after normal gates |
+| Task directory path plus `start current milestone` | Implementation may start after normal gates |
 | `resume` plus a task directory path | Confirm current milestone unless the plan clearly records one |
-| `update M01` plus a task directory path | Update the named milestone file only |
-| `implement M01` plus a task directory path | Code implementation may proceed after reading gates |
+| `update current milestone` plus a task directory path | Update the named milestone file only |
+| `implement current milestone` plus a task directory path | Code implementation may proceed after reading gates |
 
 ---
 

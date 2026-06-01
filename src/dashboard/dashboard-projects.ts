@@ -3,6 +3,7 @@
  * Loaded as a classic script and called by thin Alpine methods in app.ts.
  */
 
+/** Dashboard state contract required by project-list, browser, title, and persistence helpers. */
 interface DashboardProjectsContext {
   projectPath: string;
   showBrowser: boolean;
@@ -20,12 +21,19 @@ interface DashboardProjectsContext {
   editingProjectTitle: boolean;
   projectTitleDraft: string;
   presetFavorites: string[];
+  /** Return the visible project title for a path, honoring saved aliases. */
   displayNameFor(path: string): string;
+  /** Return the stable identity key used for saved project titles. */
   projectKeyFor(path: string): string;
-  runAudit(fresh?: boolean): Promise<void>;
+  /** Refresh the active project audit, optionally bypassing the cached result. */
+  runAudit(includeFresh?: boolean): Promise<void>;
+  /** Surface a dashboard toast message, with error styling when requested. */
   showToast(msg: string, isError?: boolean): void;
+  /** Load browser rows for a filesystem path. */
   browseTo(path: string): Promise<void>;
+  /** Persist the project list through the legacy method name used by app.ts. */
   _saveProjectsList(): void;
+  /** Persist dashboard path, favorite, and title state. */
   _saveDashboardState(): void;
 }
 
@@ -51,6 +59,7 @@ function dashboardRememberProjectIdentities(
   }
 }
 
+/** Decode one persisted project record while dropping entries without identity or path. */
 function dashboardReadProjectRecord(value: unknown): ProjectEntry | null {
   if (!isRecord(value)) return null;
   const path = readString(value.currentPath);
@@ -78,6 +87,7 @@ function dashboardReadProjectRecord(value: unknown): ProjectEntry | null {
   return entry;
 }
 
+/** Decode the persisted project-record map into dashboard project rows. */
 function dashboardReadProjectRecords(value: unknown): ProjectEntry[] {
   if (!isRecord(value)) return [];
   return Object.values(value)
@@ -175,8 +185,11 @@ async function dashboardAddProject(
       if (idx >= 0) ctx.projectsList[idx] = result;
       dashboardRememberProjectIdentity(ctx, result);
     }
-  } catch {
-    /* silent */
+  } catch (err) {
+    // Surface, don't swallow: the project was added optimistically with an
+    // "Auditing..." placeholder, so a silent status-fetch failure would strand
+    // it in that state. Non-fatal — the row stays and a later refresh retries.
+    console.warn("[goat-flow] Failed to load status for added project:", err);
   }
   ctx.newProjectPath = "";
   ctx._saveProjectsList();
@@ -211,9 +224,9 @@ function dashboardSortedProjectsList(
   const key = ctx.projectsSortKey;
   const dir = ctx.projectsSortAsc ? 1 : -1;
   return [...ctx.projectsList].sort((a, b) => {
-    const av = key === "name" ? ctx.displayNameFor(a.path) : a[key];
-    const bv = key === "name" ? ctx.displayNameFor(b.path) : b[key];
-    return av.localeCompare(bv) * dir;
+    const firstValue = key === "name" ? ctx.displayNameFor(a.path) : a[key];
+    const secondValue = key === "name" ? ctx.displayNameFor(b.path) : b[key];
+    return firstValue.localeCompare(secondValue) * dir;
   });
 }
 
@@ -234,8 +247,11 @@ async function dashboardAuditAllProjects(
         .filter((project): project is ProjectEntry => project !== null);
       dashboardRememberProjectIdentities(ctx, ctx.projectsList);
     }
-  } catch {
-    /* silent */
+  } catch (err) {
+    // Surface, don't swallow: a failed status refresh previously vanished, so
+    // the projects list silently kept stale rows. Non-fatal — existing rows are
+    // left intact and the next refresh retries.
+    console.warn("[goat-flow] Failed to refresh project statuses:", err);
   }
   ctx.projectsAuditing = false;
 }
@@ -318,7 +334,7 @@ async function dashboardLoadSavedDashboardState(
   }
 }
 
-/** Persist the current dashboard state to localStorage and the server store. */
+/** Persist the current dashboard state to localStorage and the server store; swallows storage failures. */
 function dashboardSaveDashboardState(ctx: DashboardProjectsContext): void {
   const paths = [
     ...new Set(

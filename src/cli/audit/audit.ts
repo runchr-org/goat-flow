@@ -4,25 +4,26 @@
  * harness completeness checks (--harness, deterministic pass/fail per concern).
  * Returns an AuditReport consumed by renderers and the dashboard.
  */
-import { existsSync } from "node:fs";
 import type { AgentId, ProjectFacts, ReadonlyFS } from "../types.js";
 import { loadConfig } from "../config/index.js";
 import { extractProjectFacts } from "../facts/orchestrator.js";
-import { getTemplatePath, isPackagedInstall } from "../paths.js";
-import { loadManifest } from "../manifest/manifest.js";
 import { SETUP_CHECKS } from "./check-goat-flow.js";
 import { AGENT_CHECKS } from "./check-agent-setup.js";
 import { HARNESS_CHECKS } from "./harness/index.js";
 import { checkDrift } from "./check-drift.js";
-import { runContentQualityChecks } from "./check-content-quality.js";
-import { runFactualClaimChecks } from "./check-factual-claims.js";
-import { runSnapshotClaimChecks } from "./check-snapshot-claims.js";
 import {
   buildEnforcementMatrix,
   type AgentEnforcementCapability,
 } from "./enforcement.js";
-import { validateProvenance } from "./provenance-types.js";
-import type { CheckEvidence } from "./provenance-types.js";
+import { computeContent } from "./audit-content.js";
+import { shouldAutoRunDrift } from "./audit-drift-policy.js";
+import { createAuditFactsView } from "./audit-facts-view.js";
+import {
+  labelEvidencePathBases,
+  validateRegisteredCheckProvenance,
+} from "./audit-provenance.js";
+import { buildProjectStructure } from "./audit-structure.js";
+import { agentSummary, setupSummary } from "./audit-summaries.js";
 import type {
   AuditContext,
   AuditConcern,
@@ -37,15 +38,24 @@ import type {
   ContentReport,
   HarnessCheck,
   HarnessCheckResult,
-  ProjectStructure,
 } from "./types.js";
 
-interface AuditOptions {
+export { createAuditFactsView } from "./audit-facts-view.js";
+
+/** Runtime switches that choose audit scope, fact depth, and optional diagnostics. */
+type AuditHarnessOption = Record<"harness", boolean>;
+
+/**
+ * Caller-supplied switches for a single `runAudit` invocation. Every field beyond `agentFilter` and
+ * the inherited `harness` flag is optional and off by default, so the common audit path stays the
+ * deterministic build checks; the optional fields turn on the more expensive diagnostics (drift,
+ * content lint, full deny-hook runtime validation) or trade fact depth for dashboard speed.
+ */
+interface AuditOptions extends AuditHarnessOption {
   agentFilter: AgentId | null;
-  harness: boolean;
-  /** Optional drift check (M04). Defaults to false when omitted. */
+  /** Optional drift check. Defaults to false when omitted. */
   checkDrift?: boolean;
-  /** Optional cold-path content lint (M05). Defaults to false when omitted. */
+  /** Optional cold-path content lint. Defaults to false when omitted. */
   checkContent?: boolean;
   /** Optional summary-mode downgrade for expensive deny-hook runtime validation. */
   denyMechanismEvidenceLevel?: "full" | "static" | "present-only";
@@ -56,7 +66,7 @@ interface AuditOptions {
   /** Internal label used to separate aggregate, per-agent, and single audit spans. */
   profileScope?: "aggregate" | "per-agent" | "single";
   /** Internal batch option: project-level auto drift should run on aggregate only. */
-  skipAutoDrift?: boolean;
+  shouldRunAutoDrift?: boolean;
 }
 
 /** Synchronous profiler seam used by dashboard development benchmarks. */
@@ -73,10 +83,12 @@ function span<T>(
   return profile ? profile.span(name, fn) : fn();
 }
 
+/** Resolve the fact profile once so dashboard-summary callers get consistent fact slicing. */
 function factProfile(options: AuditOptions): AuditFactProfile {
   return options.factProfile ?? "full";
 }
 
+/** Decide whether stack detection should run for the requested fact profile. */
 function factsIncludeStack(options: AuditOptions): boolean {
   return factProfile(options) !== "dashboard-summary";
 }
@@ -92,79 +104,6 @@ function assertCheckCanRunWithoutStack(
   }
 }
 
-/** Build an isolated facts view for one audit context from a batch fact bundle. */
-export function createAuditFactsView(
-  facts: ProjectFacts,
-  options: { agentId?: AgentId; factProfile?: AuditFactProfile } = {},
-): ProjectFacts {
-  const selectedAgents = options.agentId
-    ? facts.agents.filter(
-        (agentFacts) => agentFacts.agent.id === options.agentId,
-      )
-    : facts.agents;
-  return {
-    root: facts.root,
-    stack:
-      options.factProfile === "dashboard-summary"
-        ? facts.stack
-        : structuredClone(facts.stack),
-    shared: structuredClone(facts.shared),
-    agents: structuredClone(selectedAgents),
-  };
-}
-
-/** Combine content-quality + factual-claim + snapshot-claim findings into a ContentReport. */
-function computeContent(ctx: AuditContext): ContentReport {
-  const quality = runContentQualityChecks(ctx);
-  const factual = runFactualClaimChecks(ctx);
-  const snapshot = runSnapshotClaimChecks(ctx);
-  const findings = [
-    ...quality.findings,
-    ...factual.findings,
-    ...snapshot.findings,
-  ];
-  const warnings = findings.filter((f) => f.severity === "warning").length;
-  const infos = findings.filter((f) => f.severity === "info").length;
-  return {
-    status: warnings === 0 ? "pass" : "fail",
-    findings,
-    warnings,
-    infos,
-    filesScanned:
-      quality.filesScanned + factual.filesScanned + snapshot.filesScanned,
-  };
-}
-
-/** Build the audit-facing `ProjectStructure` from the validated manifest.
- *  Replaces the previous pass-through from raw JSON (`getProjectStructure()`),
- *  which allowed malformed shapes to leak into audit logic. */
-function buildProjectStructure(): ProjectStructure {
-  const manifest = loadManifest();
-  return {
-    required_files: manifest.required_files,
-    required_dirs: manifest.required_dirs,
-    skills: {
-      canonical: [...manifest.facts.skills.names],
-      stale_names: [...manifest.facts.skills.stale_names],
-      references: manifest.skills.references ?? {},
-    },
-    agents: Object.fromEntries(
-      Object.entries(manifest.agents).map(([id, agent]) => [
-        id,
-        {
-          instruction_file: agent.instruction_file,
-          skills_dir: agent.skills_dir,
-          ...(agent.hooks_dir !== undefined
-            ? { hooks_dir: agent.hooks_dir }
-            : {}),
-          ...(agent.settings !== undefined ? { settings: agent.settings } : {}),
-          ...(agent.hooks !== undefined ? { hooks: agent.hooks } : {}),
-        },
-      ]),
-    ),
-  };
-}
-
 /** Build an audit scope from its checks, excluding score-only failures. */
 function buildScope(
   checks: CheckResult[],
@@ -178,62 +117,6 @@ function buildScope(
     checks,
     failures,
     summary,
-  };
-}
-
-const FRAMEWORK_EVIDENCE_PREFIXES = [
-  "workflow/",
-  "docs/",
-  ".goat-flow/footguns/",
-  ".goat-flow/lessons/",
-  ".goat-flow/decisions/",
-  ".goat-flow/skill-reference/",
-  ".goat-flow/skill-playbooks/",
-];
-
-const FRAMEWORK_EVIDENCE_PATHS = new Set([
-  "README.md",
-  ".goat-flow/architecture.md",
-  ".goat-flow/code-map.md",
-  ".goat-flow/glossary.md",
-]);
-
-function isFrameworkEvidencePath(path: string): boolean {
-  return (
-    FRAMEWORK_EVIDENCE_PATHS.has(path) ||
-    FRAMEWORK_EVIDENCE_PREFIXES.some((prefix) => path.startsWith(prefix))
-  );
-}
-
-function unique(values: string[]): string[] {
-  return Array.from(new Set(values));
-}
-
-/** Add explicit path-base labels while preserving legacy `evidence_paths`. */
-function labelEvidencePathBases(provenance: CheckEvidence): CheckEvidence {
-  const paths = provenance.evidence_paths ?? [];
-  if (paths.length === 0) return provenance;
-
-  const frameworkPaths = paths.filter(isFrameworkEvidencePath);
-  const targetPaths = paths.filter((path) => !isFrameworkEvidencePath(path));
-  return {
-    ...provenance,
-    ...(frameworkPaths.length > 0
-      ? {
-          framework_evidence_paths: unique([
-            ...(provenance.framework_evidence_paths ?? []),
-            ...frameworkPaths,
-          ]),
-        }
-      : {}),
-    ...(targetPaths.length > 0
-      ? {
-          target_evidence_paths: unique([
-            ...(provenance.target_evidence_paths ?? []),
-            ...targetPaths,
-          ]),
-        }
-      : {}),
   };
 }
 
@@ -279,65 +162,6 @@ function explainHarnessFailure(
   };
 }
 
-/** Build summary details for the setup scope (worst-case across all agents). */
-function setupSummary(ctx: AuditContext): Record<string, string> {
-  const totalSkills = ctx.structure.skills.canonical.length;
-  if (ctx.agents.length === 0) {
-    return {
-      skills: `0/${totalSkills} installed (no supported agents)`,
-      config: ctx.config.exists
-        ? "valid, no supported agents"
-        : "invalid or missing",
-      instructionFile: "0 lines (no supported agents)",
-    };
-  }
-  let minSkills = totalSkills;
-  let maxLines = 0;
-  for (const af of ctx.agents) {
-    minSkills = Math.min(minSkills, af.skills.found.length);
-    maxLines = Math.max(maxLines, af.instruction.lineCount);
-  }
-  const configValid = ctx.config.exists && ctx.config.valid;
-  const configVersion = ctx.config.config.version;
-
-  return {
-    skills: `${minSkills}/${totalSkills} installed`,
-    config: configValid
-      ? `valid, version ${configVersion}`
-      : "invalid or missing",
-    instructionFile: `${maxLines} lines (max across agents)`,
-  };
-}
-
-/** Build summary details for the agent scope */
-function agentSummary(ctx: AuditContext): Record<string, string> {
-  const tc = ctx.config.config.toolchain;
-  const parts: string[] = [];
-  if (tc.test.length > 0) parts.push("test");
-  if (tc.lint.length > 0) parts.push("lint");
-  if (tc.build.length > 0) parts.push("build");
-
-  const hookInfo: string[] = [];
-  for (const af of ctx.agents) {
-    if (af.hooks.denyExists || af.hooks.denyIsConfigBased) {
-      hookInfo.push(`${af.agent.id}:deny installed`);
-    }
-  }
-
-  return {
-    toolchain:
-      parts.length > 0
-        ? parts.join(" + ") + " configured"
-        : "not configured (optional)",
-    hooks:
-      ctx.agents.length === 0
-        ? "not applicable (no supported agents)"
-        : hookInfo.length > 0
-          ? hookInfo.join(", ")
-          : "none installed",
-  };
-}
-
 /** Convert a harness check + its result into a CheckResult for the scope. */
 function toCheckResult(
   check: HarnessCheck,
@@ -371,36 +195,6 @@ function toCheckResult(
     assurance: result.assurance,
     details: result.details,
   };
-}
-
-/** Validate provenance on every registered check against the target project or package root.
- *
- *  In packaged installs, `evidence_paths` pointing at framework-repo docs
- *  (`.goat-flow/footguns/*`, `.goat-flow/lessons/*`, `docs/*`) can't be
- *  resolved because those files aren't in `package.json` `files`. Skip the
- *  existence check there - the paths are human-readable pointers for future
- *  maintainers, not runtime contracts. In dev mode we keep the check so
- *  stale provenance surfaces in preflight. */
-let provenanceValidated = false;
-
-function validateRegisteredCheckProvenance(fs: ReadonlyFS): void {
-  if (provenanceValidated) return;
-  const checks = [...SETUP_CHECKS, ...AGENT_CHECKS, ...HARNESS_CHECKS];
-  const errors: string[] = [];
-  const pathExists = isPackagedInstall()
-    ? undefined
-    : (p: string) => fs.exists(p) || existsSync(getTemplatePath(p));
-  for (const check of checks) {
-    for (const error of validateProvenance(check.provenance, pathExists)) {
-      errors.push(`${check.id}: ${error}`);
-    }
-  }
-  if (errors.length > 0) {
-    throw new Error(
-      `Invalid audit check provenance:\n- ${errors.join("\n- ")}`,
-    );
-  }
-  provenanceValidated = true;
 }
 
 /** Create an empty AuditConcern with zeroed counters. */
@@ -482,7 +276,11 @@ function applyCheckToConcern(
   }
 }
 
-/** Run harness checks and return the scope results plus per-concern scores. */
+/**
+ * Run harness checks and return the scope results plus per-concern scores.
+ *
+ * @param ctx - audit context containing facts, config, checks, and target filesystem access
+ */
 export function computeHarness(ctx: AuditContext): {
   scope: AuditScope;
   concerns: Record<AuditConcernKey, AuditConcern>;
@@ -525,6 +323,7 @@ export function computeHarness(ctx: AuditContext): {
   return { scope: buildScope(checks, {}), concerns };
 }
 
+/** Summarize agent-specific checks skipped by aggregate audit mode for non-gating evidence limits. */
 function describeAggregateAgentSkips(agentScope: AuditScope): string | null {
   const skippedAgentChecks = agentScope.checks
     .filter((check) => check.status === "skipped")
@@ -606,6 +405,7 @@ function runSingleBuildCheck(
   };
 }
 
+/** Run setup and agent build checks into their separately rendered audit scopes. */
 function runBuildChecks(ctx: AuditContext): {
   setup: AuditScope;
   agent: AuditScope;
@@ -676,35 +476,13 @@ function overallStatus(
 }
 
 /**
- * Decide whether drift should auto-run without --check-drift (M19-4).
+ * Run the audit against a project and return the full report.
  *
- * Multi-agent projects leave satellite skill dirs (`.agents/skills/`,
- * `.claude/skills/`, etc.) stale after a single-agent migration completes.
- * The existing drift machinery detects `manifest.stale_names` orphans but
- * is off by default, so `audit --agent claude` on a project that also ships
- * AGENTS.md exits "pass" while the Codex / Antigravity skill dirs still hold
- * pre-v1.2 names. When more than one agent instruction file is present on
- * disk we run drift automatically. Evidence: n=4 migrations reviewed
- * 2026-04-20 all had stale satellite dirs surviving a "pass" audit - see
- * `.goat-flow/tasks/1.2.0/M19-setup-signal-hardening.md` slice M19-4.
- *
- * The signal is computed from the manifest-backed instruction paths rather
- * than `ctx.agents`, which has already been narrowed by `--agent` upstream.
- * Using the filtered list would hide the multi-agent signal exactly when it
- * matters - the single-agent-filter case is the one stale satellites exploit.
- *
- * Single-agent projects preserve the prior opt-in behaviour.
+ * @param fs - filesystem adapter scoped to the target project
+ * @param projectPath - absolute or relative target project root passed to fact extraction and checks
+ * @param options - audit switches controlling agent filtering, harness, drift, content, and fact profile
+ * @returns full audit report with setup, agent, optional harness, drift, and content sections
  */
-function shouldAutoRunDrift(ctx: AuditContext): boolean {
-  const manifest = loadManifest();
-  let instructionFilesPresent = 0;
-  for (const agent of Object.values(manifest.agents)) {
-    if (ctx.fs.exists(agent.instruction_file)) instructionFilesPresent++;
-  }
-  return instructionFilesPresent > 1;
-}
-
-/** Run the audit against a project and return the full report. */
 export function runAudit(
   fs: ReadonlyFS,
   projectPath: string,
@@ -791,7 +569,7 @@ function shouldRunDriftCheck(
   options: AuditOptions,
 ): boolean {
   if (options.checkDrift === true) return true;
-  return options.skipAutoDrift !== true && shouldAutoRunDrift(ctx);
+  return options.shouldRunAutoDrift !== false && shouldAutoRunDrift(ctx);
 }
 
 function computeDriftWithProfile(
@@ -821,6 +599,11 @@ function computeContentWithProfile(
 /**
  * Run aggregate + per-agent audits sharing a single config/structure/provenance pass.
  * Eliminates the N+1 pattern where each per-agent audit re-parses config and facts.
+ *
+ * @param fs - filesystem adapter scoped to the target project
+ * @param projectPath - target project root reused by aggregate and per-agent runs
+ * @param options - aggregate audit switches reused by the per-agent runs
+ * @param agentIds - supported agent ids to audit individually after the aggregate run
  */
 export function runAuditBatch(
   fs: ReadonlyFS,
@@ -906,7 +689,7 @@ export function runAuditBatch(
           ...options,
           agentFilter: agentId,
           profileScope: "per-agent",
-          skipAutoDrift: true,
+          shouldRunAutoDrift: false,
         }),
       });
     } catch {

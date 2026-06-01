@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-31
 ---
 
 ## Lesson: Stryker sandboxes need local-state ignores and mutation-safe test selection
@@ -35,7 +35,29 @@ last_reviewed: 2026-05-28
 
 **Root cause:** I treated sibling gruff CLIs as interchangeable binaries but skipped two runtime surfaces that are part of the hook contract: schema-bearing project config files and wrapper-script dependencies inherited from the caller's normal `PATH`.
 
-**Prevention:** When testing `gruff-code-quality.sh` against sibling gruff implementations, copy or reference each project's real `.gruff-*.yaml`, preserve the normal `PATH` while prefixing local gruff binaries, and run both checks: direct `analyse --format json` schema probes and hook-shaped probes with changed ranges. Evidence anchors: `workflow/hooks/gruff-code-quality.sh` (search: `discover_binary`), `.goat-flow/tasks/1.8.0/M14-gruff-changed-line-hook-filter.md` (search: `gruff family hook probes`).
+**Prevention:** When testing `gruff-code-quality.sh` against sibling gruff implementations, copy or reference each project's real `.gruff-*.yaml`, preserve the normal `PATH` while prefixing local gruff binaries, and run both checks: direct `analyse --format json` schema probes and hook-shaped probes with changed ranges. Evidence anchors: `workflow/hooks/gruff-code-quality.sh` (search: `discover_binary`), `test/integration/gruff-code-quality-smoke.test.ts` (search: `changed line finding`).
+
+## Lesson: Gruff doc comments can expose hidden complexity warnings
+
+**Status:** active | **Created:** 2026-05-30
+
+**What happened:** During the M00 `docs.missing-internal-function-doc` cleanup, adding a maintainer comment to `src/dashboard/app.ts` `_uploadTerminalImages` cleared the docs finding but made the helper visible to the warning rules. The full gruff snapshot regressed from warning 122 to `summary error=0 warning=123 advisory=935 total=1058`, with new `complexity.npath` and `design.god-function` findings on `_uploadTerminalImages`.
+
+**Same-session recurrence:** After extracting upload-result helpers, `bash scripts/preflight-checks.sh` failed ESLint with `@typescript-eslint/no-unnecessary-type-assertion` on `showTerminalUploadResult(this as DashboardTerminalContext, ...)`. TypeScript accepted the cast, but ESLint correctly showed the receiver already satisfied the helper contract.
+
+**Root cause:** I checked the targeted docs rule and assumed a comment-only patch could not affect warning counts. In gruff-ts, a documented helper can also enter other block-level rule paths; treating the docs check as sufficient would have shipped a warning regression.
+
+**Prevention:** After any large gruff docs batch, run a full `npx gruff-ts analyse --format json --fail-on none` snapshot and compare warning count, not only the targeted docs rule. When extracting helpers to resolve the surfaced warning, run the lint/preflight gate too; TS can accept redundant assertions that ESLint rejects. If documentation surfaces a real warning, do not remove the comment to hide it; fix the surfaced shape or record the warning as accepted debt. Evidence anchors: `src/dashboard/app.ts` (search: `encodeTerminalUploadFiles`), `src/dashboard/app.ts` (search: `showTerminalUploadResult`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `_uploadTerminalImages`).
+
+## Lesson: docs.missing-internal-function-doc must not be silenced; baseline the residue
+
+**Status:** active | **Created:** 2026-05-29
+
+**What happened:** Gruff-ts reported 337 `docs.missing-internal-function-doc` findings across 73 files in goat-flow's TS surface (M00 baseline). The instinct response is to add a JSDoc comment to every flagged helper. That directly contradicts CLAUDE.md's "Default to writing no comments. Only add one when the WHY is non-obvious" and `code-comments.md`'s "Rewrite First" ladder. Adding boilerplate docstrings to short, name-clear helpers is gold-plating - exactly the anti-pattern the playbook forbids.
+
+**Root cause:** Two correct project rules collide on a single class of finding. `feedback_gruff_never_disable.md` forbids `enabled: false`. The rule has no `optionKeys` (verified via `gruff-ts list-rules --format json`) so there is no per-rule threshold or pattern allowlist to tune. The remaining honest moves are (a) FIX where a WHY genuinely needs surfacing, (b) RENAME where the function name is the missing comment, and (c) BASELINE the long tail with rationale.
+
+**Prevention:** Triage `docs.missing-internal-function-doc` in the buckets named in `.goat-flow/skill-playbooks/gruff-code-quality.md` under the mandatory-doc subsection. Do NOT add a comment to every flagged helper unless the comment satisfies the playbook's contract bar. Capture the policy in this lesson so future agents see it without re-reading the playbook. When `gruff-ts` ships `excludeWhenLinesUnder` / `excludeWhenNameMatches` for this rule, revisit and replace the baseline with tunes. Evidence anchors: `.goat-flow/skill-playbooks/gruff-code-quality.md` (search: `docs.missing-internal-function-doc under the mandatory-doc rule`), `.goat-flow/tasks/1.9.0/M00-gruff-ts-cleanup.md` (search: `docs.missing-internal-function-doc`), `scripts/preflight-checks.sh` (search: `Gruff Policy`) for the structural enforcement of "never disable."
 
 ## Lesson: RegExp constructor assertions need a real escape helper
 
@@ -61,7 +83,7 @@ last_reviewed: 2026-05-28
 
 **Status:** active | **Created:** 2026-05-24
 
-**What happened:** While implementing M07, I changed `.goat-flow/architecture.md` to point at `.goat-flow/skill-playbooks/README.md` instead of explicitly listing every top-level playbook. The targeted audit then failed with `skill-playbook-inventory-drift`, because `src/cli/audit/check-factual-claims.ts` (search: `driftSkillPlaybookInventory`) checks whether `.goat-flow/architecture.md` and `.goat-flow/code-map.md` include each live top-level `.goat-flow/skill-playbooks/*.md` filename.
+**What happened:** While implementing a playbook-inventory cleanup, I changed `.goat-flow/architecture.md` to point at `.goat-flow/skill-playbooks/README.md` instead of explicitly listing every top-level playbook. The targeted audit then failed with `skill-playbook-inventory-drift`, because `src/cli/audit/check-factual-semantic-drift.ts` (search: `driftSkillPlaybookInventory`) checks whether `.goat-flow/architecture.md` and `.goat-flow/code-map.md` include each live top-level `.goat-flow/skill-playbooks/*.md` filename.
 
 **Same-session recurrence:** I then changed the instruction-file Key Resources line to point only at the README index. `bash scripts/preflight-checks.sh` failed the `Instruction parity` gate because `scripts/check-instruction-parity.mjs` (search: `tool-playbook Key Resources`) requires the exact browser-use/page-capture example paths and the phrase `read BEFORE declaring a tool unavailable`.
 
@@ -116,15 +138,15 @@ Applies whenever the change is: a status flip (`planned → conditional`, `plann
 
 **What happened:** Changed the dashboard Setup page prompt from harness-card scope to full setup remediation scope, then the first focused `dashboard /api/setup` integration run failed because one regression still expected a `--harness --agent codex` rerun command.
 
-**Recurrence 2026-05-07:** Changed dashboard `/goat-plan` launch context from inline-only to Step 0/File-Write mode semantics. Focused skill and dashboard terminal tests passed, but the first full `npm test` failed because `test/unit/preset-prompts.test.ts` still asserted the old `treat bare task paths as read-only context` phrase. Evidence anchors: `src/dashboard/dashboard-terminal.ts` (search: `goat-plan global mode`), `test/unit/preset-prompts.test.ts` (search: `File-Write modes may create target`).
+**Recurrence 2026-05-07:** Changed dashboard `/goat-plan` launch context from inline-only to Step 0/File-Write mode semantics. Focused skill and dashboard terminal tests passed, but the first full `npm test` failed because a prompt-source assertion still expected the old `treat bare task paths as read-only context` phrase. Evidence anchors: `src/dashboard/dashboard-terminal-paste.ts` (search: `goat-plan global mode`), `src/dashboard/dashboard-terminal-paste.ts` (search: `File-Write modes may create target`).
 
 **Recurrence 2026-05-09:** Changed dashboard terminal launch prompts from runner argv/env delivery to PTY paste delivery. Focused terminal-spawn and dashboard-terminal tests passed, but the first full `npm test` failed because `test/smoke/dashboard-endpoints.test.ts` still expected `GOAT_PROMPT`, `GOAT_PROMPT_FLAG`, and `-i "$GOAT_PROMPT"` in `buildTerminalSpawnSpec` output. Evidence anchors: `src/cli/server/terminal.ts` (search: `initialInput`), `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`).
 
-**Recurrence 2026-05-24:** Changed the instruction-file tool-playbook router row from a partial filename list to a README-index description. The first focused `node --import tsx --test test/unit/audit-command.test.ts` run failed because `test/unit/audit-command.test.ts` still asserted the old router-label regex `Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-quality-testing)`. Evidence anchors: `workflow/setup/02-instruction-file.md` (search: `README index for CLI/MCP availability checks`), `test/unit/audit-command.test.ts` (search: `keeps setup snippets aligned with the audit remediation contract`).
+**Recurrence 2026-05-24:** Changed the instruction-file tool-playbook router row from a partial filename list to a README-index description. The first focused audit-command run failed because a setup-snippet assertion still expected the old router-label regex `Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-quality-testing)`. Evidence anchors: `workflow/setup/02-instruction-file.md` (search: `README index for CLI/MCP availability checks`), `src/cli/audit/check-goat-flow.ts` (search: `Instruction file skill-playbooks pointer`).
 
 **Root cause:** Updated the route contract and one setup-prompt test, but missed the adjacent assertion that encoded the previous harness-only remediation behavior.
 
-**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search `test/integration/dashboard-server.test.ts` and `test/unit/audit-command.test.ts` for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `test/unit/preset-prompts.test.ts` and `test/smoke/dashboard-endpoints.test.ts` for the old launch-context phrase, env var, or runner flag.
+**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search dashboard-server and audit-command coverage for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `src/dashboard/dashboard-terminal-paste.ts` and `test/smoke/dashboard-endpoints.test.ts` for the old launch-context phrase, env var, or runner flag.
 
 ---
 
@@ -312,8 +334,8 @@ Applies whenever the change is: a status flip (`planned → conditional`, `plann
 **Root cause:** I checked the human line count after the failure instead of reading the contract's counting helper first. The repository's enforced ceiling is the test helper, not `wc -l`.
 
 **Prevention:**
-1. When touching `.github/copilot-instructions.md`, keep `wc -l` below the configured target or run `node --import tsx --test test/contract/copilot-and-skill-reference-contracts.test.ts` before broader verification.
-2. For line-budget failures, read the exact contract helper before deciding how many lines need to be trimmed. Evidence anchor: `test/contract/copilot-and-skill-reference-contracts.test.ts` (search: `.github/copilot-instructions.md must stay at or under 125 lines`).
+1. When touching `.github/copilot-instructions.md`, keep `wc -l` below the configured target or run the instruction-line-count gate in `bash scripts/preflight-checks.sh` before broader verification.
+2. For line-budget failures, read the exact line-count implementation before deciding how many lines need to be trimmed. Evidence anchor: `scripts/preflight-checks.sh` (search: `line_target`).
 
 ---
 

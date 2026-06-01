@@ -1,8 +1,23 @@
-# Git Commit Conventions
+# Git Commit Instructions
 
-Canonical repo commit instructions live in `.github/git-commit-instructions.md`
-because this project has a `.github/` directory. This file is a docs mirror -
-keep it byte-equivalent to the canonical content below.
+Canonical commit conventions for this repository - one file for humans and agents. IDEs auto-read
+`.github/copilot-instructions.md` (and `CLAUDE.md` / `AGENTS.md`), not this file, so the essential
+rules are summarised in those instruction files under **## Commit Messages** with a pointer here
+for the full reference. See ADR-031.
+
+## Branch Prefix (read the branch first)
+
+**Before writing the subject, read the current branch** (`git branch --show-current`). If the
+branch is `feat/<digits>...` - leading digits right after `feat/`, e.g. `feat/123_add-cache` - the
+subject MUST start with `#<digits> ` followed by the conventional-commit format:
+
+```
+#123 feat(audit): add drift cache
+```
+
+If the branch has no `feat/<digits>` prefix (e.g. `dev`, `main`, `hotfix/foo`,
+`feat/no-number-slug`), do NOT add a `#` prefix - use the plain `type(scope): subject` format. The
+number comes from the branch name only - never invent an issue number from the diff.
 
 ## Commit Message Format
 
@@ -17,7 +32,8 @@ Body explaining *why* this change is needed (the diff already shows what).
 - name files, behaviours, or commands by their real identifiers
 ```
 
-Separate the subject from the body with a blank line.
+Separate the subject from the body with a blank line. On a `feat/<digits>` branch, prepend
+`#<digits> ` to the subject line (see **Branch Prefix** above).
 
 ### Picking a `type`
 
@@ -60,6 +76,9 @@ BAD:  chore(version): bump goat-flow reference version to 1.3.1 across documenta
 GOOD: chore(version): bump reference version to 1.3.1 in CLAUDE.md, AGENTS.md, and bump-version.sh
 ```
 
+On a `feat/<digits>` branch the good subjects above gain an issue prefix, e.g.
+`#123 feat(guardrails): deny protected-branch git push`.
+
 ## When a Body Is Required
 
 Write a body (blank line + bullets) when **any** of these are true:
@@ -97,7 +116,8 @@ If preflight fails, fix the underlying issue. Do not bypass with `--no-verify`.
 
 - `main` is for stable releases. Never push directly.
 - `dev` is the active development branch. PRs target `dev`.
-- Feature branches branch from `dev` for isolated work.
+- Feature branches branch from `dev` for isolated work; when named `feat/<digits>_<slug>`,
+  prefix commit subjects with `#<digits>` (see **Branch Prefix** above).
 
 ## What Not To Commit
 

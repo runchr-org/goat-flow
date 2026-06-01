@@ -7,7 +7,7 @@
  * passed positionally to `child_process.spawn` with `shell: false` so shell
  * metacharacters in `args` cannot be interpreted.
  *
- * Pitfalls (M31):
+ * Pitfalls:
  *   - Do NOT pass `shell: true`. Ever.
  *   - Do NOT accept user-supplied `env`. Callers must scrub secrets first.
  *   - Always use positional `args: string[]`, never a single command string.
@@ -85,10 +85,11 @@ export interface ExecOptions {
   };
 }
 
+/** Stable result flags: `ok` means clean exit; `truncated` means an output cap fired. */
+type ExecResultBooleanFields = Record<"ok" | "truncated", boolean>;
+
 /** Completed process result with captured output bounded to the configured byte caps. */
-export interface ExecResult {
-  /** `true` iff the process exited with code 0 and did not time out. */
-  ok: boolean;
+export interface ExecResult extends ExecResultBooleanFields {
   /** Exit code; `null` if the process was killed by signal. */
   exitCode: number | null;
   /** Signal that terminated the process, if any. */
@@ -99,8 +100,6 @@ export interface ExecResult {
   stderr: string;
   /** Whether the timeout fired. */
   timedOut: boolean;
-  /** Whether the stdout or stderr cap truncated the output. */
-  truncated: boolean;
   /** Wall-clock duration in milliseconds. */
   durationMs: number;
   /** Basename of the spawned command, for telemetry. */
@@ -108,7 +107,7 @@ export interface ExecResult {
 }
 
 /** Rejected safety check before any child process is spawned. */
-export class SafeExecRejection extends Error {
+class SafeExecRejection extends Error {
   readonly reason:
     | "command-not-in-allow-list"
     | "args-contain-metacharacters"
@@ -127,10 +126,13 @@ export class SafeExecRejection extends Error {
   }
 }
 
+export { SafeExecRejection };
+
 /** Rejected local file write before any content is written. */
 class SafeFileWriteRejection extends Error {
   readonly reason = "target-outside-project";
 
+  /** Report the rejected destination and project root without writing any file content. */
   constructor(targetPath: string, projectRoot: string) {
     super(
       `Refusing to write ${JSON.stringify(targetPath)} outside project root ${JSON.stringify(projectRoot)}`,
@@ -145,6 +147,7 @@ function basename(path: string): string {
   return slash === -1 ? path : path.slice(slash + 1);
 }
 
+/** Confirm a target path resolves to the project root or one of its descendants. */
 function isWithinProject(projectRoot: string, targetPath: string): boolean {
   const root = resolve(projectRoot);
   const target = resolve(targetPath);
@@ -157,6 +160,10 @@ function isWithinProject(projectRoot: string, targetPath: string): boolean {
  * The temp file lives beside the destination so `rename` stays atomic on the
  * same filesystem. Existing destination content is replaced only after the
  * temp file is flushed and closed.
+ *
+ * @param targetPath - destination path to replace atomically
+ * @param content - complete file contents to write
+ * @param projectRoot - project boundary that targetPath must stay within
  */
 export function writeFileAtomic(
   targetPath: string,
@@ -188,7 +195,7 @@ export function writeFileAtomic(
     try {
       unlinkSync(tempPath);
     } catch {
-      /* temp file may not exist */
+      /* temp file may be missing — best-effort cleanup before rethrow */
     }
     throw err;
   }
@@ -247,9 +254,9 @@ function recordExecEvidence(opts: ExecOptions, result: ExecResult): void {
   recordEvidenceEvent(
     {
       actor: "server",
-      eventKind: opts.evidence.eventKind ?? "audit.exec",
+      eventType: opts.evidence.eventKind ?? "audit.exec",
       producer: opts.evidence.producer ?? "safe-exec",
-      projectPath: opts.evidence.projectPath,
+      projectRoot: opts.evidence.projectPath,
       payload: {
         command: result.commandBasename,
         ok: result.ok,

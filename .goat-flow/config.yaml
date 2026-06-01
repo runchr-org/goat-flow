@@ -1,7 +1,7 @@
 # .goat-flow/config.yaml - project configuration
 # Docs: https://github.com/blundergoat/goat-flow
 
-version: "1.8.0"
+version: "1.9.0"
 
 # ── Project Setup ───────────────────────────────
 skills:
@@ -36,11 +36,7 @@ learning-loop:
 hooks:
   gruff-code-quality:
     enabled: true
-  guard-destructive-shell:
-    enabled: true
-  guard-repository-writes:
-    enabled: true
-  guard-secret-paths:
+  deny-dangerous:
     enabled: true
 line-limits:
   target: 125

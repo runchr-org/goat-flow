@@ -7,13 +7,13 @@ last_reviewed: 2026-05-18
 
 **Created:** 2026-05-01
 
-**What happened:** After fixing `buildScope` in `src/cli/audit/audit.ts` to exclude metric failures from harness scope status, rebuilding (`npm run build`), and reloading the dashboard, the dashboard still showed 94% and stale FAIL results. The local audit cache file controlled by `src/cli/server/dashboard-routes.ts` (search: `AUDIT_CACHE_FILE`) was keyed on config, instruction files, and learning-loop directories - not on the compiled audit code itself. The `Re-audit` button hit the cache and returned the pre-fix result.
+**What happened:** After fixing `buildScope` in `src/cli/audit/audit.ts` to exclude metric failures from harness scope status, rebuilding (`npm run build`), and reloading the dashboard, the dashboard still showed 94% and stale FAIL results. The local audit cache file controlled by `src/cli/server/dashboard-reporting.ts` (search: `AUDIT_CACHE_FILE`) was keyed on config, instruction files, and learning-loop directories - not on the compiled audit code itself. The `Re-audit` button hit the cache and returned the pre-fix result.
 
-**Root cause:** `buildAuditCacheSignature` in `src/cli/server/dashboard-routes.ts` (search: `buildAuditCacheSignature`) hashes project content files but not the package version or compiled code. In packaged installs, the package version changes on upgrade and invalidates the cache. In dev mode (running from source via `tsx`), the package version stays the same across code changes, so the cache signature doesn't change when audit logic changes.
+**Root cause:** `buildAuditCacheSignature` in `src/cli/server/dashboard-reporting.ts` (search: `buildAuditCacheSignature`) hashes project content files but not the package version or compiled code. In packaged installs, the package version changes on upgrade and invalidates the cache. In dev mode (running from source via `tsx`), the package version stays the same across code changes, so the cache signature doesn't change when audit logic changes.
 
 **Why it matters:** During development, every audit logic change (new checks, scoring fixes, concern removal) produces stale dashboard results until the cache file is manually deleted. The developer sees the old result and concludes the fix didn't work.
 
-**Prevention:** After changing audit logic during development, clear the local dashboard audit cache file identified by `src/cli/server/dashboard-routes.ts` (search: `AUDIT_CACHE_FILE`) before re-testing via the dashboard. For packaged installs this is a non-issue because the package version bumps between releases.
+**Prevention:** After changing audit logic during development, clear the local dashboard audit cache file identified by `src/cli/server/dashboard-reporting.ts` (search: `AUDIT_CACHE_FILE`) before re-testing via the dashboard. For packaged installs this is a non-issue because the package version bumps between releases.
 
 ---
 
@@ -41,7 +41,7 @@ last_reviewed: 2026-05-18
 - Copy/data: key visible text such as project name, audit age, pill labels, and CTA labels matches the mockup intent.
 - Bindings: every new Alpine helper used in markup is either local to `x-data` or exists on `app()`; grep for helper names and smoke the rendered browser view after rebuilding `dist/dashboard`.
 
-**Evidence:** `src/dashboard/views/home.html` (search: `rollup-heading`) now renders the project name row; `src/dashboard/app.ts` (search: `agentName(agentId`) is the existing helper used by Home bindings.
+**Evidence:** `src/dashboard/views/home.html` (search: `rollup-heading`) now renders the project name row; `src/dashboard/dashboard-app-state-fragments.ts` (search: `agentName(agentId`) is the existing helper used by Home bindings.
 
 ---
 
@@ -110,6 +110,6 @@ last_reviewed: 2026-05-18
 
 **Root cause:** The implementation reached for an existing feedback mechanism without checking whether the state was exceptional or already visible in the primary control. A toast is appropriate when the user needs asynchronous feedback they might otherwise miss; it is poor UX when the user just clicked the exact button whose label already reflects the loading state.
 
-**Prevention:** For expected in-place loading, prefer inline state on the initiating control first: disable the button, change its label, or show a local spinner. Reserve toast messages, especially error-colored or alert-styled ones, for outcomes that are exceptional, backgrounded, or detached from the control the user is watching. Evidence anchors: `src/dashboard/views/workspace.html` (search: `Launching terminal...`), `src/dashboard/dashboard-terminal.ts` (search: `dashboardLaunchInTerminal`).
+**Prevention:** For expected in-place loading, prefer inline state on the initiating control first: disable the button, change its label, or show a local spinner. Reserve toast messages, especially error-colored or alert-styled ones, for outcomes that are exceptional, backgrounded, or detached from the control the user is watching. Evidence anchors: `src/dashboard/views/workspace.html` (search: `Launching terminal...`), `src/dashboard/dashboard-terminal-runtime.ts` (search: `dashboardLaunchInTerminal`).
 
 ---

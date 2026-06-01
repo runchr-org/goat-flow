@@ -1,3 +1,6 @@
+/**
+ * Integration tests for the package entrypoint guard that prevents accidental direct execution.
+ */
 import { describe, it, after } from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -13,9 +16,13 @@ const REAL_CLI = join(PROJECT_ROOT, "dist", "cli", "cli.js");
  * Create a symlink at `link` -> `target`, or skip the surrounding test if the
  * host blocks unprivileged symlinks (Windows without Developer Mode). The
  * production code path being tested still works on Windows; only the test
- * fixture is unreachable.
+ * fixture is unreachable. Throws only for unexpected symlink failures.
  */
-function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
+function symlinkOrSkip(
+  testContext: TestContext,
+  target: string,
+  link: string,
+): boolean {
   try {
     symlinkSync(target, link);
     return true;
@@ -24,7 +31,7 @@ function symlinkOrSkip(t: TestContext, target: string, link: string): boolean {
       err instanceof Error &&
       (err as NodeJS.ErrnoException).code === "EPERM"
     ) {
-      t.skip(
+      testContext.skip(
         "Skipped: host blocks unprivileged symlinks (Windows without Developer Mode)",
       );
       return false;
@@ -40,10 +47,10 @@ describe("main-module guard via symlink", () => {
     if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
-  it("CLI runs when launched through a symlink", (t) => {
+  it("CLI runs when launched through a symlink", (testContext) => {
     dir = mkdtempSync(join(tmpdir(), "gf-symlink-"));
     const link = join(dir, "goat-flow");
-    if (!symlinkOrSkip(t, REAL_CLI, link)) return;
+    if (!symlinkOrSkip(testContext, REAL_CLI, link)) return;
     chmodSync(REAL_CLI, 0o755);
 
     const stdout = execFileSync(process.execPath, [link, "--version"], {

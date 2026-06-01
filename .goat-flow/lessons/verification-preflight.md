@@ -1,6 +1,6 @@
 ---
 category: verification-preflight
-last_reviewed: 2026-05-27
+last_reviewed: 2026-05-31
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -31,7 +31,7 @@ last_reviewed: 2026-05-27
 
 **Recurrence update (2026-05-19):** While fixing Workspace terminal waiting status, focused `test/unit/dashboard-terminal-launch.test.ts` passed but targeted `npx prettier --check src/dashboard/views/workspace.html src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` failed on the touched test file after adding longer source-regex assertions. Running the same touched-file set through `npx prettier --write ...` fixed the local formatter blocker before rerunning the focused terminal test.
 
-**Recurrence update (2026-05-19):** While adding audit concern limit fields and terminal boundary tests, `npx prettier --check src/cli/audit/types.ts src/cli/server/types.ts src/cli/audit/audit.ts src/cli/audit/render.ts src/cli/prompt/compose-quality.ts src/dashboard/dashboard-setup-quality.ts src/dashboard/globals.d.ts src/dashboard/dashboard-readers.ts test/unit/audit-command.test.ts test/unit/quality-command.test.ts test/unit/preset-prompts.test.ts test/unit/dashboard-terminal-launch.test.ts test/unit/dashboard-home.test.ts` failed on the touched test files. Running the same touched-file set through `npx prettier --write ...` fixed the local formatter blocker before rerunning `npm run typecheck` and the targeted unit tests.
+**Recurrence update (2026-05-19):** While adding audit concern limit fields and terminal boundary tests, a touched-file `npx prettier --check` over the edited CLI, dashboard, and unit-test files failed on the touched test files. Running the same touched-file set through `npx prettier --write ...` fixed the local formatter blocker before rerunning `npm run typecheck` and the targeted unit tests.
 
 **Recurrence update (2026-05-20):** During the M37 Workspace terminal waiting/detach double-check, focused `test/unit/dashboard-terminal-launch.test.ts` and `npm run typecheck` were clean, but targeted `npx prettier --check src/dashboard/dashboard-terminal.ts src/dashboard/app.ts src/dashboard/views/workspace.html test/unit/dashboard-terminal-launch.test.ts .goat-flow/footguns/dashboard.md .goat-flow/tasks/1.7.0/M37-workspace-terminal-waiting-and-detach.md` failed on `src/dashboard/dashboard-terminal.ts` and `test/unit/dashboard-terminal-launch.test.ts`. Running `npx prettier --write src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` fixed the task-local formatter blocker before rerunning the focused unit test, typecheck, and Prettier check.
 
@@ -81,7 +81,7 @@ last_reviewed: 2026-05-27
 
 **Status:** active | **Created:** 2026-04-25
 
-**What happened:** Added `test/unit/preset-prompts.test.ts` for the M01 security preset contract and the focused test passed, but `npx prettier --check src/dashboard/preset-prompts.json test/unit/preset-prompts.test.ts` failed on the new file.
+**What happened:** Added source coverage for the M01 security preset contract and the focused test passed, but `npx prettier --check src/dashboard/preset-prompts.json <changed test file>` failed on the new file.
 
 **Root cause:** I treated the focused behavioral test as the first verification result for a new test file without running the repo formatter gate first.
 
@@ -99,7 +99,7 @@ last_reviewed: 2026-05-27
 
 **Root cause:** I treated focused unit tests, typecheck, and fast-suite results as enough after changing a prompt helper and test fixture. The slow installer round-trip runs repo preflight inside a copied checkout, so it catches lint and format debt that focused tests do not.
 
-**Recurrence update (2026-05-24):** Adding registered deny-hook runtime smoke coverage passed focused audit tests and typecheck, but the first full `bash scripts/preflight-checks.sh` failed in the TypeScript gate because `src/cli/audit/check-agent-setup.ts` (search: `checkHookRuntimeSmoke`) exceeded ESLint complexity by one branch. Splitting path selection and smoke execution into helpers (`search: runHookRuntimeSmoke`) cleared `npx eslint src/cli/audit/check-agent-setup.ts` and the rerun preflight TypeScript gate.
+**Recurrence update (2026-05-24):** Adding registered deny-hook runtime smoke coverage passed focused audit tests and typecheck, but the first full `bash scripts/preflight-checks.sh` failed in the TypeScript gate because `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookRuntimeSmoke`) exceeded ESLint complexity by one branch. Splitting path selection and smoke execution into helpers (`search: runHookRuntimeSmoke`) cleared `npx eslint src/cli/audit/check-agent-setup.ts` and the rerun preflight TypeScript gate.
 
 **Prevention:** Before rerunning `npm run test:slow` after prompt/test changes, run `npx eslint src/cli src/dashboard` and `npm run format:check` locally. If the slow round-trip preflight fails, reproduce the reported gate directly in the source checkout before changing installer or drift logic.
 
@@ -117,7 +117,7 @@ last_reviewed: 2026-05-27
 
 **Recurrence update (2026-05-26):** The same `test/unit/dashboard-markdown.test.ts` performance sanity test passed standalone and in `npm test`, but failed under preflight's `npm run test:coverage` because Node's coverage instrumentation and full-suite concurrency pushed the 500KB render over hard 100ms/250ms budgets (`expected <100ms, got 115ms` and later `159ms`; the full preflight still needed the retry path at 250ms). The test now uses one coverage-stable sanity budget because the coverage flag was not visible inside the `tsx` test process.
 
-**Recurrence update (2026-05-19):** M01 commit-guidance work added a new helper and tests. Focused `npx tsc --noEmit` and the new test file passed, but the first full preflight failed in the TypeScript gate: `Knip: 2 unused exports/types`. The exported names were internal helper types, not public API. Removing the unnecessary `export` keywords fixed `npx knip`. Evidence anchors: `src/cli/prompt/commit-guidance.ts` (search: `type CommitGuidanceStatus`), `test/unit/commit-guidance.test.ts` (search: `detects dominant conventional-commit history`).
+**Recurrence update (2026-05-19):** M01 commit-guidance work added a new helper and tests. Focused `npx tsc --noEmit` and the new test file passed, but the first full preflight failed in the TypeScript gate: `Knip: 2 unused exports/types`. The exported names were internal helper types, not public API. Removing the unnecessary `export` keywords fixed `npx knip`. Evidence anchor: `src/cli/prompt/commit-guidance.ts` (search: `type CommitGuidanceStatus`).
 
 **Prevention:** Use the repo's supported scopes for final gates (`npx eslint src/cli src/dashboard`, `npm run format:check`, `npx knip --no-progress`). Run full `npm test` alone or capture it to a log before starting parallel expensive checks. When Knip reports configuration hints after a dependency starts being used for real, remove the temporary ignore entry instead of carrying it forward. For performance sanity tests that run in the default fast suite and preflight coverage suite, keep fixtures representative of the named budget and set a threshold that is stable under coverage instrumentation instead of tuning to a focused local run. Evidence anchors: `package.json` (search: `test:fast`), `test/unit/dashboard-markdown.test.ts` (search: `const budgetMs = 750`), `knip.json` (search: `ignoreDependencies`).
 
@@ -145,7 +145,7 @@ last_reviewed: 2026-05-27
 
 **Root cause:** I treated focused tests plus typecheck as enough before the repo-wide gate even though new TypeScript test assertions had not been formatter-normalized. Preflight records formatter failure before later gates, so fixing format after a failed preflight requires a clean rerun to produce valid final evidence.
 
-**Prevention:** After editing TypeScript tests or prompt/schema fixtures, run `npm run format` or `npm run format:check` before `bash scripts/preflight-checks.sh`. If preflight fails at Prettier, format, inspect the diff, and rerun preflight from scratch before claiming the final gate. Evidence anchors: `test/unit/check-content-quality.test.ts` (search: `discovers current ADR files`), `test/unit/quality-schema.test.ts` (search: `evidence_warning_count`).
+**Prevention:** After editing TypeScript tests or prompt/schema fixtures, run `npm run format` or `npm run format:check` before `bash scripts/preflight-checks.sh`. If preflight fails at Prettier, format, inspect the diff, and rerun preflight from scratch before claiming the final gate. Evidence anchors: `test/unit/check-content-quality.test.ts` (search: `discovers current ADR files`), `src/cli/quality/schema-types.ts` (search: `evidence_warning_count`).
 
 ---
 
@@ -173,7 +173,7 @@ last_reviewed: 2026-05-27
 
 **Prevention:**
 1. In Bash regex helpers, copy `BASH_REMATCH[n]` into local variables before any recursive call or nested regex operation that can overwrite it.
-2. For shared hook templates, do not stop at `bash workflow/hooks/guardrails-self-test.sh --self-test=full`; also rerun the repo-wide `shellcheck scripts/*.sh scripts/maintenance/*.sh workflow/hooks/*.sh` and full `bash scripts/preflight-checks.sh`, because fixture clones exercise stricter paths than isolated hook runs.
+2. For shared hook templates, do not stop at `bash workflow/hooks/deny-dangerous.sh --self-test=full`; also rerun the repo-wide `shellcheck scripts/*.sh scripts/maintenance/*.sh workflow/hooks/*.sh` and full `bash scripts/preflight-checks.sh`, because fixture clones exercise stricter paths than isolated hook runs.
 
 ---
 
@@ -187,7 +187,7 @@ last_reviewed: 2026-05-27
 
 **Recurrence update (2026-05-27):** M12 hook hardening passed functional hook checks, but the stale-name closeout grep still found active references to the old gruff hook id in `.goat-flow/architecture.md`, `.goat-flow/code-map.md`, and `.goat-flow/lessons/dashboard-testing.md` after the hook had already been renamed to `gruff-code-quality`. The remaining exact old-id hits are now limited to the migration alias and its regression tests.
 
-**Prevention:** After hook file renames, run the full preflight before declaring the rename done and treat drift failures as part of the hook change, not documentation cleanup. For the final old-name proof, use the milestone's exact `git grep` command over tracked files, then optionally run `rg --hidden --no-ignore` only to find local ignored residue. Evidence anchors: `scripts/preflight-checks.sh` (search: `Learning-loop schema`), `scripts/preflight-checks.sh` (search: `Dashboard view names drift`), `.github/copilot-instructions.md` (search: `guardrails-self-test.sh`).
+**Prevention:** After hook file renames, run the full preflight before declaring the rename done and treat drift failures as part of the hook change, not documentation cleanup. For the final old-name proof, use the milestone's exact `git grep` command over tracked files, then optionally run `rg --hidden --no-ignore` only to find local ignored residue. Evidence anchors: `scripts/preflight-checks.sh` (search: `Learning-loop schema`), `scripts/preflight-checks.sh` (search: `Dashboard view names drift`), `.github/copilot-instructions.md` (search: `deny-dangerous-self-test.sh`).
 
 ---
 

@@ -8,7 +8,9 @@ import { getAgentProfiles } from "./agents/registry.js";
 
 /** Minimal filesystem interface needed for project state detection. */
 interface StateFS {
+  /** Return true when a project-relative marker path exists. */
   exists(path: string): boolean;
+  /** Read a project-relative text file, returning null when unavailable. */
   readFile(path: string): string | null;
 }
 
@@ -103,7 +105,7 @@ const AGENT_INSTRUCTION_FILE = Object.fromEntries(
 );
 
 /** Classify a project's GOAT Flow adoption state. */
-// eslint-disable-next-line complexity -- intentionally branchy state machine
+// eslint-disable-next-line complexity -- intentional branchy state machine; each branch maps one adoption state.
 export function classifyProjectState(
   fs: StateFS,
   agentId?: string,

@@ -9,7 +9,7 @@
  *
  * v1 is deterministic. Heuristics for drafts (heading + length signals) and
  * for descriptions (keyword + intent matching). LLM-assisted candidacy for
- * borderline drafts/descriptions is deferred (see M08 task list).
+ * borderline drafts/descriptions is handled by the skill-quality rubric.
  */
 import type { ArtifactSubtype, QualityConfig } from "./quality-config.js";
 import { DEFAULT_QUALITY_CONFIG } from "./quality-config.js";
@@ -42,11 +42,13 @@ type RecommendedArtifact =
       reason: "one-time-task" | "already-exists" | "no-clear-intent";
     };
 
+/** Follow-up action shown to authors after the candidacy recommendation. */
 interface CandidacyNextStep {
   action: string;
   template?: string;
 }
 
+/** Deterministic recommendation plus evidence for which artifact type should be created. */
 export interface CandidacyResult {
   recommendedArtifact: RecommendedArtifact;
   /** 0-1 confidence in the recommendation. */
@@ -57,6 +59,7 @@ export interface CandidacyResult {
 
 const MIN_DRAFT_LINES_FOR_SKILL = 30;
 
+/** Boolean structure signals extracted from draft content before routing. */
 interface DraftSignals {
   hasStep0: boolean;
   hasVerification: boolean;
@@ -74,6 +77,7 @@ interface DraftSignals {
   hasADRStructure: boolean;
 }
 
+/** Extract deterministic structure signals from a draft before artifact routing. */
 function inspectDraft(content: string, suggestedName?: string): DraftSignals {
   const lower = content.toLowerCase();
   const lines = content.split("\n");
@@ -106,7 +110,7 @@ function inspectDraft(content: string, suggestedName?: string): DraftSignals {
   };
 }
 
-// eslint-disable-next-line complexity -- decision tree exhausts artifact-type signals (skill, reference, learning-loop, instruction-file, do-not-create) in priority order; splitting reduces readability
+// eslint-disable-next-line complexity -- intentional because artifact-type signals must stay in priority order
 function analyzeDraft(
   content: string,
   suggestedName?: string,
@@ -288,15 +292,18 @@ function analyzeDraft(
   };
 }
 
+/** Original and normalized description text used by reusable intent matchers. */
 interface DescriptionTokens {
   text: string;
   lower: string;
 }
 
+/** Preserve both original and lowercase description text for intent matchers. */
 function tokenize(text: string): DescriptionTokens {
   return { text, lower: text.toLowerCase() };
 }
 
+/** Detect whether description terms imply a reusable skill workflow. */
 function matchSkillIntent(tokens: DescriptionTokens): CandidacyResult | null {
   const { lower } = tokens;
   const wantsWorkflow =
@@ -467,6 +474,7 @@ function matchCliCommandIntent(
   return null;
 }
 
+/** Route a free-form artifact description to the recommended goat-flow artifact type. */
 function analyzeDescription(text: string): CandidacyResult {
   const trimmed = text.trim();
   if (trimmed.length === 0) {
@@ -521,6 +529,10 @@ function analyzeDescription(text: string): CandidacyResult {
  *
  * The optional `config` parameter is reserved for future per-project
  * heuristic overrides (currently the v1 heuristics are project-independent).
+ *
+ * @param input - draft markdown or free-text description to classify
+ * @param _config - reserved quality config for future project-specific heuristics
+ * @returns candidacy recommendation, confidence, reasoning, and next steps
  */
 export function runCandidacyCheck(
   input: CandidacyInput,

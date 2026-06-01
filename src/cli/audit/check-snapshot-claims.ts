@@ -107,7 +107,7 @@ const SNAPSHOT_CLAIMS: SnapshotClaim[] = [
  * @param text Full CHANGELOG markdown content.
  * @returns Versioned sections with body text and header line numbers.
  */
-export function parseChangelogSections(text: string): ChangelogSection[] {
+function parseChangelogSections(text: string): ChangelogSection[] {
   const lines = text.split(/\r?\n/);
   const headerRe = /^##\s+v(\d+\.\d+\.\d+)(?:\b|\s|$)/;
   const sections: ChangelogSection[] = [];
@@ -147,7 +147,7 @@ export function parseChangelogSections(text: string): ChangelogSection[] {
  * @param version Semver version without the leading `v`.
  * @returns Snapshot facts for that version, or null when the file cannot be used.
  */
-export function loadSnapshotFacts(version: string): SnapshotFacts | null {
+function loadSnapshotFacts(version: string): SnapshotFacts | null {
   const path = getTemplatePath(
     join("workflow", "manifest-snapshots", `v${version}.json`),
   );
@@ -175,7 +175,7 @@ function isFenceLine(line: string): boolean {
  * @param path Display path used in content findings.
  * @returns Content findings for numeric claims that disagree with the snapshot.
  */
-export function scanSectionAgainstSnapshot(
+function scanSectionAgainstSnapshot(
   section: ChangelogSection,
   snapshot: SnapshotFacts,
   path: string,
@@ -226,7 +226,7 @@ export function scanSectionAgainstSnapshot(
  * @param text Release notes markdown.
  * @returns Semver version without the leading `v`, or null when absent.
  */
-export function extractReleaseVersion(text: string): string | null {
+function extractReleaseVersion(text: string): string | null {
   const versionMatch = /^#\s+(?:GOAT\s+Flow\s+)?v(\d+\.\d+\.\d+)\b/im.exec(
     text,
   );

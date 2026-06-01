@@ -57,6 +57,10 @@ Guided setup flow. Detects your project stack and existing configuration, lets y
 
 Per-artifact quality view for installed skills and shared references. Shows deterministic structural scores, warning counts, subtype-aware metric profiles, and a detail panel for inspecting one artifact at a time. Use `Re-audit all` to refresh the cached scores or `Evaluate skill` to inspect uploaded skill/reference content before installing it.
 
+### Hooks
+
+Manage shipped guardrails and quality hooks for the selected project. Lists each registered hook (`deny-dangerous`, `gruff-code-quality`) with its current enabled/disabled state and the agents it is wired into (Claude, Codex, Antigravity, Copilot). Toggles update `.goat-flow/config.yaml` and reconcile per-agent hook config files. Mirrors the `goat-flow hooks <list|enable|disable|sync>` CLI.
+
 ### Projects
 
 Multi-project browser. Lists registered projects with their latest audit status. Project titles and favorites follow a stable identity when possible: git remote hash first, then a local `.goat-flow/project-id` marker for non-git goat-flow projects, then absolute path fallback. The marker is local dashboard state and remains gitignored by the default `.goat-flow/.gitignore`. "Audit All" re-audits every project in one click. Select a project to switch context and view its results on the Home view.

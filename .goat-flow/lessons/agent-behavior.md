@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-30
 ---
 
 ## Lesson: Agent proposed disabling gruff-ts rules to silence high-volume advisory findings
@@ -75,7 +75,7 @@ The same surfaces also leaked third-party / competitor skill names (MySQL, Valyu
 3. **Apply the same rule to test files and code comments**, not just user-facing docs. Test fixtures and inline comments are read by contributors and shape future authoring habits.
 4. **When auditing docs, grep for both classes:** `rg -n "\.goat-flow/(scratchpad|tasks|logs)/" --glob '*.md' --glob '*.ts'` for gitignored citations, and a project-specific list of competitor names for vendor leakage. Add to the `docs-and-crossrefs` footgun resolution rounds when found.
 
-The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Round 4 (2026-05-11`) record the specific surfaces fixed.
+The Round 4 entries in `.goat-flow/footguns/docs-drift.md` (search: `Round 4 (2026-05-11`) record the specific surfaces fixed.
 
 ---
 
@@ -99,11 +99,11 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **What happened:** Audit of the last 10 commit messages on `dev` (HEAD `0366419`..`82db04b`, 2026-04-25..2026-04-29) showed 7 of 10 subjects led with *enhance, improve, streamline,* or *clarify* and carried no body. Examples included vague guardrail and docs refactor subjects such as "enhance command checks" and back-to-back "enhance clarity" messages on different content. Reading the message in isolation - without the diff - told a future bisector or release-notes drafter nothing about what actually changed.
 
-**Root cause:** The agent was generating commit subjects by paraphrasing the diff in abstract verbs ("the change makes X better") instead of naming the concrete edit ("replace shell-specific build steps with Node fs calls"). The prior `.github/git-commit-instructions.md` listed format rules and a "what not to commit" list but did not name the failure mode or show a bad-vs-good rewrite, so the rules were easy to satisfy on paper while still emitting low-information subjects. One outlier commit (`4e0ec5d fix(dashboard): speed up home audit load on Windows`) carried a concrete subject + bulleted body and stood out as the gold standard.
+**Root cause:** The agent was generating commit subjects by paraphrasing the diff in abstract verbs ("the change makes X better") instead of naming the concrete edit ("replace shell-specific build steps with Node fs calls"). The prior commit-guidance doc listed format rules and a "what not to commit" list but did not name the failure mode or show a bad-vs-good rewrite, so the rules were easy to satisfy on paper while still emitting low-information subjects. One outlier commit (`4e0ec5d fix(dashboard): speed up home audit load on Windows`) carried a concrete subject + bulleted body and stood out as the gold standard.
 
 **Why it matters:** Commit messages are the only artifact a future maintainer reads when running `git log`, `git bisect`, or assembling a CHANGELOG. Subjects built from *enhance/improve/streamline/clarify* force every reader to open the diff to learn what shipped, defeating the purpose of structured commits. The synonym churn ("streamline... enhance clarity" two commits in a row) is also a tell that the agent was rewording rather than describing.
 
-**Prevention:** `.github/git-commit-instructions.md` (and its mirror `docs/coding-standards/git-commit.md`) now (a) ban the weak-verb list explicitly, (b) prescribe concrete verbs (*add, remove, replace, rename, fix, deny, gate, harden, cache*), (c) require a body whenever the subject names more than one axis or has a non-obvious motivation, and (d) include three bad→good rewrites built from the actual recent log so the agent has an imitable pattern, not just abstract rules. The gold-standard `4e0ec5d` body is reproduced inline as the body template (search: "speed up home audit load on Windows" in `.github/git-commit-instructions.md`).
+**Prevention:** `docs/coding-standards/git-commit.md` - the canonical commit guide, summarised in the auto-read instruction files under `## Commit Messages` - now (a) bans the weak-verb list explicitly, (b) prescribes concrete verbs (*add, remove, replace, rename, fix, deny, gate, harden, cache*), (c) requires a body whenever the subject names more than one axis or has a non-obvious motivation, and (d) includes three bad→good rewrites built from the actual recent log so the agent has an imitable pattern, not just abstract rules. The gold-standard `4e0ec5d` body is reproduced inline as the body template (search: "speed up home audit load on Windows" in `docs/coding-standards/git-commit.md`).
 
 ## Lesson: Retrieval terms must name the concrete failure class
 
@@ -129,7 +129,7 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **Why it matters:** Terminal automation failures are expensive because fake timers, xterm output, WebSocket frames, and runner composer behavior can all appear plausible. Skipping the learning loop repeats old failed fix shapes, wastes live reproduction time, and erodes user trust because the repo already had the exact family of incidents recorded.
 
-**Prevention:** For any dashboard terminal, runner prompt, pasted-text, WebSocket, xterm, or auto-submit bug, run learning-loop retrieval before proposing or editing code. Use concrete terms from the symptom first: `Pasted text`, `paste again to expand`, `manual Enter`, `dashboardHandlePasteSubmitOutput`, `Workspace terminal`, `Claude Code`, and the affected runner. If a matching footgun exists, map every hypothesis to that entry before changing `src/dashboard/dashboard-terminal.ts`; if no entry is found after one reword, state the retrieval miss explicitly. Evidence anchors: `.goat-flow/footguns/dashboard.md` (search: `Dashboard terminal prompts can be dropped before browser attachment`), `.goat-flow/lessons/verification-testing.md` (search: `Browser terminal fixes need live runner proof`), `src/dashboard/dashboard-terminal.ts` (search: `dashboardHandlePasteSubmitOutput`), and `test/unit/dashboard-terminal-launch.test.ts` (search: `falls back quickly for Claude pasted terminal text when no paste echo arrives`).
+**Prevention:** For any dashboard terminal, runner prompt, pasted-text, WebSocket, xterm, or auto-submit bug, run learning-loop retrieval before proposing or editing code. Use concrete terms from the symptom first: `Pasted text`, `paste again to expand`, `manual Enter`, `dashboardHandlePasteSubmitOutput`, `Workspace terminal`, `Claude Code`, and the affected runner. If a matching footgun exists, map every hypothesis to that entry before changing `src/dashboard/dashboard-terminal.ts`; if no entry is found after one reword, state the retrieval miss explicitly. Evidence anchors: `.goat-flow/footguns/dashboard.md` (search: `Dashboard terminal prompts can be dropped before browser attachment`), `.goat-flow/lessons/test-execution-environment.md` (search: `Browser terminal fixes need live runner proof`), `src/dashboard/dashboard-terminal-paste.ts` (search: `dashboardHandlePasteSubmitOutput`), and `test/unit/dashboard-terminal-launch/launch-flow-01.test.ts` (search: `falls back quickly for Claude pasted terminal text when no paste echo arrives`).
 
 ## Lesson: Quality assessors can reopen ADR-settled skill modes
 
@@ -139,7 +139,7 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **Root cause:** The assessors saw that `goat-critique` spawns three sub-agents for every invocation and pattern-matched the cost as over-engineering without reading the decision history.
 
-**Prevention:** Before accepting a quality recommendation that changes a skill mode, read the relevant ADR and prompt constraints first. If the recommendation contradicts an accepted ADR, fix the assessor prompt or cite the ADR; do not re-litigate the mode inside the skill file. Evidence anchors: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) and `src/cli/prompt/compose-quality.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`).
+**Prevention:** Before accepting a quality recommendation that changes a skill mode, read the relevant ADR and prompt constraints first. If the recommendation contradicts an accepted ADR, fix the assessor prompt or cite the ADR; do not re-litigate the mode inside the skill file. Evidence anchors: `.goat-flow/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) and `src/cli/prompt/compose-quality-agent-setup.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`).
 
 ---
 
@@ -262,7 +262,7 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **Root cause:** A stale platform assumption propagated through templates, install scripts, fact extraction, and setup guides without being re-checked against primary docs or the local binary.
 
-**Prevention:** When a profile field says an agent "can't" do something, verify against current product docs and runtime evidence before building workarounds. For Codex permission grammar, current evidence anchors are `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`), `.codex/hooks/guard-secret-paths.sh` (search: `is_secret_path_touch`), and `src/cli/facts/agent/settings.ts` (search: `collectCodexWorkspaceRootEntries`).
+**Prevention:** When a profile field says an agent "can't" do something, verify against current product docs and runtime evidence before building workarounds. For Codex permission grammar, current evidence anchors are `workflow/hooks/agent-config/codex.toml` (search: `hooks = true`), `.goat-flow/hook-lib/patterns-paths.sh` (search: `is_secret_path_touch`), and `src/cli/facts/agent/settings.ts` (search: `collectCodexWorkspaceRootEntries`).
 
 ---
 
@@ -286,7 +286,9 @@ The Round 4 entries in `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Rou
 
 **Root cause:** Closing rules fire after the primary work feels done, so the agent's attention shifts to reporting instead of executing the remaining gate.
 
-**Prevention:** Make closing gates part of the deliverable, not an optional afterword. After completing milestone tasks, run the named testing gate before summary. Report what was done and stop; do not offer commits, pushes, PRs, or follow-on git writes unless the user asked.
+**Recurrence update 2026-05-30:** After completing the deny-dangerous hook consolidation, the user asked "whats next". The agent responded with `git add` / `git commit` command sequences and a PR follow-up path, even though the user had not asked to commit, stage, push, or open a PR. No commit was executed, but the answer still violated the intent of the hot-path instruction rule `AGENTS.md` (search: `Commit unless asked`) by steering the user into a commit workflow as the default next action.
+
+**Prevention:** Make closing gates part of the deliverable, not an optional afterword. After completing milestone tasks, run the named testing gate before summary. Report what was done and stop; do not offer commits, pushes, PRs, staging commands, or follow-on git write workflows unless the user explicitly asks for that workflow. If the user asks "what's next" after verified work, default to non-mutating options: review the diff, inspect a specific file, or wait for the user's requested handoff. Providing a commit message is allowed only when asked for a commit message; providing `git add` / `git commit` commands is not.
 
 ---
 

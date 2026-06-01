@@ -8,6 +8,7 @@ import { PROFILES } from "../../src/cli/detect/agents.js";
 import type { AuditScope } from "../../src/cli/audit/types.js";
 import type { AgentFacts, AgentProfile } from "../../src/cli/types.js";
 
+/** Build a minimal agent scope because enforcement capability logic only needs status-shaped checks. */
 function agentScope(status: "pass" | "fail" | "skipped"): AuditScope {
   return {
     status: status === "fail" ? "fail" : "pass",
@@ -28,7 +29,7 @@ function agentScope(status: "pass" | "fail" | "skipped"): AuditScope {
           ? {
               failure: {
                 check: "Agent deny mechanism",
-                message: "guard-repository-writes.sh --self-test=smoke failed",
+                message: "deny-dangerous.sh --self-test=smoke failed",
               },
             }
           : {}),
@@ -120,27 +121,35 @@ function byId(
   return item;
 }
 
+/**
+ * Assert fact-backed hard enforcement statuses for supported hook agents.
+ *
+ * @param agents - agent profiles whose facts should yield hard enforcement
+ */
+function assertFactBackedStatusesForAgents(
+  agents: ReadonlyArray<(typeof PROFILES)[keyof typeof PROFILES]>,
+): void {
+  agents.forEach((agent) => {
+    const matrix = buildAgentEnforcementCapability(facts(agent), {
+      agentScope: agentScope("pass"),
+      denyMechanismEvidenceLevel: "full",
+    });
+    assert.equal(byId(matrix, "shell-dangerous").status, "hard");
+    assert.equal(byId(matrix, "secret-file-read").status, "hard");
+    assert.equal(byId(matrix, "secret-shell-read").status, "hard");
+    assert.equal(byId(matrix, "hook-registration").status, "hard");
+    assert.equal(byId(matrix, "hook-self-test").status, "hard");
+    assert.match(
+      byId(matrix, "hook-self-test").summary,
+      /runtime-shaped payload smoke passed/,
+    );
+    assert.equal(byId(matrix, "provider-native-enforcement").status, "limited");
+  });
+}
+
 describe("agent enforcement capability matrix", () => {
   it("derives fact-backed statuses for all supported agents", () => {
-    for (const agent of [PROFILES.claude, PROFILES.codex]) {
-      const matrix = buildAgentEnforcementCapability(facts(agent), {
-        agentScope: agentScope("pass"),
-        denyMechanismEvidenceLevel: "full",
-      });
-      assert.equal(byId(matrix, "shell-dangerous").status, "hard");
-      assert.equal(byId(matrix, "secret-file-read").status, "hard");
-      assert.equal(byId(matrix, "secret-shell-read").status, "hard");
-      assert.equal(byId(matrix, "hook-registration").status, "hard");
-      assert.equal(byId(matrix, "hook-self-test").status, "hard");
-      assert.match(
-        byId(matrix, "hook-self-test").summary,
-        /runtime-shaped payload smoke passed/,
-      );
-      assert.equal(
-        byId(matrix, "provider-native-enforcement").status,
-        "limited",
-      );
-    }
+    assertFactBackedStatusesForAgents([PROFILES.claude, PROFILES.codex]);
 
     const copilot = buildAgentEnforcementCapability(facts(PROFILES.copilot), {
       agentScope: agentScope("pass"),

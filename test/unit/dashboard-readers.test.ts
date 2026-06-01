@@ -15,11 +15,17 @@ const READERS_PATH = resolve(
   "dashboard",
   "dashboard-readers.ts",
 );
+const MODEL_READERS_PATH = resolve(
+  PROJECT_ROOT,
+  "src",
+  "dashboard",
+  "dashboard-model-readers.ts",
+);
 
 type HelperContext = {
-  readRunnerId(value: unknown): string | null;
-  readInjectedSupportedAgents(): SupportedAgent[];
-  readDashboardReport(value: unknown): {
+  readRunnerId: (_value: unknown) => string | null;
+  readInjectedSupportedAgents: () => SupportedAgent[];
+  readDashboardReport: (_value: unknown) => {
     scopes: {
       setup: {
         checks: {
@@ -68,7 +74,7 @@ type HelperContext = {
       } | null;
     }[];
   };
-  readTaskState(value: unknown): {
+  readTaskState: (_value: unknown) => {
     taskRoot: string;
     exists: boolean;
     active: string | null;
@@ -120,13 +126,18 @@ function supportedAgent(
   };
 }
 
+/** Load dashboard reader helpers into a browser-shaped VM context. */
 function loadHelpers(
   windowOverrides: Record<string, unknown> = {},
 ): HelperContext {
-  const source = readFileSync(READERS_PATH, "utf-8");
-  const js = transpileModule(source, {
-    compilerOptions: { target: ScriptTarget.ES2023 },
-  }).outputText;
+  const js = [MODEL_READERS_PATH, READERS_PATH]
+    .map(
+      (path) =>
+        transpileModule(readFileSync(path, "utf-8"), {
+          compilerOptions: { target: ScriptTarget.ES2023 },
+        }).outputText,
+    )
+    .join("\n");
   const context = createContext({
     URL,
     window: {
@@ -151,6 +162,7 @@ globalThis.__helpers = {
   return (context as typeof context & { __helpers: HelperContext }).__helpers;
 }
 
+/** Provide the minimum structured provenance object required by check readers. */
 function provenance(): Record<string, unknown> {
   return {
     source_type: "spec",
@@ -160,6 +172,7 @@ function provenance(): Record<string, unknown> {
   };
 }
 
+/** Build one dashboard check fixture with canonical provenance unless a test overrides fields. */
 function check(
   id: string,
   status: "pass" | "fail" | "skipped",
@@ -176,6 +189,7 @@ function check(
   };
 }
 
+/** Build a minimal audit scope fixture accepted by dashboard report readers. */
 function scope(
   checks: Record<string, unknown>[] = [],
 ): Record<string, unknown> {
@@ -185,6 +199,159 @@ function scope(
     failures: [],
     summary: {},
   };
+}
+
+/**
+ * Read a report whose harness checks cover integrity, advisory, and metric rows, because the type-handling tests
+ * need all three check types in one report and inlining that fixture per test would bury the assertion.
+ */
+function readHarnessCheckTypesReport(): ReturnType<
+  HelperContext["readDashboardReport"]
+> {
+  return loadHelpers().readDashboardReport({
+    status: "pass",
+    target: "/repo",
+    overall: { status: "pass" },
+    scopes: {
+      setup: scope(),
+      agent: scope(),
+      harness: scope(),
+    },
+    learningLoop: null,
+    recentLessons: [],
+    agentScores: [
+      {
+        id: "claude",
+        name: "Claude Code",
+        agent: scope(),
+        harness: scope([
+          check("integrity-ok", "pass", "integrity"),
+          check("limited-pass", "pass", "integrity", {
+            displayStatus: "info",
+            assurance: "limited",
+            provenance: {
+              ...provenance(),
+              framework_evidence_paths: ["docs/harness-audit.md"],
+              target_evidence_paths: ["CLAUDE.md"],
+            },
+          }),
+          check("advisory-ack", "fail", "advisory", {
+            acknowledged: true,
+            displayStatus: "warn",
+            impact: "score-only",
+          }),
+          check("metric-info", "fail", "metric", {
+            displayStatus: "warn",
+            impact: "score-only",
+            evidenceKind: "structural",
+            details: {
+              verification: [
+                {
+                  agent: "claude",
+                  reason: "post-turn hook missing",
+                },
+              ],
+            },
+          }),
+        ]),
+        concerns: null,
+        enforcement: null,
+      },
+    ],
+  });
+}
+
+/**
+ * Read a report with advisory enforcement rows preserved for the Home detail panel, because these tests check
+ * that the reader keeps enforcement metadata intact and need a report shaped to carry it.
+ */
+function readAdvisoryEnforcementReport(): ReturnType<
+  HelperContext["readDashboardReport"]
+> {
+  return loadHelpers().readDashboardReport({
+    status: "pass",
+    target: "/repo",
+    overall: { status: "pass" },
+    scopes: {
+      setup: scope(),
+      agent: scope(),
+      harness: scope(),
+    },
+    learningLoop: null,
+    recentLessons: [],
+    agentScores: [
+      {
+        id: "claude",
+        name: "Claude Code",
+        agent: scope(),
+        harness: scope(),
+        concerns: null,
+        enforcement: {
+          agent: "claude",
+          name: "Claude Code",
+          advisory: true,
+          summary: {
+            hard: 1,
+            limited: 0,
+            soft: 0,
+            missing: 0,
+            unknown: 1,
+            experimental: 99,
+          },
+          capabilities: [
+            {
+              id: "shell-dangerous",
+              label: "Dangerous shell commands",
+              status: "hard",
+              sources: ["local-hook"],
+              summary: "Deny mechanism blocks dangerous commands",
+              evidence: ["AgentFacts.hooks"],
+            },
+            {
+              id: "file-read-restrictions",
+              label: "General file-read restrictions",
+              status: "unknown",
+              sources: ["not-observed"],
+              summary: "Not inferred from secret-path coverage",
+              evidence: [],
+            },
+          ],
+        },
+      },
+    ],
+  });
+}
+
+/** Read task-state fixture data with every Plans view field populated. */
+function readPlansViewTaskState(): ReturnType<HelperContext["readTaskState"]> {
+  return loadHelpers().readTaskState({
+    taskRoot: "/repo/.goat-flow/tasks",
+    exists: true,
+    active: "current",
+    activeExists: true,
+    selectedPlan: "current",
+    plans: [
+      {
+        name: "current",
+        path: "/repo/.goat-flow/tasks/current",
+        modifiedAt: "2026-05-15T06:00:00.000Z",
+        milestoneCount: 2,
+        active: true,
+      },
+    ],
+    milestones: [
+      {
+        filename: "Milestone-side-menu-navigation.md",
+        path: "/repo/.goat-flow/tasks/current/Milestone-side-menu-navigation.md",
+        title: "Side Menu Navigation and Plans View",
+        status: "in-progress",
+        objective: "Build the side menu.",
+        totalTasks: 13,
+        completedTasks: 4,
+        modifiedAt: "2026-05-15T06:30:00.000Z",
+      },
+    ],
+  });
 }
 
 describe("dashboard payload readers", () => {
@@ -256,59 +423,7 @@ describe("dashboard payload readers", () => {
   });
 
   it("preserves harness check type so metric failures can be shown as non-gating score evidence", () => {
-    const helpers = loadHelpers();
-
-    const report = helpers.readDashboardReport({
-      status: "pass",
-      target: "/repo",
-      overall: { status: "pass" },
-      scopes: {
-        setup: scope(),
-        agent: scope(),
-        harness: scope(),
-      },
-      learningLoop: null,
-      recentLessons: [],
-      agentScores: [
-        {
-          id: "claude",
-          name: "Claude Code",
-          agent: scope(),
-          harness: scope([
-            check("integrity-ok", "pass", "integrity"),
-            check("limited-pass", "pass", "integrity", {
-              displayStatus: "info",
-              assurance: "limited",
-              provenance: {
-                ...provenance(),
-                framework_evidence_paths: ["docs/harness-audit.md"],
-                target_evidence_paths: ["CLAUDE.md"],
-              },
-            }),
-            check("advisory-ack", "fail", "advisory", {
-              acknowledged: true,
-              displayStatus: "warn",
-              impact: "score-only",
-            }),
-            check("metric-info", "fail", "metric", {
-              displayStatus: "warn",
-              impact: "score-only",
-              evidenceKind: "structural",
-              details: {
-                verification: [
-                  {
-                    agent: "claude",
-                    reason: "post-turn hook missing",
-                  },
-                ],
-              },
-            }),
-          ]),
-          concerns: null,
-          enforcement: null,
-        },
-      ],
-    });
+    const report = readHarnessCheckTypesReport();
 
     const checks = report.agentScores[0]?.harness?.checks ?? [];
     assert.deepEqual(
@@ -346,68 +461,17 @@ describe("dashboard payload readers", () => {
         checks.length) *
         100,
     );
-    assert.equal(score, 50);
+    const expectedTwoPassesOutOfFourScore = 50;
+    assert.equal(score, expectedTwoPassesOutOfFourScore);
   });
 
   it("preserves advisory enforcement matrix rows", () => {
-    const helpers = loadHelpers();
-
-    const report = helpers.readDashboardReport({
-      status: "pass",
-      target: "/repo",
-      overall: { status: "pass" },
-      scopes: {
-        setup: scope(),
-        agent: scope(),
-        harness: scope(),
-      },
-      learningLoop: null,
-      recentLessons: [],
-      agentScores: [
-        {
-          id: "claude",
-          name: "Claude Code",
-          agent: scope(),
-          harness: scope(),
-          concerns: null,
-          enforcement: {
-            agent: "claude",
-            name: "Claude Code",
-            advisory: true,
-            summary: {
-              hard: 1,
-              limited: 0,
-              soft: 0,
-              missing: 0,
-              unknown: 1,
-              experimental: 99,
-            },
-            capabilities: [
-              {
-                id: "shell-dangerous",
-                label: "Dangerous shell commands",
-                status: "hard",
-                sources: ["local-hook"],
-                summary: "Deny mechanism blocks dangerous commands",
-                evidence: ["AgentFacts.hooks"],
-              },
-              {
-                id: "file-read-restrictions",
-                label: "General file-read restrictions",
-                status: "unknown",
-                sources: ["not-observed"],
-                summary: "Not inferred from secret-path coverage",
-                evidence: [],
-              },
-            ],
-          },
-        },
-      ],
-    });
+    const report = readAdvisoryEnforcementReport();
 
     const enforcement = report.agentScores[0]?.enforcement;
+    const expectedCapabilityCount = 2;
     assert.equal(enforcement?.agent, "claude");
-    assert.equal(enforcement?.capabilities.length, 2);
+    assert.equal(enforcement?.capabilities.length, expectedCapabilityCount);
     assert.equal(enforcement?.capabilities[1]?.status, "unknown");
     assert.deepEqual(enforcement?.capabilities[0]?.sources, ["local-hook"]);
     assert.equal(enforcement?.summary.hard, 1);
@@ -422,46 +486,20 @@ describe("dashboard payload readers", () => {
   });
 
   it("preserves task-state fields used by the Plans view", () => {
-    const helpers = loadHelpers();
+    const state = readPlansViewTaskState();
 
-    const state = helpers.readTaskState({
-      taskRoot: "/repo/.goat-flow/tasks",
-      exists: true,
-      active: "1.7.0",
-      activeExists: true,
-      selectedPlan: "1.7.0",
-      plans: [
-        {
-          name: "1.7.0",
-          path: "/repo/.goat-flow/tasks/1.7.0",
-          modifiedAt: "2026-05-15T06:00:00.000Z",
-          milestoneCount: 2,
-          active: true,
-        },
-      ],
-      milestones: [
-        {
-          filename: "M00-side-menu-navigation.md",
-          path: "/repo/.goat-flow/tasks/1.7.0/M00-side-menu-navigation.md",
-          title: "M00: Side Menu Navigation and Plans View",
-          status: "in-progress",
-          objective: "Build the side menu.",
-          totalTasks: 13,
-          completedTasks: 4,
-          modifiedAt: "2026-05-15T06:30:00.000Z",
-        },
-      ],
-    });
-
+    const expectedMilestoneCount = 2;
+    const expectedMilestoneTaskTotal = 13;
+    const expectedCompletedTasks = 4;
     assert.equal(state.taskRoot, "/repo/.goat-flow/tasks");
-    assert.equal(state.active, "1.7.0");
+    assert.equal(state.active, "current");
     assert.equal(state.activeExists, true);
-    assert.equal(state.selectedPlan, "1.7.0");
-    assert.equal(state.plans[0]?.milestoneCount, 2);
+    assert.equal(state.selectedPlan, "current");
+    assert.equal(state.plans[0]?.milestoneCount, expectedMilestoneCount);
     assert.equal(state.plans[0]?.active, true);
     assert.equal(state.milestones[0]?.status, "in-progress");
     assert.equal(state.milestones[0]?.objective, "Build the side menu.");
-    assert.equal(state.milestones[0]?.completedTasks, 4);
-    assert.equal(state.milestones[0]?.totalTasks, 13);
+    assert.equal(state.milestones[0]?.completedTasks, expectedCompletedTasks);
+    assert.equal(state.milestones[0]?.totalTasks, expectedMilestoneTaskTotal);
   });
 });

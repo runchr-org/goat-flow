@@ -47,8 +47,8 @@ function extractDecisionsFacts(
   const fileCount = files.length;
   // Require at least one ADR with substantive Context and Decision sections.
   let hasRealContent = false;
-  for (const f of files) {
-    const content = fs.readFile(`${path}/${f}`);
+  for (const fileName of files) {
+    const content = fs.readFile(`${path}/${fileName}`);
     if (!content) continue;
     const hasContext =
       /^## (?:Context|Background|Problem)\s*\n([\s\S]{50,}?)(?=^## |$)/m.test(
@@ -70,38 +70,43 @@ function extractDecisionsFacts(
   return { dirExists, fileCount, path, hasRealContent };
 }
 
-/** Resolve the project-local commit guidance location. */
+/**
+ * Resolve the project-local commit guidance location.
+ *
+ * Canonical home is docs/coding-standards/git-commit.md: one file serves both humans and agents.
+ * IDEs auto-read .github/copilot-instructions.md (which points here), not a bespoke .github commit
+ * file, so the legacy .github locations are reported as misplaced and flagged for a move. The check
+ * is repo-wide and intentionally does not depend on a .github/ directory existing.
+ *
+ * @param fs - Read-only filesystem used to probe the canonical and legacy commit-doc locations.
+ * @returns Commit-guidance facts: existence, resolved path, the required canonical path, and any misplaced legacy copies.
+ */
 function extractGitCommitInstructionFacts(
   fs: ReadonlyFS,
 ): SharedFacts["gitCommitInstructions"] {
-  const githubPath = ".github/git-commit-instructions.md";
-  const fallbackPaths = [
+  const canonicalPath = "docs/coding-standards/git-commit.md";
+  const legacyPaths = [
+    ".github/git-commit-instructions.md",
     ".github/instructions/git-commit.md",
-    "docs/coding-standards/git-commit.md",
   ];
-  const githubDirExists = fs.exists(".github");
-  const githubPathExists = fs.exists(githubPath);
-  const misplacedPaths = fallbackPaths.filter((path) => fs.exists(path));
-
-  if (githubDirExists) {
-    return {
-      exists: githubPathExists,
-      path: githubPathExists ? githubPath : null,
-      requiredPath: githubPath,
-      misplacedPaths: githubPathExists ? [] : misplacedPaths,
-    };
-  }
-
-  const fallbackPath = fallbackPaths.find((path) => fs.exists(path)) ?? null;
+  const canonicalExists = fs.exists(canonicalPath);
   return {
-    exists: githubPathExists || fallbackPath !== null,
-    path: githubPathExists ? githubPath : fallbackPath,
-    requiredPath: fallbackPath ?? githubPath,
-    misplacedPaths: [],
+    exists: canonicalExists,
+    path: canonicalExists ? canonicalPath : null,
+    requiredPath: canonicalPath,
+    misplacedPaths: canonicalExists
+      ? []
+      : legacyPaths.filter((path) => fs.exists(path)),
   };
 }
 
-/** Extract project-wide shared facts from docs, CI, and config files. */
+/**
+ * Extract project-wide shared facts from docs, CI, and config files.
+ *
+ * @param fs - project filesystem adapter used by shared fact extractors
+ * @param configState - parsed goat-flow config state to expose beside filesystem facts
+ * @returns shared project facts consumed by setup, audit, and dashboard surfaces
+ */
 export function extractSharedFacts(
   fs: ReadonlyFS,
   configState: LoadedConfig,

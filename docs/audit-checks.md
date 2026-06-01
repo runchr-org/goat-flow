@@ -43,10 +43,10 @@ Build mode is the structural install gate. It validates files, directories, conf
 
 | Check id | Display name | What it validates |
 |----------|--------------|-------------------|
-| `agent-instruction` | Agent instruction file | The selected agent's instruction file exists; Copilot additionally requires `.github/git-commit-instructions.md` when `.github/` exists. Without `--agent`, this also detects orphaned agent artifacts and incomplete Copilot installs |
+| `agent-instruction` | Agent instruction file | The selected agent's instruction file exists; for Copilot, `.github/copilot-instructions.md` must also reference `docs/coding-standards/git-commit.md` under a `## Commit Messages` section. Without `--agent`, this also detects orphaned agent artifacts and incomplete Copilot installs |
 | `agent-skills` | Agent skills | The selected agent has every canonical skill file, each installed skill declares the current `goat-flow-skill-version`, and no deprecated skill directories remain |
 | `agent-settings` | Agent settings | The selected agent's settings file parses as valid JSON or TOML |
-| `agent-guardrails` | Agent deny mechanism | The selected agent has a deny mechanism, any installed shell hooks pass `bash -n`, deny patterns exist, installed guardrail hook files match the workflow templates, `guardrails-self-test.sh --self-test=smoke` passes when the hook scripts exist, and a runtime-shaped blocked Bash payload is denied through the registered hook path |
+| `agent-guardrails` | Agent deny mechanism | The selected agent has a deny mechanism, any installed shell hooks pass `bash -n`, deny patterns exist, installed `deny-dangerous.sh` plus `.goat-flow/hook-lib/` match the workflow templates, `deny-dangerous-self-test.sh --self-test=smoke` passes when the hook scripts exist, and a runtime-shaped blocked Bash payload is denied through the registered hook path |
 
 Aggregate-mode nuance:
 
@@ -69,7 +69,7 @@ Aggregate-mode nuance:
 | Constraints | `deny-blocks-pipe-to-shell` | `advisory` | Deny patterns block `curl | bash` and `wget | sh` pipe-to-shell execution |
 | Constraints | `deny-hook-registered` | `integrity` | A deny hook that exists on disk is registered in the correct pre-tool hook slot |
 | Verification | `hooks-registered` | `integrity` | Post-turn hook registrations and on-disk hook files stay in sync |
-| Verification | `commit-guidance` | `advisory` | Commit guidance exists at `.github/git-commit-instructions.md` when `.github/` exists, or in a supporting commit-guidance document otherwise |
+| Verification | `commit-guidance` | `advisory` | Commit guidance exists at the canonical `docs/coding-standards/git-commit.md`; old GitHub commit-guidance locations are flagged as misplaced |
 | Verification | `evidence-before-claims` | `metric` | Present instruction files carry the Hallucination red-flags clauses and Rationalisations-to-reject pointer |
 | Verification | `post-turn-hook-integrity` | `metric` | Reports whether any post-turn hook runs validation and whether it swallows failures; absence is no hook evidence, not proof. Metric failures do not fail the harness scope, but they reduce the concern score. |
 | Recovery | `milestone-tracking` | `integrity` | `.goat-flow/tasks/` exists; task count, checkbox completion, milestone status, and roadmap progress are optional local workflow state |

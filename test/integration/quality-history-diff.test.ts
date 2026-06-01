@@ -40,6 +40,7 @@ after(() => {
   }
 });
 
+/** Writes an isolated project with just enough quality-log structure for CLI tests. */
 function makeTempProject(): string {
   const root = mkdtempSync(join(tmpdir(), "goat-flow-quality-cli-"));
   mkdirSync(join(root, ".goat-flow", "logs", "quality"), { recursive: true });
@@ -68,8 +69,11 @@ function runCLI(
 }
 
 describe("quality history and diff CLI", () => {
+  // Fixture writes three saved reports because history and explicit diff selection need chronological data.
   it("renders history text and filtered history/diff json from saved reports", () => {
     const root = makeTempProject();
+    // Fixture spans three reports so history, filtering, and diff selection all
+    // exercise chronological ordering instead of a single saved-report read.
     const fixtures = [
       "2026-04-01-0900-claude-aaaaa",
       "2026-04-15-1000-claude-bbbbb",
@@ -166,8 +170,11 @@ describe("quality history and diff CLI", () => {
     assert.equal(diffPayload.to.id, "2026-04-15-1000-claude-bbbbb");
   });
 
+  // Fixture writes mode variants because cross-mode diffs must not pair implicitly by timestamp.
   it("filters history by quality mode and rejects implicit cross-mode diffs", () => {
     const root = makeTempProject();
+    // Fixture uses two mode variants with matching timestamps so implicit diff
+    // selection must reject cross-mode comparisons instead of pairing by date.
     const first = JSON.parse(
       readFileSync(
         join(FIXTURE_DIR, "2026-04-01-0900-claude-aaaaa.json"),
@@ -231,7 +238,8 @@ describe("quality history and diff CLI", () => {
       "--format",
       "json",
     ]);
-    assert.equal(implicitDiff.status, 2);
+    const expectedModeRequiredExitCode = 2;
+    assert.equal(implicitDiff.status, expectedModeRequiredExitCode);
     assert.match(implicitDiff.stderr, /Pass --mode to diff one quality mode/i);
   });
 });

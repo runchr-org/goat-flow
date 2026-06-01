@@ -59,7 +59,7 @@ export interface AgentProfile {
   hooks?: string[];
 }
 
-/** The existing `skills:` block. M06 does not alter it. */
+/** The existing `skills:` block. */
 interface SkillsStructure {
   canonical: string[];
   stale_names: string[];
@@ -79,7 +79,7 @@ interface ManifestInstructionFile {
 
 /** On-disk shape of `workflow/manifest.json` after M06a extends it.
  *
- * `facts` is optional so the loader can detect pre-M06 manifests (missing key)
+ * `facts` is optional so the loader can detect older manifests (missing key)
  * and produce a clean validation error instead of a cryptic type coercion. */
 export interface ManifestJson {
   description: string;
@@ -165,7 +165,7 @@ export interface ObservedFacts {
 }
 
 /** Raised when the on-disk manifest's static facts disagree with observed reality. */
-export class ManifestValidationError extends Error {
+class ManifestValidationError extends Error {
   constructor(
     message: string,
     public readonly findings: string[],
@@ -174,6 +174,8 @@ export class ManifestValidationError extends Error {
     this.name = "ManifestValidationError";
   }
 }
+
+export { ManifestValidationError };
 
 /** One consistency finding produced by `checkManifest()`. */
 interface ManifestCheckFinding {

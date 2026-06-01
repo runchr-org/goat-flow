@@ -1,6 +1,6 @@
 ---
 category: dashboard-testing
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-31
 ---
 
 ## Lesson: Prove hook capability before marking an agent unsupported
@@ -23,7 +23,7 @@ last_reviewed: 2026-05-28
 
 **Root cause:** I treated the terminal launch as a harmless UI smoke, but the dashboard terminal starts a real agent process in the selected project. For release QA that only needs Workspace layout and session controls, a real runner can attach to existing agent state and mutate the repository.
 
-**Prevention:** For manual dashboard page/modal sweeps, do not click runner launch buttons unless terminal runner behavior is the explicit target. Prefer browser-use state checks of the empty Workspace, `/api/terminal/sessions`, or a non-agent test harness. If the max-session modal needs coverage, trigger Alpine state via browser-use Python/CDP instead of starting ten runner sessions. When terminal launch is in scope, snapshot `git status --short` before and after, then close the session immediately. Evidence anchors: `src/dashboard/views/workspace.html` (search: `launchInTerminal('', activeRunner`), `src/dashboard/dashboard-terminal.ts` (search: `async function dashboardLaunchInTerminal`).
+**Prevention:** For manual dashboard page/modal sweeps, do not click runner launch buttons unless terminal runner behavior is the explicit target. Prefer browser-use state checks of the empty Workspace, `/api/terminal/sessions`, or a non-agent test harness. If the max-session modal needs coverage, trigger Alpine state via browser-use Python/CDP instead of starting ten runner sessions. When terminal launch is in scope, snapshot `git status --short` before and after, then close the session immediately. Evidence anchors: `src/dashboard/views/workspace.html` (search: `launchInTerminal('', activeRunner`), `src/dashboard/dashboard-terminal-runtime.ts` (search: `async function dashboardLaunchInTerminal`).
 
 ---
 
@@ -79,7 +79,7 @@ last_reviewed: 2026-05-28
 
 **Root cause:** The VM-loaded dashboard helper tests injected fake `setTimeout` / `clearTimeout`, but still passed real `setInterval` / `clearInterval` into the VM. Tests that called `dashboardConnectTerminal()` exercised the production age-update interval and left a live event-loop handle behind. Node's test runner waits for live handles, so this converted "test assertions finished" into an unbounded CI wait.
 
-**Prevention:** When a VM-loaded browser helper test exercises lifecycle code, fake or explicitly clean up every timer primitive the helper can use (`setTimeout`, `clearTimeout`, `setInterval`, `clearInterval`). For terminal helper tests specifically, prefer the shared fake timer harness and assert the focused file exits under a short outer `timeout`, not just that the suite prints passing assertions. Evidence anchors: `test/unit/dashboard-terminal-launch.test.ts` (search: `type TimerControls`), `test/unit/dashboard-terminal-launch.test.ts` (search: `createFakeTimers`), `src/dashboard/dashboard-terminal.ts` (search: `ageInterval = setInterval`).
+**Prevention:** When a VM-loaded browser helper test exercises lifecycle code, fake or explicitly clean up every timer primitive the helper can use (`setTimeout`, `clearTimeout`, `setInterval`, `clearInterval`). For terminal helper tests specifically, prefer the shared fake timer harness and assert the focused file exits under a short outer `timeout`, not just that the suite prints passing assertions. Evidence anchors: `test/unit/dashboard-terminal-launch/helpers.ts` (search: `type TimerControls`), `test/unit/dashboard-terminal-launch/helpers.ts` (search: `createFakeTimers`), `src/dashboard/dashboard-terminal-connect.ts` (search: `ageInterval = setInterval`).
 
 ---
 
@@ -87,11 +87,11 @@ last_reviewed: 2026-05-28
 
 **Status:** active | **Created:** 2026-05-21
 
-**What happened:** While fixing Prompts custom-editor selection, the first focused `test/unit/preset-prompts.test.ts` run failed because a new HTML source test searched for `<div class="gf-validation-summary"` even though the template puts `x-show` and `x-cloak` before the `class` attribute. The product change was correct; the test anchor assumed attribute order.
+**What happened:** While fixing Prompts custom-editor selection, the first focused prompt-source test failed because it searched for `<div class="gf-validation-summary"` even though the template puts Alpine attributes before the `class` attribute. The product change was correct; the test anchor assumed attribute order.
 
 **Root cause:** I used a tag-prefix source regex for a formatter-owned HTML template instead of anchoring on the semantic class/id token that mattered.
 
-**Prevention:** For dashboard HTML source tests, anchor on stable class/id tokens or parse a scoped slice instead of requiring tag attribute order. Evidence anchors: `test/unit/preset-prompts.test.ts` (search: `keeps custom prompt save actions in the form header`), `src/dashboard/views/prompts.html` (search: `gf-custom-form-actions`).
+**Prevention:** For dashboard HTML source tests, anchor on stable class/id tokens or parse a scoped slice instead of requiring tag attribute order. Evidence anchors: `src/dashboard/views/prompts.html` (search: `gf-validation-summary`), `src/dashboard/views/prompts.html` (search: `gf-custom-form-actions`).
 
 ---
 
@@ -103,7 +103,7 @@ last_reviewed: 2026-05-28
 
 **Root cause:** I treated `ProjectEntry` as both the UI row model and the sortable-column contract. Extending the row shape for identity metadata unintentionally changed the sort type. The test had the same path-only assumption: it verified array order rather than the durable property, which is that all aliases are preserved under one identity-keyed record.
 
-**Prevention:** When adding metadata fields to dashboard row types, keep `ProjectSortKey` as an explicit union of sortable string columns. For identity or alias migrations, assert identity grouping, alias set membership, and title preservation; do not assert incidental path-array ordering unless the ordering is part of the product contract. Evidence anchors: `src/dashboard/app.ts` (search: `type ProjectSortKey = "name"`), `test/integration/dashboard-server.test.ts` (search: `persists project identities without raw private remote URLs`).
+**Prevention:** When adding metadata fields to dashboard row types, keep `ProjectSortKey` as an explicit union of sortable string columns. For identity or alias migrations, assert identity grouping, alias set membership, and title preservation; do not assert incidental path-array ordering unless the ordering is part of the product contract. Evidence anchors: `src/dashboard/app.ts` (search: `type ProjectSortKey = "name"`), `test/integration/dashboard-projects-api.test.ts` (search: `persists project identities without raw private remote URLs`).
 
 ---
 
@@ -118,7 +118,7 @@ last_reviewed: 2026-05-28
 **Prevention:**
 1. In VM-loaded dashboard helper tests, compare stable error-message content or normalize the error into the host realm before strict equality checks.
 2. When a helper uses `instanceof Error`, expect VM-based tests to surface the `String(err)` fallback unless the test injects same-realm errors deliberately.
-3. Evidence anchors: `test/unit/dashboard-terminal-launch.test.ts` (search: `xterm.js load failed`), `src/dashboard/dashboard-terminal.ts` (search: `const msg = err instanceof Error ? err.message : String(err)`).
+3. Evidence anchors: `test/unit/dashboard-terminal-launch/launch-flow-03.test.ts` (search: `xterm.js load failed`), `src/dashboard/dashboard-terminal-runtime.ts` (search: `const msg = err instanceof Error ? err.message : String(err)`).
 
 ---
 
@@ -182,7 +182,7 @@ last_reviewed: 2026-05-28
 
 **Root cause:** I used a verification scope wider than the code change. The fix only changed `/api/audit` summary behavior, but the suite also exercises other dashboard routes whose latency profile is different. That diluted the signal and made the timeout look like uncertainty in the changed path.
 
-**Prevention:** For dashboard audit-path fixes, verify the exact `/api/audit` contract first: run the `/api/audit`-only test slice and a direct localhost fetch against `serveDashboard()`. Use the broader dashboard suite only as a follow-up check when the slower routes are relevant to the change. Evidence anchors: `test/integration/dashboard-server.test.ts` (search: `describe("dashboard /api/audit"`), `test/integration/quality-constraint-isolation.test.ts` (search: `dashboard home audit refresh`), `src/cli/server/dashboard-routes.ts` (search: `denyMechanismEvidenceLevel`).
+**Prevention:** For dashboard audit-path fixes, verify the exact `/api/audit` contract first: run the `/api/audit`-only test slice and a direct localhost fetch against `serveDashboard()`. Use the broader dashboard suite only as a follow-up check when the slower routes are relevant to the change. Evidence anchors: `test/integration/dashboard-audit-api.test.ts` (search: `describe("dashboard /api/audit"`), `test/integration/quality-constraint-isolation.test.ts` (search: `dashboard home audit refresh`), `src/cli/server/dashboard-audit-routes.ts` (search: `denyMechanismEvidenceLevel`).
 
 ---
 
@@ -194,7 +194,7 @@ last_reviewed: 2026-05-28
 
 **Root cause:** I treated a sandbox timing probe as representative for a route that shells out to `bash` through the deny-hook self-test. When the verification surface depends on external shell/runtime behavior, the sandbox path can understate real latency or skip the expensive branch entirely.
 
-**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-routes.ts` (search: `readQualityAuditCache(projectPath, agent, fresh)`), `src/cli/audit/check-agent-setup.ts` (search: `execFileSync("bash", [denyPath, "--self-test=smoke"]`).
+**Prevention:** For shell-backed audit or hook performance work, capture timings in the same environment that can actually run the shell command before updating docs or declaring the bottleneck understood. For this repo, prefer a built `dist` dashboard probe plus a focused integration test, and compare fresh versus cached requests explicitly when a new cache is involved. Evidence anchors: `src/cli/server/dashboard-audit-routes.ts` (search: `const fresh = url.searchParams.get("fresh") === "true";`), `src/cli/server/dashboard-quality-routes.ts` (search: `function readQualityAuditCache`), `src/cli/audit/check-agent-deny-mechanism.ts` (search: `execFileSync("bash", [denyPath, "--self-test=smoke"]`).
 
 ---
 

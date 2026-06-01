@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: node --import tsx --test --test-reporter=spec test/*/*.test.ts
+        run: npm run test:full
 
       - name: Lint
         run: npx eslint src/cli src/dashboard

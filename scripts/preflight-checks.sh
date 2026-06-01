@@ -318,11 +318,11 @@ details_pipe() {
 phase_for() {
     case "$1" in
         "Shell Scripts"|"TypeScript") printf 'STATIC' ;;
-        "Deny Policy"|"ADR Enforcement") printf 'POLICY' ;;
+        "Deny Policy"|"ADR Enforcement"|"Gruff Policy") printf 'POLICY' ;;
         "Agent Config Parity"|"Skill and Reference Versions"|"Version Consistency") printf 'CONFIG INTEGRITY' ;;
         "Skill Behavioral Contracts"|"Cross-Agent Consistency"|"Instruction Parity Contract"|"Instruction File Quality") printf 'CONTRACTS' ;;
         "Tests"|"Dependency Audit") printf 'TESTS' ;;
-        "GOAT Flow Audit"|"Learning-Loop Schema"|"Doc/Code Drift"|"Skill Reference + Playbooks Sync"|"Skill SKILL.md Parity") printf 'DRIFT' ;;
+        "GOAT Flow Audit"|"Learning-Loop Schema"|"Doc/Code Drift"|"Content Drift"|"Skill Reference + Playbooks Sync"|"Skill SKILL.md Parity") printf 'DRIFT' ;;
         "Path Integrity"|"Markdown Links"|"Package README Links") printf 'LINKS' ;;
         *) printf 'OTHER' ;;
     esac
@@ -334,6 +334,7 @@ display_for() {
         "TypeScript") printf 'TypeScript' ;;
         "Deny Policy") printf 'Deny policy' ;;
         "ADR Enforcement") printf 'ADR enforcement' ;;
+        "Gruff Policy") printf 'Gruff policy' ;;
         "Agent Config Parity") printf 'Agent config parity' ;;
         "Skill and Reference Versions") printf 'Skill versions' ;;
         "Version Consistency") printf 'Version consistency' ;;
@@ -345,6 +346,7 @@ display_for() {
         "Dependency Audit") printf 'Dependency audit' ;;
         "GOAT Flow Audit") printf 'GOAT flow audit' ;;
         "Learning-Loop Schema") printf 'Learning-loop schema' ;;
+        "Content Drift") printf 'Content drift' ;;
         "Doc/Code Drift") printf 'Doc/code drift' ;;
         "Skill Reference + Playbooks Sync") printf 'Skill reference sync' ;;
         "Skill SKILL.md Parity") printf 'Skill SKILL.md parity' ;;
@@ -361,6 +363,7 @@ collapsed_desc_for() {
         "TypeScript") printf 'build · lint · knip · prettier' ;;
         "Deny Policy") printf 'self-test + runtime smokes' ;;
         "ADR Enforcement") printf 'no removed patterns' ;;
+        "Gruff Policy") printf 'no enabled:false in .gruff-ts.yaml' ;;
         "Agent Config Parity") printf 'claude · codex · antigravity · copilot' ;;
         "Skill and Reference Versions") printf 'templates + installed match version' ;;
         "Version Consistency") printf 'package.json · config.yaml' ;;
@@ -372,6 +375,7 @@ collapsed_desc_for() {
         "Dependency Audit") printf 'npm audit' ;;
         "GOAT Flow Audit") printf 'all checks' ;;
         "Learning-Loop Schema") printf 'footguns + lessons valid' ;;
+        "Content Drift") printf 'cold-path content lint · view-name drift' ;;
         "Doc/Code Drift") printf 'arch counts · setup IDs · code-map' ;;
         "Skill Reference + Playbooks Sync") printf 'templates match installed' ;;
         "Skill SKILL.md Parity") printf 'all installed match' ;;
@@ -463,12 +467,12 @@ _compute_widths() {
     local sec disp d
     local known=(
         "Shell Scripts" "TypeScript"
-        "Deny Policy" "ADR Enforcement"
+        "Deny Policy" "ADR Enforcement" "Gruff Policy"
         "Agent Config Parity" "Skill and Reference Versions" "Version Consistency"
         "Skill Behavioral Contracts" "Cross-Agent Consistency"
         "Instruction Parity Contract" "Instruction File Quality"
         "Tests"
-        "GOAT Flow Audit" "Learning-Loop Schema" "Doc/Code Drift"
+        "GOAT Flow Audit" "Learning-Loop Schema" "Content Drift" "Doc/Code Drift"
         "Skill Reference + Playbooks Sync" "Skill SKILL.md Parity"
         "Path Integrity" "Markdown Links" "Package README Links"
     )
@@ -684,77 +688,63 @@ fi
 
 # ── Deny Policy ──────────────────────────────────────────────────────
 section "Deny Policy"
-if deny_self_test_output=$(bash workflow/hooks/guardrails-self-test.sh --self-test=full 2>&1); then
-    pass "workflow/hooks/guardrails-self-test.sh ${deny_self_test_output}"
+if deny_self_test_output=$(bash workflow/hooks/deny-dangerous.sh --self-test=full 2>&1); then
+    pass "workflow/hooks/deny-dangerous.sh ${deny_self_test_output}"
 else
-    fail "workflow/hooks/guardrails-self-test.sh full self-test"
+    fail "workflow/hooks/deny-dangerous.sh full self-test"
 fi
 
 # Also smoke-test installed hooks. Routine audit/preflight only needs the
 # install-safe representative set; the local scripts/ copy runs the full corpus
 # above.
-guardrail_hooks=(
-    guard-destructive-shell.sh
-    guard-secret-paths.sh
-    guard-repository-writes.sh
-)
 while IFS= read -r hookdir; do
-    for guardrail_hook in "${guardrail_hooks[@]}"; do
-        if [[ -f "$hookdir/$guardrail_hook" ]]; then
-            if bash "$hookdir/$guardrail_hook" --self-test=smoke >/dev/null 2>&1; then
-                pass "$hookdir/$guardrail_hook smoke self-test"
-            else
-                fail "$hookdir/$guardrail_hook smoke self-test"
-            fi
-        fi
-    done
-    if [[ -f "$hookdir/guardrails-self-test.sh" ]]; then
-        if bash "$hookdir/guardrails-self-test.sh" --self-test=smoke >/dev/null 2>&1; then
-            pass "$hookdir/guardrails-self-test.sh smoke self-test"
+    if [[ -f "$hookdir/deny-dangerous.sh" ]]; then
+        if bash "$hookdir/deny-dangerous.sh" --self-test=smoke >/dev/null 2>&1; then
+            pass "$hookdir/deny-dangerous.sh smoke self-test"
         else
-            fail "$hookdir/guardrails-self-test.sh smoke self-test"
+            fail "$hookdir/deny-dangerous.sh smoke self-test"
         fi
     fi
 done < <(manifest_eval hook-dirs)
 
 # Runtime smoke test: pipe a known-blocked command through installed deny hooks
 while IFS= read -r hookdir; do
-    if [[ -f "$hookdir/guard-destructive-shell.sh" ]]; then
+    if [[ -f "$hookdir/deny-dangerous.sh" ]]; then
         if [[ "$hookdir" == ".github/hooks" ]]; then
             test_payload='{"toolName":"bash","toolArgs":"{\"command\":\"rm -rf /\"}"}'
-            if output=$(bash "$hookdir/guard-destructive-shell.sh" <<< "$test_payload" 2>&1); then
+            if output=$(bash "$hookdir/deny-dangerous.sh" <<< "$test_payload" 2>&1); then
                 if echo "$output" | grep -q '"permissionDecision":"deny"'; then
-                    pass "$hookdir/guard-destructive-shell.sh runtime smoke test (copilot payload denied rm -rf)"
+                    pass "$hookdir/deny-dangerous.sh runtime smoke test (copilot payload denied rm -rf)"
                 else
-                    fail "$hookdir/guard-destructive-shell.sh did not return a deny decision for Copilot payload"
+                    fail "$hookdir/deny-dangerous.sh did not return a deny decision for Copilot payload"
                 fi
             else
                 exit_code=$?
-                warn "$hookdir/guard-destructive-shell.sh exited $exit_code on Copilot deny payload (expected 0 + deny JSON)"
+                warn "$hookdir/deny-dangerous.sh exited $exit_code on Copilot deny payload (expected 0 + deny JSON)"
             fi
         elif [[ "$hookdir" == ".agents/hooks" ]]; then
             test_payload='{"hookEventName":"PreToolUse","toolCall":{"name":"run_command","args":{"CommandLine":"rm -rf /"}}}'
-            if output=$(bash "$hookdir/guard-destructive-shell.sh" <<< "$test_payload" 2>&1); then
+            if output=$(bash "$hookdir/deny-dangerous.sh" <<< "$test_payload" 2>&1); then
                 if echo "$output" | grep -q '"decision":"deny"'; then
-                    pass "$hookdir/guard-destructive-shell.sh runtime smoke test (antigravity payload denied rm -rf)"
+                    pass "$hookdir/deny-dangerous.sh runtime smoke test (antigravity payload denied rm -rf)"
                 else
-                    fail "$hookdir/guard-destructive-shell.sh did not return a deny decision for Antigravity payload"
+                    fail "$hookdir/deny-dangerous.sh did not return a deny decision for Antigravity payload"
                 fi
             else
                 exit_code=$?
-                warn "$hookdir/guard-destructive-shell.sh exited $exit_code on Antigravity deny payload (expected 0 + deny JSON)"
+                warn "$hookdir/deny-dangerous.sh exited $exit_code on Antigravity deny payload (expected 0 + deny JSON)"
             fi
         else
             # Simulate a VS Code-style Bash tool call with a dangerous command
             test_payload='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
-            if bash "$hookdir/guard-destructive-shell.sh" <<< "$test_payload" >/dev/null 2>&1; then
-                fail "$hookdir/guard-destructive-shell.sh did not block 'rm -rf /' (exit 0)"
+            if bash "$hookdir/deny-dangerous.sh" <<< "$test_payload" >/dev/null 2>&1; then
+                fail "$hookdir/deny-dangerous.sh did not block 'rm -rf /' (exit 0)"
             else
                 exit_code=$?
                 if [[ $exit_code -eq 2 ]]; then
-                    pass "$hookdir/guard-destructive-shell.sh runtime smoke test (blocked rm -rf)"
+                    pass "$hookdir/deny-dangerous.sh runtime smoke test (blocked rm -rf)"
                 else
-                    warn "$hookdir/guard-destructive-shell.sh exited $exit_code on blocked command (expected 2)"
+                    warn "$hookdir/deny-dangerous.sh exited $exit_code on blocked command (expected 2)"
                 fi
             fi
         fi
@@ -769,11 +759,7 @@ configured_hook_smoke_output=$(
 const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
 
-const guardScripts = [
-  "guard-destructive-shell.sh",
-  "guard-secret-paths.sh",
-  "guard-repository-writes.sh",
-];
+const guardScripts = ["deny-dangerous.sh"];
 const configs = [
   { agent: "claude", path: ".claude/settings.json", mode: "stderr" },
   { agent: "codex", path: ".codex/hooks.json", mode: "stderr" },
@@ -786,12 +772,7 @@ function emit(status, message) {
 }
 
 function payloadFor(mode, script) {
-  const command =
-    script === "guard-destructive-shell.sh"
-      ? "rm -rf /"
-      : script === "guard-secret-paths.sh"
-        ? "cat .env"
-        : "git push origin main";
+  const command = "git push origin main";
   if (mode === "copilot-json") {
     return {
       input: JSON.stringify({ toolName: "bash", toolArgs: { command } }),
@@ -1611,7 +1592,7 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
         pass "$test_label passing ($pass_count/$test_count)"
         coverage_output="$test_output"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
-        warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding (M23)"
+        warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding"
     elif [[ "$test_retryable" == true ]]; then
         retry_output=$("${test_command[@]}" 2>&1) && retry_exit=0 || retry_exit=$?
         retry_test_count=$(echo "$retry_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
@@ -1691,6 +1672,26 @@ for pattern in "${removed_patterns[@]}"; do
 done
 $adr_clean && pass "No removed patterns found"
 
+# ── Gruff Policy ─────────────────────────────────────────────────────
+# Enforces the project rule "never disable gruff-ts rules" structurally
+# instead of relying on agent memory (see feedback_gruff_never_disable.md
+# and the gruff cleanup work). Findings get fixed, tuned via
+# thresholds/allowlists, or baselined with rationale - never silenced via
+# `enabled: false`. A single line in .gruff-ts.yaml setting `enabled: false`
+# on any rule fails this check.
+if [[ -f .gruff-ts.yaml ]]; then
+    section "Gruff Policy"
+    disabled_lines=$(grep -nE '^[[:space:]]*enabled:[[:space:]]*false' .gruff-ts.yaml || true)
+    if [[ -z "$disabled_lines" ]]; then
+        pass "No gruff-ts rules disabled (satisfy or tune)"
+    else
+        fail "gruff-ts rule(s) disabled in .gruff-ts.yaml - satisfy or tune, never silence"
+        printf '%s\n' "$disabled_lines" | head -5 | details_pipe
+    fi
+else
+    skip "Gruff Policy (.gruff-ts.yaml not found)"
+fi
+
 # ── GOAT Flow Audit ────────────────────────────────────────────────────
 if [[ -f dist/cli/cli.js ]]; then
     section "GOAT Flow Audit"
@@ -1719,6 +1720,32 @@ if [[ -f dist/cli/cli.js ]]; then
     fi
 else
     skip "Learning-Loop Schema (dist/cli/cli.js not built)"
+fi
+
+# ── Content Drift ────────────────────────────────────────────────────
+# Sibling auditor: surface `audit --check-content` (cold-path content lint
+# + dashboard view-name drift) in the preflight gate so a green preflight
+# cannot hide warning-severity drift in code-map.md, docs/dashboard.md, or
+# skill-playbook prose.
+if [[ -f dist/cli/cli.js ]]; then
+    section "Content Drift"
+    content_output=$(node dist/cli/cli.js audit . --check-content --format text 2>&1) && content_exit=0 || content_exit=$?
+    if [[ "$content_exit" -eq 0 ]]; then
+        # exit 0 = no warning-severity drift. INFO findings (e.g.
+        # non-actionable-remember) are surfaced inside the audit text but
+        # do not gate preflight on their own.
+        info_count=$(printf '%s\n' "$content_output" | grep -cE '^\s*\[?(33mINFO|INFO)' || true)
+        if [[ "${info_count:-0}" -gt 0 ]]; then
+            pass "Cold-path content lint clean (${info_count} info)"
+        else
+            pass "Cold-path content lint clean"
+        fi
+    else
+        fail "audit --check-content reported drift (exit $content_exit)"
+        printf '%s\n' "$content_output" | grep -E 'WARN|FAIL|\[non-actionable-remember\]|drift' | head -8 | details_pipe
+    fi
+else
+    skip "Content Drift (dist/cli/cli.js not built)"
 fi
 
 # ── Doc/Code Drift ───────────────────────────────────────────────────
@@ -1998,7 +2025,7 @@ done
 # ── Skill SKILL.md Parity ────────────────────────────────────────────
 # Byte-exact diff (bash) for speed. For semantic comparison (frontmatter key
 # reorder, trailing whitespace), see `goat-flow audit --check-drift` which
-# adds YAML-aware normalisation. Both paths coexist per M04.
+# adds YAML-aware normalisation. Both paths coexist for backward compatibility.
 section "Skill SKILL.md Parity"
 skill_parity_ok=true
 while IFS= read -r skill_name; do

@@ -1,4 +1,4 @@
-# AGENTS.md - v1.8.0 (2026-05-20)
+# AGENTS.md - v1.9.0 (2026-05-20)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash validation scripts + TypeScript CLI/dashboard.
 
 goat-flow is a harness - guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -7,14 +7,11 @@ This repo is the goat-flow controlling workspace. When the dashboard or CLI oper
 
 ## Truth Order
 
-1. User's explicit instruction (this session)
-2. Instruction file (AGENTS.md)
-3. Architecture (.goat-flow/architecture.md)
-4. Skills / templates (on-demand context)
+User's explicit instruction (this session) > AGENTS.md > `.goat-flow/architecture.md` > skills / templates (on-demand).
 
 ## Autonomy Tiers
 
-**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) follow the conditional rules above: update only when VERIFY caught a failure or you corrected course.
+**Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when `/compact` fires without an active milestone file; otherwise skip. Learning-loop updates (lessons/footguns/decisions) are conditional: update only when VERIFY caught a failure or you corrected course.
 
 **Codex note:** `goat-critique` depends on delegated sub-agents. Direct `$goat-critique` or `/goat-critique` invocation is explicit delegation consent. Skill-chained entry (e.g. `/goat-debug` chains to `/goat-critique`) is implicit consent from the parent invocation - do not re-ask.
 
@@ -34,6 +31,10 @@ Boundaries: instruction files (`AGENTS.md`, `CLAUDE.md`, `.github/copilot-instru
 - No features, abstractions, or error handling beyond what was asked. Gold-plating is scope creep.
 - Ambiguous requirements: present interpretations, don't pick silently.
 
+## Commit Messages
+
+Conventional `type(scope): subject` - imperative, ≤72 chars, concrete verbs not weak ones (*enhance, improve, update*); one change per subject. On a `feat/<digits>` branch the subject starts `#<digits> ` (e.g. `#123 feat(audit): add drift cache`), from the branch name only; otherwise no prefix. Full rules + bad→good rewrites: `docs/coding-standards/git-commit.md`.
+
 ## Key Resources
 
 - **Learning loop** (grep before every change): `.goat-flow/footguns/`, `.goat-flow/lessons/`, `.goat-flow/patterns/`, `.goat-flow/decisions/`
@@ -41,14 +42,14 @@ Boundaries: instruction files (`AGENTS.md`, `CLAUDE.md`, `.github/copilot-instru
 
 ## Essential Commands
 ```bash
-shellcheck scripts/*.sh scripts/maintenance/*.sh
-bash -n scripts/*.sh scripts/maintenance/*.sh
+shellcheck scripts/*.sh scripts/maintenance/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
+bash -n scripts/*.sh scripts/maintenance/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
 npm run typecheck
 npm test
 bash scripts/preflight-checks.sh
 ```
 
-Situational: `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.codex/hooks/guardrails-self-test.sh --self-test` (hook check).
+Situational: `bump-version.sh <ver>` (release), `test:full` (pre-release), `node --import tsx src/cli/cli.ts stats --check` (learning-loop), `.goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test` (hook check).
 
 ## Execution Loop: READ → SCOPE → ACT → VERIFY
 

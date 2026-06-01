@@ -8,7 +8,8 @@ import type { AgentId } from "../types.js";
 
 type HookEvent = "PreToolUse" | "PostToolUse";
 
-export interface HookSpec {
+/** Static manifest for one shipped hook and how agents register it. */
+export interface HookSpec extends Record<"togglable", boolean> {
   id: string;
   displayName: string;
   description: string;
@@ -16,7 +17,6 @@ export interface HookSpec {
   matcher: string;
   scriptFiles: string[];
   primaryScript: string;
-  togglable: boolean;
   defaultEnabled: boolean;
   requiresConfirmDialog: boolean;
   unsupportedAgents?: Partial<Record<AgentId, string>>;
@@ -24,40 +24,14 @@ export interface HookSpec {
 
 const HOOKS: HookSpec[] = [
   {
-    id: "guard-destructive-shell",
-    displayName: "Guard destructive shell",
+    id: "deny-dangerous",
+    displayName: "Deny dangerous hook",
     description:
-      "Block risky shell operations such as recursive deletion, chmod 777, pipe-to-shell, file truncation, destructive database commands, and opaque shell execution.",
+      "Block risky shell operations, direct secret-path access, repository writes, and GitHub write operations through one PreToolUse dispatcher.",
     event: "PreToolUse",
     matcher: "Bash",
-    scriptFiles: ["guard-common.sh", "guard-destructive-shell.sh"],
-    primaryScript: "guard-destructive-shell.sh",
-    togglable: true,
-    defaultEnabled: true,
-    requiresConfirmDialog: true,
-  },
-  {
-    id: "guard-secret-paths",
-    displayName: "Guard secret paths",
-    description:
-      "Block Bash access to .env files, SSH/AWS/GCP credentials, key material, package credentials, and other common secret paths.",
-    event: "PreToolUse",
-    matcher: "Bash",
-    scriptFiles: ["guard-common.sh", "guard-secret-paths.sh"],
-    primaryScript: "guard-secret-paths.sh",
-    togglable: true,
-    defaultEnabled: true,
-    requiresConfirmDialog: true,
-  },
-  {
-    id: "guard-repository-writes",
-    displayName: "Guard repository writes",
-    description:
-      "Block agent-side git commits, git pushes, destructive git flags, and GitHub write operations through gh.",
-    event: "PreToolUse",
-    matcher: "Bash",
-    scriptFiles: ["guard-common.sh", "guard-repository-writes.sh"],
-    primaryScript: "guard-repository-writes.sh",
+    scriptFiles: ["deny-dangerous.sh"],
+    primaryScript: "deny-dangerous.sh",
     togglable: true,
     defaultEnabled: true,
     requiresConfirmDialog: true,
@@ -77,16 +51,22 @@ const HOOKS: HookSpec[] = [
   },
 ];
 
-const HOOKS_BY_ID = new Map(HOOKS.map((hook) => [hook.id, hook]));
+const HOOKS_BY_IDENTIFIER = new Map(HOOKS.map((hook) => [hook.id, hook]));
 
+// Returns a defensive copy so callers may sort or filter without mutating the
+// canonical registry that getHookSpec / readAllHookStates read from.
 export function listHookSpecs(): HookSpec[] {
   return [...HOOKS];
 }
 
-export function getHookSpec(hookId: string): HookSpec | null {
-  return HOOKS_BY_ID.get(hookId) ?? null;
+// Returns null (rather than throwing) for an unknown id so callers can treat a
+// missing hook as a 404-style branch instead of an exception path.
+export function getHookSpec(hookIdentifier: string): HookSpec | null {
+  return HOOKS_BY_IDENTIFIER.get(hookIdentifier) ?? null;
 }
 
-export function isValidHookIdShape(hookId: string): boolean {
-  return /^[a-z0-9][a-z0-9-]*$/u.test(hookId);
+// Guards an id before it is used as a filesystem-safe key and URL segment:
+// lowercase-kebab only, so it can never escape a directory or need encoding.
+export function isValidHookIdShape(hookIdentifier: string): boolean {
+  return /^[a-z0-9][a-z0-9-]*$/u.test(hookIdentifier);
 }

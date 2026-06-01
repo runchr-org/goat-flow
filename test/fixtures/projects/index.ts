@@ -22,6 +22,8 @@ const HEALTHY_GOAT_FLOW_GITIGNORE = [
   "*",
   "!.gitignore",
   "!config.yaml",
+  "!hook-lib/",
+  "!hook-lib/**",
   "!skill-reference/",
   "!skill-reference/**",
   "!skill-playbooks/",
@@ -29,6 +31,9 @@ const HEALTHY_GOAT_FLOW_GITIGNORE = [
   "",
 ].join("\n");
 
+// Test helper: a ReadonlyFS whose defaults describe a healthy project (a valid
+// .goat-flow/.gitignore, everything else empty/present). Pass overrides to
+// simulate the specific filesystem condition a check is meant to detect.
 export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   const defaultReadFile = (path: string): string | null => {
     if (path === ".goat-flow/.gitignore") return HEALTHY_GOAT_FLOW_GITIGNORE;
@@ -97,7 +102,7 @@ export const STUB_AGENT_PROFILE: AgentProfile = {
   skillsDir: ".claude/skills",
   hooksDir: ".claude/hooks",
   denyMechanism: { type: "settings-deny", path: ".claude/settings.json" },
-  denyHookFile: ".claude/hooks/guard-repository-writes.sh",
+  denyHookFile: ".claude/hooks/deny-dangerous.sh",
   localPattern: "*/CLAUDE.md",
   hookEvents: { preTool: "PreToolUse", postTurn: "Stop" },
 };
@@ -149,7 +154,7 @@ export function stubAgentFacts(
       denyBlocksPipeToShell: false,
       denyBlocksCloudDestructive: false,
       denyIsRegistered: true,
-      denyRegisteredPath: ".claude/hooks/guard-repository-writes.sh",
+      denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
       postTurnExists: false,
       postTurnRegistered: false,
       postTurnRegisteredPath: null,
@@ -198,6 +203,9 @@ export const STUB_STRUCTURE: ProjectStructure = {
   agents: {},
 };
 
+// Test helper: baseline learning-loop "shared" facts — buckets present but
+// empty (no evidence, zero entries) — so audit contexts start from a known
+// neutral state that individual tests then nudge.
 export function makeSharedFacts(): ProjectFacts["shared"] {
   return {
     footguns: {
@@ -273,7 +281,7 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
     gitCommitInstructions: {
       exists: false,
       path: null,
-      requiredPath: ".github/git-commit-instructions.md",
+      requiredPath: "docs/coding-standards/git-commit.md",
       misplacedPaths: [],
     },
     localInstructionsLineCount: 0,
@@ -281,6 +289,11 @@ export function makeSharedFacts(): ProjectFacts["shared"] {
   };
 }
 
+// Test helper. The deeply nested shape is intentional: audit checks read
+// AuditContext fields directly without presence guards, so every nested fact
+// must exist or a check throws instead of failing cleanly. This populates them
+// all for a healthy project; `overrides` shallow-merges last so a test can swap
+// just the slice it exercises, because rebuilding the whole tree per test is noise.
 export function makeCtx(overrides: Partial<AuditContext> = {}): AuditContext {
   return {
     projectPath: "/tmp/test-project",

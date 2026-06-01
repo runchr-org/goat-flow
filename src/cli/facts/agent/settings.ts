@@ -3,7 +3,13 @@
  */
 import type { AgentProfile, AgentFacts, ReadonlyFS } from "../../types.js";
 
-/** Check whether the agent's deny mechanism blocks git commit and/or git push. */
+/**
+ * Check whether the agent's deny mechanism blocks git commit and/or git push.
+ *
+ * @param fs - project filesystem adapter used to read settings or hook scripts
+ * @param agent - agent profile whose deny mechanism should be inspected
+ * @returns git operation coverage detected from the agent's configured guardrail path
+ */
 export function checkDenyPatterns(
   fs: ReadonlyFS,
   agent: AgentProfile,
@@ -46,7 +52,8 @@ export function checkDenyPatterns(
     };
   }
 
-  // type: 'both'
+  // The 'both' mechanism blocks when either the settings file or the deny
+  // script matches.
   /** Deny results from the settings-based mechanism */
   const settings = checkDenyPatterns(fs, {
     ...agent,
@@ -64,14 +71,14 @@ export function checkDenyPatterns(
 }
 
 /** Extract settings facts from supported agent config formats. */
-// eslint-disable-next-line complexity -- multi-format settings extraction (JSON, TOML, Starlark) requires branching
+// eslint-disable-next-line complexity -- intentional multi-format settings extraction requires branching.
 export function extractSettingsFacts(
   fs: ReadonlyFS,
   agent: AgentProfile,
 ): AgentFacts["settings"] & { readDenyCoversSecrets: boolean } {
   /** Whether the agent's settings file exists on disk */
   const exists = agent.settingsFile ? fs.exists(agent.settingsFile) : false;
-  let valid = false;
+  let isSettingsValid = false;
   let parsed: unknown = null;
   let hasDenyPatterns = false;
   if (agent.settingsFile) {
@@ -100,14 +107,14 @@ export function extractSettingsFacts(
             tomlObj[key] = val;
           }
         }
-        valid = Object.keys(tomlObj).length > 0;
+        isSettingsValid = Object.keys(tomlObj).length > 0;
         parsed = tomlObj;
       }
     } else {
       parsed = fs.readJson(agent.settingsFile);
-      valid = parsed !== null;
+      isSettingsValid = parsed !== null;
     }
-    if (valid && parsed) {
+    if (isSettingsValid && parsed) {
       /** Permissions object from the parsed settings */
       const perms = (parsed as Record<string, unknown>).permissions as
         | Record<string, unknown>
@@ -126,7 +133,13 @@ export function extractSettingsFacts(
     fs,
   );
 
-  return { exists, valid, parsed, hasDenyPatterns, readDenyCoversSecrets };
+  return {
+    exists,
+    valid: isSettingsValid,
+    parsed,
+    hasDenyPatterns,
+    readDenyCoversSecrets,
+  };
 }
 
 /** Remove simple TOML string-key quoting for keys goat-flow needs to inspect. */
@@ -208,6 +221,7 @@ function checkCodexPermissionProfileCoversSecrets(
   );
 }
 
+/** Workspace-root permission entry parsed from Codex TOML settings. */
 export interface CodexWorkspaceRootEntry {
   pattern: string;
   mode: string;
@@ -287,6 +301,7 @@ function existingExactPathsAreDenied(
     .every((pattern) => denied.has(pattern));
 }
 
+/** Confirm Codex denies every root env file that actually exists in the target project. */
 function hasCodexEnvDeny(denied: Set<string>, fs: ReadonlyFS): boolean {
   return existingExactPathsAreDenied(denied, fs, [
     ".env",

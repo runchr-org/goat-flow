@@ -1,6 +1,13 @@
+/**
+ * Local path validation for dashboard browsing, terminal launch, state writes, and uploads.
+ *
+ * These guards keep browser-supplied paths inside the selected project or the allowed goat-flow
+ * state area before server routes touch the filesystem.
+ */
 import { existsSync, lstatSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
+/** Allowed local-path use cases, each with a different filesystem trust boundary. */
 export type LocalPathPurpose =
   | "browse"
   | "project-read"
@@ -15,6 +22,7 @@ type LocalPathValidationClass =
   | "blocked-descendant"
   | "state-path-escape";
 
+/** Resolved path plus the realpath used for symlink escape checks. */
 export interface ValidatedLocalPath {
   path: string;
   realPath: string;
@@ -26,7 +34,8 @@ type LocalStatePathPurpose = Extract<
   "write-local-state" | "upload"
 >;
 
-export class LocalPathValidationError extends Error {
+/** Structured validation failure returned to dashboard callers as a safe rejection. */
+class LocalPathValidationError extends Error {
   readonly validationClass: LocalPathValidationClass;
   readonly purpose: LocalPathPurpose | "state-path";
 
@@ -42,6 +51,8 @@ export class LocalPathValidationError extends Error {
     this.purpose = purpose;
   }
 }
+
+export { LocalPathValidationError };
 
 const EXACT_BLOCKED_POSIX_ROOTS = new Set([
   "/",
@@ -80,11 +91,15 @@ const DESCENDANT_BLOCKED_POSIX_ROOTS = [
   "/private/etc",
 ];
 
+/** Normalize candidate paths to POSIX shape before comparing against policy roots. */
 function toPosixPath(path: string): string {
   const normalized = path.replace(/\\/gu, "/").replace(/\/+/gu, "/");
   return normalized.length > 1 ? normalized.replace(/\/$/u, "") : normalized;
 }
 
+// Containment guard used before filesystem access: true when child resolves
+// inside parent (or equals it). Pure path arithmetic — it does NOT resolve
+// symlinks, so callers needing real-path safety must canonicalise first.
 export function isPathWithin(parent: string, child: string): boolean {
   const rel = relative(parent, child);
   if (rel === "") return true;
@@ -93,6 +108,7 @@ export function isPathWithin(parent: string, child: string): boolean {
   return firstSegment !== "..";
 }
 
+/** Exempt browse-only requests from terminal/write local-path restrictions. */
 function isPolicyEnforcedPurpose(purpose: LocalPathPurpose): boolean {
   return purpose !== "browse";
 }
@@ -146,8 +162,9 @@ export function validateLocalPath(
   return { path: resolvedPath, realPath, purpose };
 }
 
-function existingPathComponents(from: string, to: string): string[] {
-  const rel = relative(from, to);
+/** Return existing path components so symlink checks only touch filesystem entries that exist. */
+function existingPathComponents(from: string, target: string): string[] {
+  const rel = relative(from, target);
   if (rel === "") return [from];
   if (isAbsolute(rel) || rel.startsWith("..")) return [];
   const components = rel.split(/[\\/]/u).filter(Boolean);
@@ -210,6 +227,9 @@ export function resolveLocalStatePath(
   );
 }
 
+// Security gate for terminal working directories: throws (via validateLocalPath)
+// unless projectPath clears the terminal-cwd policy, otherwise returns the
+// normalised absolute path safe to hand to a spawned shell.
 export function validateProjectPath(projectPath: string): string {
   return validateLocalPath(projectPath, "terminal-cwd").path;
 }

@@ -3,6 +3,7 @@
  */
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { assertExists } from "../helpers/assert-exists.ts";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { SETUP_CHECKS } from "../../src/cli/audit/check-goat-flow.js";
 import { AGENT_CHECKS } from "../../src/cli/audit/check-agent-setup.js";
@@ -12,7 +13,8 @@ import { makeCtx, stubAgentFacts, stubFS } from "../fixtures/projects/index.js";
 
 const skillReferenceCheck = SETUP_CHECKS.find(
   (check) => check.id === "instruction-file-skill-reference-pointer",
-)!;
+);
+assertExists(skillReferenceCheck);
 
 const requiredSkillReferenceFiles = [
   // Meta references
@@ -34,6 +36,7 @@ const requiredSkillReferenceFiles = [
   ".goat-flow/skill-playbooks/skill-quality-testing/deployment.md",
 ];
 
+/** Produce a minimal compliant instruction file for skill-reference audit fixtures. */
 function compliantSkillReferenceInstruction(): string {
   return `# CLAUDE.md
 
@@ -120,20 +123,24 @@ afterEach(() => {
   syncBuiltinESMExports();
 });
 
+/** Assert every build check passes against the supplied audit context. */
+function assertBuildChecksPass(ctx: ReturnType<typeof makeCtx>): void {
+  for (const check of BUILD_CHECKS) {
+    const result = check.run(ctx);
+    assert.equal(
+      result,
+      null,
+      `Check ${check.id} should pass but got: ${result?.message}`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Both scopes pass when project is well-configured
 // ---------------------------------------------------------------------------
 describe("audit build: all scopes pass on healthy project", () => {
   it("no failures when all checks pass", () => {
-    const ctx = makeCtx();
-    for (const check of BUILD_CHECKS) {
-      const result = check.run(ctx);
-      assert.equal(
-        result,
-        null,
-        `Check ${check.id} should pass but got: ${result?.message}`,
-      );
-    }
+    assertBuildChecksPass(makeCtx());
   });
 });
 
@@ -143,7 +150,8 @@ describe("audit build: all scopes pass on healthy project", () => {
 // ---------------------------------------------------------------------------
 describe("audit build: harness scope fails on missing deny", () => {
   it("agent-guardrails check fails when no deny configured", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "agent-guardrails")!;
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-guardrails");
+    assertExists(check);
     const ctx = makeCtx({
       agentFilter: "claude",
       agents: [
@@ -162,13 +170,14 @@ describe("audit build: harness scope fails on missing deny", () => {
       ],
     });
     const result = check.run(ctx);
-    assert.notEqual(result, null, "Should fail when no deny patterns");
+    assertExists(result, "Should fail when no deny patterns");
     assert.equal(check.scope, "agent");
-    assert.ok(result!.howToFix, "Should include howToFix");
+    assert.ok(result.howToFix, "Should include howToFix");
   });
 
   it("agent-guardrails summary mode stops at presence without shelling out", () => {
-    const check = BUILD_CHECKS.find((c) => c.id === "agent-guardrails")!;
+    const check = BUILD_CHECKS.find((c) => c.id === "agent-guardrails");
+    assertExists(check);
     let execCalls = 0;
     childProcess.execFileSync = (() => {
       execCalls += 1;
@@ -201,11 +210,11 @@ describe("audit build: skill-reference discoverability", () => {
     assert.equal(skillReferenceCheck.skip, undefined);
     const result = skillReferenceCheck.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /CLAUDE\.md/);
-    assert.match(result!.message, /READ rule/);
-    assert.match(result!.message, /Router Table pointer/);
-    assert.match(result!.howToFix ?? "", /Before declaring any tool/);
+    assertExists(result);
+    assert.match(result.message, /CLAUDE\.md/);
+    assert.match(result.message, /READ rule/);
+    assert.match(result.message, /Router Table pointer/);
+    assert.match(result.howToFix ?? "", /Before declaring any tool/);
   });
 
   it("fails when the path appears outside the READ rule and Router Table", () => {
@@ -218,9 +227,9 @@ describe("audit build: skill-reference discoverability", () => {
     assert.equal(skillReferenceCheck.skip, undefined);
     const result = skillReferenceCheck.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /READ rule/);
-    assert.match(result!.message, /Router Table pointer/);
+    assertExists(result);
+    assert.match(result.message, /READ rule/);
+    assert.match(result.message, /Router Table pointer/);
   });
 
   it("passes when present instruction files contain the READ rule and Router Table pointer", () => {
@@ -242,10 +251,10 @@ describe("audit build: skill-reference discoverability", () => {
     assert.equal(skillReferenceCheck.skip, undefined);
     const result = skillReferenceCheck.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /Shared reference\/playbook pack/);
-    assert.match(result!.message, /\.goat-flow\/skill-reference\/README\.md/);
-    assert.equal(result!.evidence, ".goat-flow/skill-reference/README.md");
+    assertExists(result);
+    assert.match(result.message, /Shared reference\/playbook pack/);
+    assert.match(result.message, /\.goat-flow\/skill-reference\/README\.md/);
+    assert.equal(result.evidence, ".goat-flow/skill-reference/README.md");
   });
 
   it("fails when the skill-reference directory has no README index", () => {
@@ -257,10 +266,10 @@ describe("audit build: skill-reference discoverability", () => {
 
     const result = skillReferenceCheck.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.match(result!.message, /Shared reference\/playbook pack/);
-    assert.match(result!.message, /README\.md/);
-    assert.equal(result!.evidence, ".goat-flow/skill-reference/README.md");
+    assertExists(result);
+    assert.match(result.message, /Shared reference\/playbook pack/);
+    assert.match(result.message, /README\.md/);
+    assert.equal(result.evidence, ".goat-flow/skill-reference/README.md");
   });
 
   it("reports only present instruction files that dropped the pointer", () => {
@@ -274,9 +283,9 @@ describe("audit build: skill-reference discoverability", () => {
 
     const result = skillReferenceCheck.run(ctx);
 
-    assert.notEqual(result, null);
-    assert.doesNotMatch(result!.message, /CLAUDE\.md/);
-    assert.match(result!.message, /AGENTS\.md/);
+    assertExists(result);
+    assert.doesNotMatch(result.message, /CLAUDE\.md/);
+    assert.match(result.message, /AGENTS\.md/);
   });
 });
 
