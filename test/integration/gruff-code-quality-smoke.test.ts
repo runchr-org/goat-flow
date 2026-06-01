@@ -198,6 +198,51 @@ exit 1
   return binDir;
 }
 
+/**
+ * Install a gruff-py-shaped mock that advertises native changed-region flags.
+ *
+ * It returns a finding on line 8 while the payload edits line 9, matching
+ * gruff-py's symbol-scope contract: the analyzer owns changed-region filtering
+ * and can retain findings whose primary line sits outside the edited hunk.
+ */
+function writeNativeChangedRegionGruffPy(root: string): string {
+  const binDir = join(root, ".venv", "bin");
+  mkdirSync(binDir, { recursive: true });
+  const bin = join(binDir, "gruff-py");
+  writeFileSync(
+    bin,
+    `#!/usr/bin/env bash
+if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
+  cat <<'HELP'
+Usage: mock-gruff-py analyse [options] [paths...]
+Options:
+  --format <format>
+  --fail-on <severity>
+  --changed-ranges <ranges>
+  --changed-scope <scope>
+  --no-baseline
+HELP
+  exit 0
+fi
+
+printf '%s\\n' "$*" >> "$PWD/gruff-args.log"
+if [[ " $* " == *" --no-baseline "* && " $* " == *" --changed-ranges 9-9 "* && " $* " == *" --changed-scope symbol "* ]]; then
+  cat <<JSON
+{"findings":[{"ruleId":"security.shell-injection","message":"symbol-scoped finding","filePath":"src/sample.py","line":8,"severity":"error"}],"suppressedCount":2,"diff":{"suppressedCount":2}}
+JSON
+  exit 1
+fi
+
+cat <<JSON
+{"findings":[{"ruleId":"security.shell-injection","message":"unscoped finding","filePath":"src/sample.py","line":8,"severity":"error"}]}
+JSON
+exit 1
+`,
+  );
+  chmodSync(bin, 0o755);
+  return binDir;
+}
+
 /** Read the files passed to the mock gruff binary; missing invocation logs use an empty-list fallback. */
 function readInvocations(root: string): string[] {
   try {
@@ -205,6 +250,17 @@ function readInvocations(root: string): string[] {
       join(root, "gruff-invocations.log"),
       "utf-8",
     ).trim();
+    return content.length > 0 ? content.split("\n") : [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+/** Read the raw mock-gruff argument log; missing logs use an empty-list fallback. */
+function readArgumentInvocations(root: string): string[] {
+  try {
+    const content = readFileSync(join(root, "gruff-args.log"), "utf-8").trim();
     return content.length > 0 ? content.split("\n") : [];
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -397,6 +453,46 @@ describe("gruff-code-quality hook", () => {
       { file: "src/example.php", expectedRule: "php.rule" },
       { file: "assets/example.ts", expectedRule: "ts.rule" },
       { file: "strands_agents/example.py", expectedRule: "py.rule" },
+    ]);
+  });
+
+  it("uses gruff-py native changed-region filtering when available", () => {
+    const root = makeRoot();
+    writeNativeChangedRegionGruffPy(root);
+    writeFileSync(join(root, ".gruff-py.yaml"), "rules: {}\n");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(
+      join(root, "src", "sample.py"),
+      '"""Module."""\nimport subprocess\n\n\ndef changed():\n    command = "ls"\n    subprocess.run(command, shell=True)\n    return 1\n    # touched by agent\n',
+    );
+
+    const result = runHook(
+      root,
+      {
+        tool_name: "Edit",
+        tool_input: {
+          file_path: "src/sample.py",
+          changed_ranges: [{ startLine: 9, endLine: 9 }],
+        },
+      },
+      "/usr/bin:/bin",
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /\[error\] src\/sample\.py:8 security\.shell-injection - symbol-scoped finding/,
+    );
+    assert.match(
+      result.stdout,
+      /gruff-code-quality: suppressed 2 pre-existing finding\(s\) outside changed lines/,
+    );
+    assert.match(
+      result.stdout,
+      /For triage: consult \.goat-flow\/skill-playbooks\/gruff-code-quality\.md/,
+    );
+    assert.deepEqual(readArgumentInvocations(root), [
+      "analyse --format json --fail-on none --no-baseline --changed-ranges 9-9 --changed-scope symbol src/sample.py",
     ]);
   });
 

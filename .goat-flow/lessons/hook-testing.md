@@ -1,6 +1,18 @@
 ---
 category: hook-testing
-last_reviewed: 2026-05-28
+last_reviewed: 2026-06-02
+---
+
+## Lesson: Format patched hook test fixtures before full preflight
+
+**Status:** active | **Created:** 2026-06-02
+
+**What happened:** While porting gruff-py's native changed-region hook path into `workflow/hooks/gruff-code-quality.sh`, the focused hook test, shellcheck, and typecheck passed, but the first `bash scripts/preflight-checks.sh` run failed the TypeScript gate because Prettier found one unformatted file after the new integration-test fixture was added.
+
+**Root cause:** I hand-edited a TypeScript hook test fixture with a long embedded shell script and assertion, then went straight to full preflight instead of running the targeted Prettier check on the changed test file.
+
+**Prevention:** After patching TypeScript hook tests with template literals, long strings, or generated fixture scripts, run `npx prettier --check <changed-test-file>` before full preflight, or format the changed file immediately. If preflight reports a Prettier-only failure, format the changed file, rerun the focused test, then rerun preflight. Evidence anchors: `test/integration/gruff-code-quality-smoke.test.ts` (search: `writeNativeChangedRegionGruffPy`) and `scripts/preflight-checks.sh` (search: `Prettier`).
+
 ---
 
 ## Lesson: Restoring coverage by cloning a monolith is not a real split
