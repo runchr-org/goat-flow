@@ -174,3 +174,17 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Root cause:** npm uses `cmd.exe` by default on Windows when `script-shell` is unset. Mixed shell chains are only partially portable in that setup: external GNU helpers such as `rm`, `cp`, and `chmod` may resolve from Git for Windows, but `cmd` still intercepts builtins like `mkdir` and applies Windows syntax rules.
 
 **Prevention:** For shared npm scripts that create, remove, or copy files, prefer `node:fs` or an explicit cross-platform helper instead of raw `rm -rf`, `mkdir -p`, `cp`, or `chmod` in `package.json`. Evidence anchors: `package.json` (search: `require('node:fs').rmSync`), reproduction command `cmd /d /c "mkdir -p dist/dashboard"` -> `The syntax of the command is incorrect.`
+
+---
+
+## Lesson: A hook's silent output is not proof of non-execution - verify through the test harness
+
+**Status:** active | **Created:** 2026-06-01
+
+**What happened:** Proving the gruff-code-quality hook no longer discovers binaries from the removed `*/.venv/bin` glob or `target/debug` paths (ADR-032), I wrote ad-hoc bash repros that ran the old and new hook against a planted binary. Both printed nothing, so the before/after looked identical and the fix unprovable. The isolated discovery loop, however, showed the old glob clearly resolved the binary - so the repros were wrong, not the fix. They `git init`-ed the temp repo and discarded stderr.
+
+**Root cause:** The hook resolves its root with `repo_root() { git rev-parse --show-toplevel 2>/dev/null || pwd; }`, then fail-soft-exits silently at several early gates (no `.<binary>.yaml` config at root, no `jq`, no binary, no changed range). The smoke-test fixtures deliberately do NOT init git, so `repo_root` falls to `pwd` and the planted files resolve; my `git init` made `repo_root` resolve elsewhere, so the hook bailed before discovery. Discarding stderr hid the diagnostic that would have shown the early exit. A "silent" run looked like "binary not executed" when it was really "exited before reaching discovery."
+
+**Fix:** Stop trusting the ad-hoc repro. Verify through the project's node test harness, which already encodes the right preconditions, and prove the guard by swapping the pre-fix hook in: the regression test failed against commit 4e43cf3d (`not ok ... expected silence for src/example.ts`) and passed against the fix - a real before/after.
+
+**Prevention:** To prove a PostToolUse hook's behaviour change, run it through the project's test harness and mirror its fixture setup exactly, rather than an ad-hoc shell repro; if you must repro by hand, replicate `repo_root` (git-vs-pwd), the pinned `PATH` (must include `jq`), and the config/binary preconditions, and never discard stderr. Treat a silent hook run as inconclusive until every fail-soft early-exit gate is ruled out. To prove a regression test actually guards a fix, run it against the pre-fix revision and confirm it fails. Evidence anchors: `workflow/hooks/gruff-code-quality.sh` (search: `repo_root`), `workflow/hooks/gruff-code-quality.sh` (search: `no changed lines detected`), `test/integration/gruff-code-quality-smoke.test.ts` (search: `does not discover binaries from the removed`).
