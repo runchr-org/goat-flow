@@ -188,3 +188,15 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Fix:** Stop trusting the ad-hoc repro. Verify through the project's node test harness, which already encodes the right preconditions, and prove the guard by swapping the pre-fix hook in: the regression test failed against commit 4e43cf3d (`not ok ... expected silence for src/example.ts`) and passed against the fix - a real before/after.
 
 **Prevention:** To prove a PostToolUse hook's behaviour change, run it through the project's test harness and mirror its fixture setup exactly, rather than an ad-hoc shell repro; if you must repro by hand, replicate `repo_root` (git-vs-pwd), the pinned `PATH` (must include `jq`), and the config/binary preconditions, and never discard stderr. Treat a silent hook run as inconclusive until every fail-soft early-exit gate is ruled out. To prove a regression test actually guards a fix, run it against the pre-fix revision and confirm it fails. Evidence anchors: `workflow/hooks/gruff-code-quality.sh` (search: `repo_root`), `workflow/hooks/gruff-code-quality.sh` (search: `no changed lines detected`), `test/integration/gruff-code-quality-smoke.test.ts` (search: `does not discover binaries from the removed`).
+
+---
+
+## Lesson: `git archive` is not a clean-clone proof when tests require `.git`
+
+**Status:** active | **Created:** 2026-06-01
+
+**What happened:** During M09 clean-checkout verification, `git archive HEAD | tar -x` produced a no-`dist/` tree, but `npm test` failed five deny-hook audit tests. The failure was not the test partition fix: the archived tree had no `.git`, so `workflow/hooks/deny-dangerous.sh` could not resolve `git rev-parse --git-common-dir` and failed closed. The equivalent local `git clone --no-hardlinks --branch fix/audit-drift-fast-slow-partition --single-branch ...` had `.git`, no `dist/`, and passed `npm test` with `# pass 557`, `# fail 0`, `CLONE_NPM_TEST_EXIT_0`.
+
+**Root cause:** I treated an archive extraction as equivalent to a fresh clone. In this repo, deny-hook and audit tests intentionally rely on git-root discovery, so an archive is a different execution environment.
+
+**Prevention:** For "clean checkout" proofs, use a real clone when the test suite includes hooks, audit checks, or git-root discovery. Use `git archive` only for tests that are explicitly gitless. If an archive run fails with `deny-dangerous-self-test.sh --self-test=smoke failed`, rerun in a real clone before changing hook logic. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `resolve_goat_flow_root`), `.goat-flow/hook-lib/deny-dangerous-self-test.sh` (search: `expect_allow shell "echo safe"`), `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `passes when the installed deny hook matches the canonical template`), `package.json` (search: `"test": "npm run test:fast"`).
