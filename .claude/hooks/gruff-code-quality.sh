@@ -496,9 +496,9 @@ ignored_descriptor() {
         or $n == ("./" + ($rel | normalize_path))
         or ($n | endswith("/" + ($rel | normalize_path))));
 
-    ((.paths.ignoredPaths? // .ignoredPaths? // .paths.skipped? // []))
+    ((.paths.ignoredPaths? // []) + (.ignoredPaths? // []) + (.paths.skipped? // []))
     | map(select(is_match(entry_path)))
-    | first
+    | ((map(select(entry_detail | length > 0)) | first) // first)
     | if . == null then empty
       else (entry_detail) as $d
         | if ($d | length) > 0 then "ignored by gruff config (matched \($d))"
