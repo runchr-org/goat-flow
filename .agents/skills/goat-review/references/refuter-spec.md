@@ -49,7 +49,7 @@ Output as structured JSON matching the schema below.
 }
 ```
 
-Output to: `.goat-flow/scratchpad/goat-review-refuter.<random>.json`
+Output to: `.goat-flow/logs/review/goat-review-refuter.<random>.json`
 
 ## Synthesis Rules
 

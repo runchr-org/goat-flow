@@ -9,6 +9,7 @@ Guardrail hotfix for 1.9.0 hook regressions and release-safety gaps.
 - **Submodule and bare-repo launcher hardening** - Agent launcher templates distinguish linked worktree gitdirs from absorbed submodule gitdirs and guard every `git rev-parse --show-toplevel` fallback. A missing worktree root now exits through the guard's deny path instead of falling through as an unguarded command failure.
 - **Audit validates the configured launcher path** - `runConfiguredHookCommandSmoke` now executes the registered launcher string rather than bypassing it with `bash <script>`, and per-agent self-tests use the installed dispatcher through `GOAT_DENY_DANGEROUS_HOOK`. Audit also flags stale 1.8.0 split guardrail files left behind after migration.
 - **Hook sync and install migration fixes** - Dashboard/CLI hook sync now adds the `.goat-flow/.gitignore` exceptions required for committed `hook-lib/` policy files. The installer preserves a disabled split-guardrail toggle when collapsing legacy guard hooks into `deny-dangerous`.
+- **Review artifacts moved out of scratchpad** - `/goat-review` now writes refutation ledgers and cross-model refuter JSON under `.goat-flow/logs/review/`, with setup, manifest, and gitignore support for the new local-only log bucket. `.goat-flow/scratchpad/` remains generic WIP.
 - **Release command safety** - Removed `critique`, `fix`, and `eval` command aliases now return explicit migration guidance, and `npm publish` runs the existing `publish:check` gate through `prepublishOnly`.
 
 ## v1.9.0 - 2026-05-28

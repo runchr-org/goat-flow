@@ -35,7 +35,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **Spec source (opt-in):** if `.goat-flow/tasks/.active` exists, read it to find the active plan subdir and scan for a milestone file with `Status: in-progress` or `testing-gate`. If found, offer: "Include Spec Drift check against M[NN] exit criteria?" Default: skip for quick, offer for full. Note the choice in Review Integrity.
 
-**Temporary review artifacts:** write under `.goat-flow/scratchpad/` only with a random suffix (`goat-review-<artifact>.<random>.txt`). Never write to repo root.
+**Temporary review artifacts:** write under `.goat-flow/logs/review/` only with a random suffix (`goat-review-<artifact>.<random>.txt`). Never write to repo root.
 
 **Footgun check:** Use the preamble's grep-first learning-loop retrieval on `.goat-flow/footguns/` for the target area. Present matches or an explicit retrieval miss; do not broad-load the bucket.
 
@@ -94,7 +94,7 @@ Now read full files for context. For each Pass-1 suspicion:
 - **Try to DISPROVE it** (negative verification). Re-read the `file + semantic anchor`, look for a guard, an upstream check, a framework mitigation, or a contract that removes the risk.
 - **Blast Radius Rule:** if a suspicion involves a contract change (signature, payload shape, exported type, event shape, error channel, status code), MUST run an external call-site search before resolving. Prefer `rg -n '<symbol>' -t ts -t js -t py -t php -t go -t rust`; if shell `rg` is unavailable, use the host search tool or `grep -rniE '<symbol>'` and record the fallback. Verify at least one consumer. If skipped, stays UNRESOLVED and gets `coverage-degraded`.
 - Mark each suspicion: **CONFIRMED** / **REFUTED** / **UNRESOLVED**.
-- **Refutation Ledger:** REFUTED suspicions are not silently dropped. Write a ledger to `.goat-flow/scratchpad/goat-review-refutations.<random>.txt`. Each entry: original suspicion (verbatim), refuting evidence (`file + semantic anchor`), one-sentence rationale. Refuted suspicions do not appear in final output; the ledger is the audit trail.
+- **Refutation Ledger:** REFUTED suspicions are not silently dropped. Write a ledger to `.goat-flow/logs/review/goat-review-refutations.<random>.txt`. Each entry: original suspicion (verbatim), refuting evidence (`file + semantic anchor`), one-sentence rationale. Refuted suspicions do not appear in final output; the ledger is the audit trail.
 - Add findings that only became visible with file context (integration breakage, call-site contract mismatch, regression in a sibling file).
 - Re-verify every `file + semantic anchor` reference exists before writing the final output.
 
@@ -203,7 +203,7 @@ Never leave this section empty. "confident - no degradation flags" is the minimu
 - MUST propose chunking when the diff exceeds 20 files OR 3000 changed lines
 - MUST emit Spec Drift only when opt-in triggered; if skipped, log `spec-drift-skipped` in Review Integrity
 - MUST split Spec Drift output by direction: exit-criteria drift as `[advisory]` (no severity tag), assumption invalidation as `[MUST:needs-decision]` under `## Findings`, open-criterion satisfaction as `[ready-to-tick]`
-- MUST store temporary artifacts under `.goat-flow/scratchpad/` with random suffix
+- MUST store temporary review artifacts under `.goat-flow/logs/review/` with random suffix
 - MUST attempt to disprove each Pass-1 suspicion during Pass 2
 - MUST group 3+ related findings as systemic patterns
 - MUST NOT edit files unless user says "implement"; MUST NOT frame Pass 1/Pass 2 as doer/verifier
