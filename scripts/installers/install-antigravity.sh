@@ -222,9 +222,9 @@ append_git_bash_path_block() {
         echo ""
         echo "# GOAT managed: Antigravity CLI PATH"
         printf "ANTIGRAVITY_CLI_BIN=%q\n" "$agy_dir"
-        echo 'case ":$PATH:" in'
-        echo '    *":${ANTIGRAVITY_CLI_BIN}:"*) ;;'
-        echo '    *) export PATH="${ANTIGRAVITY_CLI_BIN}:$PATH" ;;'
+        echo "case \":\$PATH:\" in"
+        echo "    *\":\${ANTIGRAVITY_CLI_BIN}:\"*) ;;"
+        echo "    *) export PATH=\"\${ANTIGRAVITY_CLI_BIN}:\$PATH\" ;;"
         echo 'esac'
         echo "# GOAT managed end: Antigravity CLI PATH"
     } >> "$bashrc"

@@ -329,6 +329,25 @@ describe("extractFootgunFacts search-anchor staleness", () => {
     );
   });
 
+  it("flags a double-quoted search anchor whose needle no longer appears", () => {
+    const fs = stubFS(
+      {
+        [`${fixtureDir}quality.md`]:
+          '---\ncategory: quality\nlast_reviewed: 2026-04-19\n---\n\n## Footgun: stale quoted\n\n**Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\n- `src/cli/cli.ts` (search: "qualitySubcommand === \\"capture\\"") - retired handler\n',
+        "src/cli/cli.ts":
+          "// handlers for 'history' and 'diff' only; capture removed in v1.2.0\n",
+      },
+      { [fixtureDir]: ["quality.md"] },
+    );
+    const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
+    assert.ok(
+      facts.staleRefs.some((ref) =>
+        ref.includes('qualitySubcommand === "capture"'),
+      ),
+      `expected stale double-quoted search anchor in ${JSON.stringify(facts.staleRefs)}`,
+    );
+  });
+
   it("does not flag a search anchor whose needle still appears", () => {
     const fs = stubFS(
       {

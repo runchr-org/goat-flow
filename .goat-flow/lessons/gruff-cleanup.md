@@ -1,6 +1,6 @@
 ---
 category: gruff-cleanup
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-03
 ---
 
 ## Lesson: Do not convert a fix request into threshold tuning
@@ -73,7 +73,7 @@ last_reviewed: 2026-05-31
 
 **Root cause:** `build:dashboard` runs the dashboard TypeScript compile and asset copy only; it does not remove `dist/dashboard` before compiling. The full `npm run build` does clean `dist` first.
 
-**Prevention:** When verifying dashboard asset renames, run the full `npm run build` or clean `dist` before `npm run build:dashboard`. Then grep `dist` for the old filenames. Evidence anchors: `package.json` (search: `"build": "node -e \"require('node:fs').rmSync('dist'`), `package.json` (search: `"build:dashboard": "tsc -p tsconfig.dashboard.json`).
+**Prevention:** When verifying dashboard asset renames, run the full `npm run build` or clean `dist` before `npm run build:dashboard`. Then grep `dist` for the old filenames. Evidence anchors: `package.json` (search: "rmSync('dist', { recursive: true, force: true })"), `package.json` (search: "tsconfig.dashboard.json && node scripts/build-dashboard-assets.mjs").
 
 ## Lesson: Gruff cleanup automation must fit the hook surface
 

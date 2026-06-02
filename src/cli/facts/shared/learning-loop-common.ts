@@ -34,10 +34,9 @@ export const EVIDENCE_PATTERN =
 export const FILE_REF_REGEX =
   /`([^`]+\.[a-zA-Z]{1,10})(?::[0-9]+(?:[-,][0-9]+)*)?`/g;
 
-/** Matches `` `<file>` (search: `<needle>`) `` - the footgun evidence form that
- *  cites a literal string to grep for inside the referenced file. */
+/** Matches backtick and double-quoted `(search: ...)` evidence anchors. */
 const SEARCH_ANCHOR_REGEX =
-  /`([^`]+\.[a-zA-Z0-9]{1,10})`\s*\(search:\s*`([^`]+)`\)/g;
+  /`([^`]+\.[a-zA-Z0-9]{1,10})`\s*\(search:\s*(?:`([^`]+)`|"((?:\\.|[^"\\])*)")\)/g;
 
 /** One markdown file read from a learning-loop directory. */
 export interface MarkdownEntry {
@@ -369,27 +368,38 @@ function scanSearchAnchors(
     new RegExp(SEARCH_ANCHOR_REGEX.source, "g"),
   );
   for (const match of searchAnchors) {
-    const filePath = match[1];
-    const needle = match[2];
+    const anchor = searchAnchorFromMatch(match);
     if (
-      filePath === undefined ||
-      needle === undefined ||
-      !isFileRef(filePath) ||
-      !isCheckableForStaleness(filePath, fs)
+      anchor === null ||
+      !isFileRef(anchor.filePath) ||
+      !isCheckableForStaleness(anchor.filePath, fs)
     )
       continue;
     summary.totalRefs++;
-    if (!fs.exists(filePath)) {
-      summary.staleRefs.push(`${filePath} (search: \`${needle}\`)`);
+    if (!fs.exists(anchor.filePath)) {
+      summary.staleRefs.push(
+        `${anchor.filePath} (search: \`${anchor.needle}\`)`,
+      );
       continue;
     }
-    const fileContent = fs.readFile(filePath);
-    if (fileContent === null || !fileContent.includes(needle)) {
-      summary.staleRefs.push(`${filePath} (search: \`${needle}\`)`);
+    const fileContent = fs.readFile(anchor.filePath);
+    if (fileContent === null || !fileContent.includes(anchor.needle)) {
+      summary.staleRefs.push(
+        `${anchor.filePath} (search: \`${anchor.needle}\`)`,
+      );
       continue;
     }
     summary.validRefs++;
   }
+}
+
+function searchAnchorFromMatch(
+  match: RegExpMatchArray,
+): { filePath: string; needle: string } | null {
+  const filePath = match[1];
+  const rawNeedle = match[2] ?? match[3];
+  if (filePath === undefined || rawNeedle === undefined) return null;
+  return { filePath, needle: rawNeedle.replace(/\\(["\\])/g, "$1") };
 }
 
 /**
