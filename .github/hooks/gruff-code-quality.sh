@@ -42,7 +42,7 @@
 #   `gruff-code-quality: <binary> <path> changed-lines=<ranges>; <n> on changed
 #   lines: <e> error, <w> warning, <a> advisory`, then one canonical finding line
 #   per surfaced finding `- [severity] file:line ruleId - message` (matching
-#   CONTRACT.md's normative per-finding line so hook and native CLI output read
+#   gruff's native CLI per-finding line so hook and analyzer output read
 #   identically). Findings on changed lines are sorted error -> warning ->
 #   advisory so the highest-value land first; they are floored at
 #   GRUFF_CODE_QUALITY_MIN_SEVERITY (default advisory) and capped at
@@ -565,7 +565,9 @@ changed_findings_report() {
       parsed_ranges as $parsed
       | any($parsed[]; $line >= .start and $line <= .end);
     def sev_rank($s):
-      if $s == "error" then 3 elif $s == "warning" then 2 elif $s == "advisory" then 1 else 0 end;
+      # error > warning > everything else (advisory, or an unknown/missing severity)
+      # so an unrecognised severity still clears the default advisory floor and stays visible.
+      if $s == "error" then 3 elif $s == "warning" then 2 else 1 end;
 
     [ (.findings // [])[]
       | . as $finding
