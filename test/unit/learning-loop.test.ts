@@ -362,6 +362,18 @@ describe("extractFootgunFacts search-anchor staleness", () => {
     assert.deepEqual(facts.staleRefs, []);
   });
 
+  it("flags bare Evidence anchors paths whose files no longer exist", () => {
+    const fs = stubFS(
+      {
+        [`${fixtureDir}auditor.md`]:
+          "---\ncategory: auditor\nlast_reviewed: 2026-04-19\n---\n\n## Footgun: stale bare anchor\n\n**Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\n**Evidence anchors:** `src/cli/missing.ts`\n",
+      },
+      { [fixtureDir]: ["auditor.md"] },
+    );
+    const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
+    assert.deepEqual(facts.staleRefs, ["src/cli/missing.ts"]);
+  });
+
   it("flags file-line evidence that lacks a semantic anchor", () => {
     const fs = stubFS(
       {

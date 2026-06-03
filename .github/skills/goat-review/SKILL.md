@@ -29,7 +29,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **PR mode (prefer PR link):** ask for PR URL/number first; it collapses base, head, description, and linked issues. Prompt: "PR URL or number? -- or say 'local' if not pushed." Resolve with `gh pr view <ref> --json baseRefName,headRefName,headRefOid,url,title,body,reviews,comments`; diff via `gh pr diff <ref>`. Record PR URL and base SHA. See `references/automated-review.md` for overlap-tagging protocol.
 
-**PR mode (base fallback):** when no PR link or `gh` unavailable, resolve base in order: (1) explicit user base, (2) `.goat-flow/config.yaml`'s `skills.goat-review.local_pr_base` (record `configured-base=<base>`, or `configured-base-unresolved=<base>` if unresolvable), (3) `git symbolic-ref --short refs/remotes/origin/HEAD` or `git remote show origin`, (4) ask user, (5) last-resort fallback `main` with `base-detection-failed`. Run `git fetch origin <base> --quiet`; diff via `git diff origin/<base>...HEAD`. On fetch failure, fall back to local `<base>` with `base-fetch-failed`. Record resolved base, source, and short SHA in Review Integrity.
+**PR mode (base fallback):** when no PR link or `gh` unavailable, resolve base: explicit user base, config `skills.goat-review.local_pr_base` (record configured-base or configured-base-unresolved), remote HEAD, ask user, then `main` with `base-detection-failed`. Prefer existing refs; only run `git fetch origin <base> --quiet` after explicit network approval. Diff via `origin/<base>...HEAD` if present, else local `<base>...HEAD` with `base-fetch-skipped` or `base-fetch-failed`. Record base/source/SHA in Review Integrity.
 
 **Size sizing (before Pass 1):** measure the diff. If it exceeds **20 files OR 3000 changed lines**, propose chunking by file group and ask. If the user proceeds un-chunked, record as `large-diff-unchunked` for Review Integrity.
 
@@ -137,7 +137,7 @@ Finding line prefix: `[SEVERITY:ACTION]`. Example: `[MUST:needs-decision]`.
 
 Check each finding with targeted grep-first retrieval against `.goat-flow/footguns/`. When a direct match exists, include it. Omit the footgun tag when no direct match is found after the one allowed reword.
 
-**BLOCKING GATE:** Present findings using Output Format below, then pause for human to drill in. After the human responds, evaluate Pass 3 auto-trigger conditions before presenting the Ship Verdict - do not skip the refuter when conditions are met.
+**BLOCKING GATE:** Present findings plus Top 5 Risks and Review Integrity, then pause. If Pass 3 is pending, Ship Verdict must be `PENDING REFUTER/HUMAN`; after response/refuter, present final verdict.
 
 **Review DoD gate:** for reporting-only review, verify findings, cross-references, and scope. No implementation tests unless a finding requires it. If user says "implement", switch to the instruction file's implementation DoD.
 
@@ -178,7 +178,7 @@ Anti-hallucination surface -- tells the reader at a glance how confident the rev
 - **Size:** lines changed, files changed, chunking state. PR mode: resolved base, source annotation, short SHA.
 - **Scope snapshot:** source, base, head, uncommitted, chunking.
 - **Refutations logged:** `<N>`
-- **Degradation flags:** `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`, `not-reproduced-findings`, `coverage-degraded`, `configured-base-unresolved=<base>`, `base-detection-failed`, `base-fetch-failed`, `intent-unstated`, `cross-model-refuter-failed`.
+- **Degradation flags:** `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`, `not-reproduced-findings`, `coverage-degraded`, `configured-base-unresolved=<base>`, `base-detection-failed`, `base-fetch-skipped`, `base-fetch-failed`, `intent-unstated`, `cross-model-refuter-failed`.
 - **Conclusion:** `confident` | `coverage-degraded` | `high-inference` | `partial`.
 
 Never leave this section empty. "confident - no degradation flags" is the minimum.
@@ -247,7 +247,7 @@ Never leave this section empty. "confident - no degradation flags" is the minimu
 1. [SEVERITY:ACTION] **[title]** `file + semantic anchor` - one-sentence why
 
 ## Ship Verdict
-Decision: **YES** | **YES WITH CONDITIONS** | **NO** | **PARTIAL**
+Decision: **YES** | **YES WITH CONDITIONS** | **NO** | **PARTIAL** | **PENDING REFUTER/HUMAN**
 Reasoning: <2-3 sentences anchored to Top 5 Risks and Review Integrity>
 Conditions to ship: <numbered list, only when YES WITH CONDITIONS>
 Confidence: HIGH | MEDIUM | LOW

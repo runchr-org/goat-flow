@@ -1,6 +1,6 @@
 ---
 category: auditor
-last_reviewed: 2026-06-01
+last_reviewed: 2026-06-03
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
@@ -55,23 +55,21 @@ Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agen
 
 ---
 
-## Footgun: Learning-loop stale-ref detection misses bare-path `Evidence anchors:` entries
-
-**Status:** active | **Created:** 2026-06-01 | **Evidence:** ACTUAL_MEASURED
-
-`goat-flow stats --check` existence-checks a learning-loop file reference in only three anchor shapes: `` `file:line` `` (backtick path with a line range), `` `file` (search: `needle`) `` (the footgun evidence form), and `(search: "needle")`. A bare backtick path with no line number and no `(search: ...)` suffix - the `Evidence anchors: \`path/to/file.ts\`` convention - is never checked. `Evidence anchors:` lines appear in 15 learning-loop files as of 2026-06-01, so a whole class of anchor silently bypasses the integrity gate.
-
-This is why `stats --check` stayed green while `.goat-flow/lessons/gruff-cleanup.md` cited two deleted tests (`test/unit/audit-command/harness.test.ts`, `test/unit/dashboard-toast.test.ts`) and `.goat-flow/lessons/verification.md` cited a deleted task milestone under `.goat-flow/tasks/1.8.0/`; a Codex quality run found them by hand, not the detector. A full sweep on 2026-06-01 found exactly those three dead bare-path anchors across the whole learning loop - blast radius small but real.
-
-**Invariant:** durable learning-loop evidence should use the sanctioned `(search: "needle")` form so the detector can verify it. Never anchor to `.goat-flow/tasks/**` milestone files - they are gitignored WIP and get cleaned up (the deleted M14 ref proves it).
-
-**Open decision (not actioned):** extend the detector (or add a lint) to existence-check bare backtick paths on `Evidence anchors:` lines. Deferred because a naive check false-positives on command examples (`bash scripts/x.sh`) and globs (`src/dashboard/*.ts`) that also sit in backticks; a correct version must scope to path-shaped, space-free, non-glob tokens on anchor lines, and would then also flag the `tasks/**` form above. Evidence anchors: `src/cli/facts/shared/learning-loop-common.ts` (search: `staleRefs`), `src/cli/stats/stats.ts` (search: `stale-ref`).
-
----
-
 ## Resolved Entries
 
 > Historical record. These entries are no longer active traps.
+
+## Footgun: Learning-loop stale-ref detection misses bare-path `Evidence anchors:` entries
+
+**Status:** resolved | **Created:** 2026-06-01 | **Resolved:** 2026-06-03 | **Evidence:** ACTUAL_MEASURED
+
+**Resolution:** `src/cli/facts/shared/learning-loop-common.ts` (search: `scanBareEvidenceAnchors`) now existence-checks non-glob bare backtick paths on `Evidence anchors:` lines, while leaving line refs and search anchors to their existing scanners. `test/unit/learning-loop.test.ts` (search: `flags bare Evidence anchors paths`) pins the stale-path regression.
+
+**Original symptoms:** `goat-flow stats --check` existence-checked a learning-loop file reference in only three anchor shapes: `` `file:line` ``, `` `file` (search: `needle`) ``, and `(search: "needle")`. A bare backtick path with no line number and no `(search: ...)` suffix - the `Evidence anchors: \`path/to/file.ts\`` convention - was never checked. `Evidence anchors:` lines appeared in 15 learning-loop files as of 2026-06-01, so a whole class of anchor silently bypassed the integrity gate.
+
+The miss kept `stats --check` green while `.goat-flow/lessons/gruff-cleanup.md` cited two deleted tests (`test/unit/audit-command/harness.test.ts`, `test/unit/dashboard-toast.test.ts`) and `.goat-flow/lessons/verification.md` cited a deleted task milestone under `.goat-flow/tasks/1.8.0/`; a Codex quality run found them by hand, not the detector.
+
+**Invariant:** durable learning-loop evidence should use the sanctioned `(search: "needle")` form when content identity matters. Never anchor to `.goat-flow/tasks/**` milestone files - they are gitignored WIP and get cleaned up.
 
 ## Footgun: Audit howToFix emits commands the deny hook blocks
 

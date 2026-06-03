@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -601,6 +602,52 @@ describe("gruff-code-quality hook", () => {
     );
     assert.equal(noConfig.status, 0, noConfig.stderr);
     assert.equal(noConfig.stdout, "");
+  });
+
+  it("fails soft when jq is unavailable", () => {
+    const root = makeRoot();
+    const gruffBinDir = writeMockGruff(root);
+    const noJqBin = join(root, "no-jq-bin");
+    mkdirSync(noJqBin, { recursive: true });
+    symlinkSync("/usr/bin/bash", join(noJqBin, "bash"));
+    symlinkSync("/usr/bin/cat", join(noJqBin, "cat"));
+    symlinkSync("/usr/bin/awk", join(noJqBin, "awk"));
+    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "example.ts"), "one\ntwo\nthree\n");
+
+    const result = runHook(
+      root,
+      { tool_name: "Edit", tool_input: { file_path: "src/example.ts" } },
+      `${gruffBinDir}:${noJqBin}`,
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /gruff-code-quality: jq unavailable; changed-line filtering skipped/,
+    );
+  });
+
+  it("fails soft when a supported payload path does not exist", () => {
+    const root = makeRoot();
+    initGit(root);
+    writeMockGruff(root);
+    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
+
+    const result = runHook(
+      root,
+      { tool_name: "Edit", tool_input: { file_path: "src/missing.ts" } },
+      "/usr/bin:/bin",
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /gruff-code-quality: no changed lines detected for src\/missing\.ts; skipping gruff output/,
+    );
   });
 
   it("relays gruff config-schema rejection with an actionable message", () => {

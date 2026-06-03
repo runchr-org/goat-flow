@@ -88,7 +88,7 @@ json_field() {
     printf '%s' "$input" | jq -r "$expr // empty" 2>/dev/null || true
     return
   fi
-  return 1
+  return 0
 }
 
 json_tool_name() {
@@ -367,7 +367,9 @@ git_diff_ranges() {
   local include_cached="${4:-0}"
   local diff_output ranges
   if ! git -C "$root" ls-files --error-unmatch -- "$rel_path" >/dev/null 2>&1; then
-    [[ -f "$abs_path" ]] && all_file_range "$abs_path"
+    if [[ -f "$abs_path" ]]; then
+      all_file_range "$abs_path"
+    fi
     return
   fi
   diff_output="$(git -C "$root" diff --unified=0 -- "$rel_path" 2>/dev/null || true)"
@@ -864,8 +866,8 @@ main() {
   fi
 
   payload="$(read_stdin)"
-  tool_name="$(json_tool_name "$payload")"
-  [[ -n "$tool_name" ]] || tool_name="$(fallback_tool_name "$payload")"
+  tool_name="$(json_tool_name "$payload" || true)"
+  [[ -n "$tool_name" ]] || tool_name="$(fallback_tool_name "$payload" || true)"
   supported_tool "$tool_name" || exit 0
 
   root="$(repo_root)"
