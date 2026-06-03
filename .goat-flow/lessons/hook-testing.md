@@ -1,6 +1,6 @@
 ---
 category: hook-testing
-last_reviewed: 2026-06-02
+last_reviewed: 2026-06-03
 ---
 
 ## Lesson: Format patched hook test fixtures before full preflight
@@ -12,6 +12,8 @@ last_reviewed: 2026-06-02
 **Root cause:** I hand-edited a TypeScript hook test fixture with a long embedded shell script and assertion, then went straight to full preflight instead of running the targeted Prettier check on the changed test file.
 
 **Prevention:** After patching TypeScript hook tests with template literals, long strings, or generated fixture scripts, run `npx prettier --check <changed-test-file>` before full preflight, or format the changed file immediately. If preflight reports a Prettier-only failure, format the changed file, rerun the focused test, then rerun preflight. Evidence anchors: `test/integration/gruff-code-quality-smoke.test.ts` (search: `writeNativeChangedRegionGruffPy`) and `scripts/preflight-checks.sh` (search: `Prettier`).
+
+**Updated 2026-06-03:** The same check caught formatting drift in a TypeScript audit message patch before full preflight. Evidence anchor: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configured hook command exited before`).
 
 ---
 

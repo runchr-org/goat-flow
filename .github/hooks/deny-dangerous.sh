@@ -33,7 +33,7 @@ deny_dangerous_json_escape() {
 deny_dangerous_unavailable() {
   local detail="$1"
   local message payload escaped
-  message="deny-dangerous.sh cannot start: $detail. Re-run goat-flow setup so .goat-flow/hook-lib is installed and tracked."
+  message="Policy hook unavailable: deny-dangerous.sh cannot start: $detail. Re-run goat-flow setup so .goat-flow/hook-lib is installed and tracked."
   payload="$(cat || true)"
   escaped="$(deny_dangerous_json_escape "$message")"
   if [[ "$payload" == *'"toolName"'* && "$payload" != *'"tool_name"'* ]]; then
@@ -1043,16 +1043,16 @@ block() {
   case "$OUTPUT_MODE" in
     copilot-json)
       printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}
-' "$(json_escape "Guard ${GOAT_ACTIVE_GUARD_SCOPE:-$GOAT_GUARD_SCOPE}: $reason")"
+' "$(json_escape "Policy ${GOAT_ACTIVE_GUARD_SCOPE:-$GOAT_GUARD_SCOPE}: $reason")"
       exit 0
       ;;
     antigravity-json)
       printf '{"decision":"deny","reason":"%s"}
-' "$(json_escape "Guard ${GOAT_ACTIVE_GUARD_SCOPE:-$GOAT_GUARD_SCOPE}: $reason")"
+' "$(json_escape "Policy ${GOAT_ACTIVE_GUARD_SCOPE:-$GOAT_GUARD_SCOPE}: $reason")"
       exit 0
       ;;
     *)
-      printf 'BLOCKED: Guard %s: %s
+      printf 'BLOCKED: Policy %s: %s
 ' "${GOAT_ACTIVE_GUARD_SCOPE:-$GOAT_GUARD_SCOPE}" "$reason" >&2
       exit 2
       ;;

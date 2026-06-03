@@ -93,6 +93,39 @@ describe("hook registrar", () => {
     });
   });
 
+  it("uses policy-hook startup copy in generated launcher failures", () => {
+    withTempProject((root) => {
+      const denySpec = getHookSpec("deny-dangerous");
+      const gruffSpec = getHookSpec("gruff-code-quality");
+      assert.ok(denySpec);
+      assert.ok(gruffSpec);
+
+      writeAgentHookState(root, PROFILES.claude, denySpec, true);
+      writeAgentHookState(root, PROFILES.claude, gruffSpec, true);
+      writeAgentHookState(root, PROFILES.antigravity, denySpec, true);
+
+      const claudeSettings = readFileSync(
+        join(root, ".claude", "settings.json"),
+        "utf-8",
+      );
+      const antigravityHooks = readFileSync(
+        join(root, ".agents", "hooks.json"),
+        "utf-8",
+      );
+
+      assert.match(
+        claudeSettings,
+        /Policy hook unavailable: git repository root unavailable\./u,
+      );
+      assert.doesNotMatch(claudeSettings, /Guard.*git repository root/u);
+      assert.match(
+        antigravityHooks,
+        /Policy hook unavailable: git repository root unavailable\./u,
+      );
+      assert.doesNotMatch(antigravityHooks, /Guard.*git repository root/u);
+    });
+  });
+
   it("does not scaffold uninstalled agent surfaces on clean target toggles", () => {
     withTempProject((root) => {
       applyHookState(HOOK_ID, false, root);

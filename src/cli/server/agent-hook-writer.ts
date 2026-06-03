@@ -120,8 +120,8 @@ function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   if (agent.id === "codex") return path;
   const failClosed =
     agent.id === "antigravity"
-      ? `{ printf '{"decision":"deny","reason":"Guard cannot start: git repository root unavailable."}\\n'; exit 0; }`
-      : `{ printf 'BLOCKED: Guard cannot start: git repository root unavailable.\\n' >&2; exit 2; }`;
+      ? `{ printf '{"decision":"deny","reason":"Policy hook unavailable: git repository root unavailable."}\\n'; exit 0; }`
+      : `{ printf 'BLOCKED: Policy hook unavailable: git repository root unavailable.\\n' >&2; exit 2; }`;
   // dirname(--git-common-dir) is the main repo root in linked worktrees; absorbed submodule gitdirs live under .git/modules and must use their own worktree root.
   const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"`;
   const selectRoot = `case "$gcd" in */.git/modules/*|.git/modules/*) root="$(git rev-parse --show-toplevel 2>/dev/null)" || ${failClosed} ;; /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel 2>/dev/null)" || ${failClosed} ;; esac`;

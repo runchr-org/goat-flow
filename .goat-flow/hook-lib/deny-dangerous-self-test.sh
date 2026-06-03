@@ -115,6 +115,35 @@ expect_block() {
   fi
 }
 
+# Assert representative stderr copy names the policy scope and the denied reason.
+expect_block_message() {
+  local hook="$1"
+  local command="$2"
+  local label="$3"
+  local expected_scope="$4"
+  local expected_reason="$5"
+  selected_hook "$hook" || {
+    record_skip
+    return
+  }
+  executed=$((executed + 1))
+  local output status
+  set +e
+  output="$(bash "$(hook_path "$hook")" --check="$command" 2>&1)"
+  status=$?
+  set -e
+  if [[ "$status" -ne 2 ]]; then
+    record_fail "$hook should block $label for copy check (exit=$status)"
+    return
+  fi
+  if [[ "$output" != *"BLOCKED: Policy $expected_scope:"* || "$output" != *"$expected_reason"* ]]; then
+    record_fail "$hook should identify policy and reason for $label"
+  fi
+  if [[ "$output" == *"Guard "* ]]; then
+    record_fail "$hook block copy should not use legacy Guard wording for $label"
+  fi
+}
+
 expect_allow() {
   local hook="$1"
   local command="$2"
@@ -147,6 +176,9 @@ expect_copilot_block() {
   if [[ "$output" != *'"permissionDecision":"deny"'* ]]; then
     record_fail "$hook Copilot payload should return deny JSON for $label"
   fi
+  if [[ "$output" != *"Policy "* || "$output" == *"Guard "* ]]; then
+    record_fail "$hook Copilot payload should identify policy without legacy Guard wording for $label"
+  fi
 }
 
 expect_antigravity_block() {
@@ -167,6 +199,9 @@ expect_antigravity_block() {
   if [[ "$output" != *'"decision":"deny"'* ]]; then
     record_fail "$hook Antigravity payload should return deny JSON for $label"
   fi
+  if [[ "$output" != *"Policy "* || "$output" == *"Guard "* ]]; then
+    record_fail "$hook Antigravity payload should identify policy without legacy Guard wording for $label"
+  fi
 }
 
 expect_antigravity_secret_file_block() {
@@ -183,6 +218,9 @@ expect_antigravity_secret_file_block() {
   fi
   if [[ "$output" != *'"decision":"deny"'* ]]; then
     record_fail "paths Antigravity file payload should return deny JSON for .env read"
+  fi
+  if [[ "$output" != *"Policy "* || "$output" == *"Guard "* ]]; then
+    record_fail "paths Antigravity file payload should identify policy without legacy Guard wording"
   fi
 }
 
@@ -214,6 +252,9 @@ expect_no_jq_copilot_block() {
   if [[ "$output" != *'"permissionDecision":"deny"'* ]]; then
     record_fail "$hook no-jq Copilot payload should return deny JSON for $label"
   fi
+  if [[ "$output" != *"Policy "* || "$output" == *"Guard "* ]]; then
+    record_fail "$hook no-jq Copilot payload should identify policy without legacy Guard wording for $label"
+  fi
 }
 
 expect_missing_common_fails_closed() {
@@ -239,8 +280,11 @@ expect_missing_common_fails_closed() {
   if [[ "$status" -ne 2 ]]; then
     record_fail "$hook missing hook-lib should fail closed (exit=$status)"
   fi
-  if [[ "$output" != *"cannot start"* || "$output" != *"hook-lib"* ]]; then
+  if [[ "$output" != *"Policy hook unavailable"* || "$output" != *"hook-lib"* ]]; then
     record_fail "$hook missing hook-lib should explain the missing store"
+  fi
+  if [[ "$output" == *"Guard "* ]]; then
+    record_fail "$hook missing hook-lib copy should not use legacy Guard wording"
   fi
 }
 
@@ -275,8 +319,11 @@ expect_missing_common_fails_closed_json() {
   if [[ "$status" -ne 0 ]]; then
     record_fail "$hook missing hook-lib should exit 0 in $mode JSON mode (exit=$status)"
   fi
-  if [[ "$output" != *"$expected"* || "$output" != *"hook-lib"* ]]; then
+  if [[ "$output" != *"$expected"* || "$output" != *"Policy hook unavailable"* || "$output" != *"hook-lib"* ]]; then
     record_fail "$hook missing hook-lib should return fail-closed $mode JSON"
+  fi
+  if [[ "$output" == *"Guard "* ]]; then
+    record_fail "$hook missing hook-lib $mode copy should not use legacy Guard wording"
   fi
 }
 
@@ -296,6 +343,9 @@ run_smoke() {
   expect_block shell "rm -rf /" "rm -rf"
   expect_block paths "cat .env" ".env read"
   expect_block writes "git push origin main" "git push"
+  expect_block_message shell "rm -rf /" "rm -rf copy" "destructive" "rm -r without safe scoping"
+  expect_block_message paths "cat .env" ".env read copy" "secret" "Secret-file access"
+  expect_block_message writes "git push origin main" "git push copy" "repository" "git push is not allowed"
   expect_block writes "git -C /tmp push origin main" "git -C push"
   expect_block paths "cat .envrc" ".envrc read"
   expect_allow shell "echo safe" "safe echo"

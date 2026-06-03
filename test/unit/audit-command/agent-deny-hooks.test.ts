@@ -116,7 +116,10 @@ describe("agent deny hook template comparison", () => {
 
     const result = denyCheck.run(ctx);
     assert.ok(result, "expected configured command runtime failure");
-    assert.match(result.message, /does not name an exact guard script path/);
+    assert.match(
+      result.message,
+      /does not name an exact managed hook script path/,
+    );
     assert.equal(result.evidence, ".codex/hooks.json");
   });
 
@@ -304,7 +307,10 @@ describe("agent deny hook template comparison", () => {
 
     const result = denyCheck.run(ctx);
     assert.ok(result, "expected configured launcher runtime failure");
-    assert.match(result.message, /configured hook script exited 127/);
+    assert.match(
+      result.message,
+      /configured hook command exited before deny-dangerous\.sh could start \(exit 127\)/,
+    );
     assert.equal(result.evidence, ".codex/hooks.json");
   });
 

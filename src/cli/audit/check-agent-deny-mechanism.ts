@@ -363,7 +363,7 @@ interface ConfiguredHookCommand {
   configPath: string;
 }
 
-/** Extract the configured guard script path without executing shell glue from agent config. */
+/** Extract the configured hook script path without executing shell glue from agent config. */
 function extractConfiguredScriptPath(
   command: string,
   scriptFile: string,
@@ -461,7 +461,7 @@ function configuredHookCommandPathFailure(
   configured: ConfiguredHookCommand,
 ): string | null {
   if (configured.scriptPath === null) {
-    return `${agentFacts.agent.id} configured hook command does not name an exact guard script path: ${configured.command}`;
+    return `${agentFacts.agent.id} configured hook command does not name an exact managed hook script path: ${configured.command}`;
   }
   const expectedScriptPath = normalizedRegisteredDenyRelPath(agentFacts);
   if (
@@ -500,7 +500,7 @@ function runConfiguredHookCommandSmoke(
   if (status === 126 || status === 127) {
     return {
       ok: false,
-      message: `${agentFacts.agent.id} configured hook script exited ${status}: ${configured.scriptPath}`,
+      message: `${agentFacts.agent.id} configured hook command exited before ${configured.scriptFile} could start (exit ${status}): ${configured.scriptPath}`,
       evidence: configured.configPath,
     };
   }
@@ -509,7 +509,7 @@ function runConfiguredHookCommandSmoke(
   if (status !== smoke.expectedStatus || !smoke.expectedPattern.test(stream)) {
     return {
       ok: false,
-      message: `${agentFacts.agent.id} configured hook script did not deny ${configured.scriptFile}: ${configured.scriptPath}`,
+      message: `${agentFacts.agent.id} configured hook command did not return the expected deny response for ${configured.scriptFile}: ${configured.scriptPath}`,
       evidence: configured.configPath,
     };
   }
@@ -552,7 +552,7 @@ function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
           message: result.message,
           evidence: evidencePath(result.evidence),
           howToFix:
-            "Run the configured guard script path with a runtime-shaped payload and confirm it reaches the guard script without exit 126/127.",
+            "Run the configured hook command with a runtime-shaped payload and confirm it reaches the managed hook script without exit 126/127.",
         };
       }
       continue;
