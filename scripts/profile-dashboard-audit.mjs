@@ -14,9 +14,12 @@ const CODEX_CONFIG = [
   'default_permissions = "goat-flow"',
   "[features]",
   "hooks = true",
+  "[permissions.goat-flow]",
+  'description = "goat-flow workspace editing with secret-path read denies."',
+  'extends = ":workspace"',
   "[permissions.goat-flow.filesystem]",
   "glob_scan_max_depth = 3",
-  '":workspace_roots" = { "." = "write", "secrets/**" = "none", ".ssh/**" = "none", ".aws/**" = "none", ".docker/**" = "none", ".gnupg/**" = "none", ".kube/**" = "none" }',
+  '":workspace_roots" = { "**/.env" = "deny", "**/.env.local" = "deny", "**/.env.development" = "deny", "**/.env.production" = "deny", "**/.env.staging" = "deny", "**/.env.test" = "deny", "**/.envrc" = "deny", "**/secrets/**" = "deny", "**/.ssh/**" = "deny", "**/.aws/**" = "deny", "**/.docker/**" = "deny", "**/.gnupg/**" = "deny", "**/.kube/**" = "deny", "**/credentials" = "deny", "**/.npmrc" = "deny", "**/.pypirc" = "deny", "**/*.pem" = "deny", "**/*.key" = "deny", "**/*.pfx" = "deny" }',
   "",
 ].join("\n");
 

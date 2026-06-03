@@ -170,7 +170,7 @@ describe("codex settings feature flags", () => {
     });
   }
 
-  it("does not count Codex env coverage without an existing staging variant", () => {
+  it("counts recursive Codex env coverage when a staging variant exists", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) =>
@@ -192,7 +192,7 @@ describe("codex settings feature flags", () => {
       PROFILES.codex,
     );
 
-    assert.equal(facts.readDenyCoversSecrets, false);
+    assert.equal(facts.readDenyCoversSecrets, true);
   });
 });
 
@@ -559,7 +559,7 @@ describe("codex settings feature flags", () => {
     });
   }
 
-  it("requires Codex exact-file denies for existing root secret files", () => {
+  it("accepts recursive Codex env denies for existing root secret files", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) => path === ".codex/config.toml" || path === ".env",
@@ -575,6 +575,6 @@ describe("codex settings feature flags", () => {
       PROFILES.codex,
     );
 
-    assert.equal(facts.readDenyCoversSecrets, false);
+    assert.equal(facts.readDenyCoversSecrets, true);
   });
 });

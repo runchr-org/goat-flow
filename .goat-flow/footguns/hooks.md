@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-06-03
+last_reviewed: 2026-06-04
 ---
 
 **Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity guardrail self-tests return `PASS: deny-dangerous self-test`; Antigravity uses `.agents/hooks.json` plus scripts in `.agents/hooks/` for PreToolUse guardrails. The direct `cat .env` probe is blocked by `patterns-paths.sh`; coverage relies on self-test cases plus live harness blocking for that command shape.
@@ -203,27 +203,30 @@ last_reviewed: 2026-06-03
 
 ---
 
-## Footgun: Codex workspace-root permission profiles must use the local 0.131 token
+## Footgun: Codex permission profiles must match the local CLI grammar
 
 **Status:** active | **Created:** 2026-05-19 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** Codex starts but prints warnings or fails before shell startup when the permission profile names a workspace-root token or exact path the runtime cannot load. `:project_roots` is ignored by Codex 0.131.0, and exact entries such as `.env.example`, `.docker/config.json`, or `.kube/config` can break startup when those paths are absent. The TOML can still look like it denies `.env`, `.ssh/**`, `.aws/**`, and credential roots, so static review can miss that the running Codex process discarded or could not mount those rules.
+**Symptoms:** Codex starts but prints warnings or fails before shell startup when the permission profile names a workspace-root token, access value, or base profile shape the runtime cannot load. On Codex 0.136.0, the old goat-flow profile that directly set `"." = "write"` and `"secrets/**" = "none"` under `:workspace_roots` made shell commands fail before startup with `bwrap: execvp .../vendor/x86_64-unknown-linux-musl/bin/codex: No such file or directory`. On Codex 0.131.0, `:project_roots` was ignored and absent exact entries such as `.env.example`, `.docker/config.json`, or `.kube/config` could break startup. The TOML can still look like it denies `.env`, `.ssh/**`, `.aws/**`, and credential roots, so static review can miss that the running Codex process discarded the rules or created a namespace that cannot see Codex's own managed binary.
 
-**Why it happens:** Codex CLI 0.131.0 recognizes the special workspace token as `:workspace_roots`, not `:project_roots`. Both inline `":workspace_roots" = { ... }` and nested `[permissions.<profile>.filesystem.":workspace_roots"]` TOML shapes load in 0.131.0, but the `:project_roots` token is treated as an unrecognized filesystem path and ignored. Exact workspace-root entries also have to name files that exist in the checkout; absent exact entries are not a safe way to pre-deny future files.
+**Why it happens:** Codex permission grammar is version-sensitive. Codex CLI 0.136.0 expects custom profiles to extend a built-in profile such as `:workspace` and uses `deny` for filesystem denials; rebuilding the workspace profile from raw `:workspace_roots` entries omits Codex-managed runtime paths from the bwrap namespace. Codex CLI 0.131.0 recognized the special workspace token as `:workspace_roots`, not `:project_roots`, and exact workspace-root entries also had to name files that existed in the checkout. A profile can be syntactically plausible while still being unlaunchable for the installed Codex version.
 
 **Evidence:**
-- `.codex/config.toml` (search: `absent exact`) - installed config now uses Codex 0.131.0's accepted token and omits absent exact entries from the base profile.
-- `workflow/hooks/agent-config/codex.toml` (search: `Exact entries must point at files`) - install template mirrors the accepted token and loadable base profile.
-- `src/cli/facts/agent/settings.ts` (search: `existingExactPathsAreDenied`) - audit fact extraction requires exact denies only for sensitive root files that exist in the checkout.
+- `.codex/config.toml` (search: `extends = ":workspace"`) - installed config now extends Codex's built-in workspace profile and uses `deny` entries.
+- `workflow/hooks/agent-config/codex.toml` (search: `extends = ":workspace"`) - install template mirrors the current loadable profile shape.
+- `workflow/install-goat-flow.sh` (search: `active goat-flow profile does not extend`) - installer migration and validation refresh old goat-flow profiles that would break shell startup.
+- `src/cli/facts/agent/settings.ts` (search: `isCodexDenyMode`) - audit fact extraction recognizes both legacy `none` entries and current `deny` entries.
 - `src/cli/audit/check-agent-setup.ts` (search: `checkCodexWorkspaceRootExactPaths`) - agent settings audit fails when Codex config lists absent exact workspace-root paths.
+- Runtime capture from 2026-06-04: `codex sandbox --permissions-profile goat-flow -C /home/devgoat/projects/goat-flow pwd` failed with `bwrap: execvp .../vendor/x86_64-unknown-linux-musl/bin/codex: No such file or directory`; the same command succeeded when the profile was supplied as `permissions.goat-flow={extends=":workspace", filesystem={... "blocked/**"="deny"}}`.
 - Runtime capture from the 2026-05-19 Codex startup failure showed repeated `Configured filesystem path ':project_roots' is not recognized by this version of Codex and will be ignored` warnings for the unsupported token.
 - Local binary probe on 2026-05-19 found `:workspace_roots` in Codex 0.131.0's embedded schema strings and no `:project_roots` support.
 
 **Prevention:**
-1. Do not convert Codex workspace permissions back to `:project_roots`; that token is runtime-invalid on Codex 0.131.0.
-2. Verify Codex config changes with a TTY startup smoke (`codex` under a short timeout) as well as `codex doctor`; non-interactive commands can miss TUI startup warnings.
-3. Keep `.codex/config.toml`, `workflow/hooks/agent-config/codex.toml`, and `src/cli/facts/agent/settings.ts` in the same patch whenever Codex permission grammar changes.
-4. Treat Codex permission-profile secret coverage as a loadable set, not a future-file deny list. Use trailing `/**` subtree denies in the base template, and add exact root-file denies only when the file exists in the checkout.
+1. For Codex 0.136+, make goat-flow profiles extend `:workspace` and use `deny` access entries; do not rebuild workspace write access with `"." = "write"` and `none` entries.
+2. Do not convert Codex workspace permissions back to `:project_roots`; that token is runtime-invalid on Codex 0.131.0.
+3. Verify Codex config changes with `codex sandbox --permissions-profile goat-flow -C <project> pwd` as well as `codex doctor`; install health alone can miss project-profile namespace failures.
+4. Keep `.codex/config.toml`, `workflow/hooks/agent-config/codex.toml`, and `src/cli/facts/agent/settings.ts` in the same patch whenever Codex permission grammar changes.
+5. Treat Codex permission-profile secret coverage as a loadable set, not a future-file deny list. Prefer current recursive `deny` globs that leave `.env.example` readable over absent exact root-file entries.
 
 ---
 

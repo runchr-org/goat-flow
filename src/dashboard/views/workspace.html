@@ -305,25 +305,6 @@
                             padding-top: 6px;
                           "
                         >
-                          <span
-                            x-show="isSessionBoundLocally(s.id)"
-                            class="gf-tooltip-wrap"
-                          >
-                            <button
-                              @click.stop="exportSession(s.id)"
-                              class="gf-btn gf-btn-sm gf-btn-ghost workspace-action-btn"
-                              type="button"
-                              :aria-describedby="'ws-export-tip-' + s.id"
-                            >
-                              Export
-                            </button>
-                            <span
-                              :id="'ws-export-tip-' + s.id"
-                              class="gf-tooltip gf-tooltip-right"
-                              role="tooltip"
-                              >Export session</span
-                            >
-                          </span>
                           <span class="gf-tooltip-wrap">
                             <button
                               @click.stop="confirmEndSessionId = (confirmEndSessionId === s.id ? null : s.id)"
@@ -713,6 +694,15 @@
                   <span
                     x-text="launching ? 'Launching...' : 'New terminal'"
                   ></span>
+                </button>
+                <button
+                  x-show="isSessionBoundLocally(activeSessionId)"
+                  @click="exportSession(activeSessionId)"
+                  class="gf-btn gf-btn-sm gf-btn-ghost"
+                  type="button"
+                  title="Export session scrollback"
+                >
+                  Export
                 </button>
                 <button
                   @click="exitTerminal()"

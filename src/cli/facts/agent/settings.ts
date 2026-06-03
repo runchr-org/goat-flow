@@ -214,9 +214,9 @@ function checkCodexPermissionProfileCoversSecrets(
 
   return (
     hasCodexEnvDeny(denied, fs) &&
-    hasAnyCodexPattern(denied, ["secrets/**"]) &&
-    hasAnyCodexPattern(denied, [".ssh/**"]) &&
-    hasAnyCodexPattern(denied, [".aws/**"]) &&
+    hasAnyCodexPattern(denied, ["secrets/**", "**/secrets/**"]) &&
+    hasAnyCodexPattern(denied, [".ssh/**", "**/.ssh/**"]) &&
+    hasAnyCodexPattern(denied, [".aws/**", "**/.aws/**"]) &&
     hasCodexCredentialRootDeny(denied, fs)
   );
 }
@@ -267,7 +267,7 @@ function collectCodexDeniedWorkspaceRootPatterns(
     parsed,
     profileName,
   )) {
-    if (mode === "none") denied.add(pattern);
+    if (isCodexDenyMode(mode)) denied.add(pattern);
   }
   return denied;
 }
@@ -290,6 +290,19 @@ function hasAnyCodexPattern(denied: Set<string>, patterns: string[]): boolean {
   return patterns.some((pattern) => denied.has(pattern));
 }
 
+/** Return whether every required Codex filesystem pattern is denied. */
+function hasEveryCodexPattern(
+  denied: Set<string>,
+  patterns: string[],
+): boolean {
+  return patterns.every((pattern) => denied.has(pattern));
+}
+
+/** Recognize both old goat-flow "none" entries and current Codex "deny" entries. */
+function isCodexDenyMode(mode: string): boolean {
+  return mode === "none" || mode === "deny";
+}
+
 /** Detect root .env files and common exact variants while allowing .env.example. */
 function existingExactPathsAreDenied(
   denied: Set<string>,
@@ -303,7 +316,7 @@ function existingExactPathsAreDenied(
 
 /** Confirm Codex denies every root env file that actually exists in the target project. */
 function hasCodexEnvDeny(denied: Set<string>, fs: ReadonlyFS): boolean {
-  return existingExactPathsAreDenied(denied, fs, [
+  const exactEnvPaths = [
     ".env",
     ".env.local",
     ".env.development",
@@ -311,7 +324,13 @@ function hasCodexEnvDeny(denied: Set<string>, fs: ReadonlyFS): boolean {
     ".env.staging",
     ".env.test",
     ".envrc",
-  ]);
+  ];
+  return (
+    hasEveryCodexPattern(
+      denied,
+      exactEnvPaths.map((pattern) => `**/${pattern}`),
+    ) || existingExactPathsAreDenied(denied, fs, exactEnvPaths)
+  );
 }
 
 /** Detect exact root/subtree credential surfaces Codex can express on 0.131+. */
@@ -320,13 +339,17 @@ function hasCodexCredentialRootDeny(
   fs: ReadonlyFS,
 ): boolean {
   return (
-    [".docker/**", ".gnupg/**", ".kube/**"].every((pattern) =>
-      denied.has(pattern),
+    [
+      [".docker/**", "**/.docker/**"],
+      [".gnupg/**", "**/.gnupg/**"],
+      [".kube/**", "**/.kube/**"],
+    ].every((patternGroup) => hasAnyCodexPattern(denied, patternGroup)) &&
+    hasAnyCodexPattern(denied, ["**/credentials", "credentials"]) &&
+    (hasEveryCodexPattern(denied, ["**/.npmrc", "**/.pypirc"]) ||
+      existingExactPathsAreDenied(denied, fs, [".npmrc", ".pypirc"])) &&
+    ["pem", "key", "pfx"].every((extension) =>
+      hasAnyCodexPattern(denied, [`**/*.${extension}`, `*.${extension}`]),
     ) &&
-    existingExactPathsAreDenied(denied, fs, [
-      "credentials",
-      ".npmrc",
-      ".pypirc",
-    ])
+    existingExactPathsAreDenied(denied, fs, ["credentials"])
   );
 }

@@ -24,7 +24,7 @@
 - `AGENTS.md` is the Codex root instruction file; do not defer to `CLAUDE.md`.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
 - Codex hooks use `.codex/hooks.json` for goat-flow hook registrations; `.codex/config.toml` enables the engine with `[features].hooks = true` and may define filesystem permission profiles.
-- Codex permission profiles are the closest equivalent to Claude `permissions.allow`/`permissions.deny` for file access. They do not replace the Bash-focused `PreToolUse` deny hook for command patterns such as `git push`, `sudo`, or `curl | bash`.
+- Codex permission profiles are the closest equivalent to Claude `permissions.allow`/`permissions.deny` for file access. goat-flow profiles extend Codex's built-in `:workspace` profile before adding secret-path `deny` rules, and they do not replace the Bash-focused `PreToolUse` deny hook for command patterns such as `git push`, `sudo`, or `curl | bash`.
 - goat-flow ships only the Bash-focused `PreToolUse` deny hook. Codex also supports `PermissionRequest`, `PostToolUse`, `Stop`, and non-Bash tool matchers, but generic post-turn validation remains project-specific.
 - Use `apply_patch` for edits in Codex guidance, not Edit/Write tool prose.
 - goat-flow does not use Codex compaction hooks for recovery; continuity stays file-based through tasks and session logs.
