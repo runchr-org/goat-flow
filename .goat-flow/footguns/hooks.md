@@ -60,21 +60,22 @@ last_reviewed: 2026-06-04
 4. Runtime smoke must execute the configured command string, or a parser-backed equivalent validating every wrapper component. Don't replace a configured command with `bash <scriptPath>` when it contains resolver logic or direct executable invocation.
 5. When a launcher falls back to a root variable, either `cd "$root"` before running the hook or pass root through a contract the hook consumes; resolving only the script path fails when the hook recomputes repo state from cwd.
 
-## Footgun: Hook sync can copy required policy files into ignored paths
+## Footgun: Hook sync must unignore required policy files
 
 **Status:** active | **Created:** 2026-06-01 | **Evidence:** OBSERVED
 
-**Symptoms:** `goat-flow hooks enable deny-dangerous` or `goat-flow hooks sync` repairs local hook files and the agent config, and local runtime checks pass in that tree. After committing and cloning, the dispatcher starts without `.goat-flow/hook-lib/` because the copied policy modules were still ignored by a stale `.goat-flow/.gitignore`.
+**Symptoms:** Historical pre-fix failure: `goat-flow hooks enable deny-dangerous` or `goat-flow hooks sync` made local checks pass, but a fresh clone lacked `.goat-flow/hook-lib/` because stale `.goat-flow/.gitignore` rules still ignored the copied policy modules.
 
-**Why it happens:** `src/cli/server/hook-registrar.ts` (search: `copyHookScripts`) writes `.goat-flow/hook-lib/` for `deny-dangerous` but skips the installer's `ensure_gitignore_entry` step. Pre-1.9 `.goat-flow/.gitignore` templates use a leading `*`, so new `.goat-flow/hook-lib/*` paths stay untracked unless `!hook-lib/` and `!hook-lib/**` are added.
+**Why it happens:** Pre-1.9 `.goat-flow/.gitignore` templates use a leading `*`; any CLI/dashboard path that writes required committed files under `.goat-flow/` must append matching unignore entries. The original hook sync path wrote `.goat-flow/hook-lib/` without adding `!hook-lib/` and `!hook-lib/**`.
 
 **Evidence:**
-- `src/cli/server/hook-registrar.ts` (search: `copyHookScripts`) writes each `DENY_DANGEROUS_HOOK_LIB_FILES` entry into `.goat-flow/hook-lib/` during `applyHookState` and `syncHookStates`; `workflow/install-goat-flow.sh` (search: `ensure_gitignore_entry ".goat-flow/.gitignore" "!hook-lib/"`) handles the same files at install by appending both `!hook-lib/` and `!hook-lib/**`.
-- `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Filesystem-backed validation can miss untracked or ignored replacement files`) records the broader trap: filesystem checks can pass with `.goat-flow/*` files that remain ignored.
+- Current repair: `src/cli/server/hook-registrar.ts` (search: `ensureHookLibGitignoreEntries`) appends both negations whenever hook sync writes the shared policy store.
+- Regression: `test/unit/hook-registrar.test.ts` (search: `unignores hook-lib when enabling deny-dangerous on a stale goat-flow gitignore`) starts from a pre-1.9 gitignore and asserts both negations are added.
+- Broader trap: `.goat-flow/footguns/docs-and-crossrefs.md` (search: `Filesystem-backed validation can miss untracked or ignored replacement files`) records how filesystem checks can pass with ignored `.goat-flow/*` files.
 
 **Prevention:**
-1. Any CLI/dashboard path writing required committed files under `.goat-flow/` must update `.goat-flow/.gitignore` in the same operation, not rely on `install`.
-2. Add a regression fixture with a pre-1.9 `.goat-flow/.gitignore` starting with `*`; after `hooks enable` / `sync`, verify `! git check-ignore -q .goat-flow/hook-lib/patterns-shell.sh`.
+1. Preserve `ensureHookLibGitignoreEntries` beside any code path that writes `.goat-flow/hook-lib/`.
+2. Keep the pre-1.9 gitignore regression fixture and `git check-ignore` assertion for `.goat-flow/hook-lib/patterns-shell.sh`.
 3. Before release, test the clone path: commit hook config plus hook-lib, clone fresh, then run `.goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke`.
 
 ## Footgun: Hook launchers using --show-toplevel resolve to the worktree, not the main repo
