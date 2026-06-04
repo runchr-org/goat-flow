@@ -269,6 +269,13 @@ function collectWarnings(section: BucketSection): StatsWarning[] {
 }
 
 const ADR_FILENAME = /^ADR-\d{3}-[a-z0-9-]+\.md$/;
+/**
+ * Non-ADR meta files that legitimately live in the decisions bucket: the
+ * authoring-rules README and the hand-maintained INDEX (the same index
+ * convention the footgun and lesson buckets already use). Both are exempt from
+ * the ADR filename and structure invariants.
+ */
+const DECISION_META_FILES = new Set(["README.md", "INDEX.md"]);
 const ROUTING_HINT =
   "Wrong home -> right home: implementation TODOs and scoped work plans belong in .goat-flow/tasks/; recurring hazards with evidence belong in .goat-flow/footguns/; reusable takeaways belong in .goat-flow/lessons/; temporary notes belong in .goat-flow/scratchpad/; backlog requests belong in Linear/GitHub issues.";
 
@@ -324,14 +331,14 @@ function decisionStructureFinding(
 function collectDecisionFileFinding(
   file: DecisionFileSummary,
 ): StatsFinding | null {
-  if (file.filename === "README.md") return null;
+  if (DECISION_META_FILES.has(file.filename)) return null;
   if (!ADR_FILENAME.test(file.filename)) return decisionFilenameFinding(file);
 
   const missing = missingDecisionStructure(file.content ?? "");
   return missing.length > 0 ? decisionStructureFinding(file, missing) : null;
 }
 
-/** Collect structural ADR findings while ignoring the directory README. */
+/** Collect structural ADR findings while ignoring the directory README and INDEX. */
 function collectDecisionFindings(section: DecisionsSection): StatsFinding[] {
   if (!section.exists) return [];
   return section.files.flatMap(
