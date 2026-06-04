@@ -1,6 +1,6 @@
 ---
 category: auditor
-last_reviewed: 2026-06-03
+last_reviewed: 2026-06-04
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
@@ -52,6 +52,24 @@ Build checks in `src/cli/audit/check-goat-flow.ts` and `src/cli/audit/check-agen
 - `src/cli/audit/check-content-quality.ts` and `src/cli/audit/check-factual-claims.ts` exist because structural correctness alone did not catch cold-path truth drift.
 
 **Prevention:** Keep structural audit and content-truth checks separate and explicit. Never treat a build PASS as proof that docs, ADRs, or prompts are semantically current.
+
+---
+
+## Footgun: Decision meta files must be excluded from every decision extractor
+
+**Status:** active | **Created:** 2026-06-04 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** Adding a hand-maintained `.goat-flow/decisions/INDEX.md` can pass `stats --check` filename validation while shared decision facts and prompt learning-loop entries still count or surface it as a real decision. The dashboard, harness, and prompt context then report inflated decision counts or include a "Decisions Index" entry beside ADR records.
+
+**Why it happens:** Decision validation, decision directory facts, and compact learning-loop entry extraction have separate filters. Updating only the stats validator's meta-file allowlist leaves `src/cli/facts/shared/index.ts` and the learning-loop entry helpers using the older "exclude README only" rule. In this checkout, `rg --files .goat-flow/decisions | rg '\.md$' | wc -l` returned 34, while `rg --files .goat-flow/decisions | rg '/ADR-[0-9]{3}-.*\.md$' | wc -l` returned 32 and `.goat-flow/decisions/INDEX.md` was present.
+
+**Evidence anchors:**
+- `src/cli/stats/stats.ts` (search: `DECISION_META_FILES`) - stats validation knows `INDEX.md` is a meta file.
+- `src/cli/facts/shared/index.ts` (search: `f !== "README.md"`) - decision facts still filter only README unless kept in sync.
+- `src/cli/facts/shared/learning-loop-common.ts` (search: `file !== "README.md"`) and `src/cli/facts/shared/learning-loop-entries.ts` (search: `basename(file.path) !== "README.md"`) - prompt entry extraction has independent README-only filters.
+- `test/integration/stats-command.test.ts` (search: `keeps the decisions INDEX exempt like the README`) - validator coverage exists for the stats gate, but needs paired fact/entry assertions when new meta files are introduced.
+
+**Prevention:** Treat decision meta-file additions like a shared extractor contract change. Update the stats validator, shared decision facts, compact learning-loop entries, prompt filters, and tests in one patch; assert both the failing gate (`stats --check`) and the non-gating facts (`decisions.fileCount`, decision entry titles) so meta files cannot leak into user-facing counts.
 
 ---
 

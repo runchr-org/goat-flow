@@ -1415,7 +1415,7 @@ if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-dangerous.sh" ]
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
     # shellcheck disable=SC2016
-    printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"gcd=\"$(git rev-parse --git-common-dir 2>/dev/null)\" || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; }; case \"$gcd\" in */.git/modules/*|.git/modules/*) root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; } ;; /*) root=\"$(dirname \"$gcd\")\" ;; *) root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; } ;; esac; bash \"$root/.claude/hooks/deny-dangerous.sh\""}]}'
+    printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"gcd=\"$(git rev-parse --git-common-dir 2>/dev/null)\"; root=\"\"; case \"$gcd\" in */.git/modules/*|.git/modules/*) root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\" ;; /*) root=\"$(dirname \"$gcd\")\" ;; *) root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\" ;; esac; [ -f \"$root/.claude/hooks/deny-dangerous.sh\" ] || root=\"${CLAUDE_PROJECT_DIR:-}\"; [ -f \"$root/.claude/hooks/deny-dangerous.sh\" ] || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; }; cd \"$root\" || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; }; bash \"$root/.claude/hooks/deny-dangerous.sh\""}]}'
   fi
   echo ""
 fi

@@ -9,7 +9,7 @@ generated: false
 
 Hand-maintained index of lesson bucket files. A lesson exists because the agent *did something wrong* — a misread intent, a skipped step, an overreach — not because the code is structured badly (those go in [footguns](../footguns/), proven approaches go in [patterns](../patterns/)). Each line links to a bucket, summarises what it covers, and records its entry count and `last_reviewed` date. When you add a lesson to a bucket, update its count and date here in the same change. Authoring rules and the frontmatter contract live in [README.md](README.md).
 
-- [agent-behavior.md](agent-behavior.md) — Misreading intent, citing bad evidence, overstepping scope, silencing findings. (21 entries, reviewed 2026-05-30)
+- [agent-behavior.md](agent-behavior.md) — Misreading intent, citing bad evidence, overstepping scope, silencing findings. (22 entries, reviewed 2026-06-04)
 - [agent-frontend.md](agent-frontend.md) — Dashboard/UI work: mockup parity, stale audit cache from uncovered compiled JS. (8 entries, reviewed 2026-05-18)
 - [agent-routing.md](agent-routing.md) — Task routing & skill invocation: bare paths aren't approval, never downgrade an explicit skill. (14 entries, reviewed 2026-05-02)
 - [audit-contracts.md](audit-contracts.md) — Audit check/report contract changes need paired fixture + renderer updates. (5 entries, reviewed 2026-05-31)

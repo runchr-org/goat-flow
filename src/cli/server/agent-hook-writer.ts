@@ -123,9 +123,19 @@ function shellCommand(agent: AgentProfile, spec: HookSpec): string {
       ? `{ printf '{"decision":"deny","reason":"Policy hook unavailable: git repository root unavailable."}\\n'; exit 0; }`
       : `{ printf 'BLOCKED: Policy hook unavailable: git repository root unavailable.\\n' >&2; exit 2; }`;
   // dirname(--git-common-dir) is the main repo root in linked worktrees; absorbed submodule gitdirs live under .git/modules and must use their own worktree root.
-  const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"`;
-  const selectRoot = `case "$gcd" in */.git/modules/*|.git/modules/*) root="$(git rev-parse --show-toplevel 2>/dev/null)" || ${failClosed} ;; /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel 2>/dev/null)" || ${failClosed} ;; esac`;
-  return `${resolveRoot} || ${failClosed}; ${selectRoot}; bash "$root/${path}"`;
+  // Git resolution yields no root at all when the shell cwd is outside any repo
+  // (e.g. an agent that cd'd into /tmp for scratch work). Failing closed there
+  // blocked EVERY later command - including the cd back into the repo - so the
+  // session was permanently wedged. Fall back to the cwd-independent
+  // $CLAUDE_PROJECT_DIR before failing closed; the guard still runs, so
+  // enforcement is unchanged. The guard re-resolves its OWN root from cwd
+  // (deny-dangerous.sh runs `git rev-parse` to find .goat-flow/hook-lib), so the
+  // launcher must cd into $root before invoking it - resolving only the script
+  // path still leaves the guard failing closed from /tmp. cd failure fails closed.
+  const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"; root=""`;
+  const selectRoot = `case "$gcd" in */.git/modules/*|.git/modules/*) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; esac`;
+  const ensureRoot = `[ -f "$root/${path}" ] || root="\${CLAUDE_PROJECT_DIR:-}"; [ -f "$root/${path}" ] || ${failClosed}`;
+  return `${resolveRoot}; ${selectRoot}; ${ensureRoot}; cd "$root" || ${failClosed}; bash "$root/${path}"`;
 }
 
 /** Build Copilot's Windows hook command with a denial response when bash is unavailable. */

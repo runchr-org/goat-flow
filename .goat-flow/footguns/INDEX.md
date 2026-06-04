@@ -1,7 +1,7 @@
 ---
 category: index
 bucket: footguns
-last_reviewed: 2026-06-01
+last_reviewed: 2026-06-04
 generated: false
 ---
 
@@ -14,6 +14,7 @@ Prototype index for active footgun entries. Each line links to the bucket file a
 - [Audit does not prove end-to-end deny enforcement at runtime](auditor.md) (search: "## Footgun: Audit does not prove end-to-end deny enforcement at runtime") - Local hook checks do not prove an external agent delivered the hook event.
 - [Missing directories can false-pass when harness checks use `listDir()` as an existence test](auditor.md) (search: "## Footgun: Missing directories can false-pass when harness checks use `listDir()` as an existence test") - `listDir()` returns `[]` for missing paths, so checks need `exists()` when absence matters.
 - [Structural Compliance Illusion](auditor.md) (search: "## Footgun: Structural Compliance Illusion") - Structural audit pass does not prove docs, ADRs, or prompts are semantically true.
+- [Decision meta files must be excluded from every decision extractor](auditor.md) (search: "## Footgun: Decision meta files must be excluded from every decision extractor") - Decision indexes can pass validation while leaking into counts and prompt entries unless every extractor shares the same meta-file filter.
 - [TTL'd cache invalidation MUST travel with every writer, not just the writer the bug surfaced from](caching.md) (search: "## Footgun: TTL'd cache invalidation MUST travel with every writer, not just the writer the bug surfaced from") - Read-side caches can return plausible stale counts after writes unless every writer invalidates them.
 - [Resource cleanup at one layer leaves the consumer loop running at the next layer](cleanup-layering.md) (search: "## Footgun: Resource cleanup at one layer leaves the consumer loop running at the next layer") - Timeouts can remove resources while consumers keep issuing fast-failing operations.
 - [Host-native paths leak into user-visible CLI output on Windows](cli.md) (search: "## Footgun: Host-native paths leak into user-visible CLI output on Windows") - Backslash paths in Bash-facing prompts and output become invalid or misleading on Windows.
@@ -50,6 +51,7 @@ Prototype index for active footgun entries. Each line links to the bucket file a
 - [Hook command strings can fail before guard code starts](hooks.md) (search: "## Footgun: Hook command strings can fail before guard code starts") - Configured launch strings can fail with 126/127 even when direct hook self-tests pass.
 - [Hook sync can copy required policy files into ignored paths](hooks.md) (search: "## Footgun: Hook sync can copy required policy files into ignored paths") - Hook enable/sync can leave required `.goat-flow/hook-lib/` files local-only under stale gitignore templates.
 - [Hook launchers using --show-toplevel resolve to the worktree, not the main repo](hooks.md) (search: "## Footgun: Hook launchers using --show-toplevel resolve to the worktree, not the main repo") - Worktree sessions can resolve hook paths against the worktree instead of the main repo.
+- [Hook launchers fail closed when the shell cwd is outside any git repo, wedging every Bash](hooks.md) (search: "## Footgun: Hook launchers fail closed when the shell cwd is outside any git repo, wedging every Bash") - A cd outside the repo (e.g. /tmp) makes the guard's git rev-parse fail closed and block every Bash, including the cd back; fixed with a $CLAUDE_PROJECT_DIR fallback.
 - [Extension-based secret checks can confuse filenames with query syntax](hooks.md) (search: "## Footgun: Extension-based secret checks can confuse filenames with query syntax") - Broad `.key`/`.pem` matching can block jq/yq fields or comment text.
 - [File-read deny does not bind Bash shell reads of secret files](hooks.md) (search: "## Footgun: File-read deny does not bind Bash shell reads of secret files") - Read-tool deny patterns do not stop Bash commands such as `cat .env`.
 - [GitHub CLI comments bypassed shared-system write guardrails](hooks.md) (search: "## Footgun: GitHub CLI comments bypassed shared-system write guardrails") - GitHub writes can happen through `gh` comments, API calls, and workflow commands without `git push`.
