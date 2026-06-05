@@ -271,7 +271,9 @@ function validateInstructionParity() {
       if (entry.body === reference.body) continue;
       const refLines = reference.body.split("\n");
       const entryLines = entry.body.split("\n");
-      const diffAt = entryLines.findIndex((line, idx) => line !== refLines[idx]);
+      const diffAt = entryLines.findIndex(
+        (line, idx) => line !== refLines[idx],
+      );
       const detail =
         diffAt === -1
           ? "trailing content differs"

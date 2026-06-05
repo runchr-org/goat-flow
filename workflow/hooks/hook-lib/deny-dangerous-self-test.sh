@@ -274,6 +274,7 @@ expect_no_jq_copilot_block() {
   local hook="$1"
   local payload="$2"
   local label="$3"
+  local expected_reason="${4:-}"
   selected_hook "$hook" || {
     record_skip
     return
@@ -300,6 +301,9 @@ expect_no_jq_copilot_block() {
   fi
   if [[ "$output" != *"Policy "* || "$output" == *"Guard "* ]]; then
     record_fail "$hook no-jq Copilot payload should identify policy without legacy Guard wording for $label"
+  fi
+  if [[ -n "$expected_reason" && "$output" != *"$expected_reason"* ]]; then
+    record_fail "$hook no-jq Copilot payload should cite '$expected_reason' for $label (got: $output)"
   fi
 }
 
@@ -512,8 +516,8 @@ run_full() {
   expect_copilot_payload_allow paths '{"toolName":"edit","toolArgs":"{\"file_path\":\"README.md\"}"}' "stringified non-bash file edit"
   expect_copilot_payload_block paths '{"toolName":"view","toolArgs":"{\"path\":\".env\"}"}' "stringified non-bash secret file read" "Secret-file access"
   expect_no_jq_copilot_block shell '{"toolName":"bash","toolArgs":"{\"command\":\"echo \\\"safe\\\"; rm -rf /\"}"}' "escaped quote command"
-  expect_no_jq_copilot_block shell '{"toolName":"bash","command":"echo \u0020"}' "top-level unsupported unicode escape"
-  expect_no_jq_copilot_block shell '{"toolName":"bash","toolArgs":"{\"command\":\"echo \\u0020\"}"}' "unsupported unicode escape"
+  expect_no_jq_copilot_block shell '{"toolName":"bash","command":"echo \u0020"}' "top-level unsupported unicode escape" "unsupported JSON escapes"
+  expect_no_jq_copilot_block shell '{"toolName":"bash","toolArgs":"{\"command\":\"echo \\u0020\"}"}' "unsupported unicode escape" "unsupported JSON escapes"
 
   expect_antigravity_block shell "rm -rf /" "rm -rf"
   expect_antigravity_block paths "cat .env" ".env read"
