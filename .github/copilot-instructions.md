@@ -1,4 +1,4 @@
-# Copilot Instructions - v1.9.0 (2026-05-20)
+# Copilot Instructions - v1.9.1 (2026-05-20)
 Documentation framework for AI coding agent workflows. Markdown docs + Bash scripts + TypeScript CLI auditor.
 
 goat-flow is a harness - guardrails, memory, and workflows for AI coding agents. Five concerns drive every design decision: **Context** (what you read), **Constraints** (what you may never do), **Verification** (how work is checked), **Recovery** (how state survives failure), **Feedback loop** (how mistakes become permanent fixes).
@@ -13,7 +13,7 @@ User instruction > `.github/copilot-instructions.md` > `.goat-flow/architecture.
 
 **Always:** Read any file, lint scripts, edit within assigned scope. Session logs at `.goat-flow/logs/sessions/` are OPTIONAL continuity notes - write one when context compaction occurs without an active milestone file, otherwise skip. Learning-loop updates (lessons/footguns/decisions) are conditional: update only when VERIFY caught a failure or you corrected course.
 
-**Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
+**Ask First** - before touching a boundary, ask and wait for approval. Include: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked, rollback command.
 
 Boundaries: instruction files (`.github/copilot-instructions.md`, `CLAUDE.md`, `AGENTS.md`); workflow/manifest (`workflow/setup/`, `workflow/skills/`, `workflow/manifest.json`); architecture (`.goat-flow/architecture.md`); skill reference (`.goat-flow/skill-reference/`); skill playbooks (`.goat-flow/skill-playbooks/`); server runtime (`src/cli/server/terminal.ts`, `src/cli/server/dashboard.ts`); agent configs (`.claude/**`, `.codex/**`, `.agents/**`); CI/hooks (`.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`); any add/remove/rename; changes spanning 3+ docs.
 
@@ -45,8 +45,8 @@ Conventional `type(scope): subject` - imperative, ≤72 chars, concrete verbs no
 ## Essential Commands
 
 ```bash
-shellcheck scripts/*.sh scripts/maintenance/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
-bash -n scripts/*.sh scripts/maintenance/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
+shellcheck scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh .claude/hooks/*.sh .codex/hooks/*.sh .agents/hooks/*.sh .github/hooks/*.sh .goat-flow/hook-lib/*.sh
+bash -n scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh .claude/hooks/*.sh .codex/hooks/*.sh .agents/hooks/*.sh .github/hooks/*.sh .goat-flow/hook-lib/*.sh
 npm run typecheck
 npm test
 bash scripts/preflight-checks.sh

@@ -14,7 +14,7 @@
 
 **Always:** Set up Antigravity-owned surfaces: `AGENTS.md`, `.agents/skills/`, `.agents/hooks.json`, `.agents/hooks/`, and shared `.goat-flow/`. `AGENTS.md` and `.agents/skills/` are shared with Codex; either setup can create/update them, but neither should duplicate or stomp the other's content.
 
-**Ask First:** Before touching non-Antigravity surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+**Ask First:** Before touching non-Antigravity surfaces, ask and wait for approval; include boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
 **Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md`, `.claude/`, or `.codex/` during Antigravity setup unless the user explicitly widens scope. Do not overwrite existing instruction content; preserve or route domain knowledge to `.goat-flow/`.
 
@@ -23,7 +23,7 @@
 - If a file exists, modify in place; do not create backup or variant files.
 - `AGENTS.md` is the Antigravity root instruction file and is shared with Codex; both agents read it.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
-- Antigravity uses `agy` as the terminal binary; verify version with `agy --version` (>= 1.0.1 for the OAuth persistence fix).
+- Antigravity uses `agy` as the terminal binary; verify a current build is installed with `agy --version` (older builds predate the OAuth-persistence fix).
 - Plugin migration from other agents: `agy plugin import gemini` or `agy plugin import claude` populates Antigravity from existing setups.
 - Antigravity hook wiring uses `.agents/hooks.json` and scripts in `.agents/hooks/`. Goat-flow registers PreToolUse guardrails there and can register the optional `gruff-code-quality` PostToolUse hook for `write_to_file`, `replace_file_content`, and `multi_replace_file_content`.
 - User-level config lives at `~/.config/antigravity/config.toml`; it is not a repo-local surface and is out of scope for per-project setup.

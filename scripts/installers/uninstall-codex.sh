@@ -9,7 +9,6 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
-WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 CODEX_NPM_PACKAGE=${CODEX_NPM_PACKAGE:-@openai/codex}
@@ -96,6 +95,45 @@ remove_dir_prompt() {
     fi
 }
 
+remove_file_prompt() {
+    local file confirm_remove
+    file=$1
+
+    if [ ! -e "$file" ]; then
+        echo -e "${YELLOW}Not found: $file${NC}"
+        return 0
+    fi
+
+    if [ -z "${HOME:-}" ] || [ "$HOME" = "/" ]; then
+        echo -e "${RED}HOME is not set safely. Skipping: $file${NC}"
+        return 1
+    fi
+
+    case "$file" in
+        "$HOME"/*) ;;
+        *)
+            echo -e "${RED}Refusing to remove path outside HOME: $file${NC}"
+            return 1
+            ;;
+    esac
+
+    if [[ ! -t 0 ]]; then
+        echo -e "${YELLOW}Non-interactive mode: skipping $file${NC}"
+        return 0
+    fi
+
+    read -r -p "Remove $file ? (y/n): " confirm_remove
+    if [[ "$confirm_remove" == "y" ]]; then
+        if rm -f -- "$file"; then
+            echo -e "${GREEN}Removed: $file${NC}"
+        else
+            echo -e "${RED}Failed to remove: $file${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Skipped: $file${NC}"
+    fi
+}
+
 IS_WSL=false
 if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null; then
     IS_WSL=true
@@ -146,13 +184,24 @@ else
 fi
 
 echo -e "\n${CYAN}========================================"
+echo -e "Removing standalone Codex install files"
+echo -e "========================================${NC}"
+
+if [ -n "${HOME:-}" ]; then
+    remove_file_prompt "${HOME}/.local/bin/codex"
+    remove_file_prompt "${HOME}/.local/bin/codex.exe"
+    remove_dir_prompt "${HOME}/.codex/packages/standalone"
+else
+    echo -e "${YELLOW}HOME not set. Skipping standalone file cleanup.${NC}"
+fi
+
+echo -e "\n${CYAN}========================================"
 echo -e "Cleaning up Codex CLI data"
 echo -e "========================================${NC}"
 
 POSSIBLE_DIRS=(
     "${HOME:-}/.codex"
     "${HOME:-}/.config/codex"
-    "${HOME:-}/.openai"
 )
 
 for dir in "${POSSIBLE_DIRS[@]}"; do

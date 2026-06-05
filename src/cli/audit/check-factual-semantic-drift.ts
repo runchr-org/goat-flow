@@ -7,7 +7,6 @@
 import { AUDIT_VERSION } from "../constants.js";
 import { loadManifest } from "../manifest/manifest.js";
 import type { AuditContext, ContentFinding } from "./types.js";
-import { scanRemovedCommands } from "./check-factual-claims.js";
 
 /** Extract the current classify-state union members from source. */
 function readProjectStates(ctx: AuditContext): string[] {
@@ -530,7 +529,6 @@ export function scanSemanticDrift(ctx: AuditContext): {
   const glossary = readAndTrack(".goat-flow/glossary.md");
   if (glossary !== null) {
     findings.push(...driftGlossary(glossary));
-    findings.push(...scanRemovedCommands(".goat-flow/glossary.md", glossary));
   }
 
   const setupOverview = readAndTrack("workflow/setup/01-system-overview.md");

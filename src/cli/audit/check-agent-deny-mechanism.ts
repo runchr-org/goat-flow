@@ -5,7 +5,7 @@
  * different ways. Some checks spawn `bash` and copy fixture hooks to a real path, so this file owns
  * the bridge from the in-memory audit FS to the actual workspace the shell needs.
  */
-import { execFileSync, spawnSync } from "node:child_process";
+import * as childProcess from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { AUDIT_VERSION } from "../constants.js";
@@ -17,6 +17,74 @@ import {
 } from "./check-agent-common.js";
 
 // === 4. Agent Deny Mechanism ===
+
+const LEGACY_DENY_HOOK_FILES = [
+  "guard-common.sh",
+  "guard-destructive-shell.sh",
+  "guard-secret-paths.sh",
+  "guard-repository-writes.sh",
+  "guardrails-self-test.sh",
+  "deny-dangerous.self-test.sh",
+];
+
+const DENY_HOOK_TEMPLATE_FILES = [
+  "deny-dangerous.sh",
+  "hook-lib/patterns-shell.sh",
+  "hook-lib/patterns-paths.sh",
+  "hook-lib/patterns-writes.sh",
+  "hook-lib/deny-dangerous-self-test.sh",
+];
+
+interface SpawnFailure {
+  message: string;
+  howToFix: string;
+}
+
+function errnoCode(error: unknown): string | undefined {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+    ? error.code
+    : undefined;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function spawnFailureFor(error: unknown, action: string): SpawnFailure | null {
+  const code = errnoCode(error);
+  if (code === "EPERM") {
+    return {
+      message: `${action} could not spawn bash (EPERM: ${errorMessage(error)}). The current sandbox or permission profile blocks child-process execution.`,
+      howToFix:
+        "Run this audit outside the child-process-restricted sandbox, or use a profile that permits Node child_process to spawn bash.",
+    };
+  }
+  if (code === "ENOENT") {
+    return {
+      message: `${action} could not spawn bash (ENOENT: ${errorMessage(error)}).`,
+      howToFix:
+        "Install bash or run the audit in an environment where bash is on PATH.",
+    };
+  }
+  if (code === "ETIMEDOUT") {
+    return {
+      message: `${action} timed out while spawning bash (${errorMessage(error)}).`,
+      howToFix:
+        "Re-run the audit with the hook command manually to inspect whether the hook hangs.",
+    };
+  }
+  return null;
+}
+
+function spawnFailureFromResult(
+  result: childProcess.SpawnSyncReturns<string>,
+  action: string,
+): SpawnFailure | null {
+  return result.error ? spawnFailureFor(result.error, action) : null;
+}
 
 /** Check deny-hook presence because unsupported agents and config-based agents need different handling. */
 function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
@@ -55,11 +123,23 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
       // ctx.fs may be backed by an in-memory fixture, but bash -n needs a real workspace path.
       const fullPath = join(ctx.projectPath, hooksDir, file);
       try {
-        execFileSync("bash", ["-n", fullPath], {
+        childProcess.execFileSync("bash", ["-n", fullPath], {
           stdio: "pipe",
           timeout: 5000,
         });
-      } catch {
+      } catch (error) {
+        const spawnFailure = spawnFailureFor(
+          error,
+          `bash syntax check for ${hooksDir}/${file}`,
+        );
+        if (spawnFailure !== null) {
+          return {
+            check: "Agent deny mechanism",
+            message: spawnFailure.message,
+            evidence: evidencePath(`${hooksDir}/${file}`),
+            howToFix: spawnFailure.howToFix,
+          };
+        }
         failures.push(`${hooksDir}/${file}`);
       }
     }
@@ -98,50 +178,105 @@ function evidencePath(relPath: string): string {
   return relPath.replace(/\\/g, "/");
 }
 
+function checkLegacyHookDrift(
+  ctx: AuditContext,
+  agentId: string,
+  hooksDir: string,
+): AuditFailure | null {
+  for (const legacyFile of LEGACY_DENY_HOOK_FILES) {
+    const legacyRelPath = join(hooksDir, legacyFile);
+    if (ctx.fs.readFile(legacyRelPath) !== null) {
+      return {
+        check: "Agent deny mechanism",
+        message: `${legacyFile} is a legacy guardrail hook for ${agentId}; migrate to deny-dangerous.sh`,
+        evidence: evidencePath(legacyRelPath),
+        howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentId}\` to remove legacy guard hooks and install deny-dangerous.sh.`,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Read a canonical hook template's text from the packaged `workflow/hooks/` tree.
+ *
+ * Swallows read errors and returns null as a fallback when the template is absent or
+ * unreadable, so drift checks can treat "no canonical template" and "installed copy
+ * differs" as distinct, non-fatal outcomes instead of aborting the whole audit.
+ *
+ * @param templateFile - path under `workflow/hooks/` (e.g. `deny-dangerous.sh` or `hook-lib/patterns-shell.sh`)
+ * @returns the template's UTF-8 contents, or null when the file is missing or unreadable
+ */
+function readHookTemplateContent(templateFile: string): string | null {
+  const templatePath = getTemplatePath(`workflow/hooks/${templateFile}`);
+  if (!existsSync(templatePath)) return null;
+  try {
+    return readFileSync(templatePath, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+function installedTemplateRelPath(
+  hooksDir: string,
+  templateFile: string,
+): string {
+  return templateFile.startsWith("hook-lib/")
+    ? join(".goat-flow", templateFile)
+    : join(hooksDir, templateFile);
+}
+
+function checkTemplateDrift(
+  ctx: AuditContext,
+  agentId: string,
+  hooksDir: string,
+): AuditFailure | null {
+  for (const templateFile of DENY_HOOK_TEMPLATE_FILES) {
+    const templateContent = readHookTemplateContent(templateFile);
+    if (templateContent === null) continue;
+    const installedRelPath = installedTemplateRelPath(hooksDir, templateFile);
+    const installed = ctx.fs.readFile(installedRelPath);
+    if (installed === null) {
+      return {
+        check: "Agent deny mechanism",
+        message: `${templateFile} is missing for ${agentId}`,
+        evidence: evidencePath(installedRelPath),
+        howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentId}\` to update the hook files.`,
+      };
+    }
+    if (installed.trimEnd() !== templateContent.trimEnd()) {
+      return {
+        check: "Agent deny mechanism",
+        message: `${templateFile} for ${agentId} differs from the current goat-flow template (v${AUDIT_VERSION})`,
+        evidence: evidencePath(installedRelPath),
+        howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentId}\` to update the hook files.`,
+      };
+    }
+  }
+  return null;
+}
+
 /** Compare installed deny hooks against templates; recover from missing templates because installs may be partial. */
 function checkHookVersion(ctx: AuditContext): AuditFailure | null {
-  const templateFiles = [
-    "deny-dangerous.sh",
-    "hook-lib/patterns-shell.sh",
-    "hook-lib/patterns-paths.sh",
-    "hook-lib/patterns-writes.sh",
-    "hook-lib/deny-dangerous-self-test.sh",
-  ];
   for (const agentFacts of ctx.agents) {
-    if (!agentFacts.agent.hooksDir) continue;
-    const denyRelPath = join(agentFacts.agent.hooksDir, "deny-dangerous.sh");
+    const hooksDir = agentFacts.agent.hooksDir;
+    if (!hooksDir) continue;
+    const legacyFailure = checkLegacyHookDrift(
+      ctx,
+      agentFacts.agent.id,
+      hooksDir,
+    );
+    if (legacyFailure) return legacyFailure;
+
+    const denyRelPath = join(hooksDir, "deny-dangerous.sh");
     if (ctx.fs.readFile(denyRelPath) === null) continue;
 
-    for (const templateFile of templateFiles) {
-      const templatePath = getTemplatePath(`workflow/hooks/${templateFile}`);
-      if (!existsSync(templatePath)) continue;
-      let templateContent: string;
-      try {
-        templateContent = readFileSync(templatePath, "utf-8");
-      } catch {
-        continue;
-      }
-      const installedRelPath = templateFile.startsWith("hook-lib/")
-        ? join(".goat-flow", templateFile)
-        : join(agentFacts.agent.hooksDir, templateFile);
-      const installed = ctx.fs.readFile(installedRelPath);
-      if (installed === null) {
-        return {
-          check: "Agent deny mechanism",
-          message: `${templateFile} is missing for ${agentFacts.agent.id}`,
-          evidence: evidencePath(installedRelPath),
-          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentFacts.agent.id}\` to update the hook files.`,
-        };
-      }
-      if (installed.trimEnd() !== templateContent.trimEnd()) {
-        return {
-          check: "Agent deny mechanism",
-          message: `${templateFile} for ${agentFacts.agent.id} differs from the current goat-flow template (v${AUDIT_VERSION})`,
-          evidence: evidencePath(installedRelPath),
-          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} install . --agent ${agentFacts.agent.id}\` to update the hook files.`,
-        };
-      }
-    }
+    const templateFailure = checkTemplateDrift(
+      ctx,
+      agentFacts.agent.id,
+      hooksDir,
+    );
+    if (templateFailure) return templateFailure;
   }
   return null;
 }
@@ -160,12 +295,34 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
     // on-disk shell hook can run the registered self-test.
     if (content === null) continue;
     const denyPath = join(ctx.projectPath, denyRelPath);
+    const dispatcherRelPath = join(
+      agentFacts.agent.hooksDir,
+      "deny-dangerous.sh",
+    );
+    const dispatcherPath = join(ctx.projectPath, dispatcherRelPath);
+    const env =
+      ctx.fs.readFile(dispatcherRelPath) === null
+        ? process.env
+        : { ...process.env, GOAT_DENY_DANGEROUS_HOOK: dispatcherPath };
     try {
-      execFileSync("bash", [denyPath, "--self-test=smoke"], {
+      childProcess.execFileSync("bash", [denyPath, "--self-test=smoke"], {
+        env,
         stdio: "pipe",
         timeout: 30000,
       });
-    } catch {
+    } catch (error) {
+      const spawnFailure = spawnFailureFor(
+        error,
+        `deny-dangerous self-test for ${agentFacts.agent.id}`,
+      );
+      if (spawnFailure !== null) {
+        return {
+          check: "Agent deny mechanism",
+          message: spawnFailure.message,
+          evidence: evidencePath(denyRelPath),
+          howToFix: spawnFailure.howToFix,
+        };
+      }
       return {
         check: "Agent deny mechanism",
         message: `deny-dangerous-self-test.sh --self-test=smoke failed for ${agentFacts.agent.id}`,
@@ -260,6 +417,17 @@ function registeredDenyRelPath(
   return join(agentFacts.agent.hooksDir, "deny-dangerous.sh");
 }
 
+/** Normalize registered hook paths to the same slash style as parsed shell command paths. */
+function normalizedRegisteredDenyRelPath(
+  agentFacts: AuditContext["agents"][number],
+): string | null {
+  const registeredPath = registeredDenyRelPath(agentFacts);
+  if (registeredPath === null) return null;
+  return posix.normalize(
+    registeredPath.replace(/\\/gu, "/").replace(/^\.\//u, ""),
+  );
+}
+
 const CONFIGURED_SMOKE_SCRIPTS = ["deny-dangerous.sh"] as const;
 
 /** Hook command extracted from agent config for runtime-shaped smoke validation. */
@@ -270,7 +438,7 @@ interface ConfiguredHookCommand {
   configPath: string;
 }
 
-/** Extract the configured guard script path without executing shell glue from agent config. */
+/** Extract the configured hook script path without executing shell glue from agent config. */
 function extractConfiguredScriptPath(
   command: string,
   scriptFile: string,
@@ -363,15 +531,33 @@ function configuredGuardCommands(
   });
 }
 
+function configuredHookCommandPathFailure(
+  agentFacts: AuditContext["agents"][number],
+  configured: ConfiguredHookCommand,
+): string | null {
+  if (configured.scriptPath === null) {
+    return `${agentFacts.agent.id} configured hook command does not name an exact managed hook script path: ${configured.command}`;
+  }
+  const expectedScriptPath = normalizedRegisteredDenyRelPath(agentFacts);
+  if (
+    expectedScriptPath !== null &&
+    configured.scriptPath !== expectedScriptPath
+  ) {
+    return `${agentFacts.agent.id} configured hook command points at ${configured.scriptPath}, expected ${expectedScriptPath}: ${configured.command}`;
+  }
+  return null;
+}
+
 function runConfiguredHookCommandSmoke(
   ctx: AuditContext,
   agentFacts: AuditContext["agents"][number],
   configured: ConfiguredHookCommand,
-): { ok: boolean; message: string; evidence: string } {
-  if (configured.scriptPath === null) {
+): { ok: boolean; message: string; evidence: string; howToFix?: string } {
+  const pathFailure = configuredHookCommandPathFailure(agentFacts, configured);
+  if (pathFailure !== null) {
     return {
       ok: false,
-      message: `${agentFacts.agent.id} configured hook command does not name an exact guard script path: ${configured.command}`,
+      message: pathFailure,
       evidence: configured.configPath,
     };
   }
@@ -379,21 +565,36 @@ function runConfiguredHookCommandSmoke(
     agentFacts.agent.id,
     configured.scriptFile,
   );
-  const result = spawnSync(
-    "bash",
-    [join(ctx.projectPath, configured.scriptPath)],
-    {
-      cwd: ctx.projectPath,
-      encoding: "utf8",
-      input: smoke.input,
-      timeout: 5000,
-    },
+  // Invoke via `bash -c`, not `-lc`: the agent runtimes run the configured
+  // launcher directly without a login shell, so `-lc` would source user rc files
+  // and make audit results environment-dependent. `-c` is more faithful to
+  // runtime and drops that rc-sourcing surface. This smoke still executes the
+  // project-configured launcher string by design (to validate the real
+  // root-resolution/cd glue), so the runtime evidence level should only be run
+  // against trusted target projects.
+  const result = childProcess.spawnSync("bash", ["-c", configured.command], {
+    cwd: ctx.projectPath,
+    encoding: "utf8",
+    input: smoke.input,
+    timeout: 5000,
+  });
+  const spawnFailure = spawnFailureFromResult(
+    result,
+    `${agentFacts.agent.id} configured hook command for ${configured.scriptFile}`,
   );
+  if (spawnFailure !== null) {
+    return {
+      ok: false,
+      message: spawnFailure.message,
+      evidence: configured.configPath,
+      howToFix: spawnFailure.howToFix,
+    };
+  }
   const status = result.status ?? (result.error ? -1 : 0);
   if (status === 126 || status === 127) {
     return {
       ok: false,
-      message: `${agentFacts.agent.id} configured hook script exited ${status}: ${configured.scriptPath}`,
+      message: `${agentFacts.agent.id} configured hook command exited before ${configured.scriptFile} could start (exit ${status}): ${configured.scriptPath}`,
       evidence: configured.configPath,
     };
   }
@@ -402,7 +603,7 @@ function runConfiguredHookCommandSmoke(
   if (status !== smoke.expectedStatus || !smoke.expectedPattern.test(stream)) {
     return {
       ok: false,
-      message: `${agentFacts.agent.id} configured hook script did not deny ${configured.scriptFile}: ${configured.scriptPath}`,
+      message: `${agentFacts.agent.id} configured hook command did not return the expected deny response for ${configured.scriptFile}: ${configured.scriptPath}`,
       evidence: configured.configPath,
     };
   }
@@ -413,58 +614,87 @@ function runDirectHookRuntimeSmoke(
   ctx: AuditContext,
   agentFacts: AuditContext["agents"][number],
   denyRelPath: string,
-): boolean {
+): { ok: boolean; message?: string; howToFix?: string } {
   const smoke = runtimeSmokePayload(agentFacts.agent.id);
-  const result = spawnSync("bash", [join(ctx.projectPath, denyRelPath)], {
-    cwd: ctx.projectPath,
-    encoding: "utf8",
-    input: smoke.input,
-    timeout: 5000,
-  });
+  const result = childProcess.spawnSync(
+    "bash",
+    [join(ctx.projectPath, denyRelPath)],
+    {
+      cwd: ctx.projectPath,
+      encoding: "utf8",
+      input: smoke.input,
+      timeout: 5000,
+    },
+  );
+  const spawnFailure = spawnFailureFromResult(
+    result,
+    `registered deny hook runtime smoke for ${agentFacts.agent.id}`,
+  );
+  if (spawnFailure !== null) {
+    return { ok: false, ...spawnFailure };
+  }
 
   const status = result.status ?? (result.error ? -1 : 0);
   const stream =
     smoke.expectedStream === "stdout" ? result.stdout : result.stderr;
-  return status === smoke.expectedStatus && smoke.expectedPattern.test(stream);
+  return {
+    ok: status === smoke.expectedStatus && smoke.expectedPattern.test(stream),
+  };
+}
+
+function configuredHookRuntimeFailure(
+  ctx: AuditContext,
+  agentFacts: AuditContext["agents"][number],
+): AuditFailure | null | undefined {
+  const configuredCommands = configuredGuardCommands(ctx, agentFacts);
+  if (configuredCommands.length === 0) return undefined;
+  for (const configured of configuredCommands) {
+    const result = runConfiguredHookCommandSmoke(ctx, agentFacts, configured);
+    if (result.ok) continue;
+    return {
+      check: "Agent deny mechanism",
+      message: result.message,
+      evidence: evidencePath(result.evidence),
+      howToFix:
+        result.howToFix ??
+        "Run the configured hook command with a runtime-shaped payload and confirm it reaches the managed hook script without exit 126/127.",
+    };
+  }
+  return null;
+}
+
+function directHookRuntimeFailure(
+  ctx: AuditContext,
+  agentFacts: AuditContext["agents"][number],
+): AuditFailure | null {
+  const denyRelPath = registeredDenyRelPath(agentFacts);
+  if (denyRelPath === null) return null;
+  const content = ctx.fs.readFile(denyRelPath);
+  if (content === null) return null;
+
+  const directSmoke = runDirectHookRuntimeSmoke(ctx, agentFacts, denyRelPath);
+  if (directSmoke.ok) return null;
+
+  return {
+    check: "Agent deny mechanism",
+    message:
+      directSmoke.message ??
+      `registered deny hook runtime smoke failed for ${agentFacts.agent.id}`,
+    evidence: evidencePath(denyRelPath),
+    howToFix:
+      directSmoke.howToFix ??
+      "Run the registered deny hook with a runtime-shaped Bash payload and confirm it denies `git push origin main`.",
+  };
 }
 
 /** Run a runtime-shaped blocked payload because configured commands and direct hooks fail differently. */
 function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
   for (const agentFacts of ctx.agents) {
-    const configuredCommands = configuredGuardCommands(ctx, agentFacts);
-    if (configuredCommands.length > 0) {
-      for (const configured of configuredCommands) {
-        const result = runConfiguredHookCommandSmoke(
-          ctx,
-          agentFacts,
-          configured,
-        );
-        if (result.ok) continue;
-        return {
-          check: "Agent deny mechanism",
-          message: result.message,
-          evidence: evidencePath(result.evidence),
-          howToFix:
-            "Run the configured guard script path with a runtime-shaped payload and confirm it reaches the guard script without exit 126/127.",
-        };
-      }
-      continue;
-    }
+    const configuredFailure = configuredHookRuntimeFailure(ctx, agentFacts);
+    if (configuredFailure !== undefined) return configuredFailure;
 
-    const denyRelPath = registeredDenyRelPath(agentFacts);
-    if (denyRelPath === null) continue;
-    const content = ctx.fs.readFile(denyRelPath);
-    if (content === null) continue;
-
-    if (runDirectHookRuntimeSmoke(ctx, agentFacts, denyRelPath)) continue;
-
-    return {
-      check: "Agent deny mechanism",
-      message: `registered deny hook runtime smoke failed for ${agentFacts.agent.id}`,
-      evidence: evidencePath(denyRelPath),
-      howToFix:
-        "Run the registered deny hook with a runtime-shaped Bash payload and confirm it denies `git push origin main`.",
-    };
+    const directFailure = directHookRuntimeFailure(ctx, agentFacts);
+    if (directFailure !== null) return directFailure;
   }
   return null;
 }

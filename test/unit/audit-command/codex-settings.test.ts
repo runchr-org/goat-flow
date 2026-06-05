@@ -61,6 +61,30 @@ describe("codex settings feature flags", () => {
 
     assert.equal(facts.readDenyCoversSecrets, true);
   });
+
+  it("counts a recursive **/credentials deny as covering a root credentials file", () => {
+    // Regression (PR #47 review): the shipped recursive secret profile emits only
+    // `**/credentials`, never an exact `credentials` entry. A project with a root
+    // `credentials` file must still pass the Codex secret-deny audit.
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) =>
+          path === ".codex/config.toml" || path === "credentials",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                '[permissions.goat-flow.filesystem.":workspace_roots"]',
+                ...CODEX_WORKSPACE_ROOT_ENTRIES,
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, true);
+  });
 });
 
 describe("codex settings feature flags", () => {
@@ -170,7 +194,7 @@ describe("codex settings feature flags", () => {
     });
   }
 
-  it("does not count Codex env coverage without an existing staging variant", () => {
+  it("counts recursive Codex env coverage when a staging variant exists", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) =>
@@ -192,7 +216,7 @@ describe("codex settings feature flags", () => {
       PROFILES.codex,
     );
 
-    assert.equal(facts.readDenyCoversSecrets, false);
+    assert.equal(facts.readDenyCoversSecrets, true);
   });
 });
 
@@ -559,7 +583,7 @@ describe("codex settings feature flags", () => {
     });
   }
 
-  it("requires Codex exact-file denies for existing root secret files", () => {
+  it("accepts recursive Codex env denies for existing root secret files", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) => path === ".codex/config.toml" || path === ".env",
@@ -575,6 +599,6 @@ describe("codex settings feature flags", () => {
       PROFILES.codex,
     );
 
-    assert.equal(facts.readDenyCoversSecrets, false);
+    assert.equal(facts.readDenyCoversSecrets, true);
   });
 });

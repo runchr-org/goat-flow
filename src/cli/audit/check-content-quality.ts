@@ -78,6 +78,7 @@ const STATIC_QUALITY_TARGETS = [
   // ADR index. ADR-NNN files are discovered dynamically so new decisions do
   // not fall out of content-quality coverage.
   ".goat-flow/decisions/README.md",
+  ".goat-flow/decisions/INDEX.md",
   // Setup templates
   "workflow/setup/01-system-overview.md",
   "workflow/setup/02-instruction-file.md",
@@ -237,6 +238,17 @@ const LEGACY_EXECUTION_LOOP: PatternRule[] = [
   },
 ];
 
+const PROMPT_WRAPPER_RESIDUE: PatternRule[] = [
+  {
+    rule: "prompt-wrapper-residue",
+    pattern: /<\/?(?:content|invoke)\b[^>]*>/i,
+    severity: "warning",
+    /** Build the prompt wrapper residue finding message. */
+    message: (match) =>
+      `Prompt wrapper residue "${match}" found in committed prose. Remove model/invocation wrapper tags from repository content.`,
+  },
+];
+
 /** One iteration of code-block state: toggled on fence lines, guards all matchers. */
 function isFenceLine(line: string): boolean {
   return /^\s*```/.test(line);
@@ -305,6 +317,7 @@ function scanLine(
   }
   applyPatternRules(GENERIC_INSTRUCTIONS, line, lineNumber, path, findings);
   applyPatternRules(NON_ACTIONABLE, line, lineNumber, path, findings);
+  applyPatternRules(PROMPT_WRAPPER_RESIDUE, line, lineNumber, path, findings);
   if (!path.startsWith("workflow/setup/")) {
     applyPatternRules(LEGACY_EXECUTION_LOOP, line, lineNumber, path, findings);
   }

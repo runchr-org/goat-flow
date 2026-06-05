@@ -93,6 +93,39 @@ describe("hook registrar", () => {
     });
   });
 
+  it("uses policy-hook startup copy in generated launcher failures", () => {
+    withTempProject((root) => {
+      const denySpec = getHookSpec("deny-dangerous");
+      const gruffSpec = getHookSpec("gruff-code-quality");
+      assert.ok(denySpec);
+      assert.ok(gruffSpec);
+
+      writeAgentHookState(root, PROFILES.claude, denySpec, true);
+      writeAgentHookState(root, PROFILES.claude, gruffSpec, true);
+      writeAgentHookState(root, PROFILES.antigravity, denySpec, true);
+
+      const claudeSettings = readFileSync(
+        join(root, ".claude", "settings.json"),
+        "utf-8",
+      );
+      const antigravityHooks = readFileSync(
+        join(root, ".agents", "hooks.json"),
+        "utf-8",
+      );
+
+      assert.match(
+        claudeSettings,
+        /Policy hook unavailable: git repository root unavailable\./u,
+      );
+      assert.doesNotMatch(claudeSettings, /Guard.*git repository root/u);
+      assert.match(
+        antigravityHooks,
+        /Policy hook unavailable: git repository root unavailable\./u,
+      );
+      assert.doesNotMatch(antigravityHooks, /Guard.*git repository root/u);
+    });
+  });
+
   it("does not scaffold uninstalled agent surfaces on clean target toggles", () => {
     withTempProject((root) => {
       applyHookState(HOOK_ID, false, root);
@@ -142,6 +175,24 @@ describe("hook registrar", () => {
         readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
         /deny-dangerous\.sh/u,
       );
+    });
+  });
+
+  it("unignores hook-lib when enabling deny-dangerous on a stale goat-flow gitignore", () => {
+    withTempProject((root) => {
+      mkdirSync(join(root, ".codex"), { recursive: true });
+      mkdirSync(join(root, ".goat-flow"), { recursive: true });
+      writeFileSync(join(root, ".codex", "config.toml"), "");
+      writeFileSync(join(root, ".goat-flow", ".gitignore"), "*\n!.gitignore\n");
+
+      applyHookState(HOOK_ID, true, root);
+
+      const gitignore = readFileSync(
+        join(root, ".goat-flow", ".gitignore"),
+        "utf-8",
+      );
+      assert.match(gitignore, /^!hook-lib\/$/m);
+      assert.match(gitignore, /^!hook-lib\/\*\*$/m);
     });
   });
 

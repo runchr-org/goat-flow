@@ -41,7 +41,7 @@ Do not write an ADR for routine implementation details, temporary workarounds, b
 
 ADR files must be named `ADR-NNN-kebab-case-title.md`, for example `ADR-001-cache-signature-policy.md`.
 
-Allowed non-ADR file: `README.md`.
+Allowed non-ADR files: `README.md` and `INDEX.md`.
 
 Everything else in this directory is a stats failure. If a note cannot earn an ADR filename, route it using the table above.
 

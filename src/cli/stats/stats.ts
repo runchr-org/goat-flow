@@ -5,6 +5,7 @@
  * persisted derived counts. `--check` mode reuses the same report data to decide
  * pass/fail, so CI and the human-readable report never disagree.
  */
+import { DECISION_META_FILES } from "../facts/shared/decision-files.js";
 import type { SharedFacts, BucketFreshness, ReadonlyFS } from "../types.js";
 
 /** Aggregated per-surface view over one learning-loop directory (footguns or lessons). */
@@ -324,14 +325,14 @@ function decisionStructureFinding(
 function collectDecisionFileFinding(
   file: DecisionFileSummary,
 ): StatsFinding | null {
-  if (file.filename === "README.md") return null;
+  if (DECISION_META_FILES.has(file.filename)) return null;
   if (!ADR_FILENAME.test(file.filename)) return decisionFilenameFinding(file);
 
   const missing = missingDecisionStructure(file.content ?? "");
   return missing.length > 0 ? decisionStructureFinding(file, missing) : null;
 }
 
-/** Collect structural ADR findings while ignoring the directory README. */
+/** Collect structural ADR findings while ignoring the directory README and INDEX. */
 function collectDecisionFindings(section: DecisionsSection): StatsFinding[] {
   if (!section.exists) return [];
   return section.files.flatMap(

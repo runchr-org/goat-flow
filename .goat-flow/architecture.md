@@ -41,7 +41,7 @@ src/cli/
   config/             # Configuration (reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  prompt/             # Prompt generation (compose-setup.ts, compose-quality.ts)
+  prompt/             # Prompt generation: commit-guidance.ts, compose-setup.ts, compose-quality.ts, compose-quality-agent-report.ts, compose-quality-agent-setup.ts, compose-quality-artifact.ts, compose-quality-common.ts, compose-quality-focused.ts, learning-loop-context.ts
   quality/            # Quality report schema, positional ids, history, and diff
   audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
   server/             # Dashboard server modules:
@@ -84,7 +84,7 @@ Agent instruction files (CLAUDE.md, AGENTS.md, .github/copilot-instructions.md) 
 |------|-------|-----------|---------|
 | **Committed knowledge** | `architecture.md`, `code-map.md`, `glossary.md`, `patterns/**`, `config.yaml`, `decisions/`, `footguns/**`, `lessons/**`, the meta references at `.goat-flow/skill-reference/skill-preamble.md`, `.goat-flow/skill-reference/skill-conventions.md`, and the standalone playbooks indexed by `.goat-flow/skill-playbooks/README.md`: `browser-use.md`, `changelog.md`, `code-comments.md`, `gruff-code-quality.md`, `observability.md`, `page-capture.md`, `release-notes.md`, and `skill-quality-testing.md` plus the topical files under `.goat-flow/skill-playbooks/skill-quality-testing/` | Yes | Durable project record. Source of truth across sessions. |
 | **Local session state** | `tasks/**`, `scratchpad/**`, `.goat-flow/logs/sessions/*.md`, `.goat-flow/dashboard-state.json`, `.goat-flow/project-id` | No (gitignored by design; only anchor files such as `README.md`, `.gitignore`, and `.gitkeep` are committed) | Personal WIP: milestone files, plan subdirs, throwaway notes, session continuity logs, and dashboard runtime state. Coordinates a single work session - not project history. |
-| **Local report history** | `.goat-flow/logs/quality/*.json`, `.goat-flow/logs/quality/*.md`, `.goat-flow/logs/critiques/*.md`, `.goat-flow/logs/security/*.md` | No (gitignored by design; only the directory README is committed) | Saved agent quality reports, captured prose, critique snapshots from goat-critique runs, and security assessment history from goat-security runs. Feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. |
+| **Local report history** | `.goat-flow/logs/quality/*.json`, `.goat-flow/logs/quality/*.md`, `.goat-flow/logs/critiques/*.md`, `.goat-flow/logs/review/*.txt`, `.goat-flow/logs/review/*.json`, `.goat-flow/logs/security/*.md` | No (gitignored by design; only the directory README is committed) | Saved agent quality reports, captured prose, critique snapshots from goat-critique runs, review refutation/refuter artifacts from goat-review runs, and security assessment history from goat-security runs. Feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. |
 
 **Not a persistence gap.** If a `tasks/`, `scratchpad/`, or `.goat-flow/logs/sessions/` artifact deserves to survive the session, promote its durable content into the committed tier: lesson → `lessons/`, trap → `footguns/`, decision → `decisions/`. Session logs themselves are checkout-local continuity artifacts.
 

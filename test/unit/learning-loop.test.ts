@@ -11,6 +11,7 @@ import {
   extractLessonsFacts,
   parseFrontmatterFields as parseFrontmatterFieldsFromLearningLoop,
 } from "../../src/cli/facts/shared/learning-loop.js";
+import { extractSharedFacts } from "../../src/cli/facts/shared/index.js";
 import {
   computeFreshness,
   parseFrontmatterFields,
@@ -329,6 +330,25 @@ describe("extractFootgunFacts search-anchor staleness", () => {
     );
   });
 
+  it("flags a double-quoted search anchor whose needle no longer appears", () => {
+    const fs = stubFS(
+      {
+        [`${fixtureDir}quality.md`]:
+          '---\ncategory: quality\nlast_reviewed: 2026-04-19\n---\n\n## Footgun: stale quoted\n\n**Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\n- `src/cli/cli.ts` (search: "qualitySubcommand === \\"capture\\"") - retired handler\n',
+        "src/cli/cli.ts":
+          "// handlers for 'history' and 'diff' only; capture removed in v1.2.0\n",
+      },
+      { [fixtureDir]: ["quality.md"] },
+    );
+    const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
+    assert.ok(
+      facts.staleRefs.some((ref) =>
+        ref.includes('qualitySubcommand === "capture"'),
+      ),
+      `expected stale double-quoted search anchor in ${JSON.stringify(facts.staleRefs)}`,
+    );
+  });
+
   it("does not flag a search anchor whose needle still appears", () => {
     const fs = stubFS(
       {
@@ -341,6 +361,18 @@ describe("extractFootgunFacts search-anchor staleness", () => {
     );
     const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
     assert.deepEqual(facts.staleRefs, []);
+  });
+
+  it("flags bare Evidence anchors paths whose files no longer exist", () => {
+    const fs = stubFS(
+      {
+        [`${fixtureDir}auditor.md`]:
+          "---\ncategory: auditor\nlast_reviewed: 2026-04-19\n---\n\n## Footgun: stale bare anchor\n\n**Status:** active | **Created:** 2026-04-19 | **Evidence:** ACTUAL_MEASURED\n\n**Evidence anchors:** `src/cli/missing.ts`\n",
+      },
+      { [fixtureDir]: ["auditor.md"] },
+    );
+    const facts = extractFootgunFacts(fs, stubConfig(), pinnedNow);
+    assert.deepEqual(facts.staleRefs, ["src/cli/missing.ts"]);
   });
 
   it("flags file-line evidence that lacks a semantic anchor", () => {
@@ -360,6 +392,34 @@ describe("extractFootgunFacts search-anchor staleness", () => {
 });
 
 describe("extractLearningLoopEntries", () => {
+  it("excludes the decisions INDEX from shared decision counts and prompt entries", () => {
+    const fs = stubFS(
+      {
+        ".goat-flow/decisions/README.md": "# Decisions\n",
+        ".goat-flow/decisions/INDEX.md":
+          "---\ncategory: index\n---\n\n# Decisions Index\n",
+        ".goat-flow/decisions/ADR-001-foo.md":
+          "# ADR-001: Foo\n\n**Status:** Accepted\n**Date:** 2026-04-29\n\n## Context\n\nA real decision context.\n\n## Decision\n\nChoose Foo.\n\n## Consequences\n\nKnown trade-offs.\n",
+      },
+      {
+        ".goat-flow/footguns/": [],
+        ".goat-flow/lessons/": [],
+        ".goat-flow/patterns/": [],
+        ".goat-flow/decisions": ["README.md", "INDEX.md", "ADR-001-foo.md"],
+        ".goat-flow/decisions/": ["README.md", "INDEX.md", "ADR-001-foo.md"],
+      },
+    );
+    const facts = extractSharedFacts(fs, stubConfig());
+
+    assert.equal(facts.decisions.fileCount, 1);
+    assert.deepEqual(
+      facts.learningLoopEntries
+        .filter((entry) => entry.kind === "decision")
+        .map((entry) => entry.sourcePath),
+      [".goat-flow/decisions/ADR-001-foo.md"],
+    );
+  });
+
   it("preserves resolved footgun status for selector exclusion", () => {
     const fs = stubFS(
       {

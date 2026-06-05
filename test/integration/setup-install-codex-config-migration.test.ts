@@ -1,9 +1,8 @@
 /**
  * Codex config.toml migration during install: rewrites deprecated codex_hooks (and removes it when
- * hooks is already present) and the legacy :project_roots anchor to :workspace_roots, and fixes
- * invalid filesystem permission globs in place including inside inline tables - all without
- * overwriting custom config or valid /** deny entries, and leaving comment-only references and
- * unrelated glob 'none' entries untouched.
+ * hooks is already present), refreshes legacy Codex permission profiles to the current
+ * `extends = ":workspace"` + access="deny" shape, and leaves comment-only references and unrelated
+ * glob 'none' entries untouched.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -65,12 +64,18 @@ describe("codex config migration", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.doesNotMatch(config, /"\*\*\/\*\.key"/);
-    assert.doesNotMatch(config, /"\*\.pem"/);
-    assert.match(config, /":workspace_roots"\s*=\s*\{[^}]*"secrets\/\*\*"/);
+    assert.match(config, /\[permissions\.goat-flow\]\s*\ndescription = /);
+    assert.match(config, /extends = ":workspace"/);
+    assert.doesNotMatch(config, /"none"/);
+    assert.match(
+      config,
+      /\[permissions\.goat-flow\.filesystem\.":workspace_roots"\]/,
+    );
+    assert.match(config, /"\*\*\/secrets\/\*\*"\s*=\s*"deny"/);
+    assert.match(config, /"\*\*\/\*\.key"\s*=\s*"deny"/);
     assert.match(config, /model = "gpt-5"/);
     assert.match(config, /\[other\]\s*\npreserved = "yes"/);
-    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
+    assert.match(result.stdout, /migrated:.*Codex permission profile/);
   });
 
   it("migrates the legacy :project_roots anchor to :workspace_roots", () => {
@@ -100,7 +105,35 @@ describe("codex config migration", () => {
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
     assert.doesNotMatch(config, /:project_roots/);
-    assert.match(config, /":workspace_roots"\s*=\s*\{/);
+    assert.match(config, /extends = ":workspace"/);
+    assert.match(config, /"\*\*\/secrets\/\*\*"\s*=\s*"deny"/);
+  });
+
+  it("repairs goat-flow default permissions when the active profile is missing", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      [
+        'default_permissions = "goat-flow"',
+        "",
+        "[features]",
+        "hooks = true",
+        "",
+      ].join("\n"),
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.match(config, /\[permissions\.goat-flow\]/);
+    assert.match(config, /extends = ":workspace"/);
+    assert.match(
+      config,
+      /\[permissions\.goat-flow\.filesystem\.":workspace_roots"\]/,
+    );
   });
 
   it("migrates the active custom Codex permission profile", () => {
@@ -128,14 +161,16 @@ describe("codex config migration", () => {
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
     assert.match(config, /default_permissions = "custom"/);
+    assert.match(config, /extends = ":workspace"/);
     assert.match(config, /\[permissions\.custom\.filesystem\]/);
     assert.doesNotMatch(config, /\[permissions\.goat-flow\.filesystem\]/);
     assert.doesNotMatch(config, /:project_roots/);
-    assert.doesNotMatch(config, /"\*\.pem"/);
-    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
+    assert.doesNotMatch(config, /"\*\.pem"\s*=\s*"none"/);
+    assert.match(config, /"\*\*\/\*\.pem"\s*=\s*"deny"/);
+    assert.match(result.stdout, /migrated:.*Codex permission profile/);
   });
 
-  it("preserves a custom valid /** deny entry when no invalid entries are present", () => {
+  it("migrates old goat-flow profiles and preserves custom deny entries", () => {
     const root = makeTempProject();
     const codexDir = join(root, ".codex");
     mkdirSync(codexDir, { recursive: true });
@@ -155,11 +190,9 @@ describe("codex config migration", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.match(config, /"private\/\*\*"\s*=\s*"none"/);
-    assert.doesNotMatch(
-      result.stdout,
-      /migrated:.*invalid filesystem permissions/,
-    );
+    assert.match(config, /extends = ":workspace"/);
+    assert.match(config, /"private\/\*\*"\s*=\s*"deny"/);
+    assert.match(result.stdout, /migrated:.*Codex permission profile/);
   });
 
   it("migrates invalid globs inside an inline :workspace_roots table", () => {
@@ -182,9 +215,9 @@ describe("codex config migration", () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
-    assert.doesNotMatch(config, /"\*\.pem"/);
-    assert.match(config, /":workspace_roots"\s*=\s*\{[^}]*"secrets\/\*\*"/);
-    assert.match(result.stdout, /migrated:.*invalid filesystem permissions/);
+    assert.doesNotMatch(config, /"\*\.pem"\s*=\s*"none"/);
+    assert.match(config, /"\*\*\/secrets\/\*\*"\s*=\s*"deny"/);
+    assert.match(result.stdout, /migrated:.*Codex permission profile/);
   });
 
   it("does not treat comment-only :project_roots references as legacy anchors", () => {
@@ -196,10 +229,14 @@ describe("codex config migration", () => {
       [
         'default_permissions = "goat-flow"',
         "",
+        "[permissions.goat-flow]",
+        'extends = ":workspace"',
+        "",
         "[permissions.goat-flow.filesystem]",
         "glob_scan_max_depth = 3",
         "# legacy :project_roots anchor was replaced with :workspace_roots",
-        '":workspace_roots" = { "." = "write", "secrets/**" = "none" }',
+        '[permissions.goat-flow.filesystem.":workspace_roots"]',
+        '"**/secrets/**" = "deny"',
         "",
       ].join("\n"),
     );
@@ -209,10 +246,7 @@ describe("codex config migration", () => {
 
     const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
     assert.match(config, /# legacy :project_roots anchor was replaced/);
-    assert.doesNotMatch(
-      result.stdout,
-      /migrated:.*invalid filesystem permissions/,
-    );
+    assert.doesNotMatch(result.stdout, /migrated:.*Codex permission profile/);
   });
 
   it("post-install validator does not flag a glob 'none' entry in an unrelated table", () => {

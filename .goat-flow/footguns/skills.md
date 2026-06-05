@@ -1,6 +1,6 @@
 ---
 category: skills
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-03
 ---
 
 ## Footgun: Skill parity edits can miss `.github/skills/` and fail repo-level drift checks
@@ -166,10 +166,10 @@ Applies wherever goat-flow ships a SKILL.md or command body that orchestrates mu
 
 **Resolution evidence:**
 - `workflow/skills/goat-review/SKILL.md` (search: `baseRefName`) prefers PR metadata when a PR URL or number is available.
-- `workflow/skills/goat-review/SKILL.md` (search: `refs/remotes/origin/HEAD`) discovers the remote default branch before asking.
+- `workflow/skills/goat-review/SKILL.md` (search: `remote HEAD`) discovers the remote default branch before asking.
 - `workflow/skills/goat-review/SKILL.md` (search: `base-detection-failed`) records degraded fallback use instead of hiding it.
 
-**Prevention:** Review-base selection must be discovered, not assumed. Prefer PR metadata (`gh pr view ... baseRefName`) when available, then an explicit user-provided base, then remote default-branch discovery from `refs/remotes/origin/HEAD` or `git remote show origin`; ask for the base before diffing if discovery fails. Treat `main` only as a last-resort fallback and record a degradation flag when fallback is used.
+**Prevention:** Review-base selection must be discovered, not assumed. Prefer PR metadata (`gh pr view ... baseRefName`) when available, then an explicit user-provided base, then remote default-branch discovery from remote HEAD or `git remote show origin`; ask for the base before diffing if discovery fails. Treat `main` only as a last-resort fallback and record a degradation flag when fallback is used.
 
 ---
 

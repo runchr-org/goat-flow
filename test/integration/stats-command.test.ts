@@ -454,6 +454,27 @@ describe("goat-flow stats --check", () => {
     );
   });
 
+  it("keeps the decisions INDEX exempt like the README", () => {
+    const report = loadReport({
+      footguns: {},
+      lessons: {},
+      decisions: {
+        "README.md": "# Decisions\n",
+        "INDEX.md":
+          "---\ncategory: index\nbucket: decisions\n---\n\n# Decisions Index\n\n- [ADR-001](ADR-001-foo.md)\n",
+        "ADR-001-foo.md":
+          "# ADR-001: Foo\n\n**Status:** Accepted\n**Date:** 2026-04-29\n\n## Decision\n\nChoose Foo.\n\n## Context\n\nThe forces.\n\n## Failure Mode Comparison\n\n| Option | Failure |\n| --- | --- |\n| Foo | Known |\n",
+      },
+    });
+    const verdict = checkStats(report);
+
+    assert.equal(verdict.status, "pass");
+    assert.ok(
+      !verdict.findings.some((f) => f.file.endsWith("INDEX.md")),
+      "INDEX.md is a hand-maintained meta file and must not trip ADR filename/structure rules",
+    );
+  });
+
   it("fails when a valid ADR filename is missing required structure", () => {
     const report = loadReport({
       footguns: {},

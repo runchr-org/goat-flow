@@ -14,7 +14,8 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 KILO_NPM_PACKAGE=${KILO_NPM_PACKAGE:-@kilocode/cli}
-KILO_CONFIG_DIR="${HOME:-}/.kilocode/cli"
+KILO_CONFIG_DIR="${HOME:-}/.config/kilo"
+KILO_LEGACY_CONFIG_DIR="${HOME:-}/.kilocode/cli"
 
 show_help() {
     echo ""
@@ -107,25 +108,36 @@ sanitize_path_for_wsl
 echo -e "${CYAN}Starting Kilo CLI uninstallation...${NC}"
 echo -e "${YELLOW}npm package: ${WHITE}${KILO_NPM_PACKAGE}${NC}"
 
-if ! command_exists npm; then
-    echo -e "${RED}npm is required to uninstall the Kilo CLI package.${NC}"
-    echo -e "${YELLOW}Install Node.js/npm or remove the package manually.${NC}"
-    exit 1
+echo -e "\n${CYAN}========================================"
+echo -e "Running native Kilo uninstall if available"
+echo -e "========================================${NC}"
+
+if command_exists kilo; then
+    if kilo uninstall; then
+        echo -e "${GREEN}Native Kilo uninstall completed.${NC}"
+    else
+        echo -e "${YELLOW}kilo uninstall reported an issue. Continuing with package cleanup.${NC}"
+    fi
+else
+    echo -e "${YELLOW}kilo command not found. Skipping native uninstall.${NC}"
 fi
 
 echo -e "\n${CYAN}========================================"
 echo -e "Uninstalling Kilo CLI via npm"
 echo -e "========================================${NC}"
-if npm uninstall -g "${KILO_NPM_PACKAGE}"; then
+if command_exists npm && npm uninstall -g "${KILO_NPM_PACKAGE}"; then
     echo -e "${GREEN}npm uninstall completed.${NC}"
-else
+elif command_exists npm; then
     echo -e "${YELLOW}npm uninstall reported an issue. Check with: npm list -g ${KILO_NPM_PACKAGE}${NC}"
+else
+    echo -e "${YELLOW}npm not found. Skipping npm uninstall.${NC}"
 fi
 
 echo -e "\n${CYAN}========================================"
 echo -e "Cleaning Kilo CLI configuration"
 echo -e "========================================${NC}"
 remove_dir_prompt "${KILO_CONFIG_DIR}"
+remove_dir_prompt "${KILO_LEGACY_CONFIG_DIR}"
 
 echo -e "\n${CYAN}========================================"
 echo -e "Verifying uninstall"

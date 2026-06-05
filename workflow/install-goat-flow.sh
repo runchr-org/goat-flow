@@ -444,6 +444,7 @@ let lines = content.split(/\r?\n/u);
 if (hadFinalNewline) lines.pop();
 const staleHookRe = /^  guard-(destructive-shell|secret-paths|repository-writes):\s*$/u;
 let changed = false;
+let legacyEnabled = "true";
 
 let hooksIndex = lines.findIndex((line) => /^hooks\s*:/u.test(line));
 if (hooksIndex !== -1) {
@@ -452,7 +453,11 @@ if (hooksIndex !== -1) {
     if (i > hooksIndex && staleHookRe.test(lines[i])) {
       changed = true;
       i += 1;
-      while (i < lines.length && /^    /.test(lines[i])) i += 1;
+      while (i < lines.length && /^    /.test(lines[i])) {
+        const match = lines[i].match(/^    enabled:\s*(true|false)\s*$/u);
+        if (match && match[1] === "false") legacyEnabled = "false";
+        i += 1;
+      }
       i -= 1;
       continue;
     }
@@ -469,7 +474,7 @@ if (hooksIndex !== -1) {
       insertAt += 1;
       while (insertAt < lines.length && /^    /.test(lines[insertAt])) insertAt += 1;
     }
-    lines.splice(insertAt, 0, "  deny-dangerous:", "    enabled: true");
+    lines.splice(insertAt, 0, "  deny-dangerous:", `    enabled: ${legacyEnabled}`);
     changed = true;
   }
   if (changed) {
@@ -690,6 +695,9 @@ const anySectionPattern = /^\s*\[[^\]]+\]\s*$/u;
 const noneEntryPattern = /^\s*"([^"]+)"\s*=\s*"none"\s*(?:#.*)?$/u;
 const inlineTablePattern = /^\s*"[^"]+"\s*=\s*\{([^}]*)\}\s*(?:#.*)?$/u;
 const inlineEntryPattern = /"([^"]+)"\s*=\s*"none"/gu;
+const filesystemAccessEntryPattern = /"([^"]+)"\s*=\s*"(none|deny)"/gu;
+const legacyAccessPattern = /^\s*"[^"]+"\s*=\s*"none"\s*(?:#.*)?$/u;
+const legacyInlineAccessPattern = /"[^"]+"\s*=\s*"none"/u;
 const legacyProjectRootsPattern = /":project_roots"/u;
 
 function parseTomlBasicString(value) {
@@ -722,6 +730,13 @@ function escapeRegExp(value) {
 }
 
 const activeProfile = readActivePermissionProfile(lines);
+const hasDefaultPermissions = lines.some((line) =>
+  /^\s*default_permissions\s*=/u.test(line),
+);
+const profileSectionPattern = new RegExp(
+  `^\\s*\\[\\s*permissions\\.${escapeRegExp(activeProfile)}\\s*\\]\\s*$`,
+  "u",
+);
 const filesystemSectionPattern = new RegExp(
   `^\\s*\\[\\s*permissions\\.${escapeRegExp(activeProfile)}\\.filesystem(?:\\..+)?\\s*\\]\\s*$`,
   "u",
@@ -736,10 +751,51 @@ function isInvalidNoneKey(key) {
   return !key.endsWith("/**");
 }
 
+const canonicalDenyPatterns = new Set([
+  "**/.env",
+  "**/.env.local",
+  "**/.env.development",
+  "**/.env.production",
+  "**/.env.staging",
+  "**/.env.test",
+  "**/.envrc",
+  "**/secrets/**",
+  "**/.ssh/**",
+  "**/.aws/**",
+  "**/.docker/**",
+  "**/.gnupg/**",
+  "**/.kube/**",
+  "**/credentials",
+  "**/.npmrc",
+  "**/.pypirc",
+  "**/*.pem",
+  "**/*.key",
+  "**/*.pfx",
+]);
+const oldGeneratedPatterns = new Set([
+  ".",
+  "secrets/**",
+  ".ssh/**",
+  ".aws/**",
+  ".docker/**",
+  ".gnupg/**",
+  ".kube/**",
+]);
+
+function escapeTomlString(value) {
+  return value.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"');
+}
+
 const regions = [];
+const profileRegions = [];
 let i = 0;
 while (i < lines.length) {
-  if (filesystemSectionPattern.test(lines[i])) {
+  if (profileSectionPattern.test(lines[i])) {
+    const start = i;
+    i += 1;
+    while (i < lines.length && !anySectionPattern.test(lines[i])) i += 1;
+    profileRegions.push({ start, end: i });
+  } else if (filesystemSectionPattern.test(lines[i])) {
     const start = i;
     i += 1;
     while (i < lines.length && !anySectionPattern.test(lines[i])) i += 1;
@@ -749,17 +805,45 @@ while (i < lines.length) {
   }
 }
 
-if (regions.length === 0) {
+if (
+  regions.length === 0 &&
+  profileRegions.length === 0 &&
+  !hasDefaultPermissions
+) {
   console.log("unchanged");
   process.exit(0);
 }
 
 let hasInvalidEntry = false;
+let usesLegacyAccess = false;
 let usesLegacyAnchor = false;
+let profileExtendsWorkspace = false;
+const additionalDenyPatterns = new Set();
+for (const region of profileRegions) {
+  for (let j = region.start; j < region.end; j += 1) {
+    if (/^\s*extends\s*=\s*":workspace"\s*(?:#.*)?$/u.test(lines[j])) {
+      profileExtendsWorkspace = true;
+    }
+  }
+}
 for (const region of regions) {
   for (let j = region.start; j < region.end; j += 1) {
     const line = lines[j];
     if (legacyProjectRootsPattern.test(line)) usesLegacyAnchor = true;
+    if (legacyAccessPattern.test(line) || legacyInlineAccessPattern.test(line)) {
+      usesLegacyAccess = true;
+    }
+    for (const entry of line.matchAll(filesystemAccessEntryPattern)) {
+      const [, pattern, mode] = entry;
+      if (
+        (mode === "none" || mode === "deny") &&
+        pattern &&
+        !canonicalDenyPatterns.has(pattern) &&
+        !oldGeneratedPatterns.has(pattern)
+      ) {
+        additionalDenyPatterns.add(pattern);
+      }
+    }
     const noneMatch = line.match(noneEntryPattern);
     if (noneMatch && isInvalidNoneKey(noneMatch[1])) {
       hasInvalidEntry = true;
@@ -773,27 +857,66 @@ for (const region of regions) {
   }
 }
 
-if (!hasInvalidEntry && !usesLegacyAnchor) {
+const shouldRefreshGoatFlowProfile =
+  activeProfile === "goat-flow" &&
+  hasDefaultPermissions &&
+  !profileExtendsWorkspace;
+
+if (
+  !hasInvalidEntry &&
+  !usesLegacyAnchor &&
+  !usesLegacyAccess &&
+  !shouldRefreshGoatFlowProfile
+) {
   console.log("unchanged");
   process.exit(0);
 }
 
 const canonicalBlock = [
+  `[permissions.${activeProfile}]`,
+  'description = "goat-flow workspace editing with secret-path read denies."',
+  'extends = ":workspace"',
+  "",
   `[permissions.${activeProfile}.filesystem]`,
   "glob_scan_max_depth = 3",
-  '# Codex 0.131 accepts exact paths and trailing "/**" subtrees here.',
-  "# Exact entries must point at files that exist in the target checkout; absent",
-  "# exact paths can make Codex fail before shell startup. Filename globs such as",
-  '# "*.key" are covered by .codex/hooks/deny-dangerous.sh.',
-  '":workspace_roots" = { "." = "write", "secrets/**" = "none", ".ssh/**" = "none", ".aws/**" = "none", ".docker/**" = "none", ".gnupg/**" = "none", ".kube/**" = "none" }',
+  "",
+  `[permissions.${activeProfile}.filesystem.":workspace_roots"]`,
+  '"**/.env" = "deny"',
+  '"**/.env.local" = "deny"',
+  '"**/.env.development" = "deny"',
+  '"**/.env.production" = "deny"',
+  '"**/.env.staging" = "deny"',
+  '"**/.env.test" = "deny"',
+  '"**/.envrc" = "deny"',
+  '"**/secrets/**" = "deny"',
+  '"**/.ssh/**" = "deny"',
+  '"**/.aws/**" = "deny"',
+  '"**/.docker/**" = "deny"',
+  '"**/.gnupg/**" = "deny"',
+  '"**/.kube/**" = "deny"',
+  '"**/credentials" = "deny"',
+  '"**/.npmrc" = "deny"',
+  '"**/.pypirc" = "deny"',
+  '"**/*.pem" = "deny"',
+  '"**/*.key" = "deny"',
+  '"**/*.pfx" = "deny"',
 ];
+for (const pattern of additionalDenyPatterns) {
+  canonicalBlock.push(`"${escapeTomlString(pattern)}" = "deny"`);
+}
 
 const inRegion = new Array(lines.length).fill(false);
 for (const region of regions) {
   for (let j = region.start; j < region.end; j += 1) inRegion[j] = true;
 }
+for (const region of profileRegions) {
+  for (let j = region.start; j < region.end; j += 1) inRegion[j] = true;
+}
 
-const firstRegionStart = regions[0].start;
+const firstRegionStart = Math.min(
+  ...regions.map((region) => region.start),
+  ...profileRegions.map((region) => region.start),
+);
 const before = lines.slice(0, firstRegionStart);
 const after = [];
 for (let j = firstRegionStart; j < lines.length; j += 1) {
@@ -842,6 +965,8 @@ const anySectionPattern = /^\s*\[[^\]]+\]\s*$/u;
 const sectionEntryPattern = /^\s*"([^"]+)"\s*=\s*"none"\s*(?:#.*)?$/u;
 const inlineTablePattern = /^\s*"[^"]+"\s*=\s*\{([^}]*)\}\s*(?:#.*)?$/u;
 const inlineEntryPattern = /"([^"]+)"\s*=\s*"none"/gu;
+const legacyAccessPattern = /^\s*"[^"]+"\s*=\s*"none"\s*(?:#.*)?$/u;
+const legacyInlineAccessPattern = /"[^"]+"\s*=\s*"none"/u;
 const legacyProjectRootsPattern = /":project_roots"/u;
 
 function parseTomlBasicString(value) {
@@ -875,6 +1000,13 @@ function escapeRegExp(value) {
 
 const lines = content.split(/\r?\n/u);
 const activeProfile = readActivePermissionProfile(lines);
+const hasDefaultPermissions = lines.some((line) =>
+  /^\s*default_permissions\s*=/u.test(line),
+);
+const profileSectionPattern = new RegExp(
+  `^\\s*\\[\\s*permissions\\.${escapeRegExp(activeProfile)}\\s*\\]\\s*$`,
+  "u",
+);
 const filesystemSectionPattern = new RegExp(
   `^\\s*\\[\\s*permissions\\.${escapeRegExp(activeProfile)}\\.filesystem(?:\\..+)?\\s*\\]\\s*$`,
   "u",
@@ -884,9 +1016,15 @@ const filesystemSectionPattern = new RegExp(
 // under the active [permissions.<default_permissions>.filesystem*] profile. A
 // bare "*.pem" = "none" in an unrelated table is not a Codex filesystem error.
 const regions = [];
+const profileRegions = [];
 let i = 0;
 while (i < lines.length) {
-  if (filesystemSectionPattern.test(lines[i])) {
+  if (profileSectionPattern.test(lines[i])) {
+    const start = i;
+    i += 1;
+    while (i < lines.length && !anySectionPattern.test(lines[i])) i += 1;
+    profileRegions.push({ start, end: i });
+  } else if (filesystemSectionPattern.test(lines[i])) {
     const start = i;
     i += 1;
     while (i < lines.length && !anySectionPattern.test(lines[i])) i += 1;
@@ -896,12 +1034,31 @@ while (i < lines.length) {
   }
 }
 
+let profileExtendsWorkspace = false;
+for (const region of profileRegions) {
+  for (let j = region.start; j < region.end; j += 1) {
+    if (/^\s*extends\s*=\s*":workspace"\s*(?:#.*)?$/u.test(lines[j])) {
+      profileExtendsWorkspace = true;
+    }
+  }
+}
+if (
+  activeProfile === "goat-flow" &&
+  hasDefaultPermissions &&
+  !profileExtendsWorkspace
+) {
+  problems.add('active goat-flow profile does not extend ":workspace"');
+}
+
 for (const region of regions) {
   for (let j = region.start; j < region.end; j += 1) {
     const line = lines[j];
     const match = line.match(sectionEntryPattern);
     if (match && isInvalidNoneKey(match[1])) {
       problems.add(`section entry "${match[1]}" with access="none"`);
+    }
+    if (legacyAccessPattern.test(line) || legacyInlineAccessPattern.test(line)) {
+      problems.add('legacy access value "none" still present');
     }
     if (legacyProjectRootsPattern.test(line)) {
       problems.add("legacy :project_roots anchor still present");
@@ -934,7 +1091,7 @@ cd "$PROJECT"
 # 1. Create .goat-flow/ directories
 # ==========================================================================
 echo "Directories:"
-for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/logs/quality .goat-flow/logs/events .goat-flow/logs/critiques .goat-flow/logs/security .goat-flow/skill-reference .goat-flow/skill-playbooks; do
+for dir in .goat-flow/footguns .goat-flow/lessons .goat-flow/patterns .goat-flow/decisions .goat-flow/tasks .goat-flow/scratchpad .goat-flow/logs/sessions .goat-flow/logs/quality .goat-flow/logs/events .goat-flow/logs/critiques .goat-flow/logs/review .goat-flow/logs/security .goat-flow/skill-reference .goat-flow/skill-playbooks; do
   if [[ ! -d "$dir" ]]; then
     mkdir -p "$dir"
     echo "  ✓ $dir/"
@@ -959,6 +1116,7 @@ copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/scratchpad-readme.md" ".goat
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/quality-readme.md" ".goat-flow/logs/quality/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/events-readme.md" ".goat-flow/logs/events/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/critiques-readme.md" ".goat-flow/logs/critiques/README.md"
+copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/review-readme.md" ".goat-flow/logs/review/README.md"
 copy_file "$GOAT_FLOW_ROOT/workflow/setup/reference/security-readme.md" ".goat-flow/logs/security/README.md"
 copy_if_missing "$GOAT_FLOW_ROOT/workflow/setup/reference/decisions-readme.md" ".goat-flow/decisions/README.md"
 touch_anchor ".goat-flow/logs/sessions/.gitkeep"
@@ -1128,7 +1286,7 @@ if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
         SETTINGS_MIGRATIONS+=("deprecated hooks flag")
       fi
       if [[ "$(migrate_codex_filesystem_permissions "$SETTINGS_DST")" == "migrated" ]]; then
-        SETTINGS_MIGRATIONS+=("invalid filesystem permissions")
+        SETTINGS_MIGRATIONS+=("Codex permission profile")
       fi
     fi
     if [[ ${#SETTINGS_MIGRATIONS[@]} -gt 0 ]]; then
@@ -1154,8 +1312,8 @@ if [[ "$AGENT" == "codex" && -n "${SETTINGS_DST:-}" && -f "$SETTINGS_DST" ]]; th
     echo "  ${CODEX_VALIDATION#invalid:}" >&2
     echo "Codex will reject this config at startup. Re-run with --force to" >&2
     echo "refresh from the canonical template, or edit the file manually so" >&2
-    echo "every \"none\" entry under :workspace_roots is either an exact path" >&2
-    echo "or a trailing \"/**\" subtree." >&2
+    echo "the active goat-flow profile extends \":workspace\" and uses" >&2
+    echo "access=\"deny\" for secret-path filesystem entries." >&2
     exit 1
   fi
 fi
@@ -1257,7 +1415,7 @@ if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-dangerous.sh" ]
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
     # shellcheck disable=SC2016
-    printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"gcd=\"$(git rev-parse --git-common-dir 2>/dev/null)\" || { printf '\''BLOCKED: Guard cannot start: git repository root unavailable.\\n'\'' >&2; exit 2; }; case \"$gcd\" in /*) root=\"$(dirname \"$gcd\")\" ;; *) root=\"$(git rev-parse --show-toplevel)\" ;; esac; bash \"$root/.claude/hooks/deny-dangerous.sh\""}]}'
+    printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"gcd=\"$(git rev-parse --git-common-dir 2>/dev/null)\"; root=\"\"; case \"$gcd\" in */.git/modules/*|.git/modules/*) root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\" ;; /*) root=\"$(dirname \"$gcd\")\" ;; *) root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\" ;; esac; [ -f \"$root/.claude/hooks/deny-dangerous.sh\" ] || root=\"${CLAUDE_PROJECT_DIR:-}\"; [ -f \"$root/.claude/hooks/deny-dangerous.sh\" ] || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; }; cd \"$root\" || { printf '\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\'' >&2; exit 2; }; bash \"$root/.claude/hooks/deny-dangerous.sh\""}]}'
   fi
   echo ""
 fi

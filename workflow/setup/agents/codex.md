@@ -14,7 +14,7 @@
 
 **Always:** Set up Codex-owned surfaces: `AGENTS.md`, `.codex/`, and shared `.goat-flow/`. `AGENTS.md` and `.agents/skills/` are shared with Antigravity; either setup can create/update content there, but neither should duplicate or stomp the other's content.
 
-**Ask First:** Before touching non-Codex surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+**Ask First:** Before touching non-Codex surfaces, ask and wait for approval; include boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
 **Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md` or `.claude/` during Codex setup unless the user explicitly widens scope. Do not overwrite existing instruction content.
 
@@ -24,7 +24,7 @@
 - `AGENTS.md` is the Codex root instruction file; do not defer to `CLAUDE.md`.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
 - Codex hooks use `.codex/hooks.json` for goat-flow hook registrations; `.codex/config.toml` enables the engine with `[features].hooks = true` and may define filesystem permission profiles.
-- Codex permission profiles are the closest equivalent to Claude `permissions.allow`/`permissions.deny` for file access. They do not replace the Bash-focused `PreToolUse` deny hook for command patterns such as `git push`, `sudo`, or `curl | bash`.
+- Codex permission profiles are the closest equivalent to Claude `permissions.allow`/`permissions.deny` for file access. goat-flow profiles extend Codex's built-in `:workspace` profile before adding secret-path `deny` rules, and they do not replace the Bash-focused `PreToolUse` deny hook for command patterns such as `git push`, `sudo`, or `curl | bash`.
 - goat-flow ships only the Bash-focused `PreToolUse` deny hook. Codex also supports `PermissionRequest`, `PostToolUse`, `Stop`, and non-Bash tool matchers, but generic post-turn validation remains project-specific.
 - Use `apply_patch` for edits in Codex guidance, not Edit/Write tool prose.
 - goat-flow does not use Codex compaction hooks for recovery; continuity stays file-based through tasks and session logs.
@@ -84,7 +84,7 @@ MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 | Debug | Diagnosis with file + semantic anchor first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
 
-For Codex setup, ACT means updating only Codex-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project.
+For Codex setup, ACT means updating only Codex-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project. Coordinate with Antigravity setup if `AGENTS.md` already exists.
 
 ### VERIFY
 MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.

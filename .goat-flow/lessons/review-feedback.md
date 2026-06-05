@@ -1,6 +1,6 @@
 ---
 category: review-feedback
-last_reviewed: 2026-05-27
+last_reviewed: 2026-06-05
 ---
 
 ## Lesson: Multi-agent critique finds findings single reviewers miss - but synthesis is the expensive part
@@ -140,5 +140,22 @@ All three were wrong. Locally: `npm run typecheck` exits 0, `npm test` passes 83
 2. Hallucination red-flag #1 in CLAUDE.md ("do not claim tests pass without the literal pass/fail line") cuts both ways - do not accept a bot's failure claim either without re-running and quoting the line yourself.
 3. Bot environment claims about project-wide tooling (typecheck, test, lint) are systematically unreliable because the bot's environment is not the project's environment. Treat the finding as "worth running the command yourself" not as evidence of a defect.
 4. Stale bot findings: bots reviewing commit-at-a-time produce findings that were valid at that snapshot but stale by the time of triage. Always check the current HEAD before acting (e.g. PR #44's `acme/example` and "v1.7.1 / v1.8.0 mismatch" findings were both already fixed in later commits).
+
+---
+
+## Lesson: Ordering findings ("section X must be first") are grep-position-independent - rate them by how the artifact is consumed
+
+**Status:** active | **Created:** 2026-06-05
+
+**What happened:** A 3-agent goat-critique of `workflow/skills/playbooks/` reached HIGH consensus that the README's "first section MUST be `## Availability Check`" rule was violated by `gruff-code-quality.md` (leads with `## Gruff at a glance`) and `page-capture.md` (leads with `## Boundary`), and recommended reordering both. Orchestrator double-check downgraded it: agents locate the section by grepping `## Availability Check`, which succeeds at any line position, so "present but not first" is cosmetic - while the sections that precede it (gruff's at-a-glance TL;DR, page-capture's "am I in the right playbook?" routing table) legitimately earn the top slot. The only real defect was `skill-quality-testing.md` having NO such section (grep returns zero) - the one file actually fixed.
+
+**Root cause:** The finding conflated two consumption models. "Must be FIRST" serves *human top-down scanning*; "must be PRESENT and findable" serves *grep/agent retrieval*. These playbooks are consumed by agents that grep for the heading, so position is nearly irrelevant and absence is the only real failure. The README's own justification even says "This is what agents grep for" - i.e. position-independent. Three agents rated by the letter of the rule; consensus amplified the miscalibration instead of catching it.
+
+**Evidence:** `workflow/skills/playbooks/README.md` (search: "First section MUST be"). First-H2 scan: gruff=`## Gruff at a glance`, page-capture=`## Boundary` (both have `## Availability Check` lower down); `skill-quality-testing.md` had none.
+
+**Prevention:**
+1. For an ordering finding ("X must be first/before Y"), identify how the artifact is consumed (grep vs human scan vs parse) before assigning severity. Reorder findings are usually LOW when consumers locate by name; *absence* is the real defect.
+2. A brief orienting/routing section preceding a mandated section is often good design - don't mechanically enforce position.
+3. Consensus severity is not a substitute for the consumption-model check. Verify the premise, then rate.
 
 ---

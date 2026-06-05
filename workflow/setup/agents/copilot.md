@@ -14,7 +14,7 @@
 
 **Always:** Set up Copilot-owned surfaces: `.github/copilot-instructions.md` (including its `## Commit Messages` section), `docs/coding-standards/git-commit.md`, `.github/skills/`, `.github/hooks/`, `.copilotignore`, and shared `.goat-flow/`.
 
-**Ask First:** Before touching non-Copilot surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+**Ask First:** Before touching non-Copilot surfaces, ask and wait for approval; include boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
 **Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, or `.agents/` during Copilot setup unless the user explicitly widens scope.
 

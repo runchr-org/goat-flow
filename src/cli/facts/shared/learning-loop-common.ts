@@ -34,10 +34,12 @@ export const EVIDENCE_PATTERN =
 export const FILE_REF_REGEX =
   /`([^`]+\.[a-zA-Z]{1,10})(?::[0-9]+(?:[-,][0-9]+)*)?`/g;
 
-/** Matches `` `<file>` (search: `<needle>`) `` - the footgun evidence form that
- *  cites a literal string to grep for inside the referenced file. */
+/** Matches backtick and double-quoted `(search: ...)` evidence anchors. */
 const SEARCH_ANCHOR_REGEX =
-  /`([^`]+\.[a-zA-Z0-9]{1,10})`\s*\(search:\s*`([^`]+)`\)/g;
+  /`([^`]+\.[a-zA-Z0-9]{1,10})`\s*\(search:\s*(?:`([^`]+)`|"((?:\\.|[^"\\])*)")\)/g;
+
+const BARE_EVIDENCE_ANCHOR_LINE_REGEX =
+  /(?:^|\s)(?:\*\*)?Evidence anchors?(?:\*\*)?:/i;
 
 /** One markdown file read from a learning-loop directory. */
 export interface MarkdownEntry {
@@ -352,9 +354,60 @@ export function summarizeFootgunRefs(
     }
   }
 
+  scanBareEvidenceAnchors(fs, cleanedContent, summary);
   scanSearchAnchors(fs, cleanedContent, summary);
 
   return summary;
+}
+
+/** Bare `Evidence anchors:` path references are durable evidence and must not go stale silently. */
+function scanBareEvidenceAnchors(
+  fs: ReadonlyFS,
+  cleanedContent: string,
+  summary: FootgunRefSummary,
+): void {
+  for (const line of cleanedContent.split("\n")) {
+    if (!BARE_EVIDENCE_ANCHOR_LINE_REGEX.test(line)) continue;
+
+    for (const match of line.matchAll(new RegExp(FILE_REF_REGEX.source, "g"))) {
+      const filePath = checkableBareEvidenceAnchorPath(fs, line, match);
+      if (filePath === null) continue;
+
+      summary.totalRefs++;
+      if (fs.exists(filePath)) {
+        summary.validRefs++;
+      } else {
+        summary.staleRefs.push(filePath);
+      }
+    }
+  }
+}
+
+function checkableBareEvidenceAnchorPath(
+  fs: ReadonlyFS,
+  line: string,
+  match: RegExpMatchArray,
+): string | null {
+  const filePath = match[1];
+  if (filePath === undefined) return null;
+  if (/[*?{}<>]|\.\.\./.test(filePath)) return null;
+  if (/:[0-9]+/.test(match[0])) return null;
+  if (isFollowedBySearchAnchor(line, match)) return null;
+  if (!isFileRef(filePath)) return null;
+  if (!isCheckableForStaleness(filePath, fs)) return null;
+  return filePath;
+}
+
+function isFollowedBySearchAnchor(
+  line: string,
+  match: RegExpMatchArray,
+): boolean {
+  const matchIndex = match.index;
+  if (matchIndex === undefined) return false;
+  return line
+    .slice(matchIndex + match[0].length)
+    .trimStart()
+    .startsWith("(search:");
 }
 
 /** `(search: "<needle>")` anchors: confirm the literal string still appears in
@@ -369,27 +422,38 @@ function scanSearchAnchors(
     new RegExp(SEARCH_ANCHOR_REGEX.source, "g"),
   );
   for (const match of searchAnchors) {
-    const filePath = match[1];
-    const needle = match[2];
+    const anchor = searchAnchorFromMatch(match);
     if (
-      filePath === undefined ||
-      needle === undefined ||
-      !isFileRef(filePath) ||
-      !isCheckableForStaleness(filePath, fs)
+      anchor === null ||
+      !isFileRef(anchor.filePath) ||
+      !isCheckableForStaleness(anchor.filePath, fs)
     )
       continue;
     summary.totalRefs++;
-    if (!fs.exists(filePath)) {
-      summary.staleRefs.push(`${filePath} (search: \`${needle}\`)`);
+    if (!fs.exists(anchor.filePath)) {
+      summary.staleRefs.push(
+        `${anchor.filePath} (search: \`${anchor.needle}\`)`,
+      );
       continue;
     }
-    const fileContent = fs.readFile(filePath);
-    if (fileContent === null || !fileContent.includes(needle)) {
-      summary.staleRefs.push(`${filePath} (search: \`${needle}\`)`);
+    const fileContent = fs.readFile(anchor.filePath);
+    if (fileContent === null || !fileContent.includes(anchor.needle)) {
+      summary.staleRefs.push(
+        `${anchor.filePath} (search: \`${anchor.needle}\`)`,
+      );
       continue;
     }
     summary.validRefs++;
   }
+}
+
+function searchAnchorFromMatch(
+  match: RegExpMatchArray,
+): { filePath: string; needle: string } | null {
+  const filePath = match[1];
+  const rawNeedle = match[2] ?? match[3];
+  if (filePath === undefined || rawNeedle === undefined) return null;
+  return { filePath, needle: rawNeedle.replace(/\\(["\\])/g, "$1") };
 }
 
 /**

@@ -4,7 +4,8 @@
 # WARNING: Only install on systems you own or have permission to modify.
 # This script is for personal development environments only.
 #
-# Installs the standalone GitHub Copilot CLI (copilot) via npm.
+# Installs the standalone GitHub Copilot CLI (copilot) using GitHub's
+# documented package-manager, install-script, or npm paths.
 # Auth happens on first run via /login - no pre-auth required.
 # Run this script in Git Bash, WSL, or any Unix-like terminal.
 
@@ -18,6 +19,11 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
+COPILOT_NPM_PACKAGE=${COPILOT_NPM_PACKAGE:-@github/copilot}
+COPILOT_INSTALL_METHOD=${COPILOT_INSTALL_METHOD:-auto}
+COPILOT_INSTALLER_URL=${COPILOT_INSTALLER_URL:-https://gh.io/copilot-install}
+TMP_WORK_DIR=""
+
 show_help() {
     echo ""
     echo -e "${CYAN}GitHub Copilot CLI Installer${NC}"
@@ -25,12 +31,28 @@ show_help() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
+    echo "  -m, --method <auto|npm|homebrew|winget|script>"
+    echo "                 Install method (default: auto)"
     echo "  -h, --help    Show this help message"
+    echo ""
+    echo "Environment overrides:"
+    echo "  COPILOT_INSTALL_METHOD  auto, npm, homebrew, winget, or script"
+    echo "  COPILOT_NPM_PACKAGE     npm package when using --method npm"
+    echo "  COPILOT_INSTALLER_URL   macOS/Linux install script URL"
     echo ""
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -m|--method)
+            if [ -z "${2:-}" ]; then
+                echo -e "${RED}Missing value for $1.${NC}"
+                show_help
+                exit 1
+            fi
+            COPILOT_INSTALL_METHOD=$2
+            shift 2
+            ;;
         -h|--help) show_help; exit 0 ;;
         *) echo -e "${RED}Unknown option: $1${NC}"; show_help; exit 1 ;;
     esac
@@ -60,6 +82,55 @@ sanitize_path_for_wsl() {
         fi
     done
     export PATH="$new_path"
+}
+
+download_file() {
+    local url dest
+    url=$1
+    dest=$2
+
+    if command_exists curl; then
+        curl -fsSL "$url" -o "$dest"
+    elif command_exists wget; then
+        wget -q -O "$dest" "$url"
+    else
+        echo -e "${RED}Either curl or wget is required for the install script method.${NC}"
+        return 1
+    fi
+}
+
+make_temp_dir() {
+    local base
+    base=${TMPDIR:-/tmp}
+    if ! TMP_WORK_DIR=$(mktemp -d "${base%/}/copilot-installer.XXXXXX"); then
+        echo -e "${RED}Failed to create a temporary installer directory.${NC}"
+        exit 1
+    fi
+}
+
+cleanup() {
+    if [ -n "${TMP_WORK_DIR:-}" ] && [ -d "$TMP_WORK_DIR" ]; then
+        rm -f -- "$TMP_WORK_DIR/install.sh" 2>/dev/null || true
+        rmdir "$TMP_WORK_DIR" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
+run_copilot_script_installer() {
+    local installer
+
+    if [[ "$OS" == "Windows" ]]; then
+        echo -e "${RED}The GitHub Copilot install script is only documented for macOS/Linux.${NC}"
+        exit 1
+    fi
+
+    make_temp_dir
+    installer="$TMP_WORK_DIR/install.sh"
+    echo -e "\n${YELLOW}Downloading official GitHub Copilot CLI install script...${NC}"
+    download_file "$COPILOT_INSTALLER_URL" "$installer"
+    chmod +x "$installer" 2>/dev/null || true
+    echo -e "${CYAN}Running official GitHub Copilot CLI install script...${NC}"
+    bash "$installer"
 }
 
 verify_native_binary() {
@@ -96,6 +167,48 @@ require_node_major() {
     fi
 }
 
+finish_install() {
+    echo -e "\n${YELLOW}Verifying installation...${NC}"
+    if verify_native_binary copilot "GitHub Copilot CLI"; then
+        echo -e "${GREEN}GitHub Copilot CLI installed successfully!${NC}"
+        copilot --version 2>/dev/null || copilot version 2>/dev/null || echo -e "${YELLOW}Version command not available yet${NC}"
+
+        echo -e "\n${CYAN}========================================"
+        echo -e "Next Steps:"
+        echo -e "========================================${NC}"
+        echo -e "${WHITE}1. Start the CLI: ${GREEN}copilot${NC}"
+        echo -e "${WHITE}2. Run ${GREEN}copilot login${WHITE} or use /login on first run"
+        echo -e "${WHITE}3. Use ${GREEN}copilot --help${WHITE} for commands${NC}"
+    fi
+
+    echo -e "\n${GREEN}Installation process completed!${NC}"
+}
+
+install_copilot_npm() {
+    local ignore_scripts npm_env_prefix=()
+
+    if ! command_exists npm; then
+        echo -e "${RED}Error: npm is not installed.${NC}"
+        echo -e "${YELLOW}Please install Node.js 22+ and npm first, or use --method script/homebrew/winget.${NC}"
+        exit 1
+    fi
+
+    ignore_scripts=$(npm config get ignore-scripts 2>/dev/null || true)
+    if [[ "$ignore_scripts" == "true" ]]; then
+        echo -e "${YELLOW}npm ignore-scripts=true detected; overriding for Copilot CLI postinstall.${NC}"
+        npm_env_prefix=(env npm_config_ignore_scripts=false)
+    fi
+
+    if ! "${npm_env_prefix[@]}" npm install -g "${COPILOT_NPM_PACKAGE}" --loglevel=error --no-audit --no-fund; then
+        echo -e "\n${RED}Error installing GitHub Copilot CLI${NC}"
+        echo -e "\n${YELLOW}Troubleshooting steps:${NC}"
+        echo -e "${WHITE}1. Check internet connection"
+        echo -e "2. npm config list"
+        echo -e "3. Try: npm_config_ignore_scripts=false npm install -g ${COPILOT_NPM_PACKAGE}${NC}"
+        exit 1
+    fi
+}
+
 IS_WSL=false
 
 # Detect OS
@@ -114,9 +227,74 @@ fi
 
 sanitize_path_for_wsl
 
+case "$COPILOT_INSTALL_METHOD" in
+    auto|npm|homebrew|winget|script) ;;
+    *)
+        echo -e "${RED}Unknown install method: ${COPILOT_INSTALL_METHOD}${NC}"
+        show_help
+        exit 1
+        ;;
+esac
+
 echo -e "${CYAN}Starting GitHub Copilot CLI installation process...${NC}"
-echo -e "${YELLOW}This will install the standalone Copilot CLI from GitHub${NC}"
+echo -e "${YELLOW}Install method: ${WHITE}${COPILOT_INSTALL_METHOD}${NC}"
 echo -e "\n${CYAN}Detected OS: ${WHITE}$OS${NC}"
+
+if [[ "$COPILOT_INSTALL_METHOD" == "auto" ]]; then
+    if [[ "$OS" == "Windows" ]] && command_exists winget; then
+        winget install GitHub.Copilot
+        finish_install
+        exit 0
+    fi
+
+    if [[ "$OS" == "macOS" || "$OS" == "Linux" ]] && command_exists brew; then
+        brew install copilot-cli
+        finish_install
+        exit 0
+    fi
+
+    if [[ "$OS" == "macOS" || "$OS" == "Linux" ]] && { command_exists curl || command_exists wget; }; then
+        run_copilot_script_installer
+        finish_install
+        exit 0
+    fi
+
+    COPILOT_INSTALL_METHOD=npm
+fi
+
+if [[ "$COPILOT_INSTALL_METHOD" == "homebrew" ]]; then
+    if [[ "$OS" != "macOS" && "$OS" != "Linux" ]]; then
+        echo -e "${RED}Homebrew install is only supported on macOS/Linux.${NC}"
+        exit 1
+    fi
+    if ! command_exists brew; then
+        echo -e "${RED}Homebrew is not installed.${NC}"
+        exit 1
+    fi
+    brew install copilot-cli
+    finish_install
+    exit 0
+fi
+
+if [[ "$COPILOT_INSTALL_METHOD" == "winget" ]]; then
+    if [[ "$OS" != "Windows" ]]; then
+        echo -e "${RED}WinGet install is only supported on Windows.${NC}"
+        exit 1
+    fi
+    if ! command_exists winget; then
+        echo -e "${RED}WinGet is not installed or not available in PATH.${NC}"
+        exit 1
+    fi
+    winget install GitHub.Copilot
+    finish_install
+    exit 0
+fi
+
+if [[ "$COPILOT_INSTALL_METHOD" == "script" ]]; then
+    run_copilot_script_installer
+    finish_install
+    exit 0
+fi
 
 # Check if Node.js is installed (required for npm)
 echo -e "\n${YELLOW}Checking for Node.js installation...${NC}"
@@ -134,7 +312,7 @@ if command_exists node; then
     fi
 else
     echo -e "${RED}Node.js is required for GitHub Copilot CLI installation.${NC}"
-    echo -e "${RED}Please install Node.js first (or enable it in your Forge config).${NC}"
+    echo -e "${YELLOW}Use --method script/homebrew/winget where supported, or install Node.js 22+ and rerun --method npm.${NC}"
     exit 1
 fi
 
@@ -144,20 +322,7 @@ echo -e "\n${CYAN}========================================"
 echo -e "Installing GitHub Copilot CLI via npm"
 echo -e "========================================${NC}"
 
-if ! command_exists npm; then
-    echo -e "${RED}Error: npm is not installed.${NC}"
-    echo -e "${YELLOW}Please install Node.js and npm first.${NC}"
-    exit 1
-fi
-
-if ! npm install -g @github/copilot --loglevel=error --no-audit --no-fund; then
-    echo -e "\n${RED}Error installing GitHub Copilot CLI${NC}"
-    echo -e "\n${YELLOW}Troubleshooting steps:${NC}"
-    echo -e "${WHITE}1. Check internet connection"
-    echo -e "2. npm config list"
-    echo -e "3. Try: npm install -g @github/copilot${NC}"
-    exit 1
-fi
+install_copilot_npm
 
 echo -e "\n${YELLOW}Verifying installation...${NC}"
 if verify_native_binary copilot "GitHub Copilot CLI"; then

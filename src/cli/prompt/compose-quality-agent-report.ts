@@ -173,6 +173,10 @@ export function appendAgentReportContract(
   );
   lines.push("");
   lines.push(
+    "If command execution is unavailable, do not claim validation passed. Confirm instead with: `Wrote unvalidated quality report to .goat-flow/logs/quality/<your-filename>.json; validation unavailable: <exact reason>`.",
+  );
+  lines.push("");
+  lines.push(
     "**End of response:** After validate passes, confirm in prose with a single line: `Wrote quality report to .goat-flow/logs/quality/<your-filename>.json`. Do not include the JSON inline in your reply.",
   );
   lines.push("");

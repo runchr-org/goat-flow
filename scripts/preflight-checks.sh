@@ -648,7 +648,7 @@ _emit_footer() {
 
 # ── Shell Scripts ────────────────────────────────────────────────────
 section "Shell Scripts"
-if bash -n scripts/*.sh scripts/maintenance/*.sh 2>/dev/null; then
+if bash -n scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh 2>/dev/null; then
     pass "Bash syntax (scripts)"
 else
     fail "Bash syntax check (scripts)"
@@ -666,10 +666,10 @@ while IFS= read -r hookdir; do
 done < <(manifest_eval hook-dirs)
 
 if command -v shellcheck >/dev/null 2>&1; then
-    if shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh >/dev/null 2>&1; then
+    if shellcheck --exclude=SC2001 scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh >/dev/null 2>&1; then
         pass "Shellcheck (scripts)"
     else
-        fail "Shellcheck (scripts) - run shellcheck scripts/*.sh scripts/maintenance/*.sh for details"
+        fail "Shellcheck (scripts) - run shellcheck scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh for details"
     fi
 
     # Also shellcheck installed hooks (SC2016 excluded: sed patterns intentionally use single quotes)
@@ -834,6 +834,12 @@ function runCommand(command, input) {
   });
 }
 
+function spawnFailureMessage(result, label) {
+  if (!result.error) return null;
+  const code = result.error.code ? `${result.error.code}: ` : "";
+  return `${label} could not spawn (${code}${result.error.message}). The current sandbox or permission profile may block child-process execution.`;
+}
+
 let checked = 0;
 for (const config of configs) {
   if (!fs.existsSync(config.path)) {
@@ -862,6 +868,14 @@ for (const config of configs) {
     checked += 1;
     const smoke = payloadFor(config.mode, entry.script);
     const result = runCommand(entry.command, smoke.input);
+    const spawnFailure = spawnFailureMessage(
+      result,
+      `${config.agent}: ${entry.script} configured command`,
+    );
+    if (spawnFailure) {
+      emit("FAIL", spawnFailure);
+      continue;
+    }
     const status = result.status ?? (result.error ? -1 : 0);
     if (status === 126 || status === 127) {
       emit("FAIL", `${config.agent}: ${entry.script} configured command exited ${status}: ${entry.command}`);

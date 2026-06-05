@@ -324,6 +324,34 @@ describe("scanContentQuality: legacy execution loop", () => {
   });
 });
 
+describe("scanContentQuality: prompt wrapper residue", () => {
+  it("flags content/invoke wrapper tags as WARNING", () => {
+    const findings = scanContentQuality(
+      ".goat-flow/decisions/INDEX.md",
+      '# Decisions Index\n\n<content>\n</content>\n<invoke name="x">\n</invoke>',
+    );
+
+    const residue = findings.filter(
+      (finding) => finding.rule === "prompt-wrapper-residue",
+    );
+    assert.equal(residue.length, 4);
+    assert.equal(residue[0]!.severity, "warning");
+  });
+
+  it("does not flag wrapper tag examples inside fenced code blocks", () => {
+    const findings = scanContentQuality(
+      "docs/example.md",
+      ["```", "</content>", "</invoke>", "```"].join("\n"),
+    );
+
+    assert.equal(
+      findings.filter((finding) => finding.rule === "prompt-wrapper-residue")
+        .length,
+      0,
+    );
+  });
+});
+
 describe("runContentQualityChecks: target discovery", () => {
   it("discovers current ADR files instead of relying on a hard-coded ADR list", () => {
     const ctx = makeCtx({
@@ -357,6 +385,27 @@ describe("runContentQualityChecks: target discovery", () => {
           finding.rule === "generic-best-practices",
       ),
       "new ADR files must be scanned without updating a manual target list",
+    );
+  });
+
+  it("scans the decisions INDEX so prompt wrapper residue cannot hide there", () => {
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path) => path === ".goat-flow/decisions/INDEX.md",
+        readFile: (path) =>
+          path === ".goat-flow/decisions/INDEX.md" ? "</content>" : null,
+      }),
+    });
+
+    const result = runContentQualityChecks(ctx);
+
+    assert.ok(
+      result.findings.some(
+        (finding) =>
+          finding.path === ".goat-flow/decisions/INDEX.md" &&
+          finding.rule === "prompt-wrapper-residue",
+      ),
+      "decision index metadata must stay inside content-quality coverage",
     );
   });
 });

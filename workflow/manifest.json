@@ -1,6 +1,6 @@
 {
   "description": "Expected goat-flow project structure. Source of truth for setup, audit, and upgrade paths. Not a JSON Schema - this is a manifest of what should exist on disk.",
-  "version": "1.9.0",
+  "version": "1.9.1",
 
   "required_files": [
     ".goat-flow/.gitignore",
@@ -10,6 +10,7 @@
     ".goat-flow/logs/quality/README.md",
     ".goat-flow/logs/events/README.md",
     ".goat-flow/logs/critiques/README.md",
+    ".goat-flow/logs/review/README.md",
     ".goat-flow/logs/security/README.md",
     ".goat-flow/scratchpad/.gitignore",
     ".goat-flow/scratchpad/README.md",
@@ -51,6 +52,7 @@
     ".goat-flow/logs/quality/",
     ".goat-flow/logs/events/",
     ".goat-flow/logs/critiques/",
+    ".goat-flow/logs/review/",
     ".goat-flow/logs/security/",
     ".goat-flow/scratchpad/",
     ".goat-flow/skill-reference/",
@@ -67,6 +69,7 @@
     ".goat-flow/logs/quality/": "Workspace-local, gitignored-by-design quality report history. Saved agent quality reports (JSON) and their captured prose companions (MD); feeds `goat-flow quality history`, `goat-flow quality diff`, and prior same-agent prompt context. Only README.md is committed.",
     ".goat-flow/logs/events/": "Workspace-local, gitignored-by-design evidence envelope event log. Dashboard and future runtime producers append redacted JSONL records for local continuity; durable project knowledge must be promoted to lessons/, footguns/, or decisions/. Only README.md is committed.",
     ".goat-flow/logs/critiques/": "Workspace-local, gitignored-by-design critique run history. Phase 3 snapshots from `/goat-critique` runs persisted before the Phase 4 blocking gate so work survives session interruptions. Only README.md is committed.",
+    ".goat-flow/logs/review/": "Workspace-local, gitignored-by-design review artifact history. Refutation ledgers and cross-model refuter outputs from `/goat-review` runs are stored here so review integrity evidence survives session interruptions. Only README.md is committed.",
     ".goat-flow/logs/security/": "Workspace-local, gitignored-by-design security assessment history. Saved `/goat-security` run outputs for reference across sessions. Only README.md is committed.",
     ".goat-flow/scratchpad/": "Local, gitignored-by-design working notes. Session-scoped WIP; not a persistence gap. Durable project knowledge belongs in lessons/, footguns/, or decisions/. Transient continuity notes belong in logs/sessions/. Only README.md, .gitignore, and .gitkeep are committed.",
     ".goat-flow/skill-reference/": "Committed shared meta references composed into every goat-flow skill at scoring and runtime. Holds README.md, skill-preamble.md (Proof Gate, OBSERVED/INFERRED tagging, evidence discipline; loaded every skill invocation), skill-conventions.md (footgun/lesson entry shapes, frontmatter contracts; loaded on full-depth). These describe the universal contract every skill inherits - adding a new file here commits every skill to inherit it.",

@@ -32,6 +32,7 @@ const PROSE_TARGETS = [
 ];
 
 const DOC_GLOB = "docs/*.md";
+const GLOSSARY_TARGET = ".goat-flow/glossary.md";
 
 /** Files where a loose `N views`/`N presets` pattern is safe because the file
  *  is dashboard-specific. Outside these files, the pattern would false-positive
@@ -266,7 +267,7 @@ const REMOVED_COMMANDS: RemovedCommand[] = [
  * @param removed Removed command patterns to flag.
  * @returns Content findings for removed command references.
  */
-export function scanRemovedCommands(
+function scanRemovedCommands(
   path: string,
   text: string,
   removed: RemovedCommand[] = REMOVED_COMMANDS,
@@ -575,6 +576,10 @@ export function runFactualClaimChecks(ctx: AuditContext): {
     findings.push(...scanPathReferences(rel, text, ctx));
     findings.push(...scanRemovedCommands(rel, text));
     findings.push(...scanLifetimeClaimEvidence(rel, text));
+  }
+  const glossary = ctx.fs.readFile(GLOSSARY_TARGET);
+  if (glossary !== null) {
+    findings.push(...scanRemovedCommands(GLOSSARY_TARGET, glossary));
   }
   // Dashboard-specific loose patterns (safe only on dashboard docs).
   for (const rel of DASHBOARD_SCOPED_TARGETS) {
