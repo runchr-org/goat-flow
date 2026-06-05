@@ -16,7 +16,6 @@ NC='\033[0m' # No Color
 
 # Allow overrides via environment variables
 KILO_NPM_PACKAGE=${KILO_NPM_PACKAGE:-@kilocode/cli}
-KILO_BASE_URL=${KILO_BASE_URL:-http://127.0.0.1:1234}
 
 show_help() {
     echo ""
@@ -27,6 +26,9 @@ show_help() {
     echo "Options:"
     echo "  -h, --help    Show this help message"
     echo ""
+    echo "Environment overrides:"
+    echo "  KILO_NPM_PACKAGE    npm package to install (default: @kilocode/cli)"
+    echo ""
 }
 
 while [[ $# -gt 0 ]]; do
@@ -35,18 +37,6 @@ while [[ $# -gt 0 ]]; do
         *) echo -e "${RED}Unknown option: $1${NC}"; show_help; exit 1 ;;
     esac
 done
-
-if [ -z "${HOME:-}" ]; then
-    echo -e "${RED}HOME is not set. Cannot choose a Kilo config directory.${NC}"
-    exit 1
-fi
-
-KILO_CONFIG_DIR="${HOME}/.kilocode/cli"
-KILO_CONFIG_FILE="${KILO_CONFIG_DIR}/config.json"
-KILO_TOKEN=${KILO_TOKEN:-local-dev-token}
-KILO_PROFILE_ID=${KILO_PROFILE_ID:-default}
-KILO_MODEL=${KILO_MODEL:-lmstudio}
-KILO_OPENAI_API_KEY=${KILO_OPENAI_API_KEY:-local-dev-api-key}
 
 command_exists() {
     local cmd_path
@@ -113,7 +103,6 @@ sanitize_path_for_wsl
 
 echo -e "${CYAN}Starting Kilo CLI installation...${NC}"
 echo -e "${YELLOW}npm package: ${WHITE}${KILO_NPM_PACKAGE}${NC}"
-echo -e "${YELLOW}LM Studio endpoint: ${WHITE}${KILO_BASE_URL}${NC}"
 echo -e "\n${CYAN}Detected OS: ${WHITE}$OS${NC}"
 
 echo -e "\n${YELLOW}Checking for Node.js installation...${NC}"
@@ -129,40 +118,8 @@ if command_exists node; then
     fi
 else
     echo -e "${RED}Node.js is required for Kilo CLI installation.${NC}"
-    # In non-interactive mode, auto-install; otherwise prompt
-    if [[ -t 0 ]]; then
-        read -r -p "Would you like to install Node.js? (y/n): " install_node
-        if [[ "$install_node" != "y" ]]; then
-            echo -e "${RED}Node.js is required. Exiting.${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${CYAN}Non-interactive mode: auto-installing Node.js...${NC}"
-    fi
-
-    if [[ "$OS" == "Windows" ]]; then
-        echo -e "${CYAN}Installing Node.js via winget...${NC}"
-        winget install -e --id OpenJS.NodeJS.LTS
-    elif [[ "$OS" == "Linux" ]]; then
-        echo -e "${CYAN}Installing Node.js for Linux...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-    elif [[ "$OS" == "macOS" ]]; then
-        echo -e "${CYAN}Installing Node.js for macOS...${NC}"
-        if command_exists brew; then
-            brew install node
-        else
-            echo -e "${YELLOW}Homebrew not found. Please install it first or use the Node.js installer.${NC}"
-            exit 1
-        fi
-    fi
-
-    export PATH=$PATH:/usr/local/bin
-    hash -r
-    if ! command_exists node; then
-        echo -e "${RED}Node.js installation failed. Exiting.${NC}"
-        exit 1
-    fi
+    echo -e "${YELLOW}Please install Node.js/npm first, then rerun this script.${NC}"
+    exit 1
 fi
 
 echo -e "\n${CYAN}========================================"
@@ -179,42 +136,6 @@ if ! npm install -g "${KILO_NPM_PACKAGE}" --loglevel=error --no-audit --no-fund;
     echo -e "${YELLOW}Check the package name or set KILO_NPM_PACKAGE to the correct npm package and rerun.${NC}"
     exit 1
 fi
-
-echo -e "\n${YELLOW}Configuring Kilo CLI for LM Studio...${NC}"
-mkdir -p "${KILO_CONFIG_DIR}"
-if ! node - "${KILO_CONFIG_FILE}" "${KILO_BASE_URL}" "${KILO_TOKEN}" "${KILO_OPENAI_API_KEY}" "${KILO_PROFILE_ID}" "${KILO_MODEL}" <<'NODE'
-const fs = require("fs");
-
-const [configFile, baseUrl, token, apiKey, profileId, model] = process.argv.slice(2);
-const config = {
-  provider: "lm-studio",
-  providers: [
-    {
-      id: "lm-studio",
-      provider: "openai",
-      type: "openai-compatible",
-      baseUrl,
-      kilocodeToken: token,
-      openAiApiKey: apiKey,
-      profiles: [
-        {
-          id: profileId,
-          model,
-        },
-      ],
-    },
-  ],
-};
-
-fs.writeFileSync(configFile, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
-NODE
-then
-    echo -e "${RED}Failed to write Kilo CLI configuration.${NC}"
-    exit 1
-fi
-chmod 700 "${KILO_CONFIG_DIR}" 2>/dev/null || true
-chmod 600 "${KILO_CONFIG_FILE}" 2>/dev/null || true
-echo -e "${GREEN}Saved configuration to ${KILO_CONFIG_FILE}${NC}"
 
 echo -e "\n${YELLOW}Verifying installation...${NC}"
 if verify_native_binary kilo "Kilo CLI"; then
@@ -240,8 +161,8 @@ echo -e "\n${CYAN}========================================"
 echo -e "Next Steps:"
 echo -e "========================================${NC}"
 echo -e "${WHITE}1. Start the CLI: kilo${NC}"
-echo -e "${WHITE}2. LM Studio endpoint is set to ${KILO_BASE_URL}${NC}"
-echo -e "${WHITE}3. Update config via KILO_BASE_URL env var or by editing ${KILO_CONFIG_FILE}${NC}"
-echo -e "${WHITE}4. Run 'kilo --help' to see available commands${NC}"
+echo -e "${WHITE}2. Use /connect inside the TUI to add provider credentials"
+echo -e "${WHITE}3. Use 'kilo auth' for provider and credential management"
+echo -e "${WHITE}4. Global config lives under ~/.config/kilo/ (opencode.json or opencode.jsonc)${NC}"
 
 echo -e "\n${GREEN}Installation process completed!${NC}"

@@ -565,7 +565,14 @@ function runConfiguredHookCommandSmoke(
     agentFacts.agent.id,
     configured.scriptFile,
   );
-  const result = childProcess.spawnSync("bash", ["-lc", configured.command], {
+  // Invoke via `bash -c`, not `-lc`: the agent runtimes run the configured
+  // launcher directly without a login shell, so `-lc` would source user rc files
+  // and make audit results environment-dependent. `-c` is more faithful to
+  // runtime and drops that rc-sourcing surface. This smoke still executes the
+  // project-configured launcher string by design (to validate the real
+  // root-resolution/cd glue), so the runtime evidence level should only be run
+  // against trusted target projects.
+  const result = childProcess.spawnSync("bash", ["-c", configured.command], {
     cwd: ctx.projectPath,
     encoding: "utf8",
     input: smoke.input,

@@ -251,6 +251,12 @@ extract_command_text() {
       ] | map(select(type == "string" and length > 0)) | first
     ')"
     file_path="$(json_value "$payload" '
+      def extract_path(value):
+        if value == null then empty
+        elif (value | type) == "object" then (value.file_path // value.path // value.AbsolutePath // value.TargetFile // value.FilePath // value.SearchPath // empty)
+        elif (value | type) == "string" then
+          ((value | fromjson? // {}) | if type == "object" then (.file_path // .path // .AbsolutePath // .TargetFile // .FilePath // .SearchPath // empty) else empty end)
+        else empty end;
       [
         .tool_input.file_path,
         .tool_input.path,
@@ -261,7 +267,9 @@ extract_command_text() {
         .toolCall.args.path,
         .toolCall.args.file_path,
         .path,
-        .file_path
+        .file_path,
+        extract_path(.toolArgs),
+        extract_path(.tool_args)
       ] | map(select(type == "string" and length > 0)) | first
     ')"
   else

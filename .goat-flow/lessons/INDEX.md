@@ -19,7 +19,7 @@ Hand-maintained index of lesson bucket files. A lesson exists because the agent 
 - [gruff-cleanup.md](gruff-cleanup.md) — gruff-ts cleanup: fix don't tune, verify path-ignore by directory scan, confirm before deleting. (9 entries, reviewed 2026-06-03)
 - [hook-testing.md](hook-testing.md) — Hook test matrices: live-guard self-interference, format fixtures before preflight. (12 entries, reviewed 2026-06-03)
 - [naming.md](naming.md) — Renames & naming: boundary names aren't placeholder debt, one-letter sweeps corrupt regex flags. (5 entries, reviewed 2026-05-31)
-- [review-feedback.md](review-feedback.md) — Applying review/critique output: verify findings before applying, synthesis is the expensive part. (8 entries, reviewed 2026-05-27)
+- [review-feedback.md](review-feedback.md) — Applying review/critique output: verify findings before applying, synthesis is the expensive part. (9 entries, reviewed 2026-06-05)
 - [setup-and-migration.md](setup-and-migration.md) — Setup agents rewriting shared docs as agent-specific, propagating errors, cutting required sections. (9 entries, reviewed 2026-05-27)
 - [test-execution-environment.md](test-execution-environment.md) — Test runtime/platform: timer isolation, live-runner proof, Windows `file://` imports. (13 entries, reviewed 2026-06-01)
 - [test-fixtures.md](test-fixtures.md) — Fixture sync after refactors: package test scripts, parser coverage, disk + in-memory parity. (9 entries, reviewed 2026-06-01)

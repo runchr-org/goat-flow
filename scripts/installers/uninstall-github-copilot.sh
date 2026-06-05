@@ -11,6 +11,10 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+COPILOT_NPM_PACKAGE=${COPILOT_NPM_PACKAGE:-@github/copilot}
+COPILOT_HOME_DIR=${COPILOT_HOME:-${HOME:-}/.copilot}
+COPILOT_CACHE_DIR=${COPILOT_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME:-}/.cache}/copilot}
+
 show_help() {
     echo ""
     echo -e "${CYAN}GitHub Copilot CLI Uninstaller${NC}"
@@ -102,22 +106,41 @@ sanitize_path_for_wsl
 
 echo -e "${CYAN}Starting GitHub Copilot CLI uninstallation process...${NC}"
 
-# Check if npm is installed
-if ! command_exists npm; then
-    echo -e "${RED}npm is required to uninstall the GitHub Copilot CLI package.${NC}"
-    echo -e "${YELLOW}Please install Node.js/npm or remove the global package manually.${NC}"
-    exit 1
+echo -e "\n${CYAN}========================================"
+echo -e "Checking for Homebrew / WinGet installation"
+echo -e "========================================${NC}"
+
+if command_exists brew && brew list copilot-cli >/dev/null 2>&1; then
+    if brew uninstall copilot-cli; then
+        echo -e "${GREEN}Homebrew uninstall completed.${NC}"
+    else
+        echo -e "${YELLOW}Homebrew uninstall reported an issue.${NC}"
+    fi
+else
+    echo -e "${YELLOW}Copilot CLI not found in Homebrew.${NC}"
+fi
+
+if command_exists winget; then
+    if winget uninstall GitHub.Copilot; then
+        echo -e "${GREEN}WinGet uninstall completed.${NC}"
+    else
+        echo -e "${YELLOW}WinGet uninstall reported an issue or Copilot CLI was not installed through WinGet.${NC}"
+    fi
+else
+    echo -e "${YELLOW}WinGet not found. Skipping WinGet uninstall.${NC}"
 fi
 
 echo -e "\n${CYAN}========================================"
 echo -e "Uninstalling GitHub Copilot CLI via npm"
 echo -e "========================================${NC}"
 
-if npm uninstall -g @github/copilot; then
-    echo -e "\n${GREEN}GitHub Copilot CLI uninstalled via npm.${NC}"
+if command_exists npm && npm uninstall -g "${COPILOT_NPM_PACKAGE}"; then
+    echo -e "${GREEN}GitHub Copilot CLI uninstalled via npm.${NC}"
+elif command_exists npm; then
+    echo -e "${YELLOW}npm uninstall reported an issue. The package may not have been installed globally.${NC}"
+    echo -e "${YELLOW}You can check with: npm list -g ${COPILOT_NPM_PACKAGE}${NC}"
 else
-    echo -e "\n${YELLOW}npm uninstall reported an issue. The package may not have been installed globally.${NC}"
-    echo -e "${YELLOW}You can check with: npm list -g @github/copilot${NC}"
+    echo -e "${YELLOW}npm not found. Skipping npm uninstall.${NC}"
 fi
 
 echo -e "\n${CYAN}========================================"
@@ -125,10 +148,8 @@ echo -e "Cleaning up GitHub Copilot CLI data"
 echo -e "========================================${NC}"
 
 POSSIBLE_DIRS=(
-    "${HOME:-}/.copilot"
-    "${HOME:-}/.config/copilot"
-    "${HOME:-}/.config/github-copilot"
-    "${HOME:-}/.cache/copilot"
+    "$COPILOT_HOME_DIR"
+    "$COPILOT_CACHE_DIR"
 )
 
 for dir in "${POSSIBLE_DIRS[@]}"; do

@@ -5,6 +5,7 @@ import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +20,16 @@ import { spawnSync } from "node:child_process";
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const HOOK = join(PROJECT_ROOT, "workflow", "hooks", "gruff-code-quality.sh");
 const disposables: string[] = [];
+
+/** Resolve a tool's absolute path from PATH so symlink sandboxes stay portable. */
+function resolveTool(name: string): string {
+  for (const dir of (process.env.PATH ?? "").split(":")) {
+    if (!dir) continue;
+    const candidate = join(dir, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(`required tool not found on PATH: ${name}`);
+}
 
 after(() => {
   for (const dir of disposables) rmSync(dir, { recursive: true, force: true });
@@ -609,9 +620,9 @@ describe("gruff-code-quality hook", () => {
     const gruffBinDir = writeMockGruff(root);
     const noJqBin = join(root, "no-jq-bin");
     mkdirSync(noJqBin, { recursive: true });
-    symlinkSync("/usr/bin/bash", join(noJqBin, "bash"));
-    symlinkSync("/usr/bin/cat", join(noJqBin, "cat"));
-    symlinkSync("/usr/bin/awk", join(noJqBin, "awk"));
+    symlinkSync(resolveTool("bash"), join(noJqBin, "bash"));
+    symlinkSync(resolveTool("cat"), join(noJqBin, "cat"));
+    symlinkSync(resolveTool("awk"), join(noJqBin, "awk"));
     writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
     mkdirSync(join(root, "src"), { recursive: true });
     writeFileSync(join(root, "src", "example.ts"), "one\ntwo\nthree\n");

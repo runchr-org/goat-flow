@@ -23,7 +23,7 @@
 - If a file exists, modify in place; do not create backup or variant files.
 - `AGENTS.md` is the Antigravity root instruction file and is shared with Codex; both agents read it.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
-- Antigravity uses `agy` as the terminal binary; verify version with `agy --version` (>= 1.0.1 for the OAuth persistence fix).
+- Antigravity uses `agy` as the terminal binary; verify a current build is installed with `agy --version` (older builds predate the OAuth-persistence fix).
 - Plugin migration from other agents: `agy plugin import gemini` or `agy plugin import claude` populates Antigravity from existing setups.
 - Antigravity hook wiring uses `.agents/hooks.json` and scripts in `.agents/hooks/`. Goat-flow registers PreToolUse guardrails there and can register the optional `gruff-code-quality` PostToolUse hook for `write_to_file`, `replace_file_content`, and `multi_replace_file_content`.
 - User-level config lives at `~/.config/antigravity/config.toml`; it is not a repo-local surface and is out of scope for per-project setup.

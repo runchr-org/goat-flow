@@ -344,12 +344,15 @@ function hasCodexCredentialRootDeny(
       [".gnupg/**", "**/.gnupg/**"],
       [".kube/**", "**/.kube/**"],
     ].every((patternGroup) => hasAnyCodexPattern(denied, patternGroup)) &&
+    // `**/credentials` recursively covers a root `credentials` file, the same way
+    // the env/`.npmrc`/`*.pem` surfaces here treat `**/` globs as covering root.
+    // A separate exact-`credentials` requirement made the shipped recursive secret
+    // profile fail its own Codex audit on any project with a root credentials file.
     hasAnyCodexPattern(denied, ["**/credentials", "credentials"]) &&
     (hasEveryCodexPattern(denied, ["**/.npmrc", "**/.pypirc"]) ||
       existingExactPathsAreDenied(denied, fs, [".npmrc", ".pypirc"])) &&
     ["pem", "key", "pfx"].every((extension) =>
       hasAnyCodexPattern(denied, [`**/*.${extension}`, `*.${extension}`]),
-    ) &&
-    existingExactPathsAreDenied(denied, fs, ["credentials"])
+    )
   );
 }

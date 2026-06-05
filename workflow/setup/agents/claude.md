@@ -22,7 +22,7 @@
 
 - If a file exists, modify in place; do not create backup or variant files.
 - Do not copy goat-flow's controlling-workspace Router Table into downstream projects; adapt paths to the target.
-- Keep `CLAUDE.md` under the configured line target and hard limit.
+- Keep `CLAUDE.md` under the 125-line target and 150-line hard limit.
 - For large codebases, Claude-only `<important if="...">` rules are allowed, but only in `CLAUDE.md`.
 - If the project uses a formatter, ignore `.goat-flow/**/*.md` and verify YAML examples keep `---` delimiters.
 - Ambiguous existing instruction content: preserve first, ask before deleting.

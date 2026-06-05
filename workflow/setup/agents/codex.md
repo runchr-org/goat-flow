@@ -84,7 +84,7 @@ MUST declare: `State: [MODE] | Goal: [one line] | Exit: [condition]`
 | Debug | Diagnosis with file + semantic anchor first. Fixes after human reviews |
 | Review | Investigate first. Never blindly apply suggestions |
 
-For Codex setup, ACT means updating only Codex-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project.
+For Codex setup, ACT means updating only Codex-owned surfaces from the shared skeleton and adapting commands, boundaries, and Router Table rows to the target project. Coordinate with Antigravity setup if `AGENTS.md` already exists.
 
 ### VERIFY
 MUST run `shellcheck` on .sh changes. MUST check cross-references after renames. If working from a plan/milestone file, MUST tick `- [x]` on each task as it's completed - not at the end.

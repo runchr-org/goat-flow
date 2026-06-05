@@ -181,6 +181,52 @@ expect_copilot_block() {
   fi
 }
 
+expect_copilot_payload_block() {
+  local hook="$1"
+  local payload="$2"
+  local label="$3"
+  local expected_reason="${4:-Policy }"
+  selected_hook "$hook" || {
+    record_skip
+    return
+  }
+  executed=$((executed + 1))
+  local output
+  if ! output="$(printf '%s' "$payload" | bash "$(hook_path "$hook")" 2>&1)"; then
+    record_fail "$hook Copilot payload should exit 0 for $label"
+    return
+  fi
+  if [[ "$output" != *'"permissionDecision":"deny"'* ]]; then
+    record_fail "$hook Copilot payload should return deny JSON for $label"
+  fi
+  if [[ "$output" != *"$expected_reason"* || "$output" == *"Guard "* ]]; then
+    record_fail "$hook Copilot payload should identify expected policy reason for $label"
+  fi
+}
+
+expect_copilot_payload_allow() {
+  local hook="$1"
+  local payload="$2"
+  local label="$3"
+  selected_hook "$hook" || {
+    record_skip
+    return
+  }
+  executed=$((executed + 1))
+  local output status
+  set +e
+  output="$(printf '%s' "$payload" | bash "$(hook_path "$hook")" 2>&1)"
+  status=$?
+  set -e
+  if [[ "$status" -ne 0 ]]; then
+    record_fail "$hook Copilot payload should exit 0 for $label (exit=$status)"
+    return
+  fi
+  if [[ -n "$output" ]]; then
+    record_fail "$hook Copilot payload should allow silently for $label"
+  fi
+}
+
 expect_antigravity_block() {
   local hook="$1"
   local command="$2"
@@ -353,6 +399,7 @@ run_smoke() {
   expect_allow shell 'rg "&& rm -rf /" src/' "quoted destructive search literal"
   expect_allow paths "cat .env.example" ".env.example read"
   expect_allow writes "git status" "git status"
+  expect_copilot_payload_allow paths '{"toolName":"view","toolArgs":"{\"path\":\"README.md\"}"}' "stringified non-bash file read"
   run_common_dependency_checks
 }
 
@@ -462,6 +509,8 @@ run_full() {
   expect_copilot_block shell "rm -rf /" "rm -rf"
   expect_copilot_block paths "cat .env" ".env read"
   expect_copilot_block writes "git push" "git push"
+  expect_copilot_payload_allow paths '{"toolName":"edit","toolArgs":"{\"file_path\":\"README.md\"}"}' "stringified non-bash file edit"
+  expect_copilot_payload_block paths '{"toolName":"view","toolArgs":"{\"path\":\".env\"}"}' "stringified non-bash secret file read" "Secret-file access"
   expect_no_jq_copilot_block shell '{"toolName":"bash","toolArgs":"{\"command\":\"echo \\\"safe\\\"; rm -rf /\"}"}' "escaped quote command"
   expect_no_jq_copilot_block shell '{"toolName":"bash","command":"echo \u0020"}' "top-level unsupported unicode escape"
   expect_no_jq_copilot_block shell '{"toolName":"bash","toolArgs":"{\"command\":\"echo \\u0020\"}"}' "unsupported unicode escape"

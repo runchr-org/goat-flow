@@ -20,6 +20,8 @@ NC='\033[0m' # No Colour
 
 ANTIGRAVITY_UNIX_INSTALLER_URL=${ANTIGRAVITY_UNIX_INSTALLER_URL:-https://antigravity.google/cli/install.sh}
 ANTIGRAVITY_WINDOWS_INSTALLER_URL=${ANTIGRAVITY_WINDOWS_INSTALLER_URL:-https://antigravity.google/cli/install.ps1}
+ANTIGRAVITY_SKIP_PATH=${ANTIGRAVITY_SKIP_PATH:-false}
+ANTIGRAVITY_SKIP_ALIASES=${ANTIGRAVITY_SKIP_ALIASES:-false}
 INSTALL_DIR=${ANTIGRAVITY_INSTALL_DIR:-}
 TMP_WORK_DIR=""
 
@@ -30,26 +32,32 @@ show_help() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
-    echo "  -d, --dir <path>    Install agy to a custom directory"
+    echo "  --skip-path         Do not let the official installer modify shell PATH files"
+    echo "  --skip-aliases      Do not let the official installer purge/update legacy aliases"
     echo "  -h, --help          Show this help message"
     echo ""
     echo "Environment overrides:"
-    echo "  ANTIGRAVITY_INSTALL_DIR           Custom install directory"
     echo "  ANTIGRAVITY_UNIX_INSTALLER_URL    Unix bootstrapper URL"
     echo "  ANTIGRAVITY_WINDOWS_INSTALLER_URL Windows PowerShell bootstrapper URL"
+    echo "  ANTIGRAVITY_SKIP_PATH             true to pass --skip-path"
+    echo "  ANTIGRAVITY_SKIP_ALIASES          true to pass --skip-aliases"
     echo ""
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -d|--dir)
-            if [ -z "${2:-}" ]; then
-                echo -e "${RED}Missing value for $1.${NC}"
-                show_help
-                exit 1
-            fi
-            INSTALL_DIR=$2
-            shift 2
+            echo -e "${RED}Custom Antigravity install directories are not documented by the current official installer.${NC}"
+            echo -e "${YELLOW}Use the official default location or rerun the upstream installer manually if Google adds a custom-directory flag.${NC}"
+            exit 1
+            ;;
+        --skip-path)
+            ANTIGRAVITY_SKIP_PATH=true
+            shift
+            ;;
+        --skip-aliases)
+            ANTIGRAVITY_SKIP_ALIASES=true
+            shift
             ;;
         -h|--help)
             show_help
@@ -400,8 +408,11 @@ run_unix_installer() {
     fi
     chmod +x "$installer" 2>/dev/null || true
 
-    if [ -n "$INSTALL_DIR" ]; then
-        installer_args+=(--dir "$INSTALL_DIR")
+    if [[ "$ANTIGRAVITY_SKIP_PATH" == "true" ]]; then
+        installer_args+=(--skip-path)
+    fi
+    if [[ "$ANTIGRAVITY_SKIP_ALIASES" == "true" ]]; then
+        installer_args+=(--skip-aliases)
     fi
 
     echo -e "${CYAN}Running official Antigravity CLI installer...${NC}"
@@ -412,7 +423,7 @@ run_unix_installer() {
 }
 
 run_windows_installer() {
-    local installer powershell_bin windows_install_dir
+    local installer powershell_bin
     local installer_args=()
     installer="$TMP_WORK_DIR/install.ps1"
 
@@ -432,9 +443,11 @@ run_windows_installer() {
         exit 1
     fi
 
-    if [ -n "$INSTALL_DIR" ]; then
-        windows_install_dir=$(to_windows_path "$INSTALL_DIR")
-        installer_args+=(--dir "$windows_install_dir")
+    if [[ "$ANTIGRAVITY_SKIP_PATH" == "true" ]]; then
+        installer_args+=(--skip-path)
+    fi
+    if [[ "$ANTIGRAVITY_SKIP_ALIASES" == "true" ]]; then
+        installer_args+=(--skip-aliases)
     fi
 
     echo -e "${CYAN}Running official Antigravity CLI installer via PowerShell...${NC}"
@@ -465,6 +478,12 @@ if [ -z "${HOME:-}" ] && [[ "$OS" != "Windows" ]]; then
     exit 1
 fi
 
+if [ -n "$INSTALL_DIR" ]; then
+    echo -e "${RED}ANTIGRAVITY_INSTALL_DIR is set, but the current official installer docs do not list a custom-directory flag.${NC}"
+    echo -e "${YELLOW}Unset ANTIGRAVITY_INSTALL_DIR and use the official default install location.${NC}"
+    exit 1
+fi
+
 echo -e "${CYAN}Starting Antigravity CLI installation...${NC}"
 echo -e "${YELLOW}Official download page: ${WHITE}https://antigravity.google/download${NC}"
 echo -e "${CYAN}Detected OS: ${WHITE}${OS}${NC}"
@@ -485,7 +504,9 @@ make_temp_dir
 
 if [[ "$OS" == "Windows" ]]; then
     run_windows_installer
-    ensure_git_bash_path
+    if [[ "$ANTIGRAVITY_SKIP_PATH" != "true" ]]; then
+        ensure_git_bash_path
+    fi
 else
     run_unix_installer
 fi

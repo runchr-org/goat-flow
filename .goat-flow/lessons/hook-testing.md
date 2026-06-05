@@ -135,6 +135,8 @@ last_reviewed: 2026-06-05
 
 **Prevention:** For hook payload parsing, normalize variant fields first, then read subfields. Keep self-tests for every registered agent payload shape in `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `expect_copilot_block`, `expect_antigravity_block`) and run the full self-test after every extractor edit. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `def extract_command(value)`) and `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `expect_antigravity_secret_file_block`).
 
+**Updated 2026-06-05:** The same parser gap recurred for file-tool paths instead of shell commands: jq normalized stringified Copilot `toolArgs` for `command`, but the path extractor did not parse stringified `path` / `file_path`. Safe non-bash payloads such as Copilot `view README.md` returned deny JSON until `extract_path` normalized object and string forms. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `def extract_path(value)`) and `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `stringified non-bash file read`).
+
 ## Lesson: Hook write-block tests must vary valid CLI grammar
 
 **Status:** active | **Created:** 2026-05-20

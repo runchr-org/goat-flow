@@ -96,6 +96,45 @@ remove_dir_prompt() {
     fi
 }
 
+remove_file_prompt() {
+    local file confirm_remove
+    file=$1
+
+    if [ ! -e "$file" ]; then
+        echo -e "${YELLOW}Not found: $file${NC}"
+        return 0
+    fi
+
+    if [ -z "${HOME:-}" ] || [ "$HOME" = "/" ]; then
+        echo -e "${RED}HOME is not set safely. Skipping: $file${NC}"
+        return 1
+    fi
+
+    case "$file" in
+        "$HOME"/*) ;;
+        *)
+            echo -e "${RED}Refusing to remove path outside HOME: $file${NC}"
+            return 1
+            ;;
+    esac
+
+    if [[ ! -t 0 ]]; then
+        echo -e "${YELLOW}Non-interactive mode: skipping $file${NC}"
+        return 0
+    fi
+
+    read -r -p "Remove $file ? (y/n): " confirm_remove
+    if [[ "$confirm_remove" == "y" ]]; then
+        if rm -f -- "$file"; then
+            echo -e "${GREEN}Removed: $file${NC}"
+        else
+            echo -e "${RED}Failed to remove: $file${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Skipped: $file${NC}"
+    fi
+}
+
 IS_WSL=false
 if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null; then
     IS_WSL=true
@@ -104,22 +143,58 @@ sanitize_path_for_wsl
 
 echo -e "${CYAN}Starting Claude CLI uninstallation process...${NC}"
 
-# Check if npm is installed
-if ! command_exists npm; then
-    echo -e "${RED}npm is required to uninstall the Claude CLI package.${NC}"
-    echo -e "${YELLOW}Please install Node.js/npm or remove the global package manually.${NC}"
-    exit 1
+echo -e "\n${CYAN}========================================"
+echo -e "Checking for Homebrew / WinGet installation"
+echo -e "========================================${NC}"
+
+if command_exists brew && brew list --cask claude-code >/dev/null 2>&1; then
+    if brew uninstall --cask claude-code; then
+        echo -e "${GREEN}Homebrew cask uninstall completed.${NC}"
+    else
+        echo -e "${YELLOW}Homebrew cask uninstall reported an issue.${NC}"
+    fi
+elif command_exists brew && brew list --cask claude-code@latest >/dev/null 2>&1; then
+    if brew uninstall --cask claude-code@latest; then
+        echo -e "${GREEN}Homebrew latest cask uninstall completed.${NC}"
+    else
+        echo -e "${YELLOW}Homebrew latest cask uninstall reported an issue.${NC}"
+    fi
+else
+    echo -e "${YELLOW}Claude Code not found in Homebrew.${NC}"
+fi
+
+if command_exists winget; then
+    if winget uninstall Anthropic.ClaudeCode; then
+        echo -e "${GREEN}WinGet uninstall completed.${NC}"
+    else
+        echo -e "${YELLOW}WinGet uninstall reported an issue or Claude Code was not installed through WinGet.${NC}"
+    fi
+else
+    echo -e "${YELLOW}WinGet not found. Skipping WinGet uninstall.${NC}"
 fi
 
 echo -e "\n${CYAN}========================================"
 echo -e "Uninstalling Claude CLI via npm"
 echo -e "========================================${NC}"
 
-if npm uninstall -g "${CLAUDE_NPM_PACKAGE}"; then
-    echo -e "\n${GREEN}Claude CLI uninstalled via npm.${NC}"
-else
-    echo -e "\n${YELLOW}npm uninstall reported an issue. The package may not have been installed globally.${NC}"
+if command_exists npm && npm uninstall -g "${CLAUDE_NPM_PACKAGE}"; then
+    echo -e "${GREEN}Claude CLI uninstalled via npm.${NC}"
+elif command_exists npm; then
+    echo -e "${YELLOW}npm uninstall reported an issue. The package may not have been installed globally.${NC}"
     echo -e "${YELLOW}You can check with: npm list -g ${CLAUDE_NPM_PACKAGE}${NC}"
+else
+    echo -e "${YELLOW}npm not found. Skipping npm uninstall.${NC}"
+fi
+
+echo -e "\n${CYAN}========================================"
+echo -e "Removing native Claude Code binary"
+echo -e "========================================${NC}"
+
+if [ -n "${HOME:-}" ]; then
+    remove_file_prompt "${HOME}/.local/bin/claude"
+    remove_file_prompt "${HOME}/.local/bin/claude.exe"
+else
+    echo -e "${YELLOW}HOME not set. Skipping native binary cleanup.${NC}"
 fi
 
 echo -e "\n${CYAN}========================================"
@@ -136,6 +211,8 @@ POSSIBLE_DIRS=(
 for dir in "${POSSIBLE_DIRS[@]}"; do
     remove_dir_prompt "$dir"
 done
+
+remove_file_prompt "${HOME:-}/.claude.json"
 
 echo -e "\n${CYAN}========================================"
 echo -e "Verifying uninstall"

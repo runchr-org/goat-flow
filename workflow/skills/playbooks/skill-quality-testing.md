@@ -7,6 +7,10 @@ Short index for full-depth skill-authoring work. Load only the topical file(s)
 needed for the current phase; do not pre-load the whole pack unless the task
 genuinely spans TDD iteration, review-class hardening, and deployment.
 
+## Availability Check
+
+Non-runnable authoring methodology - no CLI check applies. Load when creating or hardening a goat-flow skill, then open the topical file named in the table below.
+
 ## Which file to load
 
 | File | Content | Load when |

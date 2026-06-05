@@ -18,6 +18,10 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 CLAUDE_NPM_PACKAGE=${CLAUDE_NPM_PACKAGE:-@anthropic-ai/claude-code}
+CLAUDE_INSTALL_METHOD=${CLAUDE_INSTALL_METHOD:-auto}
+CLAUDE_UNIX_INSTALLER_URL=${CLAUDE_UNIX_INSTALLER_URL:-https://claude.ai/install.sh}
+CLAUDE_WINDOWS_INSTALLER_URL=${CLAUDE_WINDOWS_INSTALLER_URL:-https://claude.ai/install.ps1}
+TMP_WORK_DIR=""
 
 show_help() {
     echo ""
@@ -26,12 +30,29 @@ show_help() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
+    echo "  -m, --method <auto|native|npm|homebrew|winget>"
+    echo "                 Install method (default: auto/native)"
     echo "  -h, --help    Show this help message"
+    echo ""
+    echo "Environment overrides:"
+    echo "  CLAUDE_INSTALL_METHOD       auto, native, npm, homebrew, or winget"
+    echo "  CLAUDE_NPM_PACKAGE          npm package when using --method npm"
+    echo "  CLAUDE_UNIX_INSTALLER_URL   Native macOS/Linux/WSL installer URL"
+    echo "  CLAUDE_WINDOWS_INSTALLER_URL Native Windows PowerShell installer URL"
     echo ""
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -m|--method)
+            if [ -z "${2:-}" ]; then
+                echo -e "${RED}Missing value for $1.${NC}"
+                show_help
+                exit 1
+            fi
+            CLAUDE_INSTALL_METHOD=$2
+            shift 2
+            ;;
         -h|--help) show_help; exit 0 ;;
         *) echo -e "${RED}Unknown option: $1${NC}"; show_help; exit 1 ;;
     esac
@@ -61,6 +82,68 @@ sanitize_path_for_wsl() {
         fi
     done
     export PATH="$new_path"
+}
+
+download_file() {
+    local url dest
+    url=$1
+    dest=$2
+
+    if command_exists curl; then
+        curl -fsSL "$url" -o "$dest"
+    elif command_exists wget; then
+        wget -q -O "$dest" "$url"
+    else
+        echo -e "${RED}Either curl or wget is required for the native installer.${NC}"
+        return 1
+    fi
+}
+
+make_temp_dir() {
+    local base
+    base=${TMPDIR:-/tmp}
+    if ! TMP_WORK_DIR=$(mktemp -d "${base%/}/claude-installer.XXXXXX"); then
+        echo -e "${RED}Failed to create a temporary installer directory.${NC}"
+        exit 1
+    fi
+}
+
+cleanup() {
+    if [ -n "${TMP_WORK_DIR:-}" ] && [ -d "$TMP_WORK_DIR" ]; then
+        rm -f -- "$TMP_WORK_DIR/install.sh" "$TMP_WORK_DIR/install.ps1" 2>/dev/null || true
+        rmdir "$TMP_WORK_DIR" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
+run_claude_native_installer() {
+    local installer powershell_bin
+
+    make_temp_dir
+    if [[ "$OS" == "Windows" ]]; then
+        if command_exists powershell.exe; then
+            powershell_bin=powershell.exe
+        elif command_exists pwsh.exe; then
+            powershell_bin=pwsh.exe
+        else
+            echo -e "${RED}PowerShell is required for Claude Code native install on Windows.${NC}"
+            echo -e "${YELLOW}Official command: irm https://claude.ai/install.ps1 | iex${NC}"
+            exit 1
+        fi
+
+        installer="$TMP_WORK_DIR/install.ps1"
+        echo -e "\n${YELLOW}Downloading official Claude Code Windows installer...${NC}"
+        download_file "$CLAUDE_WINDOWS_INSTALLER_URL" "$installer"
+        echo -e "${CYAN}Running official Claude Code native installer...${NC}"
+        "$powershell_bin" -NoProfile -ExecutionPolicy Bypass -File "$installer"
+    else
+        installer="$TMP_WORK_DIR/install.sh"
+        echo -e "\n${YELLOW}Downloading official Claude Code native installer...${NC}"
+        download_file "$CLAUDE_UNIX_INSTALLER_URL" "$installer"
+        chmod +x "$installer" 2>/dev/null || true
+        echo -e "${CYAN}Running official Claude Code native installer...${NC}"
+        bash "$installer"
+    fi
 }
 
 verify_native_binary() {
@@ -97,6 +180,24 @@ require_node_major() {
     fi
 }
 
+finish_install() {
+    echo -e "\n${YELLOW}Verifying installation...${NC}"
+    if verify_native_binary claude "Claude CLI"; then
+        echo -e "${GREEN}Claude CLI installed successfully!${NC}"
+        claude --version 2>/dev/null || echo -e "${YELLOW}Version command not available yet${NC}"
+        claude doctor 2>/dev/null || true
+
+        echo -e "\n${CYAN}========================================"
+        echo -e "Next Steps:"
+        echo -e "========================================${NC}"
+        echo -e "${WHITE}1. Start the CLI: claude"
+        echo -e "2. Authenticate in the browser flow on first run"
+        echo -e "3. Run 'claude doctor' if PATH or update checks look wrong${NC}"
+    fi
+
+    echo -e "\n${GREEN}Installation process completed!${NC}"
+}
+
 IS_WSL=false
 
 # Detect OS
@@ -115,9 +216,52 @@ fi
 
 sanitize_path_for_wsl
 
+case "$CLAUDE_INSTALL_METHOD" in
+    auto|native|npm|homebrew|winget) ;;
+    *)
+        echo -e "${RED}Unknown install method: ${CLAUDE_INSTALL_METHOD}${NC}"
+        show_help
+        exit 1
+        ;;
+esac
+
 echo -e "${CYAN}Starting Claude CLI installation process...${NC}"
-echo -e "${YELLOW}This will install Claude CLI using npm package ${CLAUDE_NPM_PACKAGE}${NC}"
+echo -e "${YELLOW}Install method: ${WHITE}${CLAUDE_INSTALL_METHOD}${NC}"
 echo -e "\n${CYAN}Detected OS: ${WHITE}$OS${NC}"
+
+if [[ "$CLAUDE_INSTALL_METHOD" == "auto" ]] || [[ "$CLAUDE_INSTALL_METHOD" == "native" ]]; then
+    run_claude_native_installer
+    finish_install
+    exit 0
+fi
+
+if [[ "$CLAUDE_INSTALL_METHOD" == "homebrew" ]]; then
+    if [[ "$OS" != "macOS" && "$OS" != "Linux" ]]; then
+        echo -e "${RED}Claude Code Homebrew install is only supported on macOS/Linux.${NC}"
+        exit 1
+    fi
+    if ! command_exists brew; then
+        echo -e "${RED}Homebrew is not installed.${NC}"
+        exit 1
+    fi
+    brew install --cask claude-code
+    finish_install
+    exit 0
+fi
+
+if [[ "$CLAUDE_INSTALL_METHOD" == "winget" ]]; then
+    if [[ "$OS" != "Windows" ]]; then
+        echo -e "${RED}WinGet install is only supported on Windows.${NC}"
+        exit 1
+    fi
+    if ! command_exists winget; then
+        echo -e "${RED}WinGet is not installed or not available in PATH.${NC}"
+        exit 1
+    fi
+    winget install Anthropic.ClaudeCode
+    finish_install
+    exit 0
+fi
 
 # Check if Node.js is installed (required for npm)
 echo -e "\n${YELLOW}Checking for Node.js installation...${NC}"
@@ -135,39 +279,8 @@ if command_exists node; then
     fi
 else
     echo -e "${RED}Node.js is required for Claude CLI installation.${NC}"
-    if [[ -t 0 ]]; then
-        read -r -p "Would you like to install Node.js? (y/n): " install_node
-        if [[ "$install_node" != "y" ]]; then
-            echo -e "${RED}Node.js is required for Claude CLI. Exiting.${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${CYAN}Non-interactive mode: auto-installing Node.js...${NC}"
-    fi
-
-    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "mingw"* ]]; then
-        echo -e "${CYAN}Installing Node.js for Windows via winget...${NC}"
-        winget install -e --id OpenJS.NodeJS.LTS
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo -e "${CYAN}Installing Node.js for Linux...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "${CYAN}Installing Node.js for macOS...${NC}"
-        if command_exists brew; then
-            brew install node
-        else
-            echo -e "${YELLOW}Homebrew not found. Please install it first or use the Node.js installer.${NC}"
-            exit 1
-        fi
-    fi
-
-    export PATH=$PATH:/usr/local/bin
-    hash -r
-    if ! command_exists node; then
-        echo -e "${RED}Node.js installation failed. Exiting.${NC}"
-        exit 1
-    fi
+    echo -e "${YELLOW}Use --method native to install without Node.js, or install Node.js 18+ and rerun --method npm.${NC}"
+    exit 1
 fi
 
 NODE_VERSION=$(node --version)
@@ -215,8 +328,8 @@ if verify_native_binary claude "Claude CLI"; then
     echo -e "Next Steps:"
     echo -e "========================================${NC}"
     echo -e "${WHITE}1. Start the CLI: claude"
-    echo -e "2. Set ANTHROPIC_API_KEY for authentication"
-    echo -e "3. Run claude --help for commands${NC}"
+    echo -e "2. Authenticate in the browser flow on first run"
+    echo -e "3. Run claude doctor for install diagnostics${NC}"
 fi
 
 echo -e "\n${GREEN}Installation process completed!${NC}"

@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-06-04
+last_reviewed: 2026-06-05
 ---
 
 **Last independent review:** 2026-05-26 - Active entries re-verified against current split guardrail anchors and central self-test. Workflow, Claude, GitHub, Codex, and Antigravity self-tests return `PASS: deny-dangerous self-test`; Antigravity uses `.agents/hooks.json` + `.agents/hooks/` scripts for PreToolUse. The `cat .env` probe is blocked by `patterns-paths.sh`; coverage relies on self-test cases plus live harness blocking.
@@ -177,17 +177,33 @@ last_reviewed: 2026-06-04
 
 **Status:** active | **Created:** 2026-04-21 | **Evidence:** ACTUAL_MEASURED
 
-**Active trap:** Copilot-style `preToolUse` hooks can receive structured payloads for non-bash tools as well as shell commands. A bash-only deny check that doesn't branch on `toolName` can deny safe non-bash tools or apply command regexes to the wrong payload shape.
+**Active trap:** Copilot `preToolUse` can receive Bash and non-Bash payloads through the same hook. Bash-only deny logic that ignores `toolName` can deny safe file tools or regex structured payloads.
 
-**Original failure (resolved):** The Copilot hook was registered for all tools and treated every payload as bash; non-bash tools (view, edit, Task) had no `command` field, so it denied them. It now reads `toolName` and exits 0 silently for non-bash tools - the active footgun is preserving that distinction in future changes.
+**Original failure:** The hook once treated every payload as Bash; non-Bash `view` / `edit` / `Task` events had no `command`, so they were denied. It now checks `toolName`, allows safe file tools silently, and still denies protected paths.
 
 **Prevention:**
-1. Any hook registered for a non-bash-specific event MUST read `toolName` before applying bash-only checks. Structured-payload ≠ bash-payload on runtimes like Copilot that pipe all tool calls through `preToolUse`.
-2. When adding a new runtime surface, the self-test must include at least one non-bash `toolName` payload (e.g. `view`, `edit`, `Task`). Bash-only coverage masks this failure shape.
-3. Use the forbidden-pattern helper (`!pattern` prefix in `run_stdin_case`) for allow-path assertions - exit 0 alone does NOT distinguish "allowed silently" from "denied via copilot-json", since both exit 0.
+1. Read `toolName` before shell checks on any broad `preToolUse` hook.
+2. Self-test every registered payload shape, including non-Bash Copilot payloads and stringified `toolArgs`.
+3. Allow tests must assert no deny JSON, not just exit 0; Copilot denies also exit 0.
 
 **Evidence:**
-- `workflow/hooks/deny-dangerous.sh` (search: `detect_output_mode`) - split hooks preserve Copilot JSON deny responses for Bash payloads; the self-test (`bash .goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke`) covers Copilot-shaped Bash payloads with deny JSON assertions.
+- `workflow/hooks/deny-dangerous.sh` (search: `detect_output_mode`; `def extract_path(value)`).
+- `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `stringified non-bash file read`).
+- 2026-06-05 recurrence: stringified Copilot `toolArgs.path` / `file_path` denied safe `view` / `edit` until `extract_path` normalized object and string forms.
+
+---
+
+## Footgun: Copilot hook config can exist while runtime policy hooks are disabled
+
+**Status:** active | **Created:** 2026-06-05 | **Evidence:** ACTUAL_MEASURED
+
+**Trap:** Goat-flow can verify `.github/hooks/hooks.json` and the deny script while Copilot never invokes the repo hook. On 2026-06-05, Copilot CLI 1.0.54 reported `POLICY_HOOKS: false`; a live `view` ran; the capture hook received no stdin.
+
+**Evidence:**
+- `workflow/hooks/agent-config/copilot-hooks.json` and `.github/hooks/hooks.json` (search: `"preToolUse"`).
+- `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runtimeSmokePayload`) validates script-shaped stdin only.
+
+**Prevention:** In release QA, label Copilot coverage as script/config evidence unless live capture writes a payload or emits `hook.start`. `POLICY_HOOKS: false` means runtime enforcement is unavailable/limited.
 
 ---
 

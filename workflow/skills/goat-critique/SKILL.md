@@ -22,7 +22,7 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 **NOT this skill (pre-invocation routing):** Use when deciding which skill to invoke, not after explicit invocation.
 - No artifact exists yet → create one first (goat-review, goat-debug, etc.)
 - Simple factual question → answer directly
-- Trivial artifact (hotfix, single-file change) → consider goat-review instead
+- Trivial artifact (hotfix, single-file change) → consider goat-review instead *(pre-invocation only; once `/goat-critique` is invoked, it runs the full protocol regardless of size — see "Direct invocation is binding" below)*
 
 | Excuse | Reality |
 |--------|---------|

@@ -170,9 +170,18 @@ function requirePhrases(path, sectionName, section, phrases, label, failures) {
   }
 }
 
+/** Strip the single per-agent ACT line so the shared Execution Loop body can be compared byte-for-byte across setup guides. */
+function normalizeSharedLoop(executionLoopBody) {
+  return executionLoopBody
+    .split("\n")
+    .filter((line) => !/^For .+ setup, ACT means/.test(line))
+    .join("\n");
+}
+
 /** Validate shared instruction contracts because parity errors need a complete mismatch list before it exits. */
 function validateInstructionParity() {
   const failures = [];
+  const setupLoopBodies = [];
 
   for (const file of ALL_FILES) {
     const abs = resolve(ROOT, file);
@@ -224,6 +233,7 @@ function validateInstructionParity() {
     const routerTable = sectionBodies.get("Router Table") ?? "";
 
     if (SETUP_FILES.includes(file)) {
+      setupLoopBodies.push({ label, body: normalizeSharedLoop(executionLoop) });
       requirePhrases(
         label,
         "Essential Commands",
@@ -250,6 +260,25 @@ function validateInstructionParity() {
           `${label}: Router Table must include peer instruction routing`,
         );
       }
+    }
+  }
+
+  // Shared Execution Loop body must stay byte-identical across setup guides (minus the per-agent ACT line),
+  // so a reworded red-flag or a dropped rule in one guide cannot pass parity while the other three go stale.
+  if (setupLoopBodies.length > 1) {
+    const [reference, ...rest] = setupLoopBodies;
+    for (const entry of rest) {
+      if (entry.body === reference.body) continue;
+      const refLines = reference.body.split("\n");
+      const entryLines = entry.body.split("\n");
+      const diffAt = entryLines.findIndex((line, idx) => line !== refLines[idx]);
+      const detail =
+        diffAt === -1
+          ? "trailing content differs"
+          : `first diff at shared-loop line ${diffAt + 1}: ${JSON.stringify(refLines[diffAt] ?? "<missing>")} vs ${JSON.stringify(entryLines[diffAt] ?? "<missing>")}`;
+      failures.push(
+        `${entry.label}: shared Execution Loop body drifted from ${reference.label} (${detail})`,
+      );
     }
   }
 

@@ -329,6 +329,7 @@ prompt_user_data_cleanup() {
 
     if [ -n "${HOME:-}" ]; then
         data_dirs+=(
+            "$HOME/.gemini/antigravity-cli"
             "$HOME/.cache/antigravity"
             "$HOME/.config/antigravity"
             "$HOME/.local/share/antigravity"
