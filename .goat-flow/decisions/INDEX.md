@@ -1,7 +1,7 @@
 ---
 category: index
 bucket: decisions
-last_reviewed: 2026-06-04
+last_reviewed: 2026-06-05
 generated: false
 ---
 
@@ -41,5 +41,3 @@ Hand-maintained index of Architectural Decision Records. Each line links to the 
 - [ADR-030: Replace Gemini with Antigravity as the fourth supported runtime](ADR-030-replace-gemini-with-antigravity.md) — Accepted, 2026-05-24
 - [ADR-031: Single canonical commit-conventions doc at docs/coding-standards/git-commit.md](ADR-031-single-canonical-commit-doc.md) — Accepted, 2026-05-29
 - [ADR-032: Scope gruff-code-quality hook binary discovery to standard install locations](ADR-032-scope-gruff-hook-binary-discovery.md) — Accepted, 2026-06-01
-</content>
-</invoke>

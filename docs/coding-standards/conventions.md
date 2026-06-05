@@ -23,7 +23,7 @@ src/cli/
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
   audit/              # Audit engine (audit.ts, check-goat-flow.ts, check-agent-setup.ts, harness/, render.ts, types.ts)
-  prompt/             # Prompt generation (compose-setup.ts, compose-quality.ts)
+  prompt/             # Prompt generation: commit-guidance.ts, compose-setup.ts, compose-quality.ts, compose-quality-agent-report.ts, compose-quality-agent-setup.ts, compose-quality-artifact.ts, compose-quality-common.ts, compose-quality-focused.ts, learning-loop-context.ts
   server/             # Dashboard server modules:
                       #   dashboard.ts (bootstrap, dispatch, live reload)
                       #   dashboard-routes.ts (non-terminal HTTP handlers)

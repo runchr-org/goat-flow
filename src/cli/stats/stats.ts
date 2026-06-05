@@ -5,6 +5,7 @@
  * persisted derived counts. `--check` mode reuses the same report data to decide
  * pass/fail, so CI and the human-readable report never disagree.
  */
+import { DECISION_META_FILES } from "../facts/shared/decision-files.js";
 import type { SharedFacts, BucketFreshness, ReadonlyFS } from "../types.js";
 
 /** Aggregated per-surface view over one learning-loop directory (footguns or lessons). */
@@ -269,13 +270,6 @@ function collectWarnings(section: BucketSection): StatsWarning[] {
 }
 
 const ADR_FILENAME = /^ADR-\d{3}-[a-z0-9-]+\.md$/;
-/**
- * Non-ADR meta files that legitimately live in the decisions bucket: the
- * authoring-rules README and the hand-maintained INDEX (the same index
- * convention the footgun and lesson buckets already use). Both are exempt from
- * the ADR filename and structure invariants.
- */
-const DECISION_META_FILES = new Set(["README.md", "INDEX.md"]);
 const ROUTING_HINT =
   "Wrong home -> right home: implementation TODOs and scoped work plans belong in .goat-flow/tasks/; recurring hazards with evidence belong in .goat-flow/footguns/; reusable takeaways belong in .goat-flow/lessons/; temporary notes belong in .goat-flow/scratchpad/; backlog requests belong in Linear/GitHub issues.";
 

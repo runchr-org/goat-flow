@@ -51,8 +51,15 @@ manifest/
   types.ts                 # Manifest schema types
 
 prompt/
+  commit-guidance.ts        # Commit-message guidance composition used by setup/quality prompt surfaces
+  compose-quality-agent-report.ts # JSON report contract appended to agent quality prompts
+  compose-quality-agent-setup.ts # Agent-installation quality assessment prompt
+  compose-quality-artifact.ts # Skill/reference artifact quality assessment prompt
+  compose-quality-common.ts # Shared quality prompt sections and report-writing contract
+  compose-quality-focused.ts # Focused quality prompt variant for targeted checks
   compose-setup.ts         # Generates audit-driven setup prompts for agents
   compose-quality.ts       # Generates quality-assessment prompts for agents (prompt mode only)
+  learning-loop-context.ts # Bounded learning-loop context selector for generated prompts
 
 quality/
   candidacy.ts             # Scores installed artifacts as skill-quality candidates

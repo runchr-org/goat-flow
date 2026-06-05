@@ -1,6 +1,18 @@
 ---
 category: hook-testing
-last_reviewed: 2026-06-03
+last_reviewed: 2026-06-05
+---
+
+## Lesson: Codex sandbox hook probes must distinguish direct Bash from Node child-process
+
+**Status:** active | **Created:** 2026-06-05
+
+**What happened:** During the v1.9.1 quality follow-up, I first rejected a Codex sandbox finding after `codex sandbox --permissions-profile goat-flow ... bash .goat-flow/hook-lib/deny-dangerous-self-test.sh --self-test=smoke` passed. A stricter repro then showed the real failing layer: the same sandbox allowed direct Bash, but a Node script using `execFileSync("bash", ["-n", hook])` and `spawnSync("bash", ...)` returned `EPERM`. The audit therefore reported `bash -n failed` even though direct `bash -n` on the hook passed.
+
+**Root cause:** I treated direct shell execution as equivalent to the Node child-process path used by audit and preflight. Codex's managed sandbox can allow the initial Bash process while blocking child processes spawned from Node, so direct hook self-tests are necessary but not sufficient evidence for TypeScript validation gates.
+
+**Prevention:** When a sandbox finding involves audit/preflight hook checks, reproduce the exact runtime layer: direct hook script, configured command smoke, and a Node `child_process` probe. Audit and preflight diagnostics must surface `EPERM`/`ENOENT`/timeout as environment failures instead of syntax or hook-behavior defects. Evidence anchors: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `spawnFailureFor`), `scripts/preflight-checks.sh` (search: `spawnFailureMessage`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `reports sandbox spawn denial`).
+
 ---
 
 ## Lesson: Manual hook matrices must avoid live-guard self-interference

@@ -15,7 +15,7 @@ User's explicit instruction (this session) > AGENTS.md > `.goat-flow/architectur
 
 **Codex note:** `goat-critique` depends on delegated sub-agents. Direct `$goat-critique` or `/goat-critique` invocation is explicit delegation consent. Skill-chained entry (e.g. `/goat-debug` chains to `/goat-critique`) is implicit consent from the parent invocation - do not re-ask.
 
-**Ask First** - before proceeding, state: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked (`.github/instructions/` / `AGENTS.md` / none), rollback command.
+**Ask First** - before touching a boundary, ask and wait for approval. Include: boundary touched, related code read (yes/no), footgun entry checked (or "none"), local instruction checked (`.github/instructions/` / `AGENTS.md` / none), rollback command.
 
 Boundaries: instruction files (`AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`); workflow/manifest (`workflow/setup/`, `workflow/skills/`, `workflow/manifest.json`); architecture (`.goat-flow/architecture.md`); skill reference (`.goat-flow/skill-reference/`); skill playbooks (`.goat-flow/skill-playbooks/`); server runtime (`src/cli/server/terminal.ts`, `src/cli/server/dashboard.ts`); agent configs (`.claude/**`, `.codex/**`, `.agents/**`); CI/hooks (`.github/workflows/**`, `.github/actions/**`, `.github/hooks/**`, `.github/skills/**`); any add/remove/rename; changes spanning 3+ docs.
 
@@ -42,8 +42,8 @@ Conventional `type(scope): subject` - imperative, ≤72 chars, concrete verbs no
 
 ## Essential Commands
 ```bash
-shellcheck scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
-bash -n scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh .claude/hooks/*.sh .goat-flow/hook-lib/*.sh
+shellcheck scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh .claude/hooks/*.sh .codex/hooks/*.sh .agents/hooks/*.sh .github/hooks/*.sh .goat-flow/hook-lib/*.sh
+bash -n scripts/*.sh scripts/maintenance/*.sh scripts/installers/*.sh .claude/hooks/*.sh .codex/hooks/*.sh .agents/hooks/*.sh .github/hooks/*.sh .goat-flow/hook-lib/*.sh
 npm run typecheck
 npm test
 bash scripts/preflight-checks.sh

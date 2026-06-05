@@ -23,6 +23,7 @@ import {
   summarizeFootgunRefs,
   summarizeLessonRefs,
 } from "./learning-loop-common.js";
+import { isDecisionRecordMarkdown } from "./decision-files.js";
 import { splitFootgunSections } from "./learning-loop-sections.js";
 
 /** Extract one metadata date from an entry body. */
@@ -194,7 +195,7 @@ function extractDecisionEntries(
 ): LearningLoopEntryFact[] {
   let order = startOrder;
   return dir.files
-    .filter((file) => basename(file.path) !== "README.md")
+    .filter((file) => isDecisionRecordMarkdown(basename(file.path)))
     .map((file) => {
       const filename = basename(file.path);
       return {

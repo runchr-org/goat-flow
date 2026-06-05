@@ -1,7 +1,7 @@
 ---
 category: index
 bucket: footguns
-last_reviewed: 2026-06-04
+last_reviewed: 2026-06-05
 generated: false
 ---
 
@@ -14,7 +14,6 @@ Prototype index for active footgun entries. Each line links to the bucket file a
 - [Audit does not prove end-to-end deny enforcement at runtime](auditor.md) (search: "## Footgun: Audit does not prove end-to-end deny enforcement at runtime") - Local hook checks do not prove an external agent delivered the hook event.
 - [Missing directories can false-pass when harness checks use `listDir()` as an existence test](auditor.md) (search: "## Footgun: Missing directories can false-pass when harness checks use `listDir()` as an existence test") - `listDir()` returns `[]` for missing paths, so checks need `exists()` when absence matters.
 - [Structural Compliance Illusion](auditor.md) (search: "## Footgun: Structural Compliance Illusion") - Structural audit pass does not prove docs, ADRs, or prompts are semantically true.
-- [Decision meta files must be excluded from every decision extractor](auditor.md) (search: "## Footgun: Decision meta files must be excluded from every decision extractor") - Decision indexes can pass validation while leaking into counts and prompt entries unless every extractor shares the same meta-file filter.
 - [TTL'd cache invalidation MUST travel with every writer, not just the writer the bug surfaced from](caching.md) (search: "## Footgun: TTL'd cache invalidation MUST travel with every writer, not just the writer the bug surfaced from") - Read-side caches can return plausible stale counts after writes unless every writer invalidates them.
 - [Resource cleanup at one layer leaves the consumer loop running at the next layer](cleanup-layering.md) (search: "## Footgun: Resource cleanup at one layer leaves the consumer loop running at the next layer") - Timeouts can remove resources while consumers keep issuing fast-failing operations.
 - [Host-native paths leak into user-visible CLI output on Windows](cli.md) (search: "## Footgun: Host-native paths leak into user-visible CLI output on Windows") - Backslash paths in Bash-facing prompts and output become invalid or misleading on Windows.

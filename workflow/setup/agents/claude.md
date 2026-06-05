@@ -14,7 +14,7 @@
 
 **Always:** Set up Claude-owned surfaces: `CLAUDE.md`, `.claude/`, and shared `.goat-flow/`. Merge with existing `.goat-flow/` content instead of replacing it.
 
-**Ask First:** Before touching boundaries outside Claude ownership, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+**Ask First:** Before touching boundaries outside Claude ownership, ask and wait for approval; include boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
 **Never:** Freeze writes if interrupted or told no changes. Do not edit `AGENTS.md`, `.agents/`, or `.codex/` during Claude setup unless the user explicitly widens scope. Do not overwrite existing instruction content; preserve or route domain knowledge to `.goat-flow/`.
 

@@ -10,6 +10,7 @@ import {
   extractLessonsFacts,
   extractLearningLoopEntries,
 } from "./learning-loop.js";
+import { isDecisionRecordMarkdown } from "./decision-files.js";
 import { extractGitignoreFacts } from "./ci.js";
 import { extractLocalInstructions } from "./local-instructions.js";
 
@@ -40,9 +41,9 @@ function extractDecisionsFacts(
   const path = rawPath.replace(/\/$/, "");
   /** Whether the decisions directory exists */
   const dirExists = fs.exists(path);
-  /** Count of markdown files in decisions directory, excluding README */
+  /** Count of ADR markdown files in decisions directory, excluding metadata files. */
   const files = dirExists
-    ? fs.listDir(path).filter((f) => f.endsWith(".md") && f !== "README.md")
+    ? fs.listDir(path).filter(isDecisionRecordMarkdown)
     : [];
   const fileCount = files.length;
   // Require at least one ADR with substantive Context and Decision sections.

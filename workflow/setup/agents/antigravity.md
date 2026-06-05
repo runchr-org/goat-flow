@@ -14,7 +14,7 @@
 
 **Always:** Set up Antigravity-owned surfaces: `AGENTS.md`, `.agents/skills/`, `.agents/hooks.json`, `.agents/hooks/`, and shared `.goat-flow/`. `AGENTS.md` and `.agents/skills/` are shared with Codex; either setup can create/update them, but neither should duplicate or stomp the other's content.
 
-**Ask First:** Before touching non-Antigravity surfaces, state boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
+**Ask First:** Before touching non-Antigravity surfaces, ask and wait for approval; include boundary touched, related code read, footgun checked, local instruction checked, and rollback command.
 
 **Never:** Freeze writes if interrupted or told no changes. Do not edit `CLAUDE.md`, `.claude/`, or `.codex/` during Antigravity setup unless the user explicitly widens scope. Do not overwrite existing instruction content; preserve or route domain knowledge to `.goat-flow/`.
 

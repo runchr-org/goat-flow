@@ -5,7 +5,7 @@
  * different ways. Some checks spawn `bash` and copy fixture hooks to a real path, so this file owns
  * the bridge from the in-memory audit FS to the actual workspace the shell needs.
  */
-import { execFileSync, spawnSync } from "node:child_process";
+import * as childProcess from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { AUDIT_VERSION } from "../constants.js";
@@ -34,6 +34,57 @@ const DENY_HOOK_TEMPLATE_FILES = [
   "hook-lib/patterns-writes.sh",
   "hook-lib/deny-dangerous-self-test.sh",
 ];
+
+interface SpawnFailure {
+  message: string;
+  howToFix: string;
+}
+
+function errnoCode(error: unknown): string | undefined {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+    ? error.code
+    : undefined;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function spawnFailureFor(error: unknown, action: string): SpawnFailure | null {
+  const code = errnoCode(error);
+  if (code === "EPERM") {
+    return {
+      message: `${action} could not spawn bash (EPERM: ${errorMessage(error)}). The current sandbox or permission profile blocks child-process execution.`,
+      howToFix:
+        "Run this audit outside the child-process-restricted sandbox, or use a profile that permits Node child_process to spawn bash.",
+    };
+  }
+  if (code === "ENOENT") {
+    return {
+      message: `${action} could not spawn bash (ENOENT: ${errorMessage(error)}).`,
+      howToFix:
+        "Install bash or run the audit in an environment where bash is on PATH.",
+    };
+  }
+  if (code === "ETIMEDOUT") {
+    return {
+      message: `${action} timed out while spawning bash (${errorMessage(error)}).`,
+      howToFix:
+        "Re-run the audit with the hook command manually to inspect whether the hook hangs.",
+    };
+  }
+  return null;
+}
+
+function spawnFailureFromResult(
+  result: childProcess.SpawnSyncReturns<string>,
+  action: string,
+): SpawnFailure | null {
+  return result.error ? spawnFailureFor(result.error, action) : null;
+}
 
 /** Check deny-hook presence because unsupported agents and config-based agents need different handling. */
 function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
@@ -72,11 +123,23 @@ function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
       // ctx.fs may be backed by an in-memory fixture, but bash -n needs a real workspace path.
       const fullPath = join(ctx.projectPath, hooksDir, file);
       try {
-        execFileSync("bash", ["-n", fullPath], {
+        childProcess.execFileSync("bash", ["-n", fullPath], {
           stdio: "pipe",
           timeout: 5000,
         });
-      } catch {
+      } catch (error) {
+        const spawnFailure = spawnFailureFor(
+          error,
+          `bash syntax check for ${hooksDir}/${file}`,
+        );
+        if (spawnFailure !== null) {
+          return {
+            check: "Agent deny mechanism",
+            message: spawnFailure.message,
+            evidence: evidencePath(`${hooksDir}/${file}`),
+            howToFix: spawnFailure.howToFix,
+          };
+        }
         failures.push(`${hooksDir}/${file}`);
       }
     }
@@ -242,12 +305,24 @@ function checkHookSelfTest(ctx: AuditContext): AuditFailure | null {
         ? process.env
         : { ...process.env, GOAT_DENY_DANGEROUS_HOOK: dispatcherPath };
     try {
-      execFileSync("bash", [denyPath, "--self-test=smoke"], {
+      childProcess.execFileSync("bash", [denyPath, "--self-test=smoke"], {
         env,
         stdio: "pipe",
         timeout: 30000,
       });
-    } catch {
+    } catch (error) {
+      const spawnFailure = spawnFailureFor(
+        error,
+        `deny-dangerous self-test for ${agentFacts.agent.id}`,
+      );
+      if (spawnFailure !== null) {
+        return {
+          check: "Agent deny mechanism",
+          message: spawnFailure.message,
+          evidence: evidencePath(denyRelPath),
+          howToFix: spawnFailure.howToFix,
+        };
+      }
       return {
         check: "Agent deny mechanism",
         message: `deny-dangerous-self-test.sh --self-test=smoke failed for ${agentFacts.agent.id}`,
@@ -477,7 +552,7 @@ function runConfiguredHookCommandSmoke(
   ctx: AuditContext,
   agentFacts: AuditContext["agents"][number],
   configured: ConfiguredHookCommand,
-): { ok: boolean; message: string; evidence: string } {
+): { ok: boolean; message: string; evidence: string; howToFix?: string } {
   const pathFailure = configuredHookCommandPathFailure(agentFacts, configured);
   if (pathFailure !== null) {
     return {
@@ -490,12 +565,24 @@ function runConfiguredHookCommandSmoke(
     agentFacts.agent.id,
     configured.scriptFile,
   );
-  const result = spawnSync("bash", ["-lc", configured.command], {
+  const result = childProcess.spawnSync("bash", ["-lc", configured.command], {
     cwd: ctx.projectPath,
     encoding: "utf8",
     input: smoke.input,
     timeout: 5000,
   });
+  const spawnFailure = spawnFailureFromResult(
+    result,
+    `${agentFacts.agent.id} configured hook command for ${configured.scriptFile}`,
+  );
+  if (spawnFailure !== null) {
+    return {
+      ok: false,
+      message: spawnFailure.message,
+      evidence: configured.configPath,
+      howToFix: spawnFailure.howToFix,
+    };
+  }
   const status = result.status ?? (result.error ? -1 : 0);
   if (status === 126 || status === 127) {
     return {
@@ -520,58 +607,87 @@ function runDirectHookRuntimeSmoke(
   ctx: AuditContext,
   agentFacts: AuditContext["agents"][number],
   denyRelPath: string,
-): boolean {
+): { ok: boolean; message?: string; howToFix?: string } {
   const smoke = runtimeSmokePayload(agentFacts.agent.id);
-  const result = spawnSync("bash", [join(ctx.projectPath, denyRelPath)], {
-    cwd: ctx.projectPath,
-    encoding: "utf8",
-    input: smoke.input,
-    timeout: 5000,
-  });
+  const result = childProcess.spawnSync(
+    "bash",
+    [join(ctx.projectPath, denyRelPath)],
+    {
+      cwd: ctx.projectPath,
+      encoding: "utf8",
+      input: smoke.input,
+      timeout: 5000,
+    },
+  );
+  const spawnFailure = spawnFailureFromResult(
+    result,
+    `registered deny hook runtime smoke for ${agentFacts.agent.id}`,
+  );
+  if (spawnFailure !== null) {
+    return { ok: false, ...spawnFailure };
+  }
 
   const status = result.status ?? (result.error ? -1 : 0);
   const stream =
     smoke.expectedStream === "stdout" ? result.stdout : result.stderr;
-  return status === smoke.expectedStatus && smoke.expectedPattern.test(stream);
+  return {
+    ok: status === smoke.expectedStatus && smoke.expectedPattern.test(stream),
+  };
+}
+
+function configuredHookRuntimeFailure(
+  ctx: AuditContext,
+  agentFacts: AuditContext["agents"][number],
+): AuditFailure | null | undefined {
+  const configuredCommands = configuredGuardCommands(ctx, agentFacts);
+  if (configuredCommands.length === 0) return undefined;
+  for (const configured of configuredCommands) {
+    const result = runConfiguredHookCommandSmoke(ctx, agentFacts, configured);
+    if (result.ok) continue;
+    return {
+      check: "Agent deny mechanism",
+      message: result.message,
+      evidence: evidencePath(result.evidence),
+      howToFix:
+        result.howToFix ??
+        "Run the configured hook command with a runtime-shaped payload and confirm it reaches the managed hook script without exit 126/127.",
+    };
+  }
+  return null;
+}
+
+function directHookRuntimeFailure(
+  ctx: AuditContext,
+  agentFacts: AuditContext["agents"][number],
+): AuditFailure | null {
+  const denyRelPath = registeredDenyRelPath(agentFacts);
+  if (denyRelPath === null) return null;
+  const content = ctx.fs.readFile(denyRelPath);
+  if (content === null) return null;
+
+  const directSmoke = runDirectHookRuntimeSmoke(ctx, agentFacts, denyRelPath);
+  if (directSmoke.ok) return null;
+
+  return {
+    check: "Agent deny mechanism",
+    message:
+      directSmoke.message ??
+      `registered deny hook runtime smoke failed for ${agentFacts.agent.id}`,
+    evidence: evidencePath(denyRelPath),
+    howToFix:
+      directSmoke.howToFix ??
+      "Run the registered deny hook with a runtime-shaped Bash payload and confirm it denies `git push origin main`.",
+  };
 }
 
 /** Run a runtime-shaped blocked payload because configured commands and direct hooks fail differently. */
 function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
   for (const agentFacts of ctx.agents) {
-    const configuredCommands = configuredGuardCommands(ctx, agentFacts);
-    if (configuredCommands.length > 0) {
-      for (const configured of configuredCommands) {
-        const result = runConfiguredHookCommandSmoke(
-          ctx,
-          agentFacts,
-          configured,
-        );
-        if (result.ok) continue;
-        return {
-          check: "Agent deny mechanism",
-          message: result.message,
-          evidence: evidencePath(result.evidence),
-          howToFix:
-            "Run the configured hook command with a runtime-shaped payload and confirm it reaches the managed hook script without exit 126/127.",
-        };
-      }
-      continue;
-    }
+    const configuredFailure = configuredHookRuntimeFailure(ctx, agentFacts);
+    if (configuredFailure !== undefined) return configuredFailure;
 
-    const denyRelPath = registeredDenyRelPath(agentFacts);
-    if (denyRelPath === null) continue;
-    const content = ctx.fs.readFile(denyRelPath);
-    if (content === null) continue;
-
-    if (runDirectHookRuntimeSmoke(ctx, agentFacts, denyRelPath)) continue;
-
-    return {
-      check: "Agent deny mechanism",
-      message: `registered deny hook runtime smoke failed for ${agentFacts.agent.id}`,
-      evidence: evidencePath(denyRelPath),
-      howToFix:
-        "Run the registered deny hook with a runtime-shaped Bash payload and confirm it denies `git push origin main`.",
-    };
+    const directFailure = directHookRuntimeFailure(ctx, agentFacts);
+    if (directFailure !== null) return directFailure;
   }
   return null;
 }

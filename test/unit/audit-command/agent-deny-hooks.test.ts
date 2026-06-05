@@ -16,6 +16,29 @@ import {
   stubAgentFacts,
   stubFS,
 } from "./helpers.js";
+import { afterEach } from "node:test";
+import { createRequire, syncBuiltinESMExports } from "node:module";
+
+const require = createRequire(import.meta.url);
+const childProcess =
+  require("node:child_process") as typeof import("node:child_process");
+const originalExecFileSync = childProcess.execFileSync;
+const originalSpawnSync = childProcess.spawnSync;
+
+afterEach(() => {
+  childProcess.execFileSync = originalExecFileSync;
+  childProcess.spawnSync = originalSpawnSync;
+  syncBuiltinESMExports();
+});
+
+function spawnEperm(): NodeJS.ErrnoException {
+  const error = new Error("spawnSync bash EPERM") as NodeJS.ErrnoException;
+  error.code = "EPERM";
+  error.errno = -1;
+  error.syscall = "spawnSync bash";
+  error.path = "bash";
+  return error;
+}
 
 describe("agent deny hook template comparison", () => {
   const denyCheck = AGENT_CHECKS.find(
@@ -69,6 +92,164 @@ describe("agent deny hook template comparison", () => {
     };
     return readInstalledGuardrail;
   }
+
+  it("reports sandbox spawn denial separately from hook syntax errors", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    childProcess.execFileSync = (() => {
+      throw spawnEperm();
+    }) as typeof childProcess.execFileSync;
+    syncBuiltinESMExports();
+
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected child-process spawn failure");
+    assert.match(result.message, /could not spawn bash \(EPERM:/);
+    assert.doesNotMatch(result.message, /bash -n failed/);
+    assert.match(
+      result.howToFix ?? "",
+      /outside the child-process-restricted sandbox/,
+    );
+  });
+
+  it("reports self-test spawn denial instead of a deny-dangerous failure", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    childProcess.execFileSync = ((command, args) => {
+      if (Array.isArray(args) && args[0] === "-n") return Buffer.from("");
+      throw spawnEperm();
+    }) as typeof childProcess.execFileSync;
+    syncBuiltinESMExports();
+
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected self-test spawn failure");
+    assert.match(
+      result.message,
+      /deny-dangerous self-test for codex could not spawn bash \(EPERM:/,
+    );
+    assert.doesNotMatch(result.message, /self-test=smoke failed/);
+  });
+
+  it("reports configured command spawn denial instead of exit -1", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    childProcess.execFileSync = (() =>
+      Buffer.from("")) as typeof childProcess.execFileSync;
+    childProcess.spawnSync = (() =>
+      ({
+        status: null,
+        signal: null,
+        error: spawnEperm(),
+        output: [null, "", ""],
+        pid: 0,
+        stdout: "",
+        stderr: "",
+      }) as ReturnType<
+        typeof childProcess.spawnSync
+      >) as typeof childProcess.spawnSync;
+    syncBuiltinESMExports();
+
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates, {
+          ".codex/hooks.json": JSON.stringify({
+            hooks: {
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: ".codex/hooks/deny-dangerous.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected configured-command spawn failure");
+    assert.match(
+      result.message,
+      /configured hook command for deny-dangerous\.sh could not spawn bash \(EPERM:/,
+    );
+    assert.doesNotMatch(result.message, /exit -1/);
+  });
 
   it("fails when a configured hook command hides the script path in shell text", () => {
     assert.ok(denyCheck, "agent deny check should exist");
