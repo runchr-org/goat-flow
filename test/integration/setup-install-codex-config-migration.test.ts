@@ -136,6 +136,60 @@ describe("codex config migration", () => {
     );
   });
 
+  it("migrates stale exact env and credentials denies to broad patterns", () => {
+    const root = makeTempProject();
+    const codexDir = join(root, ".codex");
+    mkdirSync(codexDir, { recursive: true });
+    writeFileSync(
+      join(codexDir, "config.toml"),
+      [
+        'default_permissions = "goat-flow"',
+        "",
+        "[permissions.goat-flow]",
+        'description = "goat-flow workspace editing with secret-path read denies."',
+        'extends = ":workspace"',
+        "",
+        "[permissions.goat-flow.filesystem]",
+        "glob_scan_max_depth = 3",
+        "",
+        '[permissions.goat-flow.filesystem.":workspace_roots"]',
+        '"**/.env" = "deny"',
+        '"**/.env.local" = "deny"',
+        '"**/.env.development" = "deny"',
+        '"**/.env.production" = "deny"',
+        '"**/.env.staging" = "deny"',
+        '"**/.env.test" = "deny"',
+        '"**/.envrc" = "deny"',
+        '"**/secrets/**" = "deny"',
+        '"**/.ssh/**" = "deny"',
+        '"**/.aws/**" = "deny"',
+        '"**/.docker/**" = "deny"',
+        '"**/.gnupg/**" = "deny"',
+        '"**/.kube/**" = "deny"',
+        '"**/credentials" = "deny"',
+        '"**/.npmrc" = "deny"',
+        '"**/.pypirc" = "deny"',
+        '"**/*.pem" = "deny"',
+        '"**/*.key" = "deny"',
+        '"**/*.pfx" = "deny"',
+        '"private/**" = "deny"',
+        "",
+      ].join("\n"),
+    );
+
+    const result = runInstaller(root, "--agent", "codex");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const config = readFileSync(join(codexDir, "config.toml"), "utf-8");
+    assert.match(config, /"\*\*\/\.env\*"\s*=\s*"deny"/);
+    assert.match(config, /"\*\*\/credentials\*"\s*=\s*"deny"/);
+    assert.match(config, /"private\/\*\*"\s*=\s*"deny"/);
+    assert.match(config, /env\.example is intentionally denied/);
+    assert.doesNotMatch(config, /"\*\*\/\.env\.local"\s*=\s*"deny"/);
+    assert.doesNotMatch(config, /"\*\*\/credentials"\s*=\s*"deny"/);
+    assert.match(result.stdout, /migrated:.*Codex permission profile/);
+  });
+
   it("migrates the active custom Codex permission profile", () => {
     const root = makeTempProject();
     const codexDir = join(root, ".codex");
@@ -236,7 +290,19 @@ describe("codex config migration", () => {
         "glob_scan_max_depth = 3",
         "# legacy :project_roots anchor was replaced with :workspace_roots",
         '[permissions.goat-flow.filesystem.":workspace_roots"]',
+        '"**/.env*" = "deny"',
         '"**/secrets/**" = "deny"',
+        '"**/.ssh/**" = "deny"',
+        '"**/.aws/**" = "deny"',
+        '"**/.docker/**" = "deny"',
+        '"**/.gnupg/**" = "deny"',
+        '"**/.kube/**" = "deny"',
+        '"**/credentials*" = "deny"',
+        '"**/.npmrc" = "deny"',
+        '"**/.pypirc" = "deny"',
+        '"**/*.pem" = "deny"',
+        '"**/*.key" = "deny"',
+        '"**/*.pfx" = "deny"',
         "",
       ].join("\n"),
     );

@@ -36,7 +36,7 @@ Hand-maintained index of Architectural Decision Records. Each line links to the 
 - [ADR-025: Block all git push from agents](ADR-025-block-all-git-push.md) — Accepted, 2026-04-26
 - [ADR-026: Keep workspace boundary audit check path-agnostic](ADR-026-keep-workspace-boundary-path-agnostic.md) — Accepted, 2026-05-01
 - [ADR-027: Remove DDT layer reference packs](ADR-027-remove-ddt-layer-reference-packs.md) — Accepted, 2026-05-02
-- [ADR-028: Treat GitHub CLI as read-only for agents](ADR-028-github-cli-read-only.md) — Amended 2026-06-02, 2026-05-20
+- [ADR-028: Treat GitHub CLI as mostly read-only, except issue and pull request comments](ADR-028-github-cli-mostly-read-only-except-comments.md) — Accepted (updated 2026-06-02), 2026-05-20
 - [ADR-029: Two-ceiling runaway protection for orchestrated long-lived resources](ADR-029-two-ceiling-runaway-protection.md) — Accepted, 2026-05-25
 - [ADR-030: Replace Gemini with Antigravity as the fourth supported runtime](ADR-030-replace-gemini-with-antigravity.md) — Accepted, 2026-05-24
 - [ADR-031: Single canonical commit-conventions doc at docs/coding-standards/git-commit.md](ADR-031-single-canonical-commit-doc.md) — Accepted, 2026-05-29

@@ -1,11 +1,11 @@
 /**
  * Codex agent-settings audit: parsing current vs deprecated feature flags and nested permission tables from
- * TOML, deciding when a permission profile counts as secret-file coverage (exact/subtree denies, active vs
- * inactive profiles, env staging variants), and failing agent-settings on codex_hooks or hooks-not-enabled.
+ * TOML, deciding when a permission profile counts as secret-file coverage
+ * (broad env/credentials denies, exact/subtree denies, active vs inactive
+ * profiles), and failing agent-settings on codex_hooks or hooks-not-enabled.
  */
 import {
   BUILD_CHECKS,
-  CODEX_EXACT_ENV_DENY_ENTRIES,
   CODEX_WORKSPACE_ROOT_ENTRIES,
   PROFILES,
   assert,
@@ -40,14 +40,11 @@ describe("codex settings feature flags", () => {
     assert.equal(facts.readDenyCoversSecrets, true);
   });
 
-  it("counts a recursive **/credentials deny as covering a root credentials file", () => {
-    // Regression (PR #47 review): the shipped recursive secret profile emits only
-    // `**/credentials`, never an exact `credentials` entry. A project with a root
-    // `credentials` file must still pass the Codex secret-deny audit.
+  it("counts a recursive **/credentials* deny as covering credentials variants", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) =>
-          path === ".codex/config.toml" || path === "credentials",
+          path === ".codex/config.toml" || path === "credentials.json",
         readFile: (path) =>
           path === ".codex/config.toml"
             ? [
@@ -109,22 +106,17 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  it("counts recursive Codex env coverage when a staging variant exists", () => {
+  it("counts broad Codex env coverage when backup variants exist", () => {
     const facts = extractSettingsFacts(
       stubFS({
         exists: (path) =>
-          path === ".codex/config.toml" || path === ".env.staging",
+          path === ".codex/config.toml" || path === ".env.local.bak",
         readFile: (path) =>
           path === ".codex/config.toml"
             ? [
                 'default_permissions = "goat-flow"',
                 "[permissions.goat-flow.filesystem]",
-                codexWorkspaceRootsTable(
-                  [
-                    ...CODEX_WORKSPACE_ROOT_ENTRIES,
-                    ...CODEX_EXACT_ENV_DENY_ENTRIES,
-                  ].filter((entry) => !entry.startsWith('".env.staging"')),
-                ),
+                codexWorkspaceRootsTable(CODEX_WORKSPACE_ROOT_ENTRIES),
               ].join("\n")
             : null,
       }),
@@ -136,6 +128,48 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
+  it("does not count old exact env and credentials denies as full coverage", () => {
+    const facts = extractSettingsFacts(
+      stubFS({
+        exists: (path) =>
+          path === ".codex/config.toml" ||
+          path === ".env.local.bak" ||
+          path === "credentials.json",
+        readFile: (path) =>
+          path === ".codex/config.toml"
+            ? [
+                'default_permissions = "goat-flow"',
+                "[permissions.goat-flow.filesystem]",
+                codexWorkspaceRootsTable([
+                  '"**/.env" = "deny"',
+                  '"**/.env.local" = "deny"',
+                  '"**/.env.development" = "deny"',
+                  '"**/.env.production" = "deny"',
+                  '"**/.env.staging" = "deny"',
+                  '"**/.env.test" = "deny"',
+                  '"**/.envrc" = "deny"',
+                  '"**/secrets/**" = "deny"',
+                  '"**/.ssh/**" = "deny"',
+                  '"**/.aws/**" = "deny"',
+                  '"**/.docker/**" = "deny"',
+                  '"**/.gnupg/**" = "deny"',
+                  '"**/.kube/**" = "deny"',
+                  '"**/credentials" = "deny"',
+                  '"**/.npmrc" = "deny"',
+                  '"**/.pypirc" = "deny"',
+                  '"**/*.pem" = "deny"',
+                  '"**/*.key" = "deny"',
+                  '"**/*.pfx" = "deny"',
+                ]),
+              ].join("\n")
+            : null,
+      }),
+      PROFILES.codex,
+    );
+
+    assert.equal(facts.readDenyCoversSecrets, false);
+  });
+
   it("does not count incomplete Codex exact/subtree denies as secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({

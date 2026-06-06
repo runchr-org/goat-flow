@@ -46,3 +46,5 @@ goat-flow does not ship a post-turn lint hook. Every project has different linte
 ## Codex Permissions
 
 Codex does not read Claude's `settings.json` `permissions.allow` or `permissions.deny` syntax. The equivalent file-access layer is a TOML permission profile selected by `default_permissions` in `.codex/config.toml`; goat-flow's Codex template extends Codex's built-in `:workspace` profile and adds recursive `deny` rules for common secret-bearing project paths. Shell command patterns still belong in `.codex/hooks.json` through the Bash-matched `PreToolUse` `deny-dangerous.sh` dispatcher.
+
+Claude can re-allow `Read(**/.env.example)` after denying `Read(**/.env*)`. Codex rejects that recursive read exception and denies take precedence over exact read entries, so goat-flow's Codex template intentionally denies `.env.example` along with the rest of `**/.env*`.

@@ -40,36 +40,20 @@ import {
 export const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..", "..");
 export const BUILD_CHECKS = [...SETUP_CHECKS, ...AGENT_CHECKS];
 export const CODEX_WORKSPACE_ROOT_ENTRIES = [
-  '"**/.env" = "deny"',
-  '"**/.env.local" = "deny"',
-  '"**/.env.development" = "deny"',
-  '"**/.env.production" = "deny"',
-  '"**/.env.staging" = "deny"',
-  '"**/.env.test" = "deny"',
-  '"**/.envrc" = "deny"',
+  '"**/.env*" = "deny"',
   '"**/secrets/**" = "deny"',
   '"**/.ssh/**" = "deny"',
   '"**/.aws/**" = "deny"',
   '"**/.docker/**" = "deny"',
   '"**/.gnupg/**" = "deny"',
   '"**/.kube/**" = "deny"',
-  '"**/credentials" = "deny"',
+  '"**/credentials*" = "deny"',
   '"**/.npmrc" = "deny"',
   '"**/.pypirc" = "deny"',
   '"**/*.pem" = "deny"',
   '"**/*.key" = "deny"',
   '"**/*.pfx" = "deny"',
 ];
-export const CODEX_EXACT_ENV_DENY_ENTRIES = [
-  '".env" = "none"',
-  '".env.local" = "none"',
-  '".env.development" = "none"',
-  '".env.production" = "none"',
-  '".env.test" = "none"',
-  '".env.staging" = "none"',
-  '".envrc" = "none"',
-];
-
 export function codexWorkspaceRootsTable(
   entries = CODEX_WORKSPACE_ROOT_ENTRIES,
 ): string {

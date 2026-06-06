@@ -1,6 +1,6 @@
 ---
 category: hook-testing
-last_reviewed: 2026-06-06
+last_reviewed: 2026-06-07
 ---
 
 ## Lesson: deny-dangerous self-test missed a whole false-positive class while green
@@ -12,6 +12,18 @@ last_reviewed: 2026-06-06
 **Root cause:** The corpus over-indexed on dangerous block cases plus a few canonical allow cases. Parser regressions surface as false positives on benign-but-structurally-varied input (operators inside substitutions, arithmetic, redirects on allowlisted reads), which the curated allow set did not vary.
 
 **Prevention:** For guardrail parsers, vary shell *structure* in the allow corpus, not just verbs: substitutions with/without inner operators, quoted vs unquoted, arithmetic expansion, process substitution, and redirects (`2>&1`, `2>/dev/null`, redirect-to-other-file) on allowlisted-readable files - each paired with its dangerous counterpart. A green smoke run proves only the cases present. Also: when a report fingers a downstream rule (a catch-all), trace the token that rule sees back to the tokenizer before relaxing it - here the catch-all was correct and the orphan `$(` was manufactured upstream by the segment splitter. Evidence anchors: `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `unquoted subst with || fallback`), (search: `arithmetic expansion`), (search: `.env.example read with stderr dup`); root-cause anchor in `.goat-flow/footguns/deny-dangerous.md` (search: `track substitution depth`).
+
+---
+
+## Lesson: Copilot JSON hook probes must use Copilot-shaped payloads
+
+**Status:** active | **Created:** 2026-06-07
+
+**What happened:** During M07-M10 verification, I first tried to manually prove the no-jq Copilot deny path by setting `HOOK_OUTPUT_MODE=json` and invoking `deny-dangerous.sh --check`. The hook returned the normal stderr `BLOCKED:` message with exit 2, which looked like a contract mismatch. Re-running the probe with the actual Copilot payload shape, no `--check`, and `GOAT_DENY_FORCE_NO_JQ=1` returned `{"permissionDecision":"deny",...}` and `no-jq-copilot exit:0`.
+
+**Root cause:** I invented an output-mode environment switch instead of reading the hook's `detect_output_mode` path and existing self-test helper. Copilot JSON mode is selected from payload shape (`toolName` / `toolArgs`), and Copilot denies intentionally exit 0 so the host can consume the JSON decision.
+
+**Prevention:** Manual Copilot/no-jq hook probes must copy the self-test contract: feed a top-level Copilot payload such as `{"toolName":"bash","toolArgs":"{\"command\":\"...\"}"}` to `bash workflow/hooks/deny-dangerous.sh` without `--check`, with `GOAT_DENY_FORCE_NO_JQ=1` only when testing the fallback parser. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `detect_output_mode`) and `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `expect_no_jq_copilot_block`).
 
 ---
 

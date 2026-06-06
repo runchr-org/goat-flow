@@ -752,20 +752,14 @@ function isInvalidNoneKey(key) {
 }
 
 const canonicalDenyPatterns = new Set([
-  "**/.env",
-  "**/.env.local",
-  "**/.env.development",
-  "**/.env.production",
-  "**/.env.staging",
-  "**/.env.test",
-  "**/.envrc",
+  "**/.env*",
   "**/secrets/**",
   "**/.ssh/**",
   "**/.aws/**",
   "**/.docker/**",
   "**/.gnupg/**",
   "**/.kube/**",
-  "**/credentials",
+  "**/credentials*",
   "**/.npmrc",
   "**/.pypirc",
   "**/*.pem",
@@ -780,6 +774,14 @@ const oldGeneratedPatterns = new Set([
   ".docker/**",
   ".gnupg/**",
   ".kube/**",
+  "**/.env",
+  "**/.env.local",
+  "**/.env.development",
+  "**/.env.production",
+  "**/.env.staging",
+  "**/.env.test",
+  "**/.envrc",
+  "**/credentials",
 ]);
 
 function escapeTomlString(value) {
@@ -819,6 +821,7 @@ let usesLegacyAccess = false;
 let usesLegacyAnchor = false;
 let profileExtendsWorkspace = false;
 const additionalDenyPatterns = new Set();
+const activeDenyPatterns = new Set();
 for (const region of profileRegions) {
   for (let j = region.start; j < region.end; j += 1) {
     if (/^\s*extends\s*=\s*":workspace"\s*(?:#.*)?$/u.test(lines[j])) {
@@ -835,6 +838,9 @@ for (const region of regions) {
     }
     for (const entry of line.matchAll(filesystemAccessEntryPattern)) {
       const [, pattern, mode] = entry;
+      if ((mode === "none" || mode === "deny") && pattern) {
+        activeDenyPatterns.add(pattern);
+      }
       if (
         (mode === "none" || mode === "deny") &&
         pattern &&
@@ -861,12 +867,16 @@ const shouldRefreshGoatFlowProfile =
   activeProfile === "goat-flow" &&
   hasDefaultPermissions &&
   !profileExtendsWorkspace;
+const missingCanonicalDenyPatterns = [...canonicalDenyPatterns].some(
+  (pattern) => !activeDenyPatterns.has(pattern),
+);
 
 if (
   !hasInvalidEntry &&
   !usesLegacyAnchor &&
   !usesLegacyAccess &&
-  !shouldRefreshGoatFlowProfile
+  !shouldRefreshGoatFlowProfile &&
+  !missingCanonicalDenyPatterns
 ) {
   console.log("unchanged");
   process.exit(0);
@@ -881,20 +891,18 @@ const canonicalBlock = [
   "glob_scan_max_depth = 3",
   "",
   `[permissions.${activeProfile}.filesystem.":workspace_roots"]`,
-  '"**/.env" = "deny"',
-  '"**/.env.local" = "deny"',
-  '"**/.env.development" = "deny"',
-  '"**/.env.production" = "deny"',
-  '"**/.env.staging" = "deny"',
-  '"**/.env.test" = "deny"',
-  '"**/.envrc" = "deny"',
+  "# Codex deny rules win over same-profile read rules. Unlike Claude settings,",
+  "# Codex cannot re-allow recursive sample env reads behind a broad filename",
+  "# deny, so .env.example is intentionally denied here to keep .env* variants",
+  "# protected consistently across agents.",
+  '"**/.env*" = "deny"',
   '"**/secrets/**" = "deny"',
   '"**/.ssh/**" = "deny"',
   '"**/.aws/**" = "deny"',
   '"**/.docker/**" = "deny"',
   '"**/.gnupg/**" = "deny"',
   '"**/.kube/**" = "deny"',
-  '"**/credentials" = "deny"',
+  '"**/credentials*" = "deny"',
   '"**/.npmrc" = "deny"',
   '"**/.pypirc" = "deny"',
   '"**/*.pem" = "deny"',
@@ -1414,7 +1422,7 @@ if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-dangerous.sh" ]
   if [[ "$AGENT" == "claude" ]]; then
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
-    # shellcheck disable=SC2016
+    # shellcheck disable=SC2016,SC1003 # literal JSON snippet preserves nested shell quoting for copy/paste guidance.
     printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"bash -c '\''gcd=\"$(git rev-parse --git-common-dir 2>/dev/null)\"; root=\"\"; case \"$gcd\" in */.git/modules/*|.git/modules/*) root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\" ;; /*) root=\"$(dirname \"$gcd\")\" ;; *) root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\" ;; esac; [ -f \"$root/.claude/hooks/deny-dangerous.sh\" ] || root=\"${CLAUDE_PROJECT_DIR:-}\"; [ -f \"$root/.claude/hooks/deny-dangerous.sh\" ] || { printf '\''\\'\'''\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\''\\'\'''\'' >&2; exit 2; }; cd \"$root\" || { printf '\''\\'\'''\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\''\\'\'''\'' >&2; exit 2; }; bash \"$root/.claude/hooks/deny-dangerous.sh\"'\''"}]}'
   fi
   echo ""

@@ -35,6 +35,8 @@ last_reviewed: 2026-06-07
 
 **Recurrence update (2026-05-20):** During the M37 Workspace terminal waiting/detach double-check, focused `test/unit/dashboard-terminal-launch.test.ts` and `npm run typecheck` were clean, but targeted `npx prettier --check src/dashboard/dashboard-terminal.ts src/dashboard/app.ts src/dashboard/views/workspace.html test/unit/dashboard-terminal-launch.test.ts .goat-flow/footguns/dashboard.md .goat-flow/tasks/1.7.0/M37-workspace-terminal-waiting-and-detach.md` failed on `src/dashboard/dashboard-terminal.ts` and `test/unit/dashboard-terminal-launch.test.ts`. Running `npx prettier --write src/dashboard/dashboard-terminal.ts test/unit/dashboard-terminal-launch.test.ts` fixed the task-local formatter blocker before rerunning the focused unit test, typecheck, and Prettier check.
 
+**Recurrence update (2026-06-07):** While syncing Codex secret-path permission templates, focused unit/integration tests, `shellcheck`, `bash -n`, and `npm run typecheck` were clean, but the first full `bash scripts/preflight-checks.sh` failed its TypeScript gate because Prettier found one touched source file unformatted. Running `npx prettier --write src/cli/facts/agent/settings.ts`, then rerunning `npm run format:check`, `npm run typecheck`, and preflight produced a clean final gate.
+
 **Prevention:**
 1. When preflight fails, immediately identify whether the failing files are in `git status` for the current task.
 2. Treat repo-wide formatter failures in untouched files as residual baseline debt, not silent task fallout.
