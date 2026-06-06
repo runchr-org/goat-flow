@@ -4,8 +4,9 @@
 #
 # Purpose:
 #   Optional PostToolUse hook that runs the matching gruff analyzer after
-#   Edit / Write / MultiEdit and surfaces only findings tied to the lines
-#   just changed. This keeps the quality feedback on the agent's current
+#   a file edit (Edit / Write, or a multi-file edit payload) and surfaces only
+#   findings tied to the lines just changed. This keeps the quality feedback on
+#   the agent's current
 #   work instead of forcing cleanup of unrelated debt elsewhere in the
 #   same file.
 #
@@ -407,7 +408,7 @@ self_test() {
     return 1
   fi
 
-  payload='{"tool_name":"MultiEdit","tool_input":{"edits":[{"file_path":"src/a.mts"},{"path":"src/b.php"}],"changed_ranges":[{"startLine":2,"endLine":4}]}}'
+  payload='{"tool_name":"multi_replace_file_content","tool_input":{"edits":[{"file_path":"src/a.mts"},{"path":"src/b.php"}],"changed_ranges":[{"startLine":2,"endLine":4}]}}'
   paths="$(json_file_paths "$payload")"
   [[ "$paths" == *"src/a.mts"* && "$paths" == *"src/b.php"* ]] || {
     printf 'gruff-code-quality self-test: path extraction failed: %s\n' "$paths" >&2

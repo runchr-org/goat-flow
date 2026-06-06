@@ -546,6 +546,8 @@ run_full() {
   expect_block shell 'echo `rm -rf /`' "backtick subst rm"
   expect_block writes 'echo $(git push origin main)' "git push inside subst"
   expect_block shell 'echo $(echo $(echo $(echo $(rm -rf /))))' "deeply nested subst rm"
+  expect_allow shell 'echo $(dirname $(dirname $(dirname $(pwd))))' "deep benign path nesting allowed (no depth cap)"
+  expect_allow shell 'echo $(( $(( $(( $(( 1 )) )) )) ))' "deeply nested arithmetic allowed (not command substitution)"
 
   # --- .env.example redirect handling. Regression: any redirect (even a bare
   # 2>&1 / 2>/dev/null) was treated as a write to .env.example. Reads with
@@ -555,6 +557,9 @@ run_full() {
   expect_allow paths "cat .env.example > /tmp/example-copy.txt" ".env.example read redirected elsewhere"
   expect_block paths "echo TOKEN >> .env.example" ".env.example append write"
   expect_block paths "printf x >.env.example" ".env.example clobber write without space"
+  expect_block paths "echo TOKEN > ./.env.example" ".env.example dot-slash write"
+  expect_block paths "echo TOKEN > fixtures/.env.example" ".env.example subdir write"
+  expect_allow paths "cat fixtures/.env.example 2>&1" "path-prefixed .env.example read with stderr dup"
 
 }
 

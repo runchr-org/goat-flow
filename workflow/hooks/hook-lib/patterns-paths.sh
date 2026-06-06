@@ -113,7 +113,9 @@ is_env_example_touch() {
 is_env_example_redirect_write() {
   local c
   c=$(strip_shell_quotes_for_path_scan "$1")
-  [[ "$c" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?\.env\.example([[:space:]]|$|[\'\"]) ]]
+  # The redirect target may carry a path prefix (./ , sub/dir/ , ~/x/ , /abs/),
+  # so allow an optional leading path before the .env.example basename.
+  [[ "$c" =~ (\>|\>\>|\>\|)[[:space:]]*[\'\"]?([^[:space:]>|\'\"]*/)?\.env\.example([[:space:]]|$|[\'\"]) ]]
 }
 
 is_git_ls_files() {
