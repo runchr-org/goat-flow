@@ -1,6 +1,15 @@
 # Changelog
 
-## v1.9.1 - 2026-06-02
+## v1.9.2 - 2026-06-06
+
+`deny-dangerous` false-positive fixes - benign, read-only Bash that the guardrail wrongly blocked now passes, with no loss of protection against nested or obfuscated execution.
+
+- **Command substitution with control operators no longer over-blocks** - A read-only `$(...)` containing `&&`, `||`, `;`, or a newline (e.g. `v=$(grep -m1 version "$f" 2>/dev/null || echo MISSING)` inside a `for` loop) was wrongly denied with `Policy destructive: Complex command substitution`. The command-segment splitter tracked quotes but not parenthesis depth, so an operator inside an unquoted substitution split `$( ... )` across two segments and left an orphan `$(` that the residual catch-all blocked. The splitter is now command/process-substitution aware (`$(`, `<(`, `>(` open a no-split region); operators inside a substitution are still policy-checked by recursing into the interior, and plain `( ... )` subshells stay splittable so `(cmd && rm -rf /)` cannot bypass the guard. Dangerous substitutions (`$(... | bash)`, backtick substitution, `$(true || rm -rf /)`, `$(git push ...)`) still block - and now report the accurate reason (e.g. `rm -r without safe scoping`) instead of the generic substitution message. The chained-segment cap is now enforced at nested substitution depths too.
+- **Arithmetic expansion is no longer mistaken for command substitution** - `echo $((1 + 2))`, `n=$((COUNT + 1))`, and `$(( (1 + 2) * 3 ))` were denied with the same `Complex command substitution` message because the scanner only recognised `$( )`. Arithmetic `$(( ))` is now masked before the catch-all; a command substitution nested inside arithmetic is still stripped and policy-checked first, so `$(( $(rm -rf /) ))` still blocks.
+- **Reading `.env.example` with a redirect is no longer treated as a write** - `ls -la .env.example 2>&1` and `cat .env.example 2>/dev/null` were denied as `.env.example ... read-only inspection only`, because any redirect on a command touching `.env.example` was classified as a write. Only a redirect whose target is `.env.example` itself now counts as a write; a stderr dup, a stderr discard, or a redirect to another file stays a read. Writes to `.env.example` (`echo X > .env.example`, `printf x >.env.example`, `... >> .env.example`) and all real secret-file access (`.env`, SSH/AWS/GCP keys, credentials) still block. A broad `*.env*` glob was never blocked on its own.
+- **Self-test corpus closed the gap** - The central `deny-dangerous` self-test now exercises every false-positive class above plus its dangerous counterpart on both sides; smoke and full modes stay green. New `.goat-flow/footguns/hooks.md` and `.goat-flow/lessons/hook-testing.md` entries record the splitter parenthesis-depth trap and the `.env.example` redirect-classification trap. The change lands identically across the five shipped `deny-dangerous.sh` copies and the two `hook-lib` mirrors (kept byte-identical). Existing projects pick up the fix by re-running `goat-flow setup` or `goat-flow hooks sync`.
+
+## v1.9.1 - 2026-06-05
 
 Guardrail hotfix for 1.9.0 hook regressions and release-safety gaps.
 
@@ -17,7 +26,7 @@ Guardrail hotfix for 1.9.0 hook regressions and release-safety gaps.
 - **Release command safety** - Removed `critique`, `fix`, and `eval` command aliases now return explicit migration guidance, and `npm publish` runs the existing `publish:check` gate through `prepublishOnly`.
 - **PR review follow-ups** - Deny-hook fallback JSON parsing now preserves unsafe escape status, gruff changed-range fallback includes staged hunks, ADR-028 `gh comment` body-file coverage is restored, and audit rejects configured deny launchers that point at the wrong registered script.
 
-## v1.9.0 - 2026-05-28
+## v1.9.0 - 2026-06-01
 
 Worktree-safe hook launchers - Claude and Antigravity guardrails now run correctly inside `git worktree add` checkouts.
 

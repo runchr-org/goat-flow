@@ -1,6 +1,18 @@
 ---
 category: hook-testing
-last_reviewed: 2026-06-05
+last_reviewed: 2026-06-06
+---
+
+## Lesson: deny-dangerous self-test missed a whole false-positive class while green
+
+**Status:** active | **Created:** 2026-06-06
+
+**What happened:** A downstream agent hit `Policy destructive: Complex command substitution` on benign `$()` inside a `for` loop, yet `deny-dangerous.sh --self-test=smoke` reported `executed=23, skipped=0` PASS. The corpus had no allow case for a command substitution containing a control operator (`||`/`;`), nor for arithmetic `$(())`, nor for a `.env.example` read carrying `2>&1` - so three real false-positive classes shipped behind a green suite.
+
+**Root cause:** The corpus over-indexed on dangerous block cases plus a few canonical allow cases. Parser regressions surface as false positives on benign-but-structurally-varied input (operators inside substitutions, arithmetic, redirects on allowlisted reads), which the curated allow set did not vary.
+
+**Prevention:** For guardrail parsers, vary shell *structure* in the allow corpus, not just verbs: substitutions with/without inner operators, quoted vs unquoted, arithmetic expansion, process substitution, and redirects (`2>&1`, `2>/dev/null`, redirect-to-other-file) on allowlisted-readable files - each paired with its dangerous counterpart. A green smoke run proves only the cases present. Also: when a report fingers a downstream rule (a catch-all), trace the token that rule sees back to the tokenizer before relaxing it - here the catch-all was correct and the orphan `$(` was manufactured upstream by the segment splitter. Evidence anchors: `workflow/hooks/hook-lib/deny-dangerous-self-test.sh` (search: `unquoted subst with || fallback`), (search: `arithmetic expansion`), (search: `.env.example read with stderr dup`); root-cause anchor in `.goat-flow/footguns/deny-dangerous.md` (search: `track substitution depth`).
+
 ---
 
 ## Lesson: Codex sandbox hook probes must distinguish direct Bash from Node child-process

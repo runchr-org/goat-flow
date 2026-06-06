@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.9.1"
+goat-flow-reference-version: "1.9.2"
 ---
 # Gruff Code Quality
 
@@ -30,7 +30,7 @@ Run this before declaring the requested gruff tool unavailable. Set `target` fro
 ```bash
 target=gruff-ts  # one of: gruff-go, gruff-rs, gruff-ts, gruff-php, gruff-py
 found=
-for candidate in "vendor/bin/$target" "node_modules/.bin/$target" "$HOME/.local/bin/$target" "$target"; do
+for candidate in "vendor/bin/$target" "node_modules/.bin/$target" ".cargo-tools/bin/$target" "$HOME/.local/bin/$target" "$target"; do
   if [ -x "$candidate" ]; then
     found="$candidate"
     break
@@ -44,10 +44,12 @@ test -n "$found"
 "$found" --version
 ```
 
-For Node-installed `gruff-ts`, `npx` is also valid:
+Some installs run only through a package-manager wrapper rather than a binary on disk, so try the language's wrapper before declaring the tool missing:
 
 ```bash
-npx gruff-ts --version
+npx gruff-ts --version       # Node / npm
+go tool gruff-go --version   # Go module/tool install
+uv run gruff-py --version    # uv-managed Python project
 ```
 
 Then confirm the command surface for the specific tool before relying on flags. The examples below are illustrative; substitute the target binary and verify the installed tool before assuming another gruff family member or release supports the same subcommands or flags.
@@ -97,10 +99,15 @@ gruff-ts summary src/
 gruff-ts analyse src/payments/charge.ts
 gruff-ts analyse --diff working-tree
 gruff-ts analyse --format json src/payments/charge.ts
+gruff-ts check-ignore src/generated/schema.ts
 gruff-ts list-rules
 ```
 
-Use `summary` for orientation when the installed tool provides it. If it does not, use `analyse --format json` plus a local summarizer. Use `analyse <path>` while fixing a file or cohesive cluster. Use `dashboard` only when the tool exposes it and a browsable view helps the user inspect findings. Use `--diff working-tree` when the installed tool supports it and the user wants changed-code focus. Use JSON when you need complete output, grouping, scripting, or exact counts.
+Use `summary` for orientation. If a release lacks it, use `analyse --format json` plus a local summarizer. Use `analyse <path>` while fixing a file or cohesive cluster. Use `check-ignore <path>` to ask whether gruff already excludes a path before treating its findings as in-scope or planning a CONFIGURE/SKIP - it shares the analyse ignore engine, emits `[{path, ignored, source, pattern}]` under `--format json`, does no analysis, and mirrors `git check-ignore` exit codes (0 = at least one ignored, 1 = none, 2 = error). Use `dashboard` only when the tool exposes it and a browsable view helps the user inspect findings. Use JSON when you need complete output, grouping, scripting, or exact counts.
+
+Use `--diff working-tree` when the installed tool supports it and the user wants changed-code focus; the broader changed-region family is `--diff [working-tree|staged|unstaged|<ref>]`, `--since <ref>`, and `--changed-ranges <a-b,c-d> --changed-scope symbol|hunk`. gruff-rs gates the git-executing `--diff`/`--since` modes behind a hidden `--diff-git-unsafe` opt-in; its git-free `--diff-patch`/`--changed-ranges` need no flag.
+
+**Exit codes:** `analyse` defaults to `--fail-on advisory`, so it exits `1` whenever any finding is present - that is "findings exist", not a tool failure. Exit `2` is a real diagnostic (parse error, missing path, or a rejected config). Pass `--fail-on none` for pure reporting that exits `0` regardless of findings. gruff-go and gruff-rs spell the threshold `--min-severity` natively (gruff-go also accepts `--fail-on` as an alias).
 
 Do not run broad gruff scans in a loop when a targeted path would answer the question. Broad scans are useful at the start and end; targeted scans are useful during fixes.
 
@@ -153,7 +160,9 @@ for rule_id, count in rule_ids.most_common():
     print(f"{count:5d}  {rule_id}")
 ```
 
-Do not assume the JSON schema from memory. Verify fields such as `ruleId`, `severity`, `pillar`, `confidence`, `symbol`, or `metadata` on the installed version.
+Current ports converge on `schemaVersion: "gruff.analysis.v2"` and a flat finding shape: `ruleId`, `message`, `file`, top-level `line`/`endLine`/`column` (no nested `location`), `severity`, `pillar`, `secondaryPillars`, `confidence`, `tier`, `remediation`, `symbol`, `metadata`, and two identities - `fingerprint` (line-sensitive) and `stableIdentity` (line-insensitive). Still verify against the installed version rather than assuming from memory: older releases differ, some ports also emit a `filePath` alias beside `file`, and an empty `metadata` may serialize as `{}` rather than `[]`.
+
+If `findings` comes back empty or non-list, or the output is not JSON at all, suspect a config `schemaVersion` rejection (see Troubleshooting) or a non-zero exit on a real diagnostic before reverse-engineering the schema - the `SystemExit` guards above are catching that case, not telling you the schema changed.
 
 ## Triage
 
@@ -223,7 +232,7 @@ Before fixing a high-volume, surprising, or potentially breaking rule, read the 
 - TypeScript: `node_modules/@blundergoat/gruff-ts/` or the package source for the installed version.
 - Go: `$(go env GOMODCACHE)/github.com/blundergoat/gruff-go@*/` when installed as a module/tool.
 - Rust: `~/.cargo/registry/src/*/gruff-rs-*/` or the tool checkout used to install it.
-- Python: the environment's `site-packages/gruff_py/`; use `python -m pip show gruff-py` or the project's package manager to locate it.
+- Python: the environment's `site-packages/gruffpy/` (the import package is `gruffpy`, no underscore; only the distribution name is `gruff-py`); use `python -m pip show gruff-py` or the project's package manager to locate it.
 
 Look for default options, built-in type/name lists, skip conditions, metadata variants, helper predicates, and the AST or test-scope walker. Those reveal supported config knobs and false-positive escape hatches. If the rule source is unavailable, sample more findings and be conservative with automated edits.
 
@@ -235,17 +244,16 @@ For analyzer-shape recipes such as callable rewrites or intentional silent-catch
 
 | Tool | Rule or shape | Mechanic to remember |
 |---|---|---|
-| gruff-php | `naming.parameter-type-name` | `ignoredParameterNames` filters parameters, not local `$x = new Type()` assignments. Locals need rename, restructuring, or accepted debt. |
-| gruff-php | `naming.parameter-type-name` duplicate expected names | Descriptive variants can pass when they contain the expected token sequence and add extra distinguishing tokens. |
+| gruff-php | `naming.suffix-hungarian` / `naming.hungarian-notation` | These flag a type encoded in a name. `suffix-hungarian` covers parameters *and* locals (`$userArray`), so a flagged local needs a rename, restructuring, or accepted debt - there is no parameter-only ignore list. |
 | gruff-php | `test-quality.mystery-guest` / conditional logic | Rules may walk only PHPUnit test scopes. Extract I/O or branching into a meaningful private helper when that improves test signal. |
-| gruff-php | `test-quality.mock-without-expectation` | `createMock` -> `createStub` may lower severity but does not clear the finding. Add verification or accept. |
+| gruff-php | `test-quality.mock-without-expectation` | Severity drops to advisory when stub return-setup calls (`willReturn`, `willThrowException`) are present - not from swapping `createMock` -> `createStub`, which is still a mock. Either way the finding does not clear: add verification or accept. |
 | gruff-php | `test-quality.mock-only-test` | Mock expectation chains may not count as assertions. Use capture-spy plus real assertions, or assert an externally observable result. |
 | gruff-php | `security.dangerous-function-call` | `$callable()` -> `$callable->__invoke()` can clear closure/object invocations because the rule shape differs. Safe only when the value is invokable. |
-| gruff-php | `security.silent-catch` | Empty/comment-only catches are detected. Add a real no-op such as `unset($exception)` with a rationale comment if swallowing is intentional. |
+| gruff-php | `security.silent-catch` | Empty/comment-only catches are detected; the rule clears on *any* non-empty statement (there is no `unset($exception)` allowlist). If swallowing is intentional, add a statement that does real work plus a rationale comment - not a token placed only to clear the finding. |
 | gruff-php | `security.sensitive-data-logging` | Identifier regexes can flag OpenTelemetry `inputTokens`/`outputTokens`; treat as false positives when they are metrics, not auth tokens. |
-| gruff-php | `sensitive-data.high-entropy-string` | Long MIME types and rule path strings can fire with no useful rewrite. Prefer accept/baseline over string-splitting. |
+| gruff-php | `sensitive-data.high-entropy-string` | Long MIME types and rule path strings can still fire (the rule now suppresses many URLs, paths, and dotted keys, but not all) with no useful rewrite. Prefer accept/baseline over string-splitting. |
 | gruff-php | PHPStan scaffolds | `waste.redundant-variable` can hit variables that anchor `/** @var */` narrowing. Check adjacent lines before inlining. |
-| gruff-php | `modernisation.readonly-property-candidate` | Append mutations such as `$this->items[] = ...` may be missed. Grep writes before adding `readonly`. |
+| gruff-php | `modernisation.readonly-property-candidate` | Same-class append mutations such as `$this->items[] = ...` now resolve to the base property and disqualify the candidate. Cross-file/external mutation is still invisible, so grep writes outside the class before adding `readonly`. |
 | gruff-php | `docs.missing-constant-phpdoc` | A `//` line above a constant may not count; use the docblock shape the rule expects. |
 | gruff-ts / gruff-go / gruff-rs / gruff-py | language-specific rule names | Fill this table only after checking that tool's `list-rules` and rule source. Do not copy PHP mechanics across languages. |
 
@@ -331,11 +339,21 @@ The Bad version pairs a vague summary with type-only tags (`a string array of pa
 
 Do not add `contract:` prefixes or other marker words as a substitute for meaning. If gruff still reports the comment, improve the comment around the real boundary the rule is asking for.
 
-### docs.missing-internal-function-doc under the mandatory-doc rule
+### Missing-doc findings under the mandatory-doc rule
 
-This rule fires on every internal helper that lacks a leading maintainer comment. Under [`code-comments.md`](./code-comments.md)'s mandatory-doc rule - every function/method carries a doc comment - these findings are mostly genuine, not noise: the helper is missing a contract it is required to have. Default response is FIX, not suppress.
+Each port enforces missing-doc findings over a different scope, so check what the installed tool actually flags before assuming a finding will appear - the rule IDs are not shared:
 
-Triage `docs.missing-internal-function-doc`:
+- **gruff-ts** - `docs.missing-internal-function-doc` (internal helpers) plus `docs.missing-exported-function-doc`, `docs.missing-file-overview`, and others.
+- **gruff-py** - `docs.missing-function-docstring` covers every function (no exported/internal split).
+- **gruff-go** - `docs.exported-symbol-comment` covers *exported* declarations only by default; internal-identifier docs are opt-in via `docs.comment-rubric`.
+- **gruff-rs** - `docs.missing-public-doc` (and the param/errors/panics rules) cover *public* items only; there is no internal-doc rule.
+- **gruff-php** - `docs.missing-public-phpdoc` (public methods), `docs.missing-class-phpdoc`, `docs.missing-file-phpdoc`, `docs.missing-constant-phpdoc`.
+
+The rule-ID prefix is `docs.` in every port even though the *pillar* field is `documentation` - don't synthesize `documentation.*` IDs.
+
+Under [`code-comments.md`](./code-comments.md)'s mandatory-doc rule - every function/method carries a doc comment - a missing-doc finding is a genuine gap, not noise, so the default response is FIX, not suppress. Note the house bar is wider than some ports enforce: `code-comments.md` wants a doc comment on a private one-liner too, but gruff-go/rs/php won't *flag* an undocumented private helper by default - document it anyway, just don't expect a finding to chase you there.
+
+Triage a missing-doc finding:
 
 1. **FIX (default)** - add the doc comment `code-comments.md` requires. A trivial, name-clear helper gets a single tight contract line; a helper hiding a non-obvious WHY (tradeoff, workaround, threshold rationale, side effect, caller obligation) gets that orientation too. Both satisfy the rule.
 2. **RENAME first where it helps** - a better name (`phaseFor` over `processItem`) makes the required doc comment shorter, per the "Rewrite First" ladder. Renaming does not remove the requirement: the mandate stands regardless of name clarity.
@@ -353,7 +371,7 @@ Fix naming findings by making the code carry meaning:
 - Avoid generic functions such as `process`, `handle`, `run`, or `execute` when the body has a domain verb available.
 - Prefer one casing for acronyms in a file.
 
-Many naming rules expose options such as accepted abbreviations, ignored parameter names, or threshold lists. For project vocabulary, a documented config entry is often better than fighting the same finding one symbol at a time.
+Many naming rules expose options such as accepted abbreviations or threshold lists. The accepted-abbreviation allowlist is the same key in every port - `allowlists.acceptedAbbreviations` - seeded with a default set at `init` and extensible per project. For project vocabulary, a documented config entry there is often better than fighting the same finding one symbol at a time.
 
 After a rename, grep the old identifier and run the language's compile/typecheck step. Gruff naming cleanup can cross declarations, test fixtures, serialized payloads, and dashboard or generated contexts.
 
@@ -406,7 +424,9 @@ Treat test-quality findings as questions about signal:
 - Does setup hide the production path?
 - Is a magic assertion number a real domain constant that deserves a name?
 - Would a fixture helper clarify the test, or would it hide the key behavior?
-- Is a loop in a test masking which case failed?
+- Is a loop in a test *hiding or skipping* assertions - or is it a clean data-driven table?
+
+A data table iterated with an assertion on every row is good design, not a smell: the ports exempt it (gruff-ts `isFixtureLoop`; gruff-py's rule *recommends* `@pytest.mark.parametrize` rather than penalizing it). The target is branching that *buries or skips* an assertion - flag that, never the parametrized table. Clearing a `loop-in-test` finding by de-parametrizing back to copy-pasted cases deletes coverage and is exactly the wrong direction.
 
 Do not blindly abstract test setup. A little explicit setup is often better than a helper that makes the failing contract invisible.
 
@@ -467,11 +487,11 @@ Rule cluster fixed:
 - naming.short-variable: 9 -> 1 on test helpers
 
 Remaining accepted/larger-refactor:
-- complexity.npath in renderTextOutput: real but needs separate renderer refactor
+- complexity.cognitive in renderTextOutput: real but needs separate renderer refactor
 - naming.* public API params: skipped to avoid BC break
 ```
 
-For regression tracking, compare stable tuples such as `(ruleId, file, symbol)` instead of trusting line-number-only diffs; line shifts can make old findings look new.
+For regression tracking, key findings on the `stableIdentity` field (line-insensitive, emitted on every finding) rather than line numbers or a hand-rolled `(ruleId, file, symbol)` tuple; `fingerprint` is the line-sensitive identity used for baseline matching. Line shifts make a line-keyed diff show old findings as new.
 
 ## Quick Reference
 
@@ -481,14 +501,14 @@ For regression tracking, compare stable tuples such as `(ruleId, file, symbol)` 
 | `naming.*` on public API params or exported fields | Prefer config/allowlist/accepted debt unless a breaking change is approved. |
 | `test-quality.*` reading I/O in the test body | Extract meaningful I/O fixture/helper; keep assertions visible. |
 | `test-quality.*` conditional logic in the test body | Extract setup policy only when the test reads clearer afterward. |
-| `test-quality.mock-without-expectation` | Add real verification or accept; `createStub` may not clear it. |
+| `test-quality.mock-without-expectation` | Add real verification or accept; `createStub` does not clear it (severity only drops when stub return-setup calls are present). |
 | `test-quality.mock-only-test` | Capture-spy plus explicit assertion, or assert observable SUT output. |
 | `security.silent-catch` | Add a real statement plus rationale if swallowing is intentional. |
 | `security.dangerous-function-call` on PHP `$x()` | Use `$x->__invoke()` only when the value is known invokable. |
 | insecure random APIs | Use the language's secure random primitive unless the rule source documents a safe escape hatch. |
 | sensitive-data false positives on metrics names | Accept/configure with evidence; do not break public telemetry names. |
 | high-entropy MIME/path/rule strings | Accept or baseline with notes; do not reduce readability to game entropy. |
-| size/complexity/god-function findings | LARGER-REFACTOR unless a small extraction clearly reduces risk. |
+| size/complexity findings clustered on one symbol | LARGER-REFACTOR unless a small extraction clearly reduces risk. |
 
 ## Verification Gate
 
@@ -512,7 +532,7 @@ Project-specific anti-pattern scans may also apply: run any comment-marker scans
 
 **The global summary still looks bad after the cluster is fixed.** Report both the global state and the targeted state. A cluster can be clean while unrelated debt remains.
 
-**`analyse` exits non-zero with no findings and an error mentioning `schemaVersion`.** Recent gruff releases require a `schemaVersion:` line at the top of the project config (`.gruff-<lang>.yaml`); without it `analyse` fails closed instead of scanning, so any wrapper that only reads `.findings` sees empty or non-JSON output. The error names the expected value (for example `gruff-ts.config.v0.1`). Fix by regenerating the config: `gruff-<lang> init --force` rewrites it with the required `schemaVersion` while preserving your existing `paths.ignore` and severity entries (plain `init` refuses to overwrite an existing file). Do not hand-invent the version string or strip the field - run `init` so the value matches the installed binary.
+**`analyse` exits non-zero with no findings and an error mentioning `schemaVersion`.** gruff-ts, gruff-php, gruff-py, and gruff-rs require a `schemaVersion:` line at the top of the project config (`.gruff-<lang>.yaml`); without it `analyse` fails closed instead of scanning, so any wrapper that only reads `.findings` sees empty or non-JSON output. (gruff-go is the exception: a missing field passes, and only a *mismatched* value errors.) The error names the expected value, which is per-tool: `gruff-ts.config.v0.1`, `gruff-php.config.v0.1`, `gruff-py.config.v0.1`, `gruff-go.config.v0.1`, and `gruff-rs.config.v1` (note rs uses `v1`, not `v0.1`). Fix by regenerating: `gruff-<lang> init --force` rewrites the config with the required `schemaVersion` while preserving your existing `paths.ignore` and per-command `minimumSeverity` - but it regenerates default allowlists and per-rule severity overrides, so re-add any custom `allowlists.acceptedAbbreviations` or `rules.*.severity` afterwards (plain `init` refuses to overwrite; gruff-go's `init --force --reset` deliberately discards tuning). Do not hand-invent the version string or strip the field - run `init` so the value matches the installed binary.
 
 ## Related References
 

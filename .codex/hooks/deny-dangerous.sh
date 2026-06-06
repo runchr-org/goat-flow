@@ -425,6 +425,13 @@ check_command_substitutions() {
     scan_remaining="${scan_remaining/$match/__goat_proc_subst__}"
   done
 
+  # Arithmetic expansion $(( ... )) is not command substitution. Any dangerous
+  # nested $(...) inside it was already stripped and policy-checked by the loop
+  # above, so a remaining "$((" opener is pure arithmetic; mask it so the
+  # residual catch-all below does not misfire on benign arithmetic.
+  local arith_open='$(('
+  scan_remaining="${scan_remaining//"$arith_open"/__goat_arith__}"
+
   if [[ "$scan_remaining" =~ \$\( ]]; then
     block "Complex command substitution. Write the expanded command directly." || return $?
   fi
@@ -988,6 +995,7 @@ split_command_segments_into() {
   local in_single=0
   local in_double=0
   local escaped=0
+  local subst_depth=0
   local i=0
 
   for ((i = 0; i < ${#input}; i++)); do
@@ -1027,6 +1035,28 @@ split_command_segments_into() {
 
     if [[ "$in_single" -eq 0 && "$in_double" -eq 0 ]]; then
       next="${input:i+1:1}"
+      # Command/process substitution openers ( $(  <(  >( ) start a no-split
+      # region: control operators inside them are not top-level chain
+      # separators. check_command_substitutions recurses into the interior, so
+      # those operators are still policy-checked at the correct level. Plain
+      # (...) subshells are deliberately NOT tracked here - they are not
+      # recursed into elsewhere, so they must stay splittable to avoid a
+      # (cmd && rm -rf /) bypass.
+      if [[ "$next" == '(' && ( "$char" == '$' || "$char" == '<' || "$char" == '>' ) ]]; then
+        current+="$char$next"
+        subst_depth=$((subst_depth + 1))
+        i=$((i + 1))
+        continue
+      fi
+      if [[ "$subst_depth" -gt 0 ]]; then
+        if [[ "$char" == '(' ]]; then
+          subst_depth=$((subst_depth + 1))
+        elif [[ "$char" == ')' ]]; then
+          subst_depth=$((subst_depth - 1))
+        fi
+        current+="$char"
+        continue
+      fi
       if [[ "$char$next" == "&&" || "$char$next" == "||" ]]; then
         __goat_split_out__+=("$current")
         current=""
@@ -1222,6 +1252,13 @@ check_command_segments() {
   fi
 
   split_command_segments_into nested_segments "$input"
+
+  # Substitution interiors stay intact through split_command_segments_into and
+  # are recursed into here, so enforce the chain-count cap at nested depths too
+  # (depth 0 is already capped in main).
+  if (( depth > 0 && ${#nested_segments[@]} > 50 )); then
+    block "Command has more than 50 chained segments; review and run manually if intended." || return $?
+  fi
 
   for nested_segment in "${nested_segments[@]}"; do
     nested_segment="${nested_segment#"${nested_segment%%[![:space:]]*}"}"
