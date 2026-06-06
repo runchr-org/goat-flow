@@ -280,18 +280,11 @@ expect_no_jq_copilot_block() {
     return
   }
   executed=$((executed + 1))
-  local tmp bin output status tool
-  tmp="$(mktemp -d)"
-  bin="$tmp/bin"
-  mkdir -p "$bin"
-  for tool in bash git dirname sed awk cat; do
-    ln -s "$(command -v "$tool")" "$bin/$tool"
-  done
+  local output status
   set +e
-  output="$(printf '%s' "$payload" | PATH="$bin" bash "$(hook_path "$hook")" 2>&1)"
+  output="$(printf '%s' "$payload" | GOAT_DENY_FORCE_NO_JQ=1 bash "$(hook_path "$hook")" 2>&1)"
   status=$?
   set -e
-  rm -rf "$tmp"
   if [[ "$status" -ne 0 ]]; then
     record_fail "$hook no-jq Copilot payload should exit 0 for $label (exit=$status)"
     return
@@ -653,6 +646,9 @@ run_full() {
   # --- Substitution-opener cap: a command packed with many `$(`/`<(`/`>(` is a
   # policy-parser DoS (each opener triggers a recursive re-scan). Cap blocks it
   # fast; a benign handful of nested substitutions stays allowed (covered above). ---
+  local _many_arith="echo"
+  for ((_i = 1; _i <= 40; _i++)); do _many_arith+=" \$((1 + $_i))"; done
+  expect_allow shell "$_many_arith" "many arithmetic expansions do not trip parser-DoS cap"
   local _many_subst="cat"
   for ((_i = 1; _i <= 65; _i++)); do _many_subst+=" <(:)"; done
   expect_block shell "$_many_subst" "65 process substitutions blocks (parser-DoS cap)"

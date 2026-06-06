@@ -121,7 +121,7 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 - `scripts/preflight-checks.sh` (search: `if [[ -f workflow/skills/playbooks/code-comments.md`) added during the same change set that added `changelog.md` and `release-notes.md` parity, retroactively closing the gap for the two prior playbooks.
 - `src/cli/audit/check-drift.ts` (search: `template: "workflow/skills/playbooks/code-comments.md"`) similarly added retroactively.
 - `test/integration/preamble-sync.test.ts` (search: `template and installed code-comments.md match`) similarly added.
-- 2026-05-25 gruff-code-quality addition/rename: `bash scripts/preflight-checks.sh --verbose --no-color` in the installer round-trip fixture enrolled `gruff-code-quality.md`, then failed Knip because `@blundergoat/gruff-ts` is a CLI-only devDependency. `knip.json` (search: `@blundergoat/gruff-ts`) now records that non-imported tool dependency explicitly.
+- 2026-05-25 gruff-code-quality addition/rename: `bash scripts/preflight-checks.sh --verbose --no-color` in the installer round-trip fixture enrolled `gruff-code-quality.md`, then failed Knip because the gruff CLI was initially treated as an unused devDependency. `knip.json` (search: `ignoreDependencies`) was the related config surface; by 2026-06-06 Knip recognised the npm-script usage and the gruff ignore was removed, but the incident still proves this surface must be checked.
 
 **Prevention:**
 1. When adding a new skill-playbook, walk the checklist above before declaring done. Every surface is independent; missing one leaves silent drift.
@@ -129,7 +129,7 @@ Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this P
 3. Run `npm test` after enrolling. If `preamble-sync.test.ts` does not list the new playbook in test names, surface #7 is unenrolled.
 4. Treat the manifest as the source of truth structurally, but treat the other surfaces as load-bearing duplicates that must be updated in lock-step. A future refactor that derives the parity blocks from `manifest.json` would eliminate this footgun, but until that lands, the enumeration is the contract.
 5. When reviewing a playbook-addition PR, grep for the new filename in every surface listed above. Missing surfaces = blocking comment.
-6. If the playbook introduces or documents a package that is used only as a CLI, run `npx knip --no-progress`; add a scoped `ignoreDependencies` entry instead of pretending doc or shell mentions are import edges.
+6. If the playbook introduces or documents a package that is used only as a CLI, run `npx knip --no-progress`; update `ignoreDependencies` only when Knip still reports the dependency as unused after real npm-script or shell usage is present.
 
 ---
 

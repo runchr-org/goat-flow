@@ -114,6 +114,11 @@ function commandPath(agent: AgentProfile, script: string): string {
   return `${agent.hooksDir}/${script}`.replace(/\/+/gu, "/");
 }
 
+/** Quote one script for `bash -c` without leaving shell metacharacters active. */
+function shellSingleQuote(value: string): string {
+  return `'${value.split("'").join("'\\''")}'`;
+}
+
 /** Build the shell command variant that matches each agent's hook response protocol. */
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
@@ -135,7 +140,8 @@ function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"; root=""`;
   const selectRoot = `case "$gcd" in */.git/modules/*|.git/modules/*) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; esac`;
   const ensureRoot = `[ -f "$root/${path}" ] || root="\${CLAUDE_PROJECT_DIR:-}"; [ -f "$root/${path}" ] || ${failClosed}`;
-  return `${resolveRoot}; ${selectRoot}; ${ensureRoot}; cd "$root" || ${failClosed}; bash "$root/${path}"`;
+  const script = `${resolveRoot}; ${selectRoot}; ${ensureRoot}; cd "$root" || ${failClosed}; bash "$root/${path}"`;
+  return `bash -c ${shellSingleQuote(script)}`;
 }
 
 /** Build Copilot's Windows hook command with a denial response when bash is unavailable. */

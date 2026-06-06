@@ -80,6 +80,9 @@ read_payload() {
 json_value() {
   local payload="$1"
   local expr="$2"
+  if [[ "${GOAT_DENY_FORCE_NO_JQ:-}" == "1" ]]; then
+    return 0
+  fi
   if command -v jq >/dev/null 2>&1; then
     printf '%s' "$payload" | jq -r "$expr // empty" 2>/dev/null || true
   fi
@@ -1353,6 +1356,25 @@ check_command_segments() {
   done
 }
 
+count_substitution_openers() {
+  local input="$1"
+  local count=0
+  local i ch next next2
+  for ((i = 0; i < ${#input}; i += 1)); do
+    ch="${input:i:1}"
+    next="${input:i+1:1}"
+    next2="${input:i+2:1}"
+    if [[ "$ch$next" == '$(' ]]; then
+      if [[ "$next2" != '(' ]]; then
+        count=$((count + 1))
+      fi
+    elif [[ "$ch$next" == '<(' || "$ch$next" == '>(' ]]; then
+      count=$((count + 1))
+    fi
+  done
+  printf '%s\n' "$count"
+}
+
 main() {
   OUTPUT_MODE="stderr-exit"
   SELF_TEST_MODE=""
@@ -1450,10 +1472,8 @@ main() {
   # re-scan, so a command packed with hundreds (e.g. `cat <(:) <(:) ... <(:)`) is a
   # policy-parser DoS (~10s at 300). This flat O(len) count bounds the work;
   # real commands use a handful, so pathological input blocks ("run it manually").
-  local _goat_subst_n=0 _goat_subst_tmp
-  _goat_subst_tmp="${command_policy//'$('/}"; _goat_subst_n=$(( _goat_subst_n + (${#command_policy} - ${#_goat_subst_tmp}) / 2 ))
-  _goat_subst_tmp="${command_policy//'<('/}"; _goat_subst_n=$(( _goat_subst_n + (${#command_policy} - ${#_goat_subst_tmp}) / 2 ))
-  _goat_subst_tmp="${command_policy//'>('/}"; _goat_subst_n=$(( _goat_subst_n + (${#command_policy} - ${#_goat_subst_tmp}) / 2 ))
+  local _goat_subst_n=0
+  _goat_subst_n="$(count_substitution_openers "$command_policy")"
   if (( _goat_subst_n > 32 )); then
     block "Command has too many command substitutions; review and run manually if intended."
   fi

@@ -9,7 +9,7 @@ import {
   readFileSync,
   unlinkSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { getAgentProfiles } from "../agents/registry.js";
 import { readHookEnabled, setHookEnabled } from "../config/writer.js";
 import { getTemplatePath } from "../paths.js";
@@ -105,7 +105,16 @@ function unsupportedReasonForSpec(
 function assertWithinProject(projectPath: string, targetPath: string): void {
   const root = resolve(projectPath);
   const target = resolve(targetPath);
-  if (target === root || target.startsWith(`${root}/`)) return;
+  const fromRoot = relative(root, target);
+  if (
+    fromRoot === "" ||
+    (fromRoot !== ".." &&
+      !fromRoot.startsWith(`..${String.fromCharCode(47)}`) &&
+      !fromRoot.startsWith(`..${String.fromCharCode(92)}`) &&
+      !isAbsolute(fromRoot))
+  ) {
+    return;
+  }
   throw new HookRegistrarError("Refusing to write outside project path", 400);
 }
 

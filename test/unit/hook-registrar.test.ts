@@ -2,6 +2,7 @@
  * Unit tests for dashboard hook registration, drift detection, and script materialization.
  */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -29,6 +30,10 @@ import {
 } from "../../src/cli/server/hooks-registry.js";
 
 const HOOK_ID = "deny-dangerous";
+const CLAUDE_SAFE_PAYLOAD =
+  '{"tool_name":"Bash","tool_input":{"command":"echo safe"}}';
+const CLAUDE_DANGEROUS_PAYLOAD =
+  '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}';
 
 const GENERATED_AGENT_SURFACES = [
   ".claude/settings.json",
@@ -72,6 +77,86 @@ function assertPresent(root: string, paths: string[]): void {
   for (const path of paths) {
     assert.equal(pathExists(root, path), true, `${path} should exist`);
   }
+}
+
+/** Run a git command in a fixture project and fail with stdout/stderr context. */
+function runGit(cwd: string, args: string[]): string {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  assert.equal(
+    result.status,
+    0,
+    `git ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+  return result.stdout.trim();
+}
+
+/** Create one commit so git worktree/submodule fixtures have a real HEAD. */
+function commitAll(root: string, message: string): void {
+  runGit(root, ["add", "."]);
+  runGit(root, [
+    "-c",
+    "user.name=goat-flow-test",
+    "-c",
+    "user.email=goat-flow-test@example.invalid",
+    "commit",
+    "-m",
+    message,
+  ]);
+}
+
+/** Read the first generated Claude deny-dangerous launcher from settings. */
+function readClaudeDenyLauncher(root: string): string {
+  const settings = JSON.parse(
+    readFileSync(join(root, ".claude", "settings.json"), "utf-8"),
+  ) as {
+    hooks?: {
+      PreToolUse?: Array<{
+        hooks?: Array<{ command?: string }>;
+      }>;
+    };
+  };
+  const command = settings.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command;
+  assert.equal(typeof command, "string");
+  return command;
+}
+
+/** Seed a Claude hook-capable fixture and return the generated deny launcher. */
+function installClaudeDenyHook(root: string): string {
+  mkdirSync(join(root, ".claude"), { recursive: true });
+  writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
+  applyHookState(HOOK_ID, true, root);
+  return readClaudeDenyLauncher(root);
+}
+
+/** Execute the generated Claude launcher with a runtime-shaped payload. */
+function runClaudeLauncher(
+  command: string,
+  cwd: string,
+  payload = CLAUDE_SAFE_PAYLOAD,
+  env: NodeJS.ProcessEnv = process.env,
+): ReturnType<typeof spawnSync> {
+  return spawnSync("bash", ["-c", command], {
+    cwd,
+    encoding: "utf8",
+    env,
+    input: payload,
+  });
+}
+
+/** Assert the generated launcher allows a benign payload from this cwd. */
+function assertLauncherAllows(command: string, cwd: string): void {
+  const result = runClaudeLauncher(command, cwd);
+  assert.equal(
+    result.status,
+    0,
+    `launcher should allow benign payload\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "");
 }
 
 describe("hook registrar", () => {
@@ -123,6 +208,91 @@ describe("hook registrar", () => {
         /Policy hook unavailable: git repository root unavailable\./u,
       );
       assert.doesNotMatch(antigravityHooks, /Guard.*git repository root/u);
+    });
+  });
+
+  it("generated Claude launchers resolve worktrees, submodules, bare repos, and outside-repo cwd", () => {
+    withTempProject((root) => {
+      const main = join(root, "main");
+      const worktree = join(root, "main-worktree");
+      mkdirSync(main, { recursive: true });
+      runGit(main, ["init", "-q"]);
+      writeFileSync(join(main, "README.md"), "# main\n");
+      writeFileSync(join(main, ".gitignore"), ".claude/\n.goat-flow/\n");
+      commitAll(main, "initial main");
+
+      const mainLauncher = installClaudeDenyHook(main);
+      runGit(main, ["worktree", "add", "-q", "-b", "fixture-worktree", worktree]);
+
+      assert.equal(
+        existsSync(join(worktree, ".claude", "hooks", "deny-dangerous.sh")),
+        false,
+        "worktree fixture should prove hooks exist only in the main checkout",
+      );
+      assert.match(runGit(worktree, ["rev-parse", "--git-common-dir"]), /\.git$/u);
+      assertLauncherAllows(mainLauncher, worktree);
+
+      const subSource = join(root, "sub-source");
+      mkdirSync(subSource, { recursive: true });
+      runGit(subSource, ["init", "-q"]);
+      writeFileSync(join(subSource, "README.md"), "# submodule\n");
+      const sourceLauncher = installClaudeDenyHook(subSource);
+      assert.match(sourceLauncher, /\.git\/modules/u, "launcher carries submodule branch");
+      commitAll(subSource, "initial submodule");
+
+      const parent = join(root, "parent");
+      mkdirSync(parent, { recursive: true });
+      runGit(parent, ["init", "-q"]);
+      writeFileSync(join(parent, "README.md"), "# parent\n");
+      commitAll(parent, "initial parent");
+      runGit(parent, [
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        subSource,
+        "sub",
+      ]);
+      commitAll(parent, "add submodule");
+
+      const subWorktree = join(parent, "sub");
+      const subLauncher = readClaudeDenyLauncher(subWorktree);
+      assert.match(
+        runGit(subWorktree, ["rev-parse", "--git-common-dir"]),
+        /\.git\/modules\/sub$/u,
+      );
+      assert.equal(runGit(subWorktree, ["rev-parse", "--show-toplevel"]), subWorktree);
+      assertLauncherAllows(subLauncher, subWorktree);
+
+      const bare = join(root, "bare.git");
+      runGit(root, ["init", "--bare", "-q", bare]);
+      const bareResult = runClaudeLauncher(mainLauncher, bare);
+      assert.equal(bareResult.status, 2);
+      assert.match(bareResult.stderr, /Policy hook unavailable/u);
+      assert.doesNotMatch(bareResult.stderr, /No such file or directory/u);
+
+      const scratch = join(root, "scratch");
+      mkdirSync(scratch, { recursive: true });
+      const withEnv = { ...process.env, CLAUDE_PROJECT_DIR: main };
+      const scratchAllowed = runClaudeLauncher(
+        mainLauncher,
+        scratch,
+        CLAUDE_SAFE_PAYLOAD,
+        withEnv,
+      );
+      assert.equal(scratchAllowed.status, 0);
+      const scratchBlocked = runClaudeLauncher(
+        mainLauncher,
+        scratch,
+        CLAUDE_DANGEROUS_PAYLOAD,
+        withEnv,
+      );
+      assert.equal(scratchBlocked.status, 2);
+      assert.match(scratchBlocked.stderr, /BLOCKED: Policy/u);
+      const withoutEnv = runClaudeLauncher(mainLauncher, scratch);
+      assert.equal(withoutEnv.status, 2);
+      assert.match(withoutEnv.stderr, /Policy hook unavailable/u);
     });
   });
 
