@@ -222,14 +222,24 @@ describe("hook registrar", () => {
       commitAll(main, "initial main");
 
       const mainLauncher = installClaudeDenyHook(main);
-      runGit(main, ["worktree", "add", "-q", "-b", "fixture-worktree", worktree]);
+      runGit(main, [
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        "fixture-worktree",
+        worktree,
+      ]);
 
       assert.equal(
         existsSync(join(worktree, ".claude", "hooks", "deny-dangerous.sh")),
         false,
         "worktree fixture should prove hooks exist only in the main checkout",
       );
-      assert.match(runGit(worktree, ["rev-parse", "--git-common-dir"]), /\.git$/u);
+      assert.match(
+        runGit(worktree, ["rev-parse", "--git-common-dir"]),
+        /\.git$/u,
+      );
       assertLauncherAllows(mainLauncher, worktree);
 
       const subSource = join(root, "sub-source");
@@ -237,7 +247,11 @@ describe("hook registrar", () => {
       runGit(subSource, ["init", "-q"]);
       writeFileSync(join(subSource, "README.md"), "# submodule\n");
       const sourceLauncher = installClaudeDenyHook(subSource);
-      assert.match(sourceLauncher, /\.git\/modules/u, "launcher carries submodule branch");
+      assert.match(
+        sourceLauncher,
+        /\.git\/modules/u,
+        "launcher carries submodule branch",
+      );
       commitAll(subSource, "initial submodule");
 
       const parent = join(root, "parent");
@@ -262,7 +276,10 @@ describe("hook registrar", () => {
         runGit(subWorktree, ["rev-parse", "--git-common-dir"]),
         /\.git\/modules\/sub$/u,
       );
-      assert.equal(runGit(subWorktree, ["rev-parse", "--show-toplevel"]), subWorktree);
+      assert.equal(
+        runGit(subWorktree, ["rev-parse", "--show-toplevel"]),
+        subWorktree,
+      );
       assertLauncherAllows(subLauncher, subWorktree);
 
       const bare = join(root, "bare.git");

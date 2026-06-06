@@ -77,13 +77,14 @@ read_payload() {
   cat || true
 }
 
+jq_available() {
+  [[ "${GOAT_DENY_FORCE_NO_JQ:-}" != "1" ]] && command -v jq >/dev/null 2>&1
+}
+
 json_value() {
   local payload="$1"
   local expr="$2"
-  if [[ "${GOAT_DENY_FORCE_NO_JQ:-}" == "1" ]]; then
-    return 0
-  fi
-  if command -v jq >/dev/null 2>&1; then
+  if jq_available; then
     printf '%s' "$payload" | jq -r "$expr // empty" 2>/dev/null || true
   fi
 }
@@ -205,7 +206,7 @@ extract_tool_name() {
   local unsafe=0
   local tool_pattern='"(toolName|tool_name|name)"[[:space:]]*:[[:space:]]*"([^"]+)"'
   tool="$(json_value "$payload" '.toolName // .tool_name // .toolCall.name')"
-  if [[ -z "$tool" ]] && ! command -v jq >/dev/null 2>&1; then
+  if [[ -z "$tool" ]] && ! jq_available; then
     fallback_status=0
     tool="$(json_fallback_nested_string_value "$payload" 'toolName|tool_name|name')" || fallback_status=$?
     if [[ "$fallback_status" -ne 0 ]]; then
@@ -233,7 +234,7 @@ extract_command_text() {
     printf '%s' "$CHECK_COMMAND"
     return
   fi
-  if command -v jq >/dev/null 2>&1; then
+  if jq_available; then
     command="$(json_value "$payload" '
       def extract_command(value):
         if value == null then empty
@@ -517,7 +518,7 @@ check_command_substitutions() {
   # nested $(...) inside it was already stripped and policy-checked by the loop
   # above, so a remaining "$((" opener is pure arithmetic; mask it so the
   # residual catch-all below does not misfire on benign arithmetic.
-  local arith_open='$(('
+  local arith_open="\$(("
   scan_remaining="${scan_remaining//"$arith_open"/__goat_arith__}"
 
   if [[ "$scan_remaining" =~ \$\( ]]; then
@@ -1364,7 +1365,7 @@ count_substitution_openers() {
     ch="${input:i:1}"
     next="${input:i+1:1}"
     next2="${input:i+2:1}"
-    if [[ "$ch$next" == '$(' ]]; then
+    if [[ "$ch$next" == "\$(" ]]; then
       if [[ "$next2" != '(' ]]; then
         count=$((count + 1))
       fi

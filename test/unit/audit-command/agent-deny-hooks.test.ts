@@ -187,6 +187,75 @@ describe("agent deny hook template comparison", () => {
     assert.doesNotMatch(result.message, /self-test=smoke failed/);
   });
 
+  it("runs self-test with the selected agent dispatcher in GOAT_DENY_DANGEROUS_HOOK", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    let capturedEnv: NodeJS.ProcessEnv | undefined;
+    childProcess.execFileSync = ((command, args, options) => {
+      if (command === "bash" && Array.isArray(args) && args[0] === "-n") {
+        return Buffer.from("");
+      }
+      if (
+        command === "bash" &&
+        Array.isArray(args) &&
+        args[1] === "--self-test=smoke"
+      ) {
+        capturedEnv = (options as { env?: NodeJS.ProcessEnv }).env;
+        return Buffer.from("");
+      }
+      return Buffer.from("");
+    }) as typeof childProcess.execFileSync;
+    childProcess.spawnSync = (() =>
+      ({
+        status: 2,
+        signal: null,
+        error: undefined,
+        output: [
+          null,
+          "",
+          "BLOCKED: Policy repository: git push is not allowed.",
+        ],
+        pid: 0,
+        stdout: "",
+        stderr: "BLOCKED: Policy repository: git push is not allowed.",
+      }) as ReturnType<
+        typeof childProcess.spawnSync
+      >) as typeof childProcess.spawnSync;
+    syncBuiltinESMExports();
+
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    assert.equal(denyCheck.run(ctx), null);
+    assert.equal(
+      capturedEnv?.GOAT_DENY_DANGEROUS_HOOK,
+      resolve(PROJECT_ROOT, ".codex/hooks/deny-dangerous.sh"),
+    );
+  });
+
   it("reports configured command spawn denial instead of exit -1", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();

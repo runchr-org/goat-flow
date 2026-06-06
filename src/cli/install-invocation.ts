@@ -17,12 +17,20 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { delimiter, dirname, win32 } from "node:path";
 
 /** Successful invocation spec. */
 export interface InstallerInvocation {
   ok: true;
   bashCommand: string;
   args: string[];
+}
+
+/** Spawn-ready command, argv, and environment for the selected installer Bash. */
+export interface InstallerSpawnSpec {
+  command: string;
+  args: string[];
+  env: NodeJS.ProcessEnv;
 }
 
 /** Failure with a CLI-ready error message. */
@@ -102,6 +110,24 @@ export function buildInstallerInvocation(
 }
 
 /**
+ * Build the exact spawn command for a successful installer invocation.
+ *
+ * @param invocation Selected Bash command and installer argv.
+ * @param baseEnv Environment to inherit; tests may pass a fixed object.
+ * @returns Command, argv, and PATH-adjusted environment for `spawnSync`.
+ */
+export function buildInstallerSpawnSpec(
+  invocation: InstallerInvocation,
+  baseEnv: NodeJS.ProcessEnv = process.env,
+): InstallerSpawnSpec {
+  return {
+    command: invocation.bashCommand,
+    args: invocation.args,
+    env: installerSpawnEnv(invocation.bashCommand, baseEnv),
+  };
+}
+
+/**
  * Convert a Windows path to a form Bash will not shell-escape.
  *
  * Drive-letter:  `C:\Users\me` -> `C:/Users/me`
@@ -115,6 +141,27 @@ export function buildInstallerInvocation(
  */
 export function toBashPath(shellPath: string): string {
   return shellPath.replace(/\\/g, "/");
+}
+
+/** Build installer spawn env; selected Windows Bash paths get PATH precedence without a dynamic command. */
+function installerSpawnEnv(
+  bashCommand: string,
+  baseEnv: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  if (bashCommand === "bash") return baseEnv;
+  const existingPath = baseEnv.PATH ?? "";
+  return {
+    ...baseEnv,
+    PATH: `${bashCommandDir(bashCommand)}${delimiter}${existingPath}`,
+  };
+}
+
+/** Return dirname using Windows semantics for Windows-shaped Bash executable paths. */
+function bashCommandDir(bashCommand: string): string {
+  if (/^[A-Za-z]:[\\/]/.test(bashCommand) || bashCommand.includes("\\")) {
+    return win32.dirname(bashCommand);
+  }
+  return dirname(bashCommand);
 }
 
 /**

@@ -1,6 +1,6 @@
 ---
 category: verification-preflight
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-07
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -226,5 +226,19 @@ last_reviewed: 2026-05-31
 **Fix:** Store the command output in a variable and feed it with a here-string to a `node --eval` script, or pass data through a file descriptor explicitly. Evidence anchor: `scripts/dependency-update.sh` (search: `latest_dependencies="$(npm view`).
 
 **Prevention:** After adding shell code that combines pipes, heredocs, or process substitutions, run `shellcheck` before smoke testing the behavior. Treat `SC2259` as a correctness failure, not style noise.
+
+---
+
+## Lesson: Preflight TypeScript gates include Knip binary policy and touched-test formatting
+
+**Status:** active | **Created:** 2026-06-07
+
+**What happened:** During the M07-M10 closeout, focused hook checks, typecheck, focused tests, `npm test`, and `npm publish --dry-run` were clean, but the first full `bash scripts/preflight-checks.sh` still failed in the TypeScript section with `Knip: 4 unused exports/types` and `Prettier (1 unformatted files)`. Direct reproduction showed `npx knip` reporting unlisted command binaries (`where`, `which`, `diff`) and `npm run format:check` reporting `test/unit/hook-registrar.test.ts`.
+
+**Root cause:** I treated the focused behavioral and type gates as enough before preflight after touching CLI spawn logic and tests. Knip's binary-policy check is separate from typecheck and can be exposed by local tool/lockfile movement, while Prettier still checks all touched TypeScript tests even when they pass at runtime.
+
+**Fix:** Add intentional platform/probe commands to `knip.json` `ignoreBinaries`, format the touched hook-registrar test, rerun `npx knip` and `npm run format:check`, then rerun full preflight from scratch. Evidence anchors: `knip.json` (search: `ignoreBinaries`), `src/cli/install-invocation.ts` (search: `buildInstallerSpawnSpec`), `test/unit/hook-registrar.test.ts` (search: `generated Claude launchers`).
+
+**Prevention:** Before full preflight after changing CLI command spawning, hook launchers, or TypeScript tests, run the direct sub-gates that preflight will aggregate: `npx knip` and `npm run format:check`. If preflight reports the TypeScript section as failed, reproduce the subtool reports directly and fix those exact findings before collecting final pass evidence.
 
 ---

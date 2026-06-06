@@ -8,7 +8,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { delimiter, dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import type { AgentId, ProjectFacts } from "./types.js";
 import type { AuditReport, AuditScope, CheckResult } from "./audit/types.js";
@@ -23,7 +23,10 @@ import {
 import type { Command, ParsedCLI } from "./cli-types.js";
 import { createFS } from "./facts/fs.js";
 import { handleHooksCommand } from "./hooks-command.js";
-import { buildInstallerInvocation } from "./install-invocation.js";
+import {
+  buildInstallerInvocation,
+  buildInstallerSpawnSpec,
+} from "./install-invocation.js";
 import { getPackageVersion, getTemplatePath } from "./paths.js";
 import {
   ensureGitCommitInstructions,
@@ -389,16 +392,6 @@ function emitCommitGuidanceInstallResult(projectPath: string): void {
   );
 }
 
-/** Build installer spawn env; selected Windows Bash paths get PATH precedence without a dynamic command. */
-function installerSpawnEnv(bashCommand: string): NodeJS.ProcessEnv {
-  if (bashCommand === "bash") return process.env;
-  const existingPath = process.env.PATH ?? "";
-  return {
-    ...process.env,
-    PATH: `${dirname(bashCommand)}${delimiter}${existingPath}`,
-  };
-}
-
 /** Handle deterministic install/update; spawns the bundled installer and reports CLIError failures. */
 function handleInstallCommand(options: ParsedCLI): void {
   if (!options.agent) {
@@ -422,13 +415,14 @@ function handleInstallCommand(options: ParsedCLI): void {
     throw new CLIError(invocation.error, 1);
   }
 
-  const result = spawnSync("bash", invocation.args, {
-    env: installerSpawnEnv(invocation.bashCommand),
+  const spawnSpec = buildInstallerSpawnSpec(invocation);
+  const result = spawnSync(spawnSpec.command, spawnSpec.args, {
+    env: spawnSpec.env,
     stdio: "inherit",
   });
   if (result.error) {
     throw new CLIError(
-      `Could not run installer with bash: ${result.error.message}`,
+      `Could not run installer with ${spawnSpec.command}: ${result.error.message}`,
       1,
     );
   }

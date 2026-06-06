@@ -14,34 +14,12 @@ import {
   describe,
   extractSettingsFacts,
   it,
-  join,
   makeCtx,
   stubAgentFacts,
   stubFS,
 } from "./helpers.js";
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("continues parsing nested Codex workspace-root permission tables", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -88,27 +66,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("detects Codex TOML permission profiles that deny secret file families", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -131,27 +88,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("does not count an inactive Codex permission profile as secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -173,27 +109,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("counts recursive Codex env coverage when a staging variant exists", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -221,27 +136,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("does not count incomplete Codex exact/subtree denies as secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -272,27 +166,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("does not count legacy Codex project-root permission tables as current secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -315,27 +188,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("does not require absent Codex exact-file denies for secret coverage", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -485,27 +337,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("parses Codex current and deprecated feature flags from TOML", () => {
     const facts = extractSettingsFacts(
       stubFS({
@@ -562,27 +393,6 @@ describe("codex settings feature flags", () => {
 });
 
 describe("codex settings feature flags", () => {
-  function codexAgentFacts(
-    parsed: Record<string, unknown>,
-    hooks = stubAgentFacts().hooks,
-  ): AgentFacts {
-    return stubAgentFacts({
-      agent: PROFILES.codex,
-      settings: {
-        exists: true,
-        valid: true,
-        parsed,
-        hasDenyPatterns: false,
-      },
-      hooks: {
-        ...hooks,
-        denyExists: true,
-        denyIsRegistered: true,
-        denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
-      },
-    });
-  }
-
   it("accepts recursive Codex env denies for existing root secret files", () => {
     const facts = extractSettingsFacts(
       stubFS({

@@ -25,6 +25,11 @@
     "src/dashboard/dashboard-terminal.ts",
     "src/dashboard/globals.d.ts"
   ],
+  "ignoreBinaries": [
+    "diff",
+    "where",
+    "which"
+  ],
   "ignoreDependencies": [
     "@stryker-mutator/core",
     "@xterm/addon-fit",
