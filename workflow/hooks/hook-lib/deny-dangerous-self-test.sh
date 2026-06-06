@@ -597,6 +597,39 @@ run_full() {
   expect_block shell "xargs -I{} bash -c '{}' <<'X'"$'\n'"${_sh_body}X" "long xargs bash -c heredoc blocks without cap-backstop reliance"
   expect_allow shell "xargs rm <<'X'"$'\n'"foo.txt"$'\n'"bar.txt"$'\n'"X" "xargs rm heredoc (dispatcher, no shell) stays allowed"
   expect_allow shell "grep bash <<'X'"$'\n'"${_hd_body}X" "grep bash heredoc (shell word, no dispatcher) stays allowed"
+
+  # --- A shell run in command position - after a control operator/keyword, or via
+  # `source`/`.` of stdin - also executes the heredoc body, so it must stay
+  # inspectable. A shell NAME used as data (grep/echo argument, or a quoted pipe)
+  # must NOT trip this, so those inert bodies stay maskable/allowed. ---
+  expect_block shell "while read l; do bash -c \"\$l\"; done <<'X'"$'\n'"rm -rf /"$'\n'"X" "read-loop dispatching to bash is scanned"
+  expect_block shell "cat <<'X' | while read l; do bash -c \"\$l\"; done"$'\n'"rm -rf /"$'\n'"X" "piped read-loop dispatching to bash is scanned"
+  expect_block shell "source /dev/stdin <<'X'"$'\n'"rm -rf /"$'\n'"X" "source /dev/stdin heredoc body is scanned"
+  expect_block shell ". /dev/stdin <<'X'"$'\n'"rm -rf /"$'\n'"X" "dot-source /dev/stdin heredoc body is scanned"
+  expect_allow shell "echo bash <<'X'"$'\n'"${_hd_body}X" "echo bash heredoc (shell name as data) stays allowed"
+  expect_allow shell "grep '|bash' <<'X'"$'\n'"${_hd_body}X" "quoted pipe-to-shell as grep data stays allowed"
+  expect_allow shell "jq '.a | .b' <<'X'"$'\n'"${_hd_body}X" "quoted pipe in jq filter stays allowed"
+
+  # --- Allowlist masker (safe-by-default): the body is masked only when EVERY
+  # command in the opener pipeline is a known inert consumer. Line continuations,
+  # quote-reconstructed shells, command/exec wrappers, and read/mapfile variable
+  # handoff therefore keep the body inspectable; pipelines of inert consumers
+  # (cat|jq, psql) stay masked/allowed. ---
+  expect_block shell "cat <<'X' \\"$'\n'"| bash"$'\n'"rm -rf /"$'\n'"X" "line-continuation splitting opener from | bash is scanned"
+  expect_block shell "while read l; do b\"ash\" -c \"\$l\"; done <<'X'"$'\n'"rm -rf /"$'\n'"X" "quote-reconstructed shell in read-loop is scanned"
+  expect_block shell "while read l; do command bash -c \"\$l\"; done <<'X'"$'\n'"rm -rf /"$'\n'"X" "command-wrapped shell in read-loop is scanned"
+  expect_block shell "read x <<'X'"$'\n'"rm -rf /"$'\n'"X"$'\n'"bash -c \"\$x\"" "read variable handoff to bash is scanned"
+  expect_block shell "mapfile -t xs <<'X'"$'\n'"rm -rf /"$'\n'"X"$'\n'"for x in \"\${xs[@]}\"; do bash -c \"\$x\"; done" "mapfile variable handoff to bash is scanned"
+  expect_block shell "ssh host <<'X'"$'\n'"rm -rf /"$'\n'"X" "ssh remote-exec heredoc body is scanned"
+  expect_allow shell "cat <<'X' | jq ."$'\n'"${_hd_body}X" "pipeline of inert consumers (cat|jq) stays allowed"
+  expect_allow shell "psql -h h -U u db <<'SQL'"$'\n'"${_hd_body}SQL" "sql-client heredoc (inert consumer) stays allowed"
+
+  # --- Substitution-opener cap: a command packed with many `$(`/`<(`/`>(` is a
+  # policy-parser DoS (each opener triggers a recursive re-scan). Cap blocks it
+  # fast; a benign handful of nested substitutions stays allowed (covered above). ---
+  local _many_subst="cat"
+  for ((_i = 1; _i <= 65; _i++)); do _many_subst+=" <(:)"; done
+  expect_block shell "$_many_subst" "65 process substitutions blocks (parser-DoS cap)"
 }
 
 case "$SELF_TEST_MODE" in

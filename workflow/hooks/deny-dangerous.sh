@@ -323,44 +323,62 @@ tool_is_secret_file_operation() {
   esac
 }
 
-heredoc_opener_executes_shell() {
+heredoc_body_is_inert() {
+  # SAFE BY DEFAULT. Mask a quoted heredoc body (hide it from chain-counting and
+  # content checks) ONLY when EVERY command in the opener's pipeline is a known
+  # NON-shell consumer - a data tool or a non-shell interpreter that treats the
+  # body as data or as its own (non-shell) language. Anything else - a shell, an
+  # `xargs`/`parallel` dispatcher, `source`/`.`, a `read`/`mapfile` variable
+  # handoff, a control keyword (while/for/if/do/then/done), `ssh`, or any
+  # unrecognised command - means we do NOT mask, so the body stays inspectable and
+  # an executed `rm -rf /` is caught however it is reached (line continuation,
+  # variable handoff, quote tricks). The opener arrives continuation-joined; its
+  # own redirects/args are still policy-checked separately, so masking the body
+  # never hides a dangerous opener. Trade-off (chosen deliberately): a >50-line
+  # heredoc to an unrecognised or compound-wrapped consumer may trip the chain cap
+  # - a safe false positive ("review and run manually"), never a bypass.
   local opener="$1"
-  local before_heredoc="${opener%%<<*}"
-  local normalized
-  local first_word
-  local pipe_shell_re
-  local dispatch_re
-  local shell_word_re
+  local scan segment first
+  local -a segs=()
 
-  normalized=$(normalize_command_candidate "$before_heredoc")
-  first_word=$(first_word_base "$normalized")
-  case "$first_word" in
-    bash|sh|dash|zsh|ksh|fish|pwsh|powershell|cmd)
-      return 0 ;;
-  esac
+  # Strip quoted spans first (so a shell NAME used as data is not read as a
+  # command, and a quoted delimiter/pipe does not split), then break the pipeline
+  # on every command separator ; & | so each command's leading word is inspected.
+  # shellcheck disable=SC2001  # regex strip of quoted spans, not a glob
+  scan=$(printf '%s' "$opener" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
+  IFS=';&|' read -ra segs <<< "$scan"
 
-  pipe_shell_re='[|][[:space:]]*(env[[:space:]]+)?([^[:space:]/]+/)*(bash|sh|dash|zsh|ksh|fish|pwsh|powershell|cmd)([[:space:]]|$)'
-  [[ "$opener" =~ $pipe_shell_re ]] && return 0
-
-  # xargs / parallel turn their stdin - the heredoc body, fed directly or through
-  # a pipe - into commands; when they dispatch to a shell, the body lines ARE
-  # shell (e.g. `xargs -I{} bash -c '{}' <<'X' ... X`, or `cat <<'X' ... X |
-  # parallel sh -c '{}'`). The argument between `-c` and the body slips past the
-  # direct shell-here-doc check in patterns-shell.sh, so detect the
-  # dispatcher+shell pairing on the opener line here and keep the body
-  # inspectable - do NOT mask it. Plain `xargs rm`/`grep bash` (dispatcher xor
-  # shell, never both) stay maskable, so inert bodies are unaffected.
-  dispatch_re='(^|[[:space:]|])([^[:space:]|]*/)?(xargs|parallel)([[:space:]]|$)'
-  shell_word_re='(^|[[:space:]|])([^[:space:]|]*/)?(bash|sh|dash|zsh|ksh|fish|pwsh|powershell|cmd)([[:space:]]|$)'
-  [[ "$opener" =~ $dispatch_re ]] && [[ "$opener" =~ $shell_word_re ]] && return 0
-
-  return 1
+  (( ${#segs[@]} > 0 )) || return 1
+  # An opener with many pipeline commands is not a simple inert-consumer pipeline;
+  # refuse to mask (inspect instead). This also bounds the per-segment normalize +
+  # first-word subshell forks below, so a crafted `cat <<X; cat; cat; ...` opener
+  # cannot fork-DoS the masker.
+  (( ${#segs[@]} > 32 )) && return 1
+  for segment in "${segs[@]}"; do
+    segment="${segment#"${segment%%[![:space:]]*}"}"
+    [[ -z "$segment" ]] && continue
+    first=$(first_word_base "$(normalize_command_candidate "$segment")")
+    case "$first" in
+      cat|tac|tee|head|tail|sort|uniq|wc|nl|rev|cut|tr|fold|fmt|column|paste|join|comm|expand|unexpand|strings|iconv|\
+      base64|base32|xxd|hexdump|od|md5sum|sha1sum|sha256sum|sha512sum|cksum|\
+      grep|egrep|fgrep|rg|ag|sed|gsed|awk|gawk|mawk|nawk|jq|yq|xq|mlr|\
+      python|python2|python3|php|node|nodejs|deno|ruby|perl|lua|\
+      psql|mysql|mariadb|sqlite3|mongosh|mongo|redis-cli|cqlsh|duckdb|\
+      echo|printf|true|false|:|mail|mailx|sendmail|less|more)
+        ;;
+      *)
+        # Unknown / shell / dispatcher / keyword / source / read - do not mask.
+        return 1 ;;
+    esac
+  done
+  return 0
 }
 
 mask_safe_quoted_heredoc_bodies() {
   local input="$1"
   local output=""
   local line=""
+  local logical=""
   local delimiter=""
   local in_body=0
   local mask_body=0
@@ -403,15 +421,25 @@ mask_safe_quoted_heredoc_bodies() {
       continue
     fi
 
-    output+="$line"$'\n'
-    if [[ "$line" =~ $single_quoted_re ]] || [[ "$line" =~ $double_quoted_re ]]; then
+    # Join bash line-continuations into one logical opener so a heredoc whose
+    # pipeline/dispatcher is split across `\`<newline> (e.g. `cat <<'X' \`<nl>`|
+    # bash`) is classified as a whole. A trailing `\` inside a heredoc body is
+    # literal and is handled by the in_body branch above, never here.
+    logical="$line"
+    while [[ "$logical" =~ (^|[^\\])(\\\\)*\\$ ]]; do
+      IFS= read -r line || break
+      logical="${logical%\\}$line"
+    done
+
+    output+="$logical"$'\n'
+    if [[ "$logical" =~ $single_quoted_re ]] || [[ "$logical" =~ $double_quoted_re ]]; then
       strip_tabs=0
       [[ "${BASH_REMATCH[1]}" == "<<-" ]] && strip_tabs=1
       delimiter="${BASH_REMATCH[2]}"
-      if heredoc_opener_executes_shell "$line"; then
-        mask_body=0
-      else
+      if heredoc_body_is_inert "$logical"; then
         mask_body=1
+      else
+        mask_body=0
       fi
       in_body=1
       body_masked=0
@@ -1388,6 +1416,19 @@ main() {
     block "Command has more than 50 chained segments; review and run manually if intended."
   fi
   unset _goat_chain_segments
+
+  # Cap total command/process substitution openers before the recursive
+  # check_command_segments walk. Each `$(`/`<(`/`>(` triggers its own recursive
+  # re-scan, so a command packed with hundreds (e.g. `cat <(:) <(:) ... <(:)`) is a
+  # policy-parser DoS (~10s at 300). This flat O(len) count bounds the work;
+  # real commands use a handful, so pathological input blocks ("run it manually").
+  local _goat_subst_n=0 _goat_subst_tmp
+  _goat_subst_tmp="${command_policy//'$('/}"; _goat_subst_n=$(( _goat_subst_n + (${#command_policy} - ${#_goat_subst_tmp}) / 2 ))
+  _goat_subst_tmp="${command_policy//'<('/}"; _goat_subst_n=$(( _goat_subst_n + (${#command_policy} - ${#_goat_subst_tmp}) / 2 ))
+  _goat_subst_tmp="${command_policy//'>('/}"; _goat_subst_n=$(( _goat_subst_n + (${#command_policy} - ${#_goat_subst_tmp}) / 2 ))
+  if (( _goat_subst_n > 64 )); then
+    block "Command has too many command substitutions; review and run manually if intended."
+  fi
 
   check_command_segments "$command_policy" 0
   allow
