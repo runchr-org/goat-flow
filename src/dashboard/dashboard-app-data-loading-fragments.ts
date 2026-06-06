@@ -450,7 +450,9 @@ function dashboardAppFragment09(): DashboardAppFragment {
       this.reviewsLoading = true;
       this.reviewsError = "";
       try {
-        const res = await dashboardFetch("/assets/review-security-fixture.json");
+        const res = await dashboardFetch(
+          "/assets/review-security-fixture.json",
+        );
         if (!res.ok) throw new Error(`Review fixture returned ${res.status}`);
         this.reviewsArtifact = readSecurityReviewArtifact(await res.json());
       } catch (err) {

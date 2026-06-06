@@ -18,9 +18,9 @@ export const PROOF_CLASSES = [
 
 export const EVIDENCE_QUALITIES = ["OBSERVED", "INFERRED"] as const;
 
-export const FINDING_KINDS = ["review", "security"] as const;
+const FINDING_KINDS = ["review", "security"] as const;
 
-export const FINDING_SOURCE_TOOLS = [
+const FINDING_SOURCE_TOOLS = [
   "gruff-go",
   "gruff-php",
   "gruff-py",
@@ -30,9 +30,9 @@ export const FINDING_SOURCE_TOOLS = [
 ] as const;
 
 export type ProofClass = (typeof PROOF_CLASSES)[number];
-export type EvidenceQuality = (typeof EVIDENCE_QUALITIES)[number];
-export type FindingKind = (typeof FINDING_KINDS)[number];
-export type FindingSourceTool = (typeof FINDING_SOURCE_TOOLS)[number];
+type EvidenceQuality = (typeof EVIDENCE_QUALITIES)[number];
+type FindingKind = (typeof FINDING_KINDS)[number];
+type FindingSourceTool = (typeof FINDING_SOURCE_TOOLS)[number];
 
 export type ParseResult<T> =
   | { ok: true; artifact: T }
@@ -76,21 +76,9 @@ export interface BaseIntegrity {
   conclusion: "confident" | "coverage-degraded" | "high-inference" | "partial";
 }
 
-export interface ProgressEnvelope {
-  phase: string;
-  status: "pending" | "running" | "complete" | "failed";
-  message: string;
-  artifactPath: string | null;
-  emittedAt: string;
-}
-
-export interface CombinedVerdict {
-  decision: "SHIP" | "SHIP_WITH_CONDITIONS" | "NO" | "PARTIAL" | "PENDING";
-  reason: string;
-  conditions: string[];
-}
-
-export function isRecord(candidate: unknown): candidate is Record<string, unknown> {
+export function isRecord(
+  candidate: unknown,
+): candidate is Record<string, unknown> {
   return (
     typeof candidate === "object" &&
     candidate !== null &&
@@ -98,7 +86,7 @@ export function isRecord(candidate: unknown): candidate is Record<string, unknow
   );
 }
 
-export function expectString(
+function expectString(
   value: unknown,
   path: string,
 ): { ok: true; value: string } | { ok: false; error: string } {
@@ -126,7 +114,7 @@ export function expectNonEmptyString(
   return { ok: true, value: parsed.value };
 }
 
-export function expectNullableString(
+function expectNullableString(
   value: unknown,
   path: string,
 ): { ok: true; value: string | null } | { ok: false; error: string } {
@@ -174,7 +162,7 @@ export function expectNonNegativeInteger(
   return { ok: true, value: Number(value) };
 }
 
-export function expectPositiveInteger(
+function expectPositiveInteger(
   value: unknown,
   path: string,
 ): { ok: true; value: number } | { ok: false; error: string } {
@@ -189,13 +177,17 @@ export function parseFindingLines(
   path: string,
 ): { ok: true; value: FindingLines | null } | { ok: false; error: string } {
   if (raw === null) return { ok: true, value: null };
-  if (!isRecord(raw)) return { ok: false, error: `${path} must be an object or null` };
+  if (!isRecord(raw))
+    return { ok: false, error: `${path} must be an object or null` };
   const start = expectPositiveInteger(raw.start, `${path}.start`);
   if (!start.ok) return start;
   const end = expectPositiveInteger(raw.end, `${path}.end`);
   if (!end.ok) return end;
   if (end.value < start.value) {
-    return { ok: false, error: `${path}.end must be greater than or equal to start` };
+    return {
+      ok: false,
+      error: `${path}.end must be greater than or equal to start`,
+    };
   }
   return { ok: true, value: { start: start.value, end: end.value } };
 }
@@ -235,7 +227,10 @@ export function parseBaseIntegrity(
     `${path}.filesOpened.total`,
   );
   if (!total.ok) return total;
-  const paths = expectStringArray(raw.filesOpened.paths, `${path}.filesOpened.paths`);
+  const paths = expectStringArray(
+    raw.filesOpened.paths,
+    `${path}.filesOpened.paths`,
+  );
   if (!paths.ok) return paths;
   const observed = expectNonNegativeInteger(raw.observed, `${path}.observed`);
   if (!observed.ok) return observed;

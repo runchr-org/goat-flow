@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { ReviewResult } from "../../src/contracts/goat-review-contract.js";
 import { parseSecurityResult } from "../../src/contracts/goat-security-contract.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
@@ -38,5 +39,64 @@ describe("review/security contracts", () => {
     const parsed = parseSecurityResult(record);
     assert.equal(parsed.ok, false);
     assert.match(parsed.error, /unresolved placeholder/);
+  });
+
+  it("keeps the review result contract available for typed artifacts", () => {
+    const artifact = {
+      resultKind: "goat-flow-review-result",
+      contractVersion: "1",
+      generatedAt: "2026-06-06T00:00:00.000Z",
+      target: {
+        projectPath: "/tmp/project",
+        base: "main",
+        head: "feature",
+        source: "diff",
+      },
+      integrity: {
+        filesOpened: { opened: 1, total: 1, paths: ["src/example.ts"] },
+        observed: 1,
+        inferred: 0,
+        degradationFlags: [],
+        conclusion: "confident",
+        refutationsLogged: 0,
+        size: { files: 1, lines: 12, chunked: null },
+      },
+      findings: [
+        {
+          id: "R-01",
+          kind: "review",
+          file: "src/example.ts",
+          anchor: "exampleAnchor",
+          lines: null,
+          title: "Example",
+          body: "Concrete review finding body.",
+          severity: "SHOULD",
+          action: "patch",
+          proofClass: "STATIC",
+          evidence: "OBSERVED",
+          footgun: null,
+          source: { tool: "agent", ruleId: null, pillar: null },
+          overlapTag: null,
+        },
+      ],
+      specDrift: [],
+      refuter: {
+        ran: false,
+        confirmed: 0,
+        refuted: 0,
+        unresolved: 0,
+        leadsVerifiedByHost: 0,
+        model: null,
+      },
+      shipVerdict: {
+        decision: "SHIP_WITH_CONDITIONS",
+        confidence: "HIGH",
+        reasoning: "One SHOULD finding remains.",
+        conditions: ["Apply R-01."],
+      },
+    } satisfies ReviewResult;
+
+    assert.equal(artifact.findings[0]?.action, "patch");
+    assert.equal(artifact.shipVerdict.conditions[0], "Apply R-01.");
   });
 });

@@ -1,30 +1,33 @@
-import type { BaseFinding, BaseIntegrity } from "./goat-flow-contract-shared.js";
+import type {
+  BaseFinding,
+  BaseIntegrity,
+} from "./goat-flow-contract-shared.js";
 
-export type ReviewAction =
+type ReviewAction =
   | "patch"
   | "needs-decision"
   | "pre-existing"
   | "intent-mismatch"
   | "needs-signal";
 
-export type ReviewSeverity = "MUST" | "SHOULD" | "MAY";
+type ReviewSeverity = "MUST" | "SHOULD" | "MAY";
 
-export type ShipDecision = "SHIP" | "SHIP_WITH_CONDITIONS" | "NO" | "PARTIAL";
+type ShipDecision = "SHIP" | "SHIP_WITH_CONDITIONS" | "NO" | "PARTIAL";
 
-export interface ReviewFinding extends BaseFinding {
+interface ReviewFinding extends BaseFinding {
   kind: "review";
   severity: ReviewSeverity;
   action: ReviewAction;
   overlapTag: "confirmed-cross-model" | "cross-model-unresolved" | null;
 }
 
-export interface ReviewSpecDriftEntry {
+interface ReviewSpecDriftEntry {
   tag: "advisory" | "ready-to-tick";
   title: string;
   body: string;
 }
 
-export interface ReviewRefuterSummary {
+interface ReviewRefuterSummary {
   ran: boolean;
   confirmed: number;
   refuted: number;
@@ -33,7 +36,7 @@ export interface ReviewRefuterSummary {
   model: string | null;
 }
 
-export interface ShipVerdict {
+interface ShipVerdict {
   decision: ShipDecision;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   reasoning: string;

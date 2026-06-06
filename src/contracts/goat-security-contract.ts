@@ -16,25 +16,16 @@ import {
   type ProofClass,
 } from "./goat-flow-contract-shared.js";
 
-export const SECURITY_RESULT_KIND = "goat-flow-security-result" as const;
+const SECURITY_RESULT_KIND = "goat-flow-security-result" as const;
 
-export const SECURITY_SEVERITIES = [
-  "Critical",
-  "High",
-  "Medium",
-  "Low",
-] as const;
+const SECURITY_SEVERITIES = ["Critical", "High", "Medium", "Low"] as const;
 
-export const SECURITY_CONFIDENCES = [
-  "CONFIRMED",
-  "PROBABLE",
-  "THEORETICAL",
-] as const;
+const SECURITY_CONFIDENCES = ["CONFIRMED", "PROBABLE", "THEORETICAL"] as const;
 
-export type SecuritySeverity = (typeof SECURITY_SEVERITIES)[number];
-export type SecurityConfidence = (typeof SECURITY_CONFIDENCES)[number];
+type SecuritySeverity = (typeof SECURITY_SEVERITIES)[number];
+type SecurityConfidence = (typeof SECURITY_CONFIDENCES)[number];
 
-export interface SecurityFinding extends BaseFinding {
+interface SecurityFinding extends BaseFinding {
   kind: "security";
   severity: SecuritySeverity;
   asset: string;
@@ -53,12 +44,12 @@ export interface SecurityFinding extends BaseFinding {
   };
 }
 
-export interface SecurityPosture {
+interface SecurityPosture {
   rollupBySeverity: Record<SecuritySeverity, number>;
   conclusion: "confident" | "coverage-degraded" | "tool-limited";
 }
 
-export interface SecurityIntegrity extends BaseIntegrity {
+interface SecurityIntegrity extends BaseIntegrity {
   reviewMode: string;
   provenance: "trusted" | "untrusted" | "unknown";
   surfacesScanned: string[];
@@ -171,9 +162,14 @@ export function parseSecurityResult(raw: unknown): ParseResult<SecurityResult> {
 
 function parseTarget(
   raw: unknown,
-): { ok: true; value: SecurityResult["target"] } | { ok: false; error: string } {
+):
+  | { ok: true; value: SecurityResult["target"] }
+  | { ok: false; error: string } {
   if (!isRecord(raw)) return { ok: false, error: "target must be an object" };
-  const projectPath = expectNonEmptyString(raw.projectPath, "target.projectPath");
+  const projectPath = expectNonEmptyString(
+    raw.projectPath,
+    "target.projectPath",
+  );
   if (!projectPath.ok) return projectPath;
   const mode = expectEnumValue(raw.mode, "target.mode", [
     "whole-repo",
@@ -184,11 +180,17 @@ function parseTarget(
   if (!agent.ok) return agent;
   return {
     ok: true,
-    value: { projectPath: projectPath.value, mode: mode.value, agent: agent.value },
+    value: {
+      projectPath: projectPath.value,
+      mode: mode.value,
+      agent: agent.value,
+    },
   };
 }
 
-function parseThreatModelSnapshot(raw: unknown):
+function parseThreatModelSnapshot(
+  raw: unknown,
+):
   | { ok: true; value: SecurityResult["threatModelSnapshot"] }
   | { ok: false; error: string } {
   if (!isRecord(raw)) {
@@ -244,13 +246,17 @@ function parsePosture(
     "tool-limited",
   ] as const);
   if (!conclusion.ok) return conclusion;
-  return { ok: true, value: { rollupBySeverity, conclusion: conclusion.value } };
+  return {
+    ok: true,
+    value: { rollupBySeverity, conclusion: conclusion.value },
+  };
 }
 
 function parseFindings(
   raw: unknown,
 ): { ok: true; value: SecurityFinding[] } | { ok: false; error: string } {
-  if (!Array.isArray(raw)) return { ok: false, error: "findings must be an array" };
+  if (!Array.isArray(raw))
+    return { ok: false, error: "findings must be an array" };
   const findings: SecurityFinding[] = [];
   for (let index = 0; index < raw.length; index += 1) {
     const parsed = parseFinding(raw[index], index);
@@ -280,13 +286,28 @@ function parseFinding(
   if (!title.ok) return title;
   const body = expectNonEmptyString(raw.body, `${path}.body`);
   if (!body.ok) return body;
-  const severity = expectEnumValue(raw.severity, `${path}.severity`, SECURITY_SEVERITIES);
+  const severity = expectEnumValue(
+    raw.severity,
+    `${path}.severity`,
+    SECURITY_SEVERITIES,
+  );
   if (!severity.ok) return severity;
-  const proofClass = expectEnumValue(raw.proofClass, `${path}.proofClass`, PROOF_CLASSES);
+  const proofClass = expectEnumValue(
+    raw.proofClass,
+    `${path}.proofClass`,
+    PROOF_CLASSES,
+  );
   if (!proofClass.ok) return proofClass;
-  const evidence = expectEnumValue(raw.evidence, `${path}.evidence`, EVIDENCE_QUALITIES);
+  const evidence = expectEnumValue(
+    raw.evidence,
+    `${path}.evidence`,
+    EVIDENCE_QUALITIES,
+  );
   if (!evidence.ok) return evidence;
-  const footgun = expectNonEmptyString(raw.footgun ?? "none", `${path}.footgun`);
+  const footgun = expectNonEmptyString(
+    raw.footgun ?? "none",
+    `${path}.footgun`,
+  );
   if (!footgun.ok) return footgun;
   const source = parseFindingSource(raw.source, `${path}.source`);
   if (!source.ok) return source;
@@ -296,18 +317,31 @@ function parseFinding(
   if (!entry.ok) return entry;
   const sink = expectNonEmptyString(raw.sink, `${path}.sink`);
   if (!sink.ok) return sink;
-  const trustBoundary = expectNonEmptyString(raw.trustBoundary, `${path}.trustBoundary`);
+  const trustBoundary = expectNonEmptyString(
+    raw.trustBoundary,
+    `${path}.trustBoundary`,
+  );
   if (!trustBoundary.ok) return trustBoundary;
   const attackerPreconditions = expectNonEmptyString(
     raw.attackerPreconditions,
     `${path}.attackerPreconditions`,
   );
   if (!attackerPreconditions.ok) return attackerPreconditions;
-  const confidence = expectEnumValue(raw.confidence, `${path}.confidence`, SECURITY_CONFIDENCES);
+  const confidence = expectEnumValue(
+    raw.confidence,
+    `${path}.confidence`,
+    SECURITY_CONFIDENCES,
+  );
   if (!confidence.ok) return confidence;
-  const exploitability = expectNonEmptyString(raw.exploitability, `${path}.exploitability`);
+  const exploitability = expectNonEmptyString(
+    raw.exploitability,
+    `${path}.exploitability`,
+  );
   if (!exploitability.ok) return exploitability;
-  const blastRadius = expectNonEmptyString(raw.blastRadius, `${path}.blastRadius`);
+  const blastRadius = expectNonEmptyString(
+    raw.blastRadius,
+    `${path}.blastRadius`,
+  );
   if (!blastRadius.ok) return blastRadius;
   const proofOfFix = expectNonEmptyString(raw.proofOfFix, `${path}.proofOfFix`);
   if (!proofOfFix.ok) return proofOfFix;
@@ -344,8 +378,12 @@ function parseSecurityIntegrity(
 ): { ok: true; value: SecurityIntegrity } | { ok: false; error: string } {
   const base = parseBaseIntegrity(raw, "integrity");
   if (!base.ok) return base;
-  if (!isRecord(raw)) return { ok: false, error: "integrity must be an object" };
-  const reviewMode = expectNonEmptyString(raw.reviewMode, "integrity.reviewMode");
+  if (!isRecord(raw))
+    return { ok: false, error: "integrity must be an object" };
+  const reviewMode = expectNonEmptyString(
+    raw.reviewMode,
+    "integrity.reviewMode",
+  );
   if (!reviewMode.ok) return reviewMode;
   const provenance = expectEnumValue(raw.provenance, "integrity.provenance", [
     "trusted",
@@ -353,17 +391,37 @@ function parseSecurityIntegrity(
     "unknown",
   ] as const);
   if (!provenance.ok) return provenance;
-  const surfacesScanned = expectStringArray(raw.surfacesScanned, "integrity.surfacesScanned");
+  const surfacesScanned = expectStringArray(
+    raw.surfacesScanned,
+    "integrity.surfacesScanned",
+  );
   if (!surfacesScanned.ok) return surfacesScanned;
-  const surfacesSkipped = expectStringArray(raw.surfacesSkipped, "integrity.surfacesSkipped");
+  const surfacesSkipped = expectStringArray(
+    raw.surfacesSkipped,
+    "integrity.surfacesSkipped",
+  );
   if (!surfacesSkipped.ok) return surfacesSkipped;
-  const scannerTools = expectStringArray(raw.scannerTools, "integrity.scannerTools");
+  const scannerTools = expectStringArray(
+    raw.scannerTools,
+    "integrity.scannerTools",
+  );
   if (!scannerTools.ok) return scannerTools;
-  const unavailableTools = expectStringArray(raw.unavailableTools, "integrity.unavailableTools");
+  const unavailableTools = expectStringArray(
+    raw.unavailableTools,
+    "integrity.unavailableTools",
+  );
   if (!unavailableTools.ok) return unavailableTools;
-  const proofClasses = parseCountRecord(raw.proofClasses, PROOF_CLASSES, "integrity.proofClasses");
+  const proofClasses = parseCountRecord(
+    raw.proofClasses,
+    PROOF_CLASSES,
+    "integrity.proofClasses",
+  );
   if (!proofClasses.ok) return proofClasses;
-  const confidence = parseCountRecord(raw.confidence, SECURITY_CONFIDENCES, "integrity.confidence");
+  const confidence = parseCountRecord(
+    raw.confidence,
+    SECURITY_CONFIDENCES,
+    "integrity.confidence",
+  );
   if (!confidence.ok) return confidence;
   return {
     ok: true,
@@ -396,10 +454,13 @@ function parseCountRecord<T extends string>(
   return { ok: true, value };
 }
 
-function parseActiveTestingGate(raw: unknown):
+function parseActiveTestingGate(
+  raw: unknown,
+):
   | { ok: true; value: SecurityResult["activeTestingGate"] }
   | { ok: false; error: string } {
-  if (!isRecord(raw)) return { ok: false, error: "activeTestingGate must be an object" };
+  if (!isRecord(raw))
+    return { ok: false, error: "activeTestingGate must be an object" };
   if (typeof raw.required !== "boolean") {
     return { ok: false, error: "activeTestingGate.required must be a boolean" };
   }
@@ -412,19 +473,35 @@ function parseActiveTestingGate(raw: unknown):
     "blocked",
   ] as const);
   if (!status.ok) return status;
-  return { ok: true, value: { required: raw.required, reason: reason.value, status: status.value } };
+  return {
+    ok: true,
+    value: {
+      required: raw.required,
+      reason: reason.value,
+      status: status.value,
+    },
+  };
 }
 
-function parsePersistGate(raw: unknown):
+function parsePersistGate(
+  raw: unknown,
+):
   | { ok: true; value: SecurityResult["persistGate"] }
   | { ok: false; error: string } {
-  if (!isRecord(raw)) return { ok: false, error: "persistGate must be an object" };
-  const artifactPath = expectNonEmptyString(raw.artifactPath, "persistGate.artifactPath");
+  if (!isRecord(raw))
+    return { ok: false, error: "persistGate must be an object" };
+  const artifactPath = expectNonEmptyString(
+    raw.artifactPath,
+    "persistGate.artifactPath",
+  );
   if (!artifactPath.ok) return artifactPath;
   if (typeof raw.wroteArtifact !== "boolean") {
     return { ok: false, error: "persistGate.wroteArtifact must be a boolean" };
   }
-  const confirmation = expectNonEmptyString(raw.confirmation, "persistGate.confirmation");
+  const confirmation = expectNonEmptyString(
+    raw.confirmation,
+    "persistGate.confirmation",
+  );
   if (!confirmation.ok) return confirmation;
   return {
     ok: true,
