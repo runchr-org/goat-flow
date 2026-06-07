@@ -1,8 +1,15 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "scripts/*.mjs",
+    "test/**/*.test.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "scripts/**/*.mjs",
+    "test/**/*.ts"
+  ],
   "ignore": [
-    ".goat-flow/tasks/**/*.mjs",
-    ".goat-flow/scratchpad/**",
     "src/dashboard/app.ts",
     "src/dashboard/dashboard-app-data-loading-fragments.ts",
     "src/dashboard/dashboard-app-init.ts",
@@ -25,6 +32,12 @@
     "src/dashboard/dashboard-terminal.ts",
     "src/dashboard/globals.d.ts"
   ],
+  "ignoreIssues": {
+    "test/**": [
+      "exports",
+      "types"
+    ]
+  },
   "ignoreBinaries": [
     "diff",
     "where",

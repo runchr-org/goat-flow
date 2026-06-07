@@ -56,7 +56,8 @@ resolve_goat_flow_root() {
       root="$(git rev-parse --show-toplevel 2>/dev/null)" || return 1
       printf '%s\n' "$root"
       ;;
-    /*)
+    /*|[A-Za-z]:/*|[A-Za-z]:\\*)
+      gcd="${gcd//\\//}"
       dirname "$gcd"
       ;;
     *)

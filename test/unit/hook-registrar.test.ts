@@ -222,6 +222,16 @@ describe("hook registrar", () => {
       commitAll(main, "initial main");
 
       const mainLauncher = installClaudeDenyHook(main);
+      assert.match(
+        mainLauncher,
+        /\/\*\|\[A-Za-z\]:\/\*\|\[A-Za-z\]:\\\\\*\)/u,
+        "launcher should treat Windows drive-letter git-common-dir paths as absolute",
+      );
+      assert.match(
+        mainLauncher,
+        /\$\{gcd\/\/\\\\\/\/\}/u,
+        "launcher should normalize defensive backslash drive paths before dirname",
+      );
       runGit(main, [
         "worktree",
         "add",
