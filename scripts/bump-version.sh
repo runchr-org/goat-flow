@@ -24,6 +24,7 @@
 #   - Installed skill mirrors and per-skill reference packs (.claude/skills/, .agents/skills/, .github/skills/ via manifest)
 #   - Installed shared reference docs (.goat-flow/skill-docs/)
 #   - Installed standalone playbooks (.goat-flow/skill-docs/playbooks/)
+#   - Installed skill-quality-testing methodology pack (.goat-flow/skill-docs/skill-quality-testing/)
 #
 # Exit:
 #   0 on success, non-zero on validation failure.
@@ -223,8 +224,21 @@ if [[ -d ".goat-flow/skill-docs" ]]; then
   echo "  ✓ .goat-flow/skill-docs/"
 fi
 if [[ -d ".goat-flow/skill-docs/playbooks" ]]; then
-  cp -r workflow/skills/playbooks/* .goat-flow/skill-docs/playbooks/
+  rm -f .goat-flow/skill-docs/playbooks/skill-quality-testing.md
+  rm -rf .goat-flow/skill-docs/playbooks/skill-quality-testing
+  for playbook_src in workflow/skills/playbooks/*.md; do
+    playbook_name="$(basename "$playbook_src")"
+    if [[ "$playbook_name" == "skill-quality-testing.md" ]]; then
+      continue
+    fi
+    cp "$playbook_src" ".goat-flow/skill-docs/playbooks/${playbook_name}"
+  done
   echo "  ✓ .goat-flow/skill-docs/playbooks/"
+fi
+if [[ -d ".goat-flow/skill-docs/skill-quality-testing" ]]; then
+  cp workflow/skills/playbooks/skill-quality-testing.md .goat-flow/skill-docs/skill-quality-testing/README.md
+  cp workflow/skills/playbooks/skill-quality-testing/*.md .goat-flow/skill-docs/skill-quality-testing/
+  echo "  ✓ .goat-flow/skill-docs/skill-quality-testing/"
 fi
 
 echo ""

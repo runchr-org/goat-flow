@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.9.2"
+goat-flow-reference-version: "1.10.0"
 ---
 # Critique Sub-Agent Directives (Reference Pack)
 
