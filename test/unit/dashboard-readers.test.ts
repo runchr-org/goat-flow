@@ -98,6 +98,10 @@ type HelperContext = {
       modifiedAt: string;
     }>;
   };
+  readSecurityReviewArtifact: (_value: unknown) => {
+    contractVersion: string;
+    findings: Array<{ evidence: "OBSERVED" | "INFERRED" }>;
+  };
 };
 
 type SupportedAgent = {
@@ -156,6 +160,7 @@ globalThis.__helpers = {
   readInjectedSupportedAgents,
   readDashboardReport,
   readTaskState,
+  readSecurityReviewArtifact,
 };`,
     context,
   );
@@ -325,7 +330,7 @@ function readAdvisoryEnforcementReport(): ReturnType<
 /** Read task-state fixture data with every Plans view field populated. */
 function readPlansViewTaskState(): ReturnType<HelperContext["readTaskState"]> {
   return loadHelpers().readTaskState({
-    taskRoot: "/repo/.goat-flow/tasks",
+    taskRoot: "/repo/.goat-flow/plans",
     exists: true,
     active: "current",
     activeExists: true,
@@ -333,7 +338,7 @@ function readPlansViewTaskState(): ReturnType<HelperContext["readTaskState"]> {
     plans: [
       {
         name: "current",
-        path: "/repo/.goat-flow/tasks/current",
+        path: "/repo/.goat-flow/plans/current",
         modifiedAt: "2026-05-15T06:00:00.000Z",
         milestoneCount: 2,
         active: true,
@@ -342,7 +347,7 @@ function readPlansViewTaskState(): ReturnType<HelperContext["readTaskState"]> {
     milestones: [
       {
         filename: "Milestone-side-menu-navigation.md",
-        path: "/repo/.goat-flow/tasks/current/Milestone-side-menu-navigation.md",
+        path: "/repo/.goat-flow/plans/current/Milestone-side-menu-navigation.md",
         title: "Side Menu Navigation and Plans View",
         status: "in-progress",
         objective: "Build the side menu.",
@@ -491,7 +496,7 @@ describe("dashboard payload readers", () => {
     const expectedMilestoneCount = 2;
     const expectedMilestoneTaskTotal = 13;
     const expectedCompletedTasks = 4;
-    assert.equal(state.taskRoot, "/repo/.goat-flow/tasks");
+    assert.equal(state.taskRoot, "/repo/.goat-flow/plans");
     assert.equal(state.active, "current");
     assert.equal(state.activeExists, true);
     assert.equal(state.selectedPlan, "current");
@@ -501,5 +506,56 @@ describe("dashboard payload readers", () => {
     assert.equal(state.milestones[0]?.objective, "Build the side menu.");
     assert.equal(state.milestones[0]?.completedTasks, expectedCompletedTasks);
     assert.equal(state.milestones[0]?.totalTasks, expectedMilestoneTaskTotal);
+  });
+
+  it("degrades unknown security evidence to inferred", () => {
+    const artifact = loadHelpers().readSecurityReviewArtifact({
+      resultKind: "goat-flow-security-result",
+      contractVersion: "1",
+      generatedAt: "2026-06-07T00:00:00.000Z",
+      target: { projectPath: "/repo", mode: "diff", agent: "agent" },
+      posture: {
+        conclusion: "confident",
+        rollupBySeverity: { Critical: 0, High: 0, Medium: 0, Low: 1 },
+      },
+      findings: [
+        {
+          id: "S-01",
+          file: "src/app.ts",
+          anchor: "handler",
+          title: "Finding",
+          body: "Concrete body.",
+          severity: "Low",
+          confidence: "CONFIRMED",
+          proofClass: "STATIC",
+          evidence: "MAYBE",
+          asset: "asset",
+          entry: "entry",
+          sink: "sink",
+          trustBoundary: "boundary",
+          blastRadius: "local",
+          source: { tool: "agent", ruleId: null, pillar: "security" },
+        },
+      ],
+      integrity: {
+        filesOpened: { opened: 0, total: 0, paths: [] },
+        observed: 0,
+        inferred: 1,
+        degradationFlags: [],
+      },
+    });
+
+    assert.equal(artifact.findings[0]?.evidence, "INFERRED");
+  });
+
+  it("rejects unknown security artifact contract versions", () => {
+    assert.throws(
+      () =>
+        loadHelpers().readSecurityReviewArtifact({
+          resultKind: "goat-flow-security-result",
+          contractVersion: "2",
+        }),
+      /invalid contract version/,
+    );
   });
 });

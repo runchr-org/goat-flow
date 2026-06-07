@@ -22,8 +22,9 @@
 #   - test/fixtures/skill-with-references/SKILL.md
 #   - docs/audit-and-quality.md sample output
 #   - Installed skill mirrors and per-skill reference packs (.claude/skills/, .agents/skills/, .github/skills/ via manifest)
-#   - Installed shared reference docs (.goat-flow/skill-reference/)
-#   - Installed standalone playbooks (.goat-flow/skill-playbooks/)
+#   - Installed shared reference docs (.goat-flow/skill-docs/)
+#   - Installed standalone playbooks (.goat-flow/skill-docs/playbooks/)
+#   - Installed skill-quality-testing methodology pack (.goat-flow/skill-docs/skill-quality-testing/)
 #
 # Exit:
 #   0 on success, non-zero on validation failure.
@@ -218,13 +219,26 @@ while IFS= read -r hook_dst; do
 done < <(manifest_hook_script_paths)
 
 # Sync shared reference docs
-if [[ -d ".goat-flow/skill-reference" ]]; then
-  cp -r workflow/skills/reference/* .goat-flow/skill-reference/
-  echo "  ✓ .goat-flow/skill-reference/"
+if [[ -d ".goat-flow/skill-docs" ]]; then
+  cp -r workflow/skills/reference/* .goat-flow/skill-docs/
+  echo "  ✓ .goat-flow/skill-docs/"
 fi
-if [[ -d ".goat-flow/skill-playbooks" ]]; then
-  cp -r workflow/skills/playbooks/* .goat-flow/skill-playbooks/
-  echo "  ✓ .goat-flow/skill-playbooks/"
+if [[ -d ".goat-flow/skill-docs/playbooks" ]]; then
+  rm -f .goat-flow/skill-docs/playbooks/skill-quality-testing.md
+  rm -rf .goat-flow/skill-docs/playbooks/skill-quality-testing
+  for playbook_src in workflow/skills/playbooks/*.md; do
+    playbook_name="$(basename "$playbook_src")"
+    if [[ "$playbook_name" == "skill-quality-testing.md" ]]; then
+      continue
+    fi
+    cp "$playbook_src" ".goat-flow/skill-docs/playbooks/${playbook_name}"
+  done
+  echo "  ✓ .goat-flow/skill-docs/playbooks/"
+fi
+if [[ -d ".goat-flow/skill-docs/skill-quality-testing" ]]; then
+  cp workflow/skills/playbooks/skill-quality-testing.md .goat-flow/skill-docs/skill-quality-testing/README.md
+  cp workflow/skills/playbooks/skill-quality-testing/*.md .goat-flow/skill-docs/skill-quality-testing/
+  echo "  ✓ .goat-flow/skill-docs/skill-quality-testing/"
 fi
 
 echo ""

@@ -13,7 +13,6 @@ import {
   it,
   PROJECT_PATH,
   readFile,
-  resolve,
 } from "./dashboard-server.helpers.js";
 describe("dashboard API authorization", () => {
   it("rejects API requests with a missing token", async () => {

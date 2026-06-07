@@ -8,6 +8,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildInstallerInvocation,
+  buildInstallerSpawnSpec,
   buildWindowsBashMissingMessage,
   isWslBashPath,
   pickWindowsBashPath,
@@ -241,6 +242,21 @@ describe("buildInstallerInvocation on win32", () => {
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.bashCommand, "C:\\Program Files\\Git\\bin\\bash.exe");
+  });
+
+  it("uses the selected Windows Bash as the spawn command", () => {
+    const result = buildInstallerInvocation({
+      ...baseParams,
+      windowsBashCandidates: ["C:\\Program Files\\Git\\bin\\bash.exe"],
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const spawnSpec = buildInstallerSpawnSpec(result, {
+      PATH: "C:\\Windows\\System32",
+    });
+    assert.equal(spawnSpec.command, "C:\\Program Files\\Git\\bin\\bash.exe");
+    assert.deepEqual(spawnSpec.args, result.args);
+    assert.match(spawnSpec.env.PATH ?? "", /^C:\\Program Files\\Git\\bin[;:]/u);
   });
 
   it("normalises scriptPath and projectPath to forward slashes", () => {

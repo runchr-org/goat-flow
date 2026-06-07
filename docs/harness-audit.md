@@ -81,7 +81,7 @@ Constraints are the cheapest, most reliable layer of the harness. They cost zero
 
 **Constraints checks (4):**
 
-- `deny-covers-secrets` - for agents with a file-read deny layer (Claude settings deny, Codex TOML permission profiles), the deny configuration blocks direct literal access to known secret-bearing files and directories while allowing read-only `.env.example` inspection where the runtime supports that allowlist shape. Codex 0.131 accepts exact paths and trailing `/**` subtrees in permission profiles, so its base file-read layer covers known secret subtrees and audit requires exact denies only for root secret files that already exist in the checkout; the Bash deny hook covers direct literal filename-extension shell reads such as `*.key` and `*.pem`. Script-only agents such as Copilot rely entirely on the Bash deny hook for direct literal path blocking; the file-read deny check is unavailable for them as a platform limitation, not a failure. JSON output marks that passing state with `displayStatus: "info"` and `assurance: "limited"` instead of a plain OK. This is best-effort literal-path coverage and known deny-pattern coverage, not broad file read/write enforcement or proof against aliases, variables, encoded commands, or arbitrary interpreter code.
+- `deny-covers-secrets` - for agents with a file-read deny layer (Claude settings deny, Codex TOML permission profiles), the deny configuration blocks direct literal access to known secret-bearing files and directories. Claude re-allows read-only `.env.example` inspection; Codex deny rules win over same-profile read rules, so goat-flow intentionally denies `.env.example` there to keep broad `**/.env*` protection. The Bash deny hook covers direct literal filename-extension shell reads such as `*.key` and `*.pem`. Script-only agents such as Copilot rely entirely on the Bash deny hook for direct literal path blocking; the file-read deny check is unavailable for them as a platform limitation, not a failure. JSON output marks that passing state with `displayStatus: "info"` and `assurance: "limited"` instead of a plain OK. This is best-effort literal-path coverage and known deny-pattern coverage, not broad file read/write enforcement or proof against aliases, variables, encoded commands, or arbitrary interpreter code.
 - `deny-blocks-dangerous` - each agent's deny configuration blocks broad recursive deletion, all git push (ADR-025), and `chmod`
 - `deny-blocks-pipe-to-shell` - each agent's deny configuration blocks `curl | bash` / `wget | sh` pipe-to-shell patterns
 - `deny-hook-registered` - hook registrations and hook files are in sync (registered hooks exist on disk, existing hooks are registered)
@@ -102,7 +102,7 @@ Verification loops are consistently reported as the single highest-impact harnes
 
 - `hooks-registered` - hook registrations and hook files are in sync (no registered-but-missing, no exists-but-unregistered) for each agent
 - `commit-guidance` - commit guidance is present at the canonical `docs/coding-standards/git-commit.md`. Old GitHub commit-guidance locations are reported as misplaced with a prompt to move the content.
-- `evidence-before-claims` - metric. Present agent instruction files carry the Hallucination red-flags clauses and the pointer to `.goat-flow/skill-reference/skill-preamble.md` (search: `Rationalisations to reject`). Missing coverage lowers the concern score but does not fail the harness scope in v1.7.0.
+- `evidence-before-claims` - metric. Present agent instruction files carry the Hallucination red-flags clauses and the pointer to `.goat-flow/skill-docs/skill-preamble.md` (search: `Rationalisations to reject`). Missing coverage lowers the concern score but does not fail the harness scope in v1.7.0.
 - `post-turn-hook-integrity` - metric. If a post-turn hook exists, reports whether it runs validation and whether it exits 0 unconditionally (advisory mode). Absence means there is no hook-based validation evidence; it is not runtime proof. Metric failures do not fail the harness scope, but they do lower the concern score so limited evidence is not displayed as 100%.
 
 **Not checked here:** project test-command configuration, lint command presence, Ask First quality, verification effectiveness. goat-flow core does not ship a post-turn hook - the integrity check only reports on project-specific hooks if present.
@@ -119,7 +119,7 @@ Agents that run for minutes or hours need durable state. Without recovery mechan
 
 **Recovery checks (2):**
 
-- `milestone-tracking` - `.goat-flow/tasks/` directory exists. Does not score task count, checkbox completion, milestone status, testing gates, roadmap progress, or recency. Empty, planned, active, and long-term roadmap files are valid local workflow state.
+- `milestone-tracking` - `.goat-flow/plans/` directory exists. Does not score task count, checkbox completion, milestone status, testing gates, roadmap progress, or recency. Empty, planned, active, and long-term roadmap files are valid local workflow state.
 - `session-logs` - `.goat-flow/logs/sessions/` directory exists. Does not count entries.
 
 **Not checked here:** entry counts, recency, content quality of task or session files. A fresh install passes.
@@ -136,7 +136,7 @@ A fresh install with zero footguns and zero lessons is a valid PASS. The audit o
 
 **Feedback Loop checks (2):**
 
-- `feedback-loop-active` - `.goat-flow/footguns/` and `.goat-flow/lessons/` directories both exist. Entry count is reported but never used as a failure condition.
-- `decisions-tracked` - `.goat-flow/decisions/` directory exists. Record count is reported informationally.
+- `feedback-loop-active` - `.goat-flow/learning-loop/footguns/` and `.goat-flow/learning-loop/lessons/` directories both exist. Entry count is reported but never used as a failure condition.
+- `decisions-tracked` - `.goat-flow/learning-loop/decisions/` directory exists. Record count is reported informationally.
 
 **Not checked here:** entry counts, recency (`**Created:**` dates), content accuracy, staleness of semantic-anchor references in footgun entries, whether active/resolved statuses are accurate. All of these are content-quality judgments that belong in `quality`.

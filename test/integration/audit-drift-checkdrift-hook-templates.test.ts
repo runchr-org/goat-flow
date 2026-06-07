@@ -47,7 +47,7 @@ describe("checkDrift: hook templates", () => {
     try {
       writeHookFixtures(root);
       writeFileSync(
-        join(root, ".codex", "hooks", "deny-dangerous.sh"),
+        join(root, ".goat-flow", "hooks", "deny-dangerous.sh"),
         `${HOOK_STUB}\n# local drift\n`,
       );
       const report = checkDrift({
@@ -60,9 +60,9 @@ describe("checkDrift: hook templates", () => {
         report.findings.some(
           (finding) =>
             finding.kind === "content" &&
-            finding.path === ".codex/hooks/deny-dangerous.sh",
+            finding.path === ".goat-flow/hooks/deny-dangerous.sh",
         ),
-        `expected .codex hook drift, findings=${JSON.stringify(report.findings)}`,
+        `expected central hook drift, findings=${JSON.stringify(report.findings)}`,
       );
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -73,7 +73,7 @@ describe("checkDrift: hook templates", () => {
     const root = setupFixture();
     try {
       writeHookFixtures(root);
-      rmSync(join(root, ".codex", "hooks", "deny-dangerous.sh"), {
+      rmSync(join(root, ".goat-flow", "hooks", "deny-dangerous.sh"), {
         force: true,
       });
       const report = checkDrift({
@@ -86,9 +86,9 @@ describe("checkDrift: hook templates", () => {
         report.findings.some(
           (finding) =>
             finding.kind === "missing" &&
-            finding.path === ".codex/hooks/deny-dangerous.sh",
+            finding.path === ".goat-flow/hooks/deny-dangerous.sh",
         ),
-        `expected missing .codex hook finding, findings=${JSON.stringify(report.findings)}`,
+        `expected missing central hook finding, findings=${JSON.stringify(report.findings)}`,
       );
     } finally {
       rmSync(root, { recursive: true, force: true });

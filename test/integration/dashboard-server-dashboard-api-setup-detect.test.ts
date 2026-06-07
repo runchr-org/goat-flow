@@ -14,7 +14,6 @@ import {
   performance,
   PROJECT_PATH,
   readFile,
-  require,
   resolve,
   rm,
   tmpdir,

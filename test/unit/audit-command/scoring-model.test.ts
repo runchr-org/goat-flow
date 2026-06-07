@@ -203,6 +203,42 @@ describe("Audit scoring model", () => {
 });
 
 describe("Audit scoring model", () => {
+  it("doc-paths-resolve does not fail on absent gitignored local-state paths", () => {
+    const ctx = makeCtx({
+      fs: stubFS({
+        readFile: (path) => {
+          if (path === ".goat-flow/glossary.md") {
+            return [
+              "Local marker `.goat-flow/plans/.active`.",
+              "Local quality report `.goat-flow/logs/quality/example.json`.",
+              "Local scratch note `.goat-flow/scratchpad/notes.md`.",
+              "Local project identity `.goat-flow/project-id`.",
+              "Local dashboard state `.goat-flow/dashboard-state.json`.",
+            ].join("\n");
+          }
+          return null;
+        },
+        exists: (path) =>
+          ![
+            ".goat-flow/plans/.active",
+            ".goat-flow/logs/quality/example.json",
+            ".goat-flow/scratchpad/notes.md",
+            ".goat-flow/project-id",
+            ".goat-flow/dashboard-state.json",
+          ].includes(path),
+      }),
+    });
+    const { scope } = computeHarness(ctx);
+    const docs = scope.checks.find((c) => c.id === "doc-paths-resolve")!;
+
+    assert.equal(docs.status, "pass");
+    assert.deepEqual(docs.details?.docPaths, {
+      totalPaths: 5,
+      resolvedCount: 5,
+      unresolved: [],
+    });
+  });
+
   it("harness check results carry structured details for dashboard consumers", () => {
     const ctx = makeCtx();
     const { scope } = computeHarness(ctx);
@@ -278,7 +314,7 @@ describe("Audit scoring model", () => {
   it("no post-turn hook metric lowers verification score without failing the concern", () => {
     const baseFacts = makeCtx().facts;
     const evidenceFiles: Record<string, string> = {
-      ".goat-flow/skill-reference/skill-preamble.md": RATIONALISATIONS_PREAMBLE,
+      ".goat-flow/skill-docs/skill-preamble.md": RATIONALISATIONS_PREAMBLE,
       [INSTRUCTION_FILES.claude]: completeInstruction("CLAUDE.md"),
     };
     const ctx = makeCtx({

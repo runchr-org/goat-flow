@@ -132,6 +132,12 @@ function dashboardAppFragment01(
 
     fixCopyLabel: "Copy fixes",
 
+    reviewsLoading: false,
+
+    reviewsError: "",
+
+    reviewsArtifact: null as SecurityReviewArtifact | null,
+
     // --- Terminal state ---
     terminalAvailable: false,
 
@@ -532,6 +538,8 @@ function dashboardAppFragment03(
     setupOutputs: {},
 
     _setupOutputProjectPath: null as string | null,
+
+    _setupPromptRequestKey: null as string | null,
 
     _setupPromptTimer: null as ReturnType<typeof setTimeout> | null,
 

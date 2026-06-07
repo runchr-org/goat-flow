@@ -60,7 +60,7 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 
 ### 3. Verification
 
-**Audit checks:** hooks in sync, commit guidance present, post-turn hook integrity (informational).
+**Audit checks:** hooks in sync, commit guidance present, evidence-before-claims rule present, post-turn hook integrity (informational).
 
 **Quality evaluates:**
 - Do the configured validation commands actually run and produce meaningful output?
@@ -73,7 +73,7 @@ The audit checks whether files exist, paths resolve, and patterns are registered
 
 **Quality evaluates:**
 - Are recovery instructions clear about optional task files versus session logs?
-- Do skills handle missing or stale `.goat-flow/tasks/.active` markers without treating local task state as a setup defect?
+- Do skills handle missing or stale `.goat-flow/plans/.active` markers without treating local task state as a setup defect?
 - Do recovery docs avoid stale references to removed handoff or task-state files?
 
 ### 5. Feedback Loop

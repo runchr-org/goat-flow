@@ -40,6 +40,12 @@ function spawnEperm(): NodeJS.ErrnoException {
   return error;
 }
 
+function completedEperm(): NodeJS.ErrnoException & { status: number } {
+  const error = spawnEperm() as NodeJS.ErrnoException & { status: number };
+  error.status = 0;
+  return error;
+}
+
 describe("agent deny hook template comparison", () => {
   const denyCheck = AGENT_CHECKS.find(
     (check) => check.id === "agent-guardrails",
@@ -52,21 +58,30 @@ describe("agent deny hook template comparison", () => {
         "utf-8",
       ),
       shell: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-shell.sh",
+        ),
         "utf-8",
       ),
       paths: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-paths.sh",
+        ),
         "utf-8",
       ),
       writes: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-writes.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-writes.sh",
+        ),
         "utf-8",
       ),
       selfTest: readFileSync(
         resolve(
           PROJECT_ROOT,
-          "workflow/hooks/hook-lib/deny-dangerous-self-test.sh",
+          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
         ),
         "utf-8",
       ),
@@ -79,11 +94,12 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-dangerous.sh`]: templates.dispatcher,
-      ".goat-flow/hook-lib/patterns-shell.sh": templates.shell,
-      ".goat-flow/hook-lib/patterns-paths.sh": templates.paths,
-      ".goat-flow/hook-lib/patterns-writes.sh": templates.writes,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh": templates.selfTest,
+      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
+      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
+      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
+      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
+        templates.selfTest,
     };
     /** Resolve installed hook content from overrides before template defaults. */
     const readInstalledGuardrail = (path: string) => {
@@ -115,7 +131,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -160,7 +176,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -179,6 +195,75 @@ describe("agent deny hook template comparison", () => {
       /deny-dangerous self-test for codex could not spawn bash \(EPERM:/,
     );
     assert.doesNotMatch(result.message, /self-test=smoke failed/);
+  });
+
+  it("runs self-test with the selected agent dispatcher in GOAT_DENY_DANGEROUS_HOOK", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    let capturedEnv: NodeJS.ProcessEnv | undefined;
+    childProcess.execFileSync = ((command, args, options) => {
+      if (command === "bash" && Array.isArray(args) && args[0] === "-n") {
+        return Buffer.from("");
+      }
+      if (
+        command === "bash" &&
+        Array.isArray(args) &&
+        args[1] === "--self-test=smoke"
+      ) {
+        capturedEnv = (options as { env?: NodeJS.ProcessEnv }).env;
+        return Buffer.from("");
+      }
+      return Buffer.from("");
+    }) as typeof childProcess.execFileSync;
+    childProcess.spawnSync = (() =>
+      ({
+        status: 2,
+        signal: null,
+        error: undefined,
+        output: [
+          null,
+          "",
+          "BLOCKED: Policy repository: git push is not allowed.",
+        ],
+        pid: 0,
+        stdout: "",
+        stderr: "BLOCKED: Policy repository: git push is not allowed.",
+      }) as ReturnType<
+        typeof childProcess.spawnSync
+      >) as typeof childProcess.spawnSync;
+    syncBuiltinESMExports();
+
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    assert.equal(denyCheck.run(ctx), null);
+    assert.equal(
+      capturedEnv?.GOAT_DENY_DANGEROUS_HOOK,
+      resolve(PROJECT_ROOT, ".goat-flow/hooks/deny-dangerous.sh"),
+    );
   });
 
   it("reports configured command spawn denial instead of exit -1", () => {
@@ -214,7 +299,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -229,7 +314,7 @@ describe("agent deny hook template comparison", () => {
                   hooks: [
                     {
                       type: "command",
-                      command: ".codex/hooks/deny-dangerous.sh",
+                      command: ".goat-flow/hooks/deny-dangerous.sh",
                     },
                   ],
                 },
@@ -251,6 +336,75 @@ describe("agent deny hook template comparison", () => {
     assert.doesNotMatch(result.message, /exit -1/);
   });
 
+  it("ignores sandbox error metadata when hook commands completed", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    childProcess.execFileSync = (() => {
+      throw completedEperm();
+    }) as typeof childProcess.execFileSync;
+    childProcess.spawnSync = (() =>
+      ({
+        status: 2,
+        signal: null,
+        error: spawnEperm(),
+        output: [
+          null,
+          "",
+          "BLOCKED: Policy repository: git push is not allowed.",
+        ],
+        pid: 0,
+        stdout: "",
+        stderr: "BLOCKED: Policy repository: git push is not allowed.",
+      }) as ReturnType<
+        typeof childProcess.spawnSync
+      >) as typeof childProcess.spawnSync;
+    syncBuiltinESMExports();
+
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates, {
+          ".codex/hooks.json": JSON.stringify({
+            hooks: {
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: ".goat-flow/hooks/deny-dangerous.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    assert.equal(denyCheck.run(ctx), null);
+  });
+
   it("fails when a configured hook command hides the script path in shell text", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();
@@ -268,7 +422,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -284,7 +438,7 @@ describe("agent deny hook template comparison", () => {
                     {
                       type: "command",
                       command:
-                        "bash -lc 'exit 127' # .codex/hooks/deny-dangerous.sh",
+                        "bash -lc 'exit 127' # .goat-flow/hooks/deny-dangerous.sh",
                     },
                   ],
                 },
@@ -352,21 +506,30 @@ describe("agent deny hook template comparison", () => {
         "utf-8",
       ),
       shell: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-shell.sh",
+        ),
         "utf-8",
       ),
       paths: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-paths.sh",
+        ),
         "utf-8",
       ),
       writes: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-writes.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-writes.sh",
+        ),
         "utf-8",
       ),
       selfTest: readFileSync(
         resolve(
           PROJECT_ROOT,
-          "workflow/hooks/hook-lib/deny-dangerous-self-test.sh",
+          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
         ),
         "utf-8",
       ),
@@ -379,11 +542,12 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-dangerous.sh`]: templates.dispatcher,
-      ".goat-flow/hook-lib/patterns-shell.sh": templates.shell,
-      ".goat-flow/hook-lib/patterns-paths.sh": templates.paths,
-      ".goat-flow/hook-lib/patterns-writes.sh": templates.writes,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh": templates.selfTest,
+      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
+      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
+      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
+      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
+        templates.selfTest,
     };
     /** Resolve installed hook content from overrides before template defaults. */
     const readInstalledGuardrail = (path: string) => {
@@ -410,7 +574,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -459,7 +623,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -475,7 +639,7 @@ describe("agent deny hook template comparison", () => {
                     {
                       type: "command",
                       command:
-                        'root="/missing-goat-flow-root"; bash "$root/.codex/hooks/deny-dangerous.sh"',
+                        'root="/missing-goat-flow-root"; bash "$root/.goat-flow/hooks/deny-dangerous.sh"',
                     },
                   ],
                 },
@@ -495,7 +659,7 @@ describe("agent deny hook template comparison", () => {
     assert.equal(result.evidence, ".codex/hooks.json");
   });
 
-  it("fails when a configured hook command points at another agent mirror", () => {
+  it("fails when a configured hook command points at a legacy per-agent mirror", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();
     const ctx = makeCtx({
@@ -512,7 +676,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -542,7 +706,7 @@ describe("agent deny hook template comparison", () => {
     assert.ok(result, "expected configured hook path mismatch failure");
     assert.match(
       result.message,
-      /points at \.claude\/hooks\/deny-dangerous\.sh, expected \.codex\/hooks\/deny-dangerous\.sh/,
+      /points at \.claude\/hooks\/deny-dangerous\.sh, expected \.goat-flow\/hooks\/deny-dangerous\.sh/,
     );
     assert.equal(result.evidence, ".codex/hooks.json");
   });
@@ -560,21 +724,30 @@ describe("agent deny hook template comparison", () => {
         "utf-8",
       ),
       shell: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-shell.sh",
+        ),
         "utf-8",
       ),
       paths: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-paths.sh",
+        ),
         "utf-8",
       ),
       writes: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-writes.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-writes.sh",
+        ),
         "utf-8",
       ),
       selfTest: readFileSync(
         resolve(
           PROJECT_ROOT,
-          "workflow/hooks/hook-lib/deny-dangerous-self-test.sh",
+          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
         ),
         "utf-8",
       ),
@@ -587,11 +760,12 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-dangerous.sh`]: templates.dispatcher,
-      ".goat-flow/hook-lib/patterns-shell.sh": templates.shell,
-      ".goat-flow/hook-lib/patterns-paths.sh": templates.paths,
-      ".goat-flow/hook-lib/patterns-writes.sh": templates.writes,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh": templates.selfTest,
+      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
+      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
+      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
+      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
+        templates.selfTest,
     };
     /** Resolve installed hook content from overrides before template defaults. */
     const readInstalledGuardrail = (path: string) => {
@@ -609,14 +783,14 @@ describe("agent deny hook template comparison", () => {
       projectPath: PROJECT_ROOT,
       fs: stubFS({
         readFile: installedGuardrailContent(".claude/hooks", templates, {
-          ".claude/hooks/deny-dangerous.sh": `${templates.dispatcher}\n# local drift\n`,
+          ".goat-flow/hooks/deny-dangerous.sh": `${templates.dispatcher}\n# local drift\n`,
         }),
       }),
     });
     const result = denyCheck.run(ctx);
     assert.ok(result, "expected hook version drift failure");
     assert.match(result.message, /differs from the current goat-flow template/);
-    assert.equal(result.evidence, ".claude/hooks/deny-dangerous.sh");
+    assert.equal(result.evidence, ".goat-flow/hooks/deny-dangerous.sh");
   });
 });
 
@@ -632,21 +806,30 @@ describe("agent deny hook template comparison", () => {
         "utf-8",
       ),
       shell: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-shell.sh",
+        ),
         "utf-8",
       ),
       paths: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-paths.sh",
+        ),
         "utf-8",
       ),
       writes: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-writes.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-writes.sh",
+        ),
         "utf-8",
       ),
       selfTest: readFileSync(
         resolve(
           PROJECT_ROOT,
-          "workflow/hooks/hook-lib/deny-dangerous-self-test.sh",
+          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
         ),
         "utf-8",
       ),
@@ -659,11 +842,12 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-dangerous.sh`]: templates.dispatcher,
-      ".goat-flow/hook-lib/patterns-shell.sh": templates.shell,
-      ".goat-flow/hook-lib/patterns-paths.sh": templates.paths,
-      ".goat-flow/hook-lib/patterns-writes.sh": templates.writes,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh": templates.selfTest,
+      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
+      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
+      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
+      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
+        templates.selfTest,
     };
     /** Resolve installed hook content from overrides before template defaults. */
     const readInstalledGuardrail = (path: string) => {
@@ -681,7 +865,7 @@ describe("agent deny hook template comparison", () => {
       projectPath: PROJECT_ROOT,
       fs: stubFS({
         readFile: installedGuardrailContent(".claude/hooks", templates, {
-          ".goat-flow/hook-lib/deny-dangerous-self-test.sh": null,
+          ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh": null,
         }),
       }),
     });
@@ -690,7 +874,7 @@ describe("agent deny hook template comparison", () => {
     assert.match(result.message, /deny-dangerous-self-test\.sh is missing/);
     assert.equal(
       result.evidence,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh",
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
     );
   });
 });
@@ -707,21 +891,30 @@ describe("agent deny hook template comparison", () => {
         "utf-8",
       ),
       shell: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-shell.sh",
+        ),
         "utf-8",
       ),
       paths: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-paths.sh",
+        ),
         "utf-8",
       ),
       writes: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-writes.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-writes.sh",
+        ),
         "utf-8",
       ),
       selfTest: readFileSync(
         resolve(
           PROJECT_ROOT,
-          "workflow/hooks/hook-lib/deny-dangerous-self-test.sh",
+          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
         ),
         "utf-8",
       ),
@@ -734,11 +927,12 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-dangerous.sh`]: templates.dispatcher,
-      ".goat-flow/hook-lib/patterns-shell.sh": templates.shell,
-      ".goat-flow/hook-lib/patterns-paths.sh": templates.paths,
-      ".goat-flow/hook-lib/patterns-writes.sh": templates.writes,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh": templates.selfTest,
+      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
+      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
+      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
+      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
+        templates.selfTest,
     };
     /** Resolve installed hook content from overrides before template defaults. */
     const readInstalledGuardrail = (path: string) => {
@@ -765,7 +959,7 @@ describe("agent deny hook template comparison", () => {
           },
           hooks: {
             ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".github/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
             readDenyCoversSecrets: false,
           },
         }),
@@ -791,21 +985,30 @@ describe("agent deny hook template comparison", () => {
         "utf-8",
       ),
       shell: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-shell.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-shell.sh",
+        ),
         "utf-8",
       ),
       paths: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-paths.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-paths.sh",
+        ),
         "utf-8",
       ),
       writes: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/hook-lib/patterns-writes.sh"),
+        resolve(
+          PROJECT_ROOT,
+          "workflow/hooks/deny-dangerous/patterns-writes.sh",
+        ),
         "utf-8",
       ),
       selfTest: readFileSync(
         resolve(
           PROJECT_ROOT,
-          "workflow/hooks/hook-lib/deny-dangerous-self-test.sh",
+          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
         ),
         "utf-8",
       ),
@@ -818,11 +1021,12 @@ describe("agent deny hook template comparison", () => {
     overrides: Record<string, string | null> = {},
   ) {
     const files: Record<string, string> = {
-      [`${hooksDir}/deny-dangerous.sh`]: templates.dispatcher,
-      ".goat-flow/hook-lib/patterns-shell.sh": templates.shell,
-      ".goat-flow/hook-lib/patterns-paths.sh": templates.paths,
-      ".goat-flow/hook-lib/patterns-writes.sh": templates.writes,
-      ".goat-flow/hook-lib/deny-dangerous-self-test.sh": templates.selfTest,
+      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
+      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
+      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
+      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
+      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
+        templates.selfTest,
     };
     /** Resolve installed hook content from overrides before template defaults. */
     const readInstalledGuardrail = (path: string) => {

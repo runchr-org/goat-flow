@@ -67,8 +67,8 @@ function dashboardAppFragment07(
       dashboardSelectDir(this, dir);
     },
 
-    // -- Tasks --
-    /** Load task-plan state; reports endpoint errors and preserves newer project state because requests race. */
+    // -- Plans --
+    /** Load plan state; reports endpoint errors and preserves newer project state because requests race. */
     async loadTasks(planName?: string) {
       this.tasksLoading = true;
       this.tasksError = "";
@@ -79,7 +79,7 @@ function dashboardAppFragment07(
         : "";
       try {
         const res = await dashboardFetch(
-          `/api/tasks?path=${encodeURIComponent(requestProjectPath)}${planParam}`,
+          `/api/plans?path=${encodeURIComponent(requestProjectPath)}${planParam}`,
         );
         const payload = readRecord(await res.json(), "Tasks response");
         const error = readErrorMessage(payload);
@@ -97,13 +97,13 @@ function dashboardAppFragment07(
       }
     },
 
-    /** Select a task plan and reload milestones for that plan. */
+    /** Select a plan and reload milestones for that plan. */
     selectTaskPlan(planName: string) {
       this.selectedTaskPlan = planName;
       void this.loadTasks(planName);
     },
 
-    /** Persist the active task plan; reports endpoint errors and preserves newer project state because saves race. */
+    /** Persist the active plan; reports endpoint errors and preserves newer project state because saves race. */
     async setActiveTaskPlan(planName: string) {
       if (!planName || this.tasksActivePlanSaving) return;
       this.tasksActivePlanSaving = planName;
@@ -111,7 +111,7 @@ function dashboardAppFragment07(
       const requestProjectPath = this.projectPath;
       try {
         const res = await dashboardFetch(
-          `/api/tasks?path=${encodeURIComponent(requestProjectPath)}`,
+          `/api/plans?path=${encodeURIComponent(requestProjectPath)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -363,6 +363,16 @@ function dashboardAppFragment08(
     async generateSetupPrompt(shouldForce = false) {
       await dashboardGenerateSetupPrompt(this, { force: shouldForce });
     },
+
+    /** Generate setup output for a specific setup target agent. */
+    async generateSetupPromptForAgent(
+      targetAgent: RunnerId,
+      shouldForce = false,
+    ) {
+      return dashboardGenerateSetupPromptForAgent(this, targetAgent, {
+        force: shouldForce,
+      });
+    },
   };
 }
 
@@ -432,6 +442,43 @@ function dashboardAppFragment09(): DashboardAppFragment {
     /** Copy the current quality prompt to the clipboard. */
     copyQuality() {
       dashboardCopyQuality(this);
+    },
+
+    /** Load the committed review/security fixture for the M03 render spike. */
+    async loadReviewFixture() {
+      if (this.reviewsArtifact || this.reviewsLoading) return;
+      this.reviewsLoading = true;
+      this.reviewsError = "";
+      try {
+        const res = await dashboardFetch(
+          "/assets/review-security-fixture.json",
+        );
+        if (!res.ok) throw new Error(`Review fixture returned ${res.status}`);
+        this.reviewsArtifact = readSecurityReviewArtifact(await res.json());
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.reviewsError = msg || "Review fixture loading failed";
+        this.showToast(this.reviewsError, true);
+      } finally {
+        this.reviewsLoading = false;
+      }
+    },
+
+    reviewSeverityColor(severity: SecurityReviewSeverity): string {
+      if (severity === "Critical") return "var(--status-danger)";
+      if (severity === "High") return "var(--red-400)";
+      if (severity === "Medium") return "var(--status-waiting)";
+      return "var(--text-muted)";
+    },
+
+    reviewRollupEntries(): Array<{
+      severity: SecurityReviewSeverity;
+      count: number;
+    }> {
+      const rollup = this.reviewsArtifact?.posture.rollupBySeverity;
+      return (["Critical", "High", "Medium", "Low"] as const).map(
+        (severity) => ({ severity, count: rollup?.[severity] ?? 0 }),
+      );
     },
 
     // -- Skill quality --

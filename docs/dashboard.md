@@ -20,27 +20,25 @@ The dashboard uses a persistent desktop side rail for primary navigation. The
 rail collapses to icon-only with hover tooltips, exposes an active-plan tooltip
 when collapsed, and keeps Projects, Prompts, and New Prompt grouped together.
 The header stays focused on the current project switcher, runner switcher, and
-utility actions. The 1.7.0 release scopes the rail to backed destinations only:
-Home, Prompts, Workspace, Skill Evaluator, Plans, Projects, Quality, and Setup.
-Dedicated harness and manager pages are deferred to 1.8.0.
+utility actions. The rail exposes backed destinations only: Home, Prompts,
+Workspace, Hooks, Plans, Skill Evaluator, Projects, Quality, and Setup -- each
+maps to a real view.
 
 ### Home
 
 Overview landing page. Shows an active-sessions strip, a four-pill rollup for install, harness, learning-loop, and quality status, plus a priority-driven Next Action card based on the latest audit and quality history. The agent grid compares harness health across supported agents and expands per-agent details, including an advisory enforcement matrix for hard, limited, soft, missing, and unknown local enforcement evidence. The lower row summarizes install state with a health ring and lists recent lesson entries. Run a new audit or re-audit after changes without leaving the page; the healthy state still presents a Next Action card rather than replacing actions with a banner.
 
+### Coming Soon
+
+Shared placeholder view for manifest-backed destinations that do not yet have a dedicated page. It renders destination-specific title and copy from dashboard metadata rather than appearing as a primary rail item.
+
 ### Plans
 
 Plans milestone browser for the selected project (route ID `plans`). Surfaces
-`.goat-flow/tasks/` plan directories, milestone status, and checkbox progress.
-The plan list can update `.goat-flow/tasks/.active` for the selected project.
-The `/api/tasks` backing endpoint and on-disk `.goat-flow/tasks/` directory
-keep their original names.
-
-### Coming Soon
-
-Placeholder destination for menu items whose feature pages are deferred to
-1.8.0 (dedicated harness and manager pages). Renders a lightweight Coming Soon
-view rather than a disabled menu item.
+`.goat-flow/plans/` plan directories, milestone status, and checkbox progress.
+The plan list can update `.goat-flow/plans/.active` for the selected project.
+The canonical backing endpoint is `/api/plans`; `/api/tasks` remains a
+deprecated compatibility alias for older dashboard clients.
 
 ### Quality
 
@@ -117,11 +115,14 @@ All `/api/*` requests require the dashboard token described in [Local Access Bou
 | `/api/skill-quality` | GET | Score one installed skill/reference artifact and return the metric breakdown plus a runner-prompt preview |
 | `/api/agents/installed` | GET | Detect installed agent runtimes |
 | `/api/browse` | GET | Directory browsing for the dashboard's path picker (project directories only, no hidden entries) |
-| `/api/tasks` | GET | Plan milestone state for the selected project |
-| `/api/tasks` | POST | Set the selected project's active plan in `.goat-flow/tasks/.active` |
+| `/api/plans` | GET | Plan milestone state for the selected project |
+| `/api/plans` | POST | Set the selected project's active plan in `.goat-flow/plans/.active` |
+| `/api/tasks` | GET/POST | Deprecated alias for `/api/plans` |
 | `/api/projects/list` | GET | List registered projects from saved dashboard state, including identity-keyed project records |
 | `/api/projects/list` | POST | Save the dashboard's registered project list and migrate it to identity-keyed records |
 | `/api/projects/status` | GET | Project state classification (`bare`/`partial`/`v0.9`/`outdated`/`current`/`error`) plus dashboard project identity |
+| `/api/hooks` | GET | Registered hook state for the selected project (each hook's enabled/disabled state and wired agents) |
+| `/api/hooks/:hookId/toggle` | POST | Enable or disable one hook; updates `.goat-flow/config.yaml` and reconciles per-agent hook config files |
 | `/api/terminal/create` | POST | Start a terminal session |
 | `/api/terminal/list` | GET | List active terminal sessions |
 | `/api/terminal/sessions` | GET | Session metadata |

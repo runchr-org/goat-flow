@@ -114,6 +114,11 @@ function commandPath(agent: AgentProfile, script: string): string {
   return `${agent.hooksDir}/${script}`.replace(/\/+/gu, "/");
 }
 
+/** Quote one script for `bash -c` without leaving shell metacharacters active. */
+function shellSingleQuote(value: string): string {
+  return `'${value.split("'").join("'\\''")}'`;
+}
+
 /** Build the shell command variant that matches each agent's hook response protocol. */
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
@@ -129,13 +134,14 @@ function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   // session was permanently wedged. Fall back to the cwd-independent
   // $CLAUDE_PROJECT_DIR before failing closed; the guard still runs, so
   // enforcement is unchanged. The guard re-resolves its OWN root from cwd
-  // (deny-dangerous.sh runs `git rev-parse` to find .goat-flow/hook-lib), so the
+  // (deny-dangerous.sh runs `git rev-parse` to find .goat-flow/hooks/deny-dangerous), so the
   // launcher must cd into $root before invoking it - resolving only the script
   // path still leaves the guard failing closed from /tmp. cd failure fails closed.
   const resolveRoot = `gcd="$(git rev-parse --git-common-dir 2>/dev/null)"; root=""`;
-  const selectRoot = `case "$gcd" in */.git/modules/*|.git/modules/*) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; /*) root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; esac`;
+  const selectRoot = `case "$gcd" in */.git/modules/*|.git/modules/*) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; /*|[A-Za-z]:/*|[A-Za-z]:\\\\*) gcd="\${gcd//\\\\//}"; root="$(dirname "$gcd")" ;; *) root="$(git rev-parse --show-toplevel 2>/dev/null || true)" ;; esac`;
   const ensureRoot = `[ -f "$root/${path}" ] || root="\${CLAUDE_PROJECT_DIR:-}"; [ -f "$root/${path}" ] || ${failClosed}`;
-  return `${resolveRoot}; ${selectRoot}; ${ensureRoot}; cd "$root" || ${failClosed}; bash "$root/${path}"`;
+  const script = `${resolveRoot}; ${selectRoot}; ${ensureRoot}; cd "$root" || ${failClosed}; bash "$root/${path}"`;
+  return `bash -c ${shellSingleQuote(script)}`;
 }
 
 /** Build Copilot's Windows hook command with a denial response when bash is unavailable. */

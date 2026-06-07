@@ -76,7 +76,7 @@ npx goat-flow skill new --draft ./draft.md          # validate location only, ne
 npx goat-flow skill new --interactive               # prompts for description, name, confirmation
 ```
 
-Default destinations: skills install to `.claude/skills/<name>/SKILL.md`; playbooks/references install to `.goat-flow/skill-playbooks/<name>.md`. The command does not edit `workflow/manifest.json`.
+Default destinations: skills install to `.claude/skills/<name>/SKILL.md`; playbooks/references install to `.goat-flow/skill-docs/playbooks/<name>.md`. The command does not edit `workflow/manifest.json`.
 
 ### `goat-flow quality history [--agent <id>] [--all] [--format json]`
 
@@ -98,6 +98,14 @@ npx goat-flow quality diff 2026-04-01-0900-claude-aaaaa:2026-04-15-1000-claude-b
 ```
 
 `quality diff` derives `resolved`, `new`, `persisted`, and `stuck` from positional finding ids. `stuck` is a subset of persisted high-severity findings and resets after history gaps longer than 30 days.
+
+### `goat-flow quality validate <path-to-report>`
+
+Validate a saved quality report JSON file against the report schema. Checks that the file exists, parses as JSON, and conforms to the expected quality-report shape. Exits `2` on a missing file, invalid JSON, or a schema violation, and `0` when the report is well-formed -- useful for verifying an agent-written report before consuming it.
+
+```bash
+npx goat-flow quality validate .goat-flow/logs/quality/2026-04-01-0900-claude-aaaaa.json
+```
 
 ### `goat-flow manifest [--check] [--format json]`
 
@@ -149,7 +157,7 @@ Use `--apply` when you want setup to run the deterministic file-copy installer i
 
 Copy or update goat-flow system files without an agent: skills, shared skill references, hook scripts, agent settings templates, `.goat-flow/` README/gitignore anchors, and `.goat-flow/config.yaml` when it is missing. Existing settings are skipped unless `--force` is passed. Existing config files are preserved, but legacy `agents:` allowlists are removed so the dashboard and aggregate CLI audit do not hide supported agent installs. The installer also appends `node_modules/` to the project root `.gitignore` when missing. For outdated or v0.9 projects the installer automatically updates the config version field and (for v0.9) removes deprecated skill directories; use `--force` for a full overwrite instead.
 
-The shared references include `.goat-flow/skill-reference/README.md` for meta-reference doctrine, while `.goat-flow/skill-playbooks/README.md` indexes tool/capability playbooks such as `browser-use.md` and `page-capture.md`. Generated or repaired instruction files include a Router Table pointer to `.goat-flow/skill-playbooks/` so agents check local availability playbooks before declaring a tool unavailable.
+The shared references include `.goat-flow/skill-docs/README.md` for meta-reference doctrine, while `.goat-flow/skill-docs/playbooks/README.md` indexes tool/capability playbooks such as `browser-use.md` and `page-capture.md`. Generated or repaired instruction files include a Router Table pointer to `.goat-flow/skill-docs/playbooks/` so agents check local availability playbooks before declaring a tool unavailable.
 
 ```bash
 npx @blundergoat/goat-flow@latest install . --agent claude
@@ -174,6 +182,20 @@ Launch the web dashboard for auditing, setup, and terminal management.
 npx goat-flow dashboard               # Launch on default port
 npx goat-flow dashboard --dev         # Live reload mode
 ```
+
+### `goat-flow hooks <list|enable|disable|sync> [hook-id] [path]`
+
+Manage the project's registered guardrail and quality hooks (`deny-dangerous`, `gruff-code-quality`) in `.goat-flow/config.yaml`, then reconcile the per-agent hook config files so every agent stays in sync.
+
+```bash
+npx goat-flow hooks list                        # Show each hook's enabled/disabled state
+npx goat-flow hooks list --json                 # Machine-readable hook state
+npx goat-flow hooks enable gruff-code-quality   # Enable one hook and sync agent configs
+npx goat-flow hooks disable gruff-code-quality  # Disable one hook and sync agent configs
+npx goat-flow hooks sync                         # Re-apply config.yaml hook state to agent configs
+```
+
+`enable` and `disable` require a `<hook-id>` (exit 2 if omitted). `sync` re-applies the `.goat-flow/config.yaml` hook state to every agent's hook config without changing which hooks are enabled.
 
 ## Workflow Examples
 

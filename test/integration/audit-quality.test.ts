@@ -218,7 +218,7 @@ describe("deny-hook-registered harness check", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             denyIsRegistered: true,
-            denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
           },
         }),
       ],
@@ -227,7 +227,7 @@ describe("deny-hook-registered harness check", () => {
     assert.equal(result.status, "pass");
   });
 
-  it("fails when registered path is a different agent's deny hook (same basename)", () => {
+  it("fails when registered path still points at a legacy per-agent deny hook", () => {
     assert.ok(denyRegisteredCheck, "deny-hook-registered check must exist");
     const ctx = makeCtx({
       agents: [
@@ -236,7 +236,7 @@ describe("deny-hook-registered harness check", () => {
             ...stubAgentFacts().hooks,
             denyExists: true,
             denyIsRegistered: true,
-            denyRegisteredPath: ".codex/hooks/deny-dangerous.sh",
+            denyRegisteredPath: ".claude/hooks/deny-dangerous.sh",
           },
         }),
       ],
@@ -245,8 +245,8 @@ describe("deny-hook-registered harness check", () => {
     assert.equal(result.status, "fail");
     const finding = result.findings.find((f) => f.includes("does not match"));
     assert.ok(finding, "should report path mismatch");
-    assert.ok(finding.includes(".codex/hooks/deny-dangerous.sh"));
     assert.ok(finding.includes(".claude/hooks/deny-dangerous.sh"));
+    assert.ok(finding.includes(".goat-flow/hooks/deny-dangerous.sh"));
   });
 });
 
@@ -291,11 +291,11 @@ describe("harness scoring honesty", () => {
     assert.ok(check, "milestone-tracking check must exist");
     const ctx = makeCtx({
       fs: stubFS({
-        exists: (path) => path === ".goat-flow/tasks",
+        exists: (path) => path === ".goat-flow/plans",
         listDir: (path) =>
-          path === ".goat-flow/tasks" ? ["Milestone-demo.md"] : [],
+          path === ".goat-flow/plans" ? ["Milestone-demo.md"] : [],
         readFile: (path) =>
-          path === ".goat-flow/tasks/Milestone-demo.md"
+          path === ".goat-flow/plans/Milestone-demo.md"
             ? [
                 "# Milestone Demo",
                 "**Status:** in-progress",

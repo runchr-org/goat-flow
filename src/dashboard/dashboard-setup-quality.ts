@@ -33,6 +33,7 @@ interface DashboardSetupQualityContext {
   setupGenerating: boolean;
   setupOutputs: Record<string, string>;
   _setupOutputProjectPath: string | null;
+  _setupPromptRequestKey: string | null;
   _setupPromptTimer: ReturnType<typeof setTimeout> | null;
   qualityAgent: RunnerId;
   selectedQualityModeId: string;
@@ -51,6 +52,11 @@ interface DashboardSetupQualityContext {
   copyText(text: string): void;
   /** Generate setup guidance for the selected agent and project. */
   generateSetupPrompt(shouldForce?: boolean): Promise<void>;
+  /** Generate setup guidance for a specific target agent and project. */
+  generateSetupPromptForAgent(
+    targetAgent: RunnerId,
+    shouldForce?: boolean,
+  ): Promise<string | null>;
   /** Generate the selected quality prompt or report request. */
   generateQuality(options?: DashboardQualityGenerateOptions): Promise<void>;
   /** Load saved quality-history rows for the selected quality mode. */
@@ -105,7 +111,7 @@ function dashboardHarnessQualityPrompt(): string {
     "",
     "Grounding commands to run or explicitly mark skipped: git status --short --untracked-files=all; node --import tsx src/cli/cli.ts audit . --harness --format json from the controlling workspace when applicable; node --import tsx src/cli/cli.ts stats . --check when the selected target is a goat-flow installation. Command output wins over prose.",
     "",
-    "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-reference/ and .goat-flow/skill-playbooks/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
+    "Read next: target instruction files, local agent settings/hooks, .goat-flow/config.yaml when present, .goat-flow/skill-docs/ and .goat-flow/skill-docs/playbooks/ when present, controlling-workspace harness code under src/cli/audit/harness/, and any dashboard terminal/runner context text that affects selected-target execution.",
     "",
     "Output sections: Harness Scorecard; Findings ordered by severity; Concern-by-concern analysis; False positive and false negative risks; Top 5 improvements; What was not verified. For each deterministic harness concern (Context, Constraints, Verification, Recovery, Feedback Loop), state what works, what fails or is weak, exact file or semantic-anchor evidence, and a verification command that would prove the fix.",
     "",
@@ -369,41 +375,67 @@ async function dashboardDetectStack(
   ctx.setupDetecting = false;
 }
 
+/** Generate setup output for a specific target agent and selected project. */
+async function dashboardGenerateSetupPromptForAgent(
+  ctx: DashboardSetupQualityContext,
+  targetAgent: RunnerId,
+  { force: shouldForce = false }: Partial<Record<"force", boolean>> = {},
+): Promise<string | null> {
+  const requestProjectPath = ctx.projectPath;
+  const agent = targetAgent;
+  if (ctx._setupOutputProjectPath !== requestProjectPath) {
+    ctx.setupOutputs = {};
+    ctx._setupOutputProjectPath = requestProjectPath;
+  }
+  if (!shouldForce && ctx.setupOutputs[agent]) return ctx.setupOutputs[agent];
+
+  const requestKey = `${requestProjectPath}\0${agent}`;
+  ctx._setupPromptRequestKey = requestKey;
+  ctx.setupGenerating = true;
+  const isCurrentProject = (): boolean =>
+    ctx.projectPath === requestProjectPath;
+  const isLatestRequest = (): boolean =>
+    ctx._setupPromptRequestKey === requestKey;
+  const shouldSurfaceError = (): boolean =>
+    isLatestRequest() || !ctx.setupOutputs[agent];
+  try {
+    const res = await dashboardFetch(
+      `/api/setup?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(agent)}`,
+    );
+    const payload = readRecord(await res.json(), "Setup response");
+    if (!isCurrentProject()) return null;
+    const error = readErrorMessage(payload);
+    if (error) {
+      if (shouldSurfaceError()) ctx.showToast(`${agent}: ${error}`, true);
+      return null;
+    } else {
+      const output = readString(payload.output) || "No output generated.";
+      if (isLatestRequest() || !ctx.setupOutputs[agent]) {
+        ctx.setupOutputs[agent] = output;
+      }
+      return output;
+    }
+  } catch (err) {
+    if (!isCurrentProject()) return null;
+    const msg = err instanceof Error ? err.message : String(err);
+    if (shouldSurfaceError()) ctx.showToast(msg || "Generation failed", true);
+    return null;
+  } finally {
+    if (isLatestRequest()) {
+      ctx.setupGenerating = false;
+      ctx._setupPromptRequestKey = null;
+    }
+  }
+}
+
 /** Generate setup output for the agent selected in the setup view. */
 async function dashboardGenerateSetupPrompt(
   ctx: DashboardSetupQualityContext,
   { force: shouldForce = false }: Partial<Record<"force", boolean>> = {},
 ): Promise<void> {
-  const requestProjectPath = ctx.projectPath;
-  const agent = ctx.setupSelectedAgent;
-  if (ctx._setupOutputProjectPath !== requestProjectPath) {
-    ctx.setupOutputs = {};
-    ctx._setupOutputProjectPath = requestProjectPath;
-  }
-  if (!shouldForce && ctx.setupOutputs[agent]) return;
-
-  ctx.setupGenerating = true;
-  const isCurrentRequest = (): boolean =>
-    ctx.projectPath === requestProjectPath && ctx.setupSelectedAgent === agent;
-  try {
-    const res = await dashboardFetch(
-      `/api/setup?path=${encodeURIComponent(requestProjectPath)}&agent=${agent}`,
-    );
-    const payload = readRecord(await res.json(), "Setup response");
-    if (!isCurrentRequest()) return;
-    const error = readErrorMessage(payload);
-    if (error) {
-      ctx.showToast(`${agent}: ${error}`, true);
-    } else {
-      ctx.setupOutputs[agent] =
-        readString(payload.output) || "No output generated.";
-    }
-  } catch (err) {
-    if (!isCurrentRequest()) return;
-    const msg = err instanceof Error ? err.message : String(err);
-    ctx.showToast(msg || "Generation failed", true);
-  }
-  if (isCurrentRequest()) ctx.setupGenerating = false;
+  await dashboardGenerateSetupPromptForAgent(ctx, ctx.setupSelectedAgent, {
+    force: shouldForce,
+  });
 }
 
 /** Schedule setup prompt generation after setup detection gets a paint. */

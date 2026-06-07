@@ -207,7 +207,7 @@ interface ProjectEntry {
   details: string;
 }
 
-/** Milestone summary from the selected project's `.goat-flow/tasks/`. */
+/** Milestone summary from the selected project's `.goat-flow/plans/`. */
 interface TaskMilestoneSummary {
   filename: string;
   path: string;
@@ -219,7 +219,7 @@ interface TaskMilestoneSummary {
   modifiedAt: string;
 }
 
-/** Top-level task directory summary from `.goat-flow/tasks/`. */
+/** Top-level plan directory summary from `.goat-flow/plans/`. */
 interface TaskPlanSummary extends Record<"active", boolean> {
   name: string;
   path: string;
@@ -227,8 +227,10 @@ interface TaskPlanSummary extends Record<"active", boolean> {
   milestoneCount: number;
 }
 
-/** Response from `/api/tasks` after reading or changing active task-plan state. */
+/** Response from `/api/plans` after reading or changing active plan state. */
 interface TaskState {
+  planRoot: string;
+  /** Deprecated compatibility alias for older `/api/tasks` callers. */
   taskRoot: string;
   exists: boolean;
   active: string | null;
@@ -293,6 +295,55 @@ interface QualityHistoryLatest {
   blockerCount: number;
   majorCount: number;
   minorCount: number;
+}
+
+// ---------------------------------------------------------------------------
+// Review/security artifact types
+// ---------------------------------------------------------------------------
+
+type SecurityReviewSeverity = "Critical" | "High" | "Medium" | "Low";
+type SecurityReviewConfidence = "CONFIRMED" | "PROBABLE" | "THEORETICAL";
+type SecurityReviewProofClass =
+  | "RUNTIME"
+  | "CONTRACT-GREP"
+  | "STATIC"
+  | "NOT-REPRODUCED";
+
+interface SecurityReviewFinding {
+  id: string;
+  file: string;
+  anchor: string;
+  title: string;
+  body: string;
+  severity: SecurityReviewSeverity;
+  confidence: SecurityReviewConfidence;
+  proofClass: SecurityReviewProofClass;
+  evidence: "OBSERVED" | "INFERRED";
+  asset: string;
+  entry: string;
+  sink: string;
+  trustBoundary: string;
+  blastRadius: string;
+  source: { tool: string; ruleId: string | null; pillar: string | null };
+}
+
+interface SecurityReviewArtifact {
+  resultKind: "goat-flow-security-result";
+  contractVersion: string;
+  generatedAt: string;
+  target: { projectPath: string; mode: string; agent: string };
+  posture: {
+    conclusion: "confident" | "coverage-degraded" | "tool-limited";
+    rollupBySeverity: Record<SecurityReviewSeverity, number>;
+  };
+  findings: SecurityReviewFinding[];
+  integrity: {
+    filesOpened: { opened: number; total: number; paths: string[] };
+    observed: number;
+    inferred: number;
+    degradationFlags: string[];
+    conclusion: string;
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -303,7 +303,7 @@ function isCodexDenyMode(mode: string): boolean {
   return mode === "none" || mode === "deny";
 }
 
-/** Detect root .env files and common exact variants while allowing .env.example. */
+/** Detect root .env files and variants. Codex broad denies also deny .env.example. */
 function existingExactPathsAreDenied(
   denied: Set<string>,
   fs: ReadonlyFS,
@@ -326,10 +326,12 @@ function hasCodexEnvDeny(denied: Set<string>, fs: ReadonlyFS): boolean {
     ".envrc",
   ];
   return (
+    hasAnyCodexPattern(denied, ["**/.env*"]) ||
     hasEveryCodexPattern(
       denied,
       exactEnvPaths.map((pattern) => `**/${pattern}`),
-    ) || existingExactPathsAreDenied(denied, fs, exactEnvPaths)
+    ) ||
+    existingExactPathsAreDenied(denied, fs, exactEnvPaths)
   );
 }
 
@@ -344,11 +346,7 @@ function hasCodexCredentialRootDeny(
       [".gnupg/**", "**/.gnupg/**"],
       [".kube/**", "**/.kube/**"],
     ].every((patternGroup) => hasAnyCodexPattern(denied, patternGroup)) &&
-    // `**/credentials` recursively covers a root `credentials` file, the same way
-    // the env/`.npmrc`/`*.pem` surfaces here treat `**/` globs as covering root.
-    // A separate exact-`credentials` requirement made the shipped recursive secret
-    // profile fail its own Codex audit on any project with a root credentials file.
-    hasAnyCodexPattern(denied, ["**/credentials", "credentials"]) &&
+    hasAnyCodexPattern(denied, ["**/credentials*"]) &&
     (hasEveryCodexPattern(denied, ["**/.npmrc", "**/.pypirc"]) ||
       existingExactPathsAreDenied(denied, fs, [".npmrc", ".pypirc"])) &&
     ["pem", "key", "pfx"].every((extension) =>

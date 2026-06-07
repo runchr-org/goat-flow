@@ -26,8 +26,6 @@ import {
   type QualityScores,
   type QualitySetupScores,
   type QualitySystemScores,
-  type SavedQualityFinding,
-  type SavedQualityReport,
 } from "./schema-types.js";
 
 /** Check whether parsed JSON is an object before inspecting schema keys. */
@@ -298,50 +296,29 @@ function parseScores(
 function parseFinding(
   raw: unknown,
   index: number,
-  allowId: boolean,
   options: QualityReportParseOptions,
-):
-  | { ok: true; finding: QualityFinding | SavedQualityFinding }
-  | { ok: false; error: string } {
+): { ok: true; finding: QualityFinding } | { ok: false; error: string } {
   const path = `findings[${index}]`;
   if (!isRecord(raw)) return { ok: false, error: `${path} must be an object` };
-  const allowedKeys = allowId
-    ? [
-        "id",
-        "type",
-        "severity",
-        "file",
-        "line",
-        "summary",
-        "detail",
-        "evidence_quality",
-        "evidence_method",
-        "evidence_command",
-        "evidence_exit_code",
-        "evidence_summary",
-        "evidence_warning_count",
-        "evidence_excerpt",
-        "delta_tag",
-      ]
-    : [
-        "type",
-        "severity",
-        "file",
-        "line",
-        "summary",
-        "detail",
-        "evidence_quality",
-        "evidence_method",
-        "evidence_command",
-        "evidence_exit_code",
-        "evidence_summary",
-        "evidence_warning_count",
-        "evidence_excerpt",
-        "delta_tag",
-      ];
+  const allowedKeys = [
+    "type",
+    "severity",
+    "file",
+    "line",
+    "summary",
+    "detail",
+    "evidence_quality",
+    "evidence_method",
+    "evidence_command",
+    "evidence_exit_code",
+    "evidence_summary",
+    "evidence_warning_count",
+    "evidence_excerpt",
+    "delta_tag",
+  ];
   const unknownKeyError = rejectUnknownKeys(raw, allowedKeys, path);
   if (unknownKeyError) return { ok: false, error: unknownKeyError };
-  if (!allowId && Object.hasOwn(raw, "id")) {
+  if (Object.hasOwn(raw, "id")) {
     return {
       ok: false,
       error: `${path}.id is not allowed in agent-emitted reports`,
@@ -464,28 +441,15 @@ function parseFinding(
     delta_tag: deltaTag,
   };
 
-  if (!allowId) {
-    return { ok: true, finding: findingBase };
-  }
-
-  const id = expectNonEmptyString(raw.id, `${path}.id`);
-  if (!id.ok) return id;
-  return {
-    ok: true,
-    finding: {
-      ...findingBase,
-      id: id.value,
-    },
-  };
+  return { ok: true, finding: findingBase };
 }
 
-/** Parse a quality report with optional finding IDs. */
+/** Parse a current agent-emitted quality report. */
 // eslint-disable-next-line complexity -- intentional because report validation stays fully expanded so schema errors name the exact failing field.
 function parseReportInternal(
   raw: unknown,
-  allowFindingId: boolean,
   options: QualityReportParseOptions = {},
-): ParseResult<QualityReport | SavedQualityReport> {
+): ParseResult<QualityReport> {
   if (!isRecord(raw)) {
     return { ok: false, error: "quality report must be an object" };
   }
@@ -621,9 +585,9 @@ function parseReportInternal(
     return { ok: false, error: "report.findings must be an array" };
   }
 
-  const findings: Array<QualityFinding | SavedQualityFinding> = [];
+  const findings: QualityFinding[] = [];
   for (const [index, item] of raw.findings.entries()) {
-    const parsedFinding = parseFinding(item, index, allowFindingId, options);
+    const parsedFinding = parseFinding(item, index, options);
     if (!parsedFinding.ok) return parsedFinding;
     findings.push(parsedFinding.finding);
   }
@@ -652,21 +616,11 @@ function parseReportInternal(
     scores: scores.scores,
   };
 
-  if (allowFindingId) {
-    return {
-      ok: true,
-      report: {
-        ...reportBase,
-        findings: findings as SavedQualityFinding[],
-      },
-    };
-  }
-
   return {
     ok: true,
     report: {
       ...reportBase,
-      findings: findings as QualityFinding[],
+      findings,
     },
   };
 }
@@ -682,7 +636,7 @@ export function parseQualityReport(
   raw: unknown,
   options: QualityReportParseOptions = { requireCurrentFields: true },
 ): ParseResult<QualityReport> {
-  const result = parseReportInternal(raw, false, options);
+  const result = parseReportInternal(raw, options);
   if (!result.ok) return result;
   return { ok: true, report: result.report };
 }
