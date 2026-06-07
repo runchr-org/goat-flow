@@ -258,3 +258,17 @@ last_reviewed: 2026-06-07
 **Prevention:** Before full preflight after changing CLI command spawning, hook launchers, or TypeScript tests, run the direct sub-gates that preflight will aggregate: `npx knip` and `npm run format:check`. If preflight reports the TypeScript section as failed, reproduce the subtool reports directly and fix those exact findings before collecting final pass evidence.
 
 ---
+
+## Lesson: Verification grep patterns must not carry Markdown backticks into Bash
+
+**Status:** active | **Created:** 2026-06-07
+
+**What happened:** During the M04 review-cleanup verification, a stale-path `rg` sweep embedded a Markdown-formatted fragment inside a double-quoted shell pattern. Bash treated the backticks around `decisions/` as command substitution, printed `/bin/bash: line 1: decisions/: No such file or directory`, and then ran `rg` with a mangled pattern that produced noisy, unusable output.
+
+**Root cause:** I copied prose-review formatting into an executable shell regex instead of making the verification command a plain shell argument.
+
+**Fix:** Discard the malformed output and rerun the sweep with a single-quoted regex that contains no Markdown quoting.
+
+**Prevention:** Before trusting a verification grep, check the command output for shell diagnostics as well as `rg` matches. When searching for literal Markdown text, use single quotes plus `-e` patterns or `rg -F` fixed-string searches instead of embedding backticks in a double-quoted regex.
+
+---

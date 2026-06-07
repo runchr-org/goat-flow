@@ -96,8 +96,8 @@ const STATIC_QUALITY_TARGETS = [
   "workflow/setup/reference/lessons-readme.md",
   "workflow/setup/reference/reference-coding-guidelines.md",
   "workflow/setup/reference/reference-polish.md",
+  "workflow/setup/reference/plans-readme.md",
   "workflow/setup/reference/scratchpad-readme.md",
-  "workflow/setup/reference/tasks-readme.md",
 ] as const;
 
 const DECISIONS_DIR = ".goat-flow/learning-loop/decisions/";

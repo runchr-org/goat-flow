@@ -20,9 +20,9 @@ These are meta because they describe the *shape* of skills, not how to use a spe
 
 Putting these inside every `.claude/skills/<name>/references/` would mean 7-fold duplication and 7-fold drift risk on every preamble change. The shared dir says "every skill inherits this" by construction. Skill-specific references still live in each skill's own `references/` subdir.
 
-## How the engine uses these files
+## How goat-flow uses these files
 
-`src/cli/quality/skill-quality.ts` `composeContent`:
+The skill-quality composition step:
 1. Always pulls in `skill-preamble.md` if `quality.composition.skillPreamblePath` resolves.
 2. Pulls in `skill-conventions.md` only when the skill body mentions `skill-conventions`.
 3. Concatenates with the SKILL.md to form the *composed surface* that scorers see - so gate vocabulary inherited from the preamble counts.

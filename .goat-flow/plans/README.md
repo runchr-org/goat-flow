@@ -1,4 +1,4 @@
-# Tasks - local session working state
+# Plans - local session working state
 
 **This directory is gitignored by design.** It holds personal, throwaway coordination files used while work is in flight - milestone files, plan subdirs, scratch notes that help the human and the coding agent stay aligned during a single session.
 
@@ -6,9 +6,9 @@
 
 | If it's... | It belongs in... |
 |------------|------------------|
-| A lesson from an agent mistake | `.goat-flow/lessons/` |
-| A trap in the code/architecture | `.goat-flow/footguns/` |
-| A significant technical decision | `.goat-flow/decisions/` |
+| A lesson from an agent mistake | `.goat-flow/learning-loop/lessons/` |
+| A trap in the code/architecture | `.goat-flow/learning-loop/footguns/` |
+| A significant technical decision | `.goat-flow/learning-loop/decisions/` |
 | A session wrap-up summary | `.goat-flow/logs/sessions/` |
 
 Milestone files here coordinate the current work - they are not long-term artifacts and are not expected to survive the session.

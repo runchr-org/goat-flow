@@ -682,5 +682,3 @@ describe("setup --apply installer", () => {
     },
   );
 });
-
-// ── Bug 1: Config version stuck on upgrade ──────────────────────────────
