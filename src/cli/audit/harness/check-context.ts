@@ -276,6 +276,14 @@ function checkAllDocPaths(ctx: AuditContext) {
   const findings: string[] = [];
   const unresolved: { ref: string; source: string }[] = [];
 
+  /** Local-state paths are intentionally gitignored and may be absent on clean checkouts. */
+  const isGitignoredLocalStatePath = (path: string): boolean =>
+    path === ".goat-flow/dashboard-state.json" ||
+    path === ".goat-flow/project-id" ||
+    path.startsWith(".goat-flow/plans/") ||
+    path.startsWith(".goat-flow/scratchpad/") ||
+    path.startsWith(".goat-flow/logs/");
+
   /**
    * Count paths that resolve while keeping brittle line-number refs visible.
    *
@@ -294,6 +302,10 @@ function checkAllDocPaths(ctx: AuditContext) {
           `${file}: line-number path \`${path}\` is brittle; use \`${lineRef.groups.file}\` plus a semantic anchor`,
         );
         unresolved.push({ ref: path, source: file });
+        continue;
+      }
+      if (isGitignoredLocalStatePath(path)) {
+        resolved++;
         continue;
       }
       if (ctx.fs.exists(path)) resolved++;

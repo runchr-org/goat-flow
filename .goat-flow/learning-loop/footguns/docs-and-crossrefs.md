@@ -1,6 +1,20 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-06-06
+last_reviewed: 2026-06-07
+---
+
+## Footgun: Path validators can treat gitignored local-state markers as missing docs
+
+**Status:** active | **Created:** 2026-06-07 | **Evidence:** ACTUAL_MEASURED
+
+**Symptoms:** A clean checkout fails the harness `doc-paths-resolve` check because a committed doc mentions an intentionally gitignored local-state file. The path is valid as workflow vocabulary, but absent by design. In the 1.10.0 release pass, `.goat-flow/glossary.md` (search: `Active Plan Marker`) referenced `.goat-flow/plans/.active`; simulating a clean checkout where that marker was absent made `goat-flow audit --harness` fail Context with `.goat-flow/glossary.md: unresolved`.
+
+**Why it happens:** Path validators usually equate "backticked repo path" with "committed file that must exist." goat-flow also has checkout-local coordination paths: plan markers, scratchpad notes, local logs, dashboard state, and project identity. Those are deliberately gitignored but still need to be named in docs and prompts.
+
+**Evidence:** `src/cli/audit/harness/check-context.ts` (search: `isGitignoredLocalStatePath`) now exempts those local-state paths before existence checks. `test/unit/audit-command/scoring-model.test.ts` (search: `absent gitignored local-state paths`) reproduces the clean-checkout case with missing `.goat-flow/plans/.active`, `.goat-flow/logs/quality/example.json`, `.goat-flow/scratchpad/notes.md`, `.goat-flow/project-id`, and `.goat-flow/dashboard-state.json`.
+
+**Prevention:** When adding or tightening path validation, classify paths before checking existence: committed setup/doc files must resolve; gitignored local-state paths should be treated as valid navigation vocabulary. Keep `scripts/check-path-integrity.sh` and `doc-paths-resolve` aligned so clean checkouts and installed skills use the same local-state exemption policy.
+
 ---
 
 ## Footgun: Playbooks reference goat-flow repo-internal files absent from consumer installs
