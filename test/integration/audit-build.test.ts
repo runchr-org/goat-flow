@@ -306,6 +306,16 @@ function hookVersionCtx(gruffHook: string | null) {
   });
 }
 
+/** Build an audit context whose only readable hook is the mandatory deny-dangerous.sh. */
+function denyHookVersionCtx(denyHook: string | null) {
+  return makeCtx({
+    fs: stubFS({
+      readFile: (path) =>
+        path === ".goat-flow/hooks/deny-dangerous.sh" ? denyHook : null,
+    }),
+  });
+}
+
 describe("audit build: hook version currency", () => {
   it("passes when the installed dispatcher carries the current stamp", () => {
     const ctx = hookVersionCtx(
@@ -336,6 +346,31 @@ describe("audit build: hook version currency", () => {
     );
     assertExists(result);
     assert.match(result.message, /no goat-flow-hook-version stamp/);
+  });
+
+  it("fails when the mandatory deny-dangerous dispatcher stamp is behind the release", () => {
+    const result = hookVersionCheck.run(
+      denyHookVersionCtx(
+        "#!/usr/bin/env bash\n# goat-flow-hook-version: 0.0.1\n",
+      ),
+    );
+    assertExists(result);
+    assert.match(
+      result.message,
+      /deny-dangerous\.sh is goat-flow-hook-version 0\.0\.1/,
+    );
+    assert.match(result.howToFix ?? "", /hooks sync/);
+  });
+
+  it("fails when the mandatory deny-dangerous dispatcher has no version stamp", () => {
+    const result = hookVersionCheck.run(
+      denyHookVersionCtx("#!/usr/bin/env bash\n# (no stamp)\n"),
+    );
+    assertExists(result);
+    assert.match(
+      result.message,
+      /deny-dangerous\.sh has no goat-flow-hook-version stamp/,
+    );
   });
 });
 
