@@ -33,6 +33,13 @@ function readDashboardState(ctx: DashboardRouteContext) {
   return loadDashboardState(ctx.dashboardStateFile, ctx.legacyProjectsListFile);
 }
 
+/**
+ * Map an active-plan write error message to an HTTP status: a missing target is a
+ * 404, anything else is treated as a 400 bad request.
+ *
+ * @param message - The error message thrown while writing the active plan.
+ * @returns `404` when the message indicates a missing target, otherwise `400`.
+ */
 function planWriteErrorStatus(message: string): number {
   return message.includes("does not exist") || message.includes("not found")
     ? 404

@@ -444,7 +444,11 @@ function dashboardAppFragment09(): DashboardAppFragment {
       dashboardCopyQuality(this);
     },
 
-    /** Load the committed review/security fixture for the M03 render spike. */
+    /**
+     * Load the committed review/security fixture for the M03 render spike. On a
+     * fetch or parse failure it reports the message via a toast and recovers,
+     * leaving any previously loaded artifact untouched.
+     */
     async loadReviewFixture() {
       if (this.reviewsArtifact || this.reviewsLoading) return;
       this.reviewsLoading = true;
@@ -464,6 +468,7 @@ function dashboardAppFragment09(): DashboardAppFragment {
       }
     },
 
+    /** Map a review severity to its dashboard status colour variable. */
     reviewSeverityColor(severity: SecurityReviewSeverity): string {
       if (severity === "Critical") return "var(--status-danger)";
       if (severity === "High") return "var(--red-400)";
@@ -471,6 +476,7 @@ function dashboardAppFragment09(): DashboardAppFragment {
       return "var(--text-muted)";
     },
 
+    /** Build the ordered Critical-to-Low severity rollup rows for the reviews panel. */
     reviewRollupEntries(): Array<{
       severity: SecurityReviewSeverity;
       count: number;

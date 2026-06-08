@@ -29,26 +29,39 @@ const FINDING_SOURCE_TOOLS = [
   "agent",
 ] as const;
 
+/**
+ * How strongly a finding is evidenced, narrowest-to-weakest. Drives the
+ * proof-class rollups the dashboard renders and the security gate consumes.
+ */
 export type ProofClass = (typeof PROOF_CLASSES)[number];
 type EvidenceQuality = (typeof EVIDENCE_QUALITIES)[number];
 type FindingKind = (typeof FINDING_KINDS)[number];
 type FindingSourceTool = (typeof FINDING_SOURCE_TOOLS)[number];
 
+/**
+ * Discriminated parse outcome for every contract parser in this module: either a
+ * validated `artifact` or a human-readable `error`. Callers branch on `ok`
+ * rather than throwing so malformed agent JSON degrades to a message.
+ */
 export type ParseResult<T> =
   | { ok: true; artifact: T }
   | { ok: false; error: string };
 
+/** Inclusive 1-based source line span for a finding; `null` when unanchored. */
 export interface FindingLines {
   start: number;
   end: number;
 }
 
+/** Provenance of a finding: which scanner (or `agent`) produced it, plus the
+ * originating rule/pillar when a tool emitted it. */
 export interface FindingSource {
   tool: FindingSourceTool;
   ruleId: string | null;
   pillar: string | null;
 }
 
+/** Fields common to every review/security finding, extended per kind below. */
 export interface BaseFinding {
   id: string;
   kind: FindingKind;
@@ -64,6 +77,8 @@ export interface BaseFinding {
   source: FindingSource;
 }
 
+/** Self-reported run integrity shared by review/security artifacts: how much the
+ * agent actually opened/observed, so the dashboard can flag degraded coverage. */
 export interface BaseIntegrity {
   filesOpened: {
     opened: number;
@@ -276,6 +291,13 @@ export function parseBaseIntegrity(
   };
 }
 
+/**
+ * Detect leftover placeholder markers (TBD/TODO/FIXME/PLACEHOLDER, `<...>`
+ * angle stubs, `???`) so the parsers reject agent text that was never filled in.
+ *
+ * @param value - Candidate string field from an agent-written artifact.
+ * @returns `true` when an unresolved-placeholder marker is present.
+ */
 function containsUnresolvedMarker(value: string): boolean {
   return /(?:\b(?:TBD|TODO|FIXME|PLACEHOLDER)\b|<\s*(?:TODO|TBD|FIXME|PLACEHOLDER|UNKNOWN)[^>\n]*>|\?\?\?)/iu.test(
     value,

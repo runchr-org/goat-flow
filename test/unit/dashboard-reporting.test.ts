@@ -8,6 +8,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { enrichDashboardReport } from "../../src/cli/server/dashboard-reporting.js";
 
+/**
+ * Build a minimal all-passing audit report to use as the enrichment input under
+ * test, so each test only sets the fields it exercises.
+ *
+ * @returns A minimal report object accepted by `enrichDashboardReport`.
+ */
 function minimalReport(): Parameters<typeof enrichDashboardReport>[0] {
   return {
     status: "pass",

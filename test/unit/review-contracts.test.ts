@@ -1,3 +1,7 @@
+/**
+ * Tests for the review/security result contracts: confirm the committed fixtures
+ * parse cleanly and that the parsers reject malformed or placeholder input.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,10 +18,21 @@ const SECURITY_FIXTURE_PATH = resolve(
   "security-target-goat-flow.json",
 );
 
+/**
+ * Read and JSON-parse the committed security review fixture from disk.
+ *
+ * @returns The parsed fixture as an unvalidated `unknown`.
+ */
 function readFixture(): unknown {
   return JSON.parse(readFileSync(SECURITY_FIXTURE_PATH, "utf-8"));
 }
 
+/**
+ * Read the fixture and assert it is a non-null object so individual-field
+ * mutation tests can start from a known-good record.
+ *
+ * @returns The fixture narrowed to a mutable record.
+ */
 function readFixtureRecord(): Record<string, unknown> {
   const fixture = readFixture();
   assert.equal(typeof fixture, "object");

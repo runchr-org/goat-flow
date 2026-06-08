@@ -1220,6 +1220,69 @@ console.log("migrated");
 NODE
 }
 
+# Strip deny rules for tools Claude Code has removed from an existing
+# .claude/settings.json. Claude Code v2.x removed MultiEdit (folded into Edit);
+# any surviving MultiEdit(...) deny rule prints "matches no known tool" on every
+# launch. 1.10.0 scrubbed the templates but left already-installed deny lists
+# untouched, so a non-force upgrade never cleaned them. Remove-list (not
+# allow-list) on purpose: only prune tools Claude has REMOVED, never user-added
+# denies for valid unmanaged tools (WebFetch, NotebookEdit, mcp__*). Keep
+# REMOVED_CLAUDE_TOOLS in sync with the allow-set in
+# test/unit/agent-config-template-parity.test.ts. Writes back only when a rule
+# was actually removed, so MultiEdit-free files are never reformatted. Echoes
+# "migrated" or "unchanged".
+migrate_claude_permission_deny() {
+  local path="$1"
+  node - "$path" <<'NODE'
+const fs = require("node:fs");
+const path = process.argv[2];
+
+const REMOVED_CLAUDE_TOOLS = new Set(["MultiEdit"]);
+
+let raw;
+try {
+  raw = fs.readFileSync(path, "utf8");
+} catch {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+let settings;
+try {
+  settings = JSON.parse(raw);
+} catch {
+  // Not JSON we can safely rewrite; leave it for the user.
+  console.log("unchanged");
+  process.exit(0);
+}
+
+const deny = settings && settings.permissions && settings.permissions.deny;
+if (!Array.isArray(deny)) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+const kept = deny.filter((entry) => {
+  if (typeof entry !== "string") return true;
+  const tool = entry.match(/^([A-Za-z]+)\(/u)?.[1];
+  return !(tool && REMOVED_CLAUDE_TOOLS.has(tool));
+});
+
+if (kept.length === deny.length) {
+  console.log("unchanged");
+  process.exit(0);
+}
+
+settings.permissions.deny = kept;
+const eol = raw.includes("\r\n") ? "\r\n" : "\n";
+const hadFinalNewline = /\r?\n$/u.test(raw);
+let out = JSON.stringify(settings, null, 2);
+if (eol === "\r\n") out = out.replace(/\n/gu, "\r\n");
+fs.writeFileSync(path, out + (hadFinalNewline ? eol : ""));
+console.log("migrated");
+NODE
+}
+
 validate_codex_settings_after_install() {
   local path="$1"
   node - "$path" <<'NODE'
@@ -1578,6 +1641,10 @@ if [[ -n "${SETTINGS_SRC:-}" && -n "${SETTINGS_DST:-}" ]]; then
       fi
       if [[ "$(migrate_codex_filesystem_permissions "$SETTINGS_DST")" == "migrated" ]]; then
         SETTINGS_MIGRATIONS+=("Codex permission profile")
+      fi
+    elif [[ "$AGENT" == "claude" ]]; then
+      if [[ "$(migrate_claude_permission_deny "$SETTINGS_DST")" == "migrated" ]]; then
+        SETTINGS_MIGRATIONS+=("stale removed-tool deny rules")
       fi
     fi
     if [[ ${#SETTINGS_MIGRATIONS[@]} -gt 0 ]]; then
