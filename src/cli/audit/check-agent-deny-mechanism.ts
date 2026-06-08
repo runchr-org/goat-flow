@@ -35,11 +35,19 @@ const DENY_HOOK_TEMPLATE_FILES = [
   "deny-dangerous/deny-dangerous-self-test.sh",
 ];
 
+/** A bash-spawn failure surfaced as an audit result: the user-facing message and
+ * the remediation hint, kept separate from a hook's own non-zero exit. */
 interface SpawnFailure {
   message: string;
   howToFix: string;
 }
 
+/**
+ * Extract a Node errno `code` (e.g. `"EPERM"`) from an unknown thrown value.
+ *
+ * @param error - A caught value that may be a Node system error.
+ * @returns The `code` string when present, otherwise `undefined`.
+ */
 function errnoCode(error: unknown): string | undefined {
   return typeof error === "object" &&
     error !== null &&
@@ -49,10 +57,26 @@ function errnoCode(error: unknown): string | undefined {
     : undefined;
 }
 
+/**
+ * Coerce an unknown caught value into a human-readable message string.
+ *
+ * @param error - A caught value (Error or otherwise).
+ * @returns The Error's `message`, or the value stringified.
+ */
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Translate a spawn-level errno (EPERM/ENOENT/ETIMEDOUT) into a {@link SpawnFailure}
+ * with actionable remediation, distinguishing "bash could not run" from "the hook
+ * ran and reported a failure".
+ *
+ * @param error - The error thrown/returned by the spawn attempt.
+ * @param action - Short description of what was being spawned, for the message.
+ * @returns A {@link SpawnFailure} for known spawn errnos, or `null` when the error
+ *   is not a recognised spawn failure (i.e. the command actually ran).
+ */
 function spawnFailureFor(error: unknown, action: string): SpawnFailure | null {
   const code = errnoCode(error);
   if (code === "EPERM") {
@@ -79,10 +103,24 @@ function spawnFailureFor(error: unknown, action: string): SpawnFailure | null {
   return null;
 }
 
+/**
+ * Decide whether a `spawnSync` result represents a child that actually ran (it
+ * carries a numeric exit status) versus one that failed to launch.
+ *
+ * @param result - A `spawnSync`-shaped result with an optional `status`.
+ * @returns `true` when `status` is a number (the child started and exited).
+ */
 function completedWithStatus(result: { status?: unknown }): boolean {
   return typeof result.status === "number";
 }
 
+/**
+ * Decide whether a thrown `execFileSync` error nonetheless reports a clean exit
+ * (`status === 0`), which `execFileSync` can do when it throws on stderr output.
+ *
+ * @param error - The error thrown by `execFileSync`.
+ * @returns `true` when the underlying command exited 0 despite the throw.
+ */
 function commandCompletedSuccessfully(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -100,14 +138,35 @@ function spawnFailureFromResult(
   return result.error ? spawnFailureFor(result.error, action) : null;
 }
 
+/**
+ * POSIX single-quote a value so an arbitrary filesystem path can be embedded in a
+ * `bash -c` string without word-splitting or expansion.
+ *
+ * @param value - The raw string (typically an absolute hook path) to quote.
+ * @returns The value wrapped in single quotes with embedded quotes escaped.
+ */
 function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
+/**
+ * Build the child environment for a runtime smoke run, carrying the test payload
+ * to the hook via `GOAT_HOOK_SMOKE_PAYLOAD` instead of argv (avoids quoting JSON).
+ *
+ * @param input - The JSON payload string the hook should read from the env var.
+ * @returns A copy of `process.env` with the smoke payload added.
+ */
 function runtimeSmokeEnv(input: string): NodeJS.ProcessEnv {
   return { ...process.env, GOAT_HOOK_SMOKE_PAYLOAD: input };
 }
 
+/**
+ * Wrap a hook command so the smoke payload is piped to its stdin, matching how the
+ * agent runtimes feed tool-call JSON to a PreToolUse hook.
+ *
+ * @param command - The hook invocation to run with the payload on stdin.
+ * @returns A `bash -c`-ready command string that pipes the payload in.
+ */
 function pipeSmokePayloadTo(command: string): string {
   return `printf %s "$GOAT_HOOK_SMOKE_PAYLOAD" | { ${command}; }`;
 }

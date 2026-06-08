@@ -309,6 +309,8 @@ type SecurityReviewProofClass =
   | "STATIC"
   | "NOT-REPRODUCED";
 
+/** Browser-side mirror of a security finding as rendered by the dashboard; kept
+ * structurally in step with the `SecurityResult` contract the server parses. */
 interface SecurityReviewFinding {
   id: string;
   file: string;
@@ -327,6 +329,8 @@ interface SecurityReviewFinding {
   source: { tool: string; ruleId: string | null; pillar: string | null };
 }
 
+/** Browser-side mirror of the whole security artifact the dashboard loads and
+ * renders; mirrors the server-parsed `SecurityResult` shape. */
 interface SecurityReviewArtifact {
   resultKind: "goat-flow-security-result";
   contractVersion: string;

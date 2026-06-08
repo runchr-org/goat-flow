@@ -214,12 +214,25 @@ function readErrorMessage(payload: JsonRecord): string | null {
   return typeof payload.error === "string" ? payload.error : null;
 }
 
+/**
+ * Coerce an untrusted value to a finite number, falling back when it is not.
+ *
+ * @param rawValue - Untrusted value from a parsed JSON payload.
+ * @param fallback - Value returned when `rawValue` is not finite (default `0`).
+ * @returns The finite number, or `fallback`.
+ */
 function readNumber(rawValue: unknown, fallback = 0): number {
   return typeof rawValue === "number" && Number.isFinite(rawValue)
     ? rawValue
     : fallback;
 }
 
+/**
+ * Narrow an untrusted value to a security severity, defaulting to `"Low"`.
+ *
+ * @param rawValue - Untrusted severity field from the artifact JSON.
+ * @returns A valid {@link SecurityReviewSeverity}; `"Low"` when unrecognised.
+ */
 function readSecurityReviewSeverity(rawValue: unknown): SecurityReviewSeverity {
   return rawValue === "Critical" ||
     rawValue === "High" ||
@@ -258,6 +271,14 @@ function readSecurityReviewEvidence(
     : "INFERRED";
 }
 
+/**
+ * Build a fully-defaulted {@link SecurityReviewFinding} from an untrusted record,
+ * narrowing each enum field and substituting safe defaults for missing values so
+ * the dashboard always renders a complete finding.
+ *
+ * @param rawValue - Untrusted finding object from the artifact JSON.
+ * @returns A complete finding with every field populated.
+ */
 function readSecurityReviewFinding(rawValue: unknown): SecurityReviewFinding {
   const payload = readRecord(rawValue, "Security review finding");
   const source = readRecord(payload.source ?? {}, "Security review source");
@@ -284,6 +305,15 @@ function readSecurityReviewFinding(rawValue: unknown): SecurityReviewFinding {
   };
 }
 
+/**
+ * Parse an untrusted security artifact record, validating the discriminant fields
+ * before reading the rest. Throws on an unexpected result-kind or contract
+ * version so a stale or foreign artifact is rejected rather than mis-rendered.
+ *
+ * @param rawValue - Untrusted artifact object loaded from disk.
+ * @returns The narrowed {@link SecurityReviewArtifact}.
+ * @throws Error when `resultKind` or `contractVersion` does not match the contract.
+ */
 function readSecurityReviewArtifact(rawValue: unknown): SecurityReviewArtifact {
   const payload = readRecord(rawValue, "Security review artifact");
   if (payload.resultKind !== "goat-flow-security-result") {

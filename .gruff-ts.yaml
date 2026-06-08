@@ -209,9 +209,16 @@ rules:
   design.circular-import:
     enabled: true
   # design/advisory: Flags relative imports that climb too many parent directories.
+  # 2026-06-07: threshold raised 2 -> 3. Test files live three levels deep
+  # (test/<kind>/<area>/file.ts) and import production modules from src/, which is
+  # structurally a 3-parent climb. Converting these to package `imports` subpaths or
+  # tsconfig path aliases would blind gruff's edge-based rules
+  # (test-quality.missing-nearby-test, design.circular-import) because their
+  # resolver only follows relative specifiers. Keep relative edges; tune the floor
+  # to the repo's test layout. Tune-not-silence: 4+ climbs still flag.
   design.deep-relative-import:
     enabled: true
-    threshold: 2
+    threshold: 3
     severity: advisory
   # design/warning: Flags functions that are both long and complex.
   design.god-function:

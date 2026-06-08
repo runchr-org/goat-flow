@@ -88,6 +88,16 @@ function referenceArtifactId(
   return id;
 }
 
+/**
+ * Derive the canonical name for a shared reference doc. Plain `*.md` files use
+ * their basename; a `README.md` only counts as a shared reference inside the
+ * `skill-quality-testing` directory (named after the directory), and is ignored
+ * elsewhere so generic READMEs are not treated as references.
+ *
+ * @param refDir - Directory holding the reference file.
+ * @param filename - The reference file's basename.
+ * @returns The reference name, or `null` when the file is not a shared reference.
+ */
 function sharedReferenceName(refDir: string, filename: string): string | null {
   if (filename !== "README.md") return filename.replace(/\.md$/, "");
   const directoryName = basename(refDir);

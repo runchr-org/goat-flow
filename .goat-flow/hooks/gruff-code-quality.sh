@@ -59,6 +59,16 @@
 
 set -euo pipefail
 
+# Bash 4.4+ required - the same baseline the deny-dangerous guard enforces. This
+# hook uses declare -A (capability cache), mapfile (main), and ${var,,} case-folding;
+# on bash 3.2 (notably macOS /bin/bash) those fail mid-run with a cryptic error.
+# Detect the unsupported shell up front and fail soft (exit 0, the hook's standard
+# "skipped" disposition) with the same guidance deny-dangerous gives.
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+  printf 'gruff-code-quality: requires bash 4.4+ (got %s); skipped. On macOS install Homebrew bash and invoke /usr/local/bin/bash or /opt/homebrew/bin/bash explicitly.\n' "${BASH_VERSION:-unknown}" >&2
+  exit 0
+fi
+
 FOOTER="For triage: consult .goat-flow/skill-docs/playbooks/gruff-code-quality.md"
 SUPPORTED_TOOLS=" edit write multiedit write_to_file replace_file_content multi_replace_file_content "
 SKIP_DIR_PATTERN='(^|/)(node_modules|vendor|\.goat-flow|dist|build|coverage|\.git|target|\.venv|\.mypy_cache|\.pytest_cache|\.ruff_cache)(/|$)'
@@ -70,6 +80,8 @@ GRUFF_CODE_QUALITY_MAX_FINDINGS="${GRUFF_CODE_QUALITY_MAX_FINDINGS:-20}"
 # below it are counted, not listed - a project that only wants the agent pushed on
 # warning+ sets this to `warning`. Default `advisory` keeps every finding visible.
 GRUFF_CODE_QUALITY_MIN_SEVERITY="${GRUFF_CODE_QUALITY_MIN_SEVERITY:-advisory}"
+# Per-binary cache of gruff.hook.v1 capabilities JSON ("" = analyzer is pre-contract).
+declare -A HOOK_CAPS_CACHE
 
 # Payload extraction stays jq-first for correctness but keeps small regex
 # fallbacks so unsupported tools and paths can still be skipped when jq is
@@ -506,6 +518,33 @@ self_test() {
     return 1
   }
 
+  # Contract render: hook_v1_report surfaces every finding the analyzer returned
+  # (it already scoped them), nulls the line for file/project scope, and
+  # severity-sorts.
+  report_output='{"findings":[{"severity":"warning","scope":"file","line":1,"file":"x.ts","ruleId":"size.file-length","message":"too long","remediation":"split"},{"severity":"advisory","scope":"line","line":12,"file":"x.ts","ruleId":"naming.x","message":"rename"}]}'
+  report_json="$(hook_v1_report "$report_output" 1 20)"
+  [[ "$(printf '%s' "$report_json" | jq -r '[.total,.surfaced] | @tsv')" == $'2\t2' ]] || {
+    printf 'gruff-code-quality self-test: hook_v1_report counts failed\n' >&2
+    return 1
+  }
+  [[ "$(printf '%s' "$report_json" | jq -r '.lines[0]')" == "- [warning] x.ts size.file-length - too long" ]] || {
+    printf 'gruff-code-quality self-test: hook_v1 file-scope line suppression failed\n' >&2
+    return 1
+  }
+  [[ "$(printf '%s' "$report_json" | jq -r '.lines[1]')" == "- [advisory] x.ts:12 naming.x - rename" ]] || {
+    printf 'gruff-code-quality self-test: hook_v1 line-scope rendering failed\n' >&2
+    return 1
+  }
+
+  # Finding location falls back file -> filePath -> path, so a port that reports
+  # the path under `path` (not `file`) still renders its findings.
+  report_output='{"findings":[{"severity":"warning","scope":"line","line":7,"path":"y.ts","ruleId":"r.path","message":"via path key"}]}'
+  report_json="$(hook_v1_report "$report_output" 1 20)"
+  [[ "$(printf '%s' "$report_json" | jq -r '.lines[0]')" == "- [warning] y.ts:7 r.path - via path key" ]] || {
+    printf 'gruff-code-quality self-test: hook_v1 .path finding-key fallback failed\n' >&2
+    return 1
+  }
+
   printf 'gruff-code-quality self-test: ok\n'
 }
 
@@ -771,6 +810,166 @@ print_scope_header() {
     "$binary" "$rel_path" "$ranges" "$total" "$err" "$warn" "$adv"
 }
 
+# Probe a binary's gruff.hook.v1 capabilities once per binary (cached for the
+# run). Returns the capabilities JSON when the binary advertises contractVersion
+# "gruff.hook.v1", else empty - the caller then uses the legacy analyse path, so
+# a pre-contract analyzer is unaffected.
+hook_capabilities() {
+  local binary_path="$1"
+  if [[ -n "${HOOK_CAPS_CACHE[$binary_path]+x}" ]]; then
+    printf '%s' "${HOOK_CAPS_CACHE[$binary_path]}"
+    return 0
+  fi
+  local caps="" probe
+  if command -v jq >/dev/null 2>&1; then
+    if command -v timeout >/dev/null 2>&1; then
+      probe="$(timeout "$(normalized_timeout_seconds)" "$binary_path" hook --capabilities --format json 2>/dev/null || true)"
+    else
+      probe="$("$binary_path" hook --capabilities --format json 2>/dev/null || true)"
+    fi
+    if printf '%s' "$probe" | jq -e '.contractVersion == "gruff.hook.v1" and (.supports.changedRanges == true) and ((.flags | type) == "object")' >/dev/null 2>&1; then
+      caps="$probe"
+    fi
+  fi
+  HOOK_CAPS_CACHE["$binary_path"]="$caps"
+  printf '%s' "$caps"
+}
+
+# Project a gruff.hook.v1 envelope into the same control object
+# changed_findings_report emits ({ total, e, w, a, surfaced, floored, more,
+# lines }), so process_file_contract reuses the existing print block. The
+# analyzer has already scoped the findings (B1), so EVERY returned finding is
+# surfaced - no re-filtering by line. file/project-scope findings render without
+# a `:line` because their line is a synthetic anchor, not a code location.
+hook_v1_report() {
+  local output="$1" floor_rank="$2" max="$3"
+  printf '%s' "$output" | jq -c --argjson floor_rank "$floor_rank" --argjson max "$max" '
+    def sev_rank($s):
+      ($s | tostring | ascii_downcase) as $x
+      | if $x == "error" then 3 elif $x == "warning" then 2 else 1 end;
+    [ (.findings // [])[]
+      | { sev: ((.severity // "advisory") | tostring | ascii_downcase),
+          rank: sev_rank(.severity // ""),
+          file: (.file // .filePath // .path // ""),
+          line: (if ((.scope // "line") == "file" or (.scope // "line") == "project")
+                 then null else (.line // null) end),
+          ruleId: (.ruleId // "unknown-rule"),
+          message: (.message // "") } ] as $all
+    | ($all | sort_by([ (3 - .rank), .file, (.line // 0), .ruleId ])) as $sorted
+    | [ $sorted[] | select(.rank >= $floor_rank) ] as $surfaced
+    | { total: ($all | length),
+        e: ([ $all[] | select(.rank == 3) ] | length),
+        w: ([ $all[] | select(.rank == 2) ] | length),
+        a: ([ $all[] | select(.rank == 1) ] | length),
+        surfaced: ($surfaced | length),
+        floored: (($all | length) - ($surfaced | length)),
+        more: (if ($surfaced | length) > $max then ($surfaced | length) - $max else 0 end),
+        lines: [ limit($max; $surfaced[])
+                 | "- [\(.sev)] \(.file)\(if .line != null then ":" + (.line | tostring) else "" end) \(.ruleId) - \(.message)" ] }
+  ' 2>/dev/null || true
+}
+
+# Contract path: the analyzer owns scoping/metadata/remediation/new-only; the
+# hook calls `<binary> hook --format json --changed-ranges <ranges> <file>` and
+# renders the envelope. Relays config-schema errors (B8) and ignore verdicts
+# (B7) from the envelope, then prints the same scope header / findings / footer
+# as the legacy path. Findings never set a non-zero exit.
+process_file_contract() {
+  local binary_path="$1" binary="$2" rel_path="$3" ranges="$4" caps="$5"
+  local cr_flag output status timeout_seconds report_json suppressed
+  local config_ok config_error ignored_match scope_fields
+  local max_findings floor_rank total err warn adv surfaced floored more
+
+  cr_flag="$(printf '%s' "$caps" | jq -r '.flags.changedRanges // "--changed-ranges"' 2>/dev/null || true)"
+  [[ -n "$cr_flag" ]] || cr_flag="--changed-ranges"
+  timeout_seconds="$(normalized_timeout_seconds)"
+
+  # Scope to the changed lines and let the analyzer return the attributable
+  # findings. Capture stdout ONLY: the gruff.hook.v1 envelope is JSON on stdout,
+  # and any analyzer/git diagnostics on stderr (e.g. "path not in HEAD") would
+  # corrupt the JSON if merged in. New-only file/project surfacing via `--diff`
+  # is intentionally NOT requested here: a single `--diff` pass also new-only-
+  # filters line/symbol findings, hiding pre-existing findings on the very lines
+  # the agent edited (confirmed across all five analyzers). See M02 for the
+  # scope-specific combined-mode fix that re-enables it.
+  set +e
+  if command -v timeout >/dev/null 2>&1; then
+    output="$(timeout "$timeout_seconds" "$binary_path" hook --format json "$cr_flag" "$ranges" "$rel_path" 2>/dev/null)"
+  else
+    output="$("$binary_path" hook --format json "$cr_flag" "$ranges" "$rel_path" 2>/dev/null)"
+  fi
+  status=$?
+  set -e
+
+  if [[ "$status" -eq 124 || "$status" -eq 137 ]]; then
+    printf 'gruff-code-quality: %s hook exceeded %ss or was killed; skipped\n' "$binary" "$timeout_seconds" >&2
+    return 0
+  fi
+  [[ -n "$output" ]] || return 0
+  # Accept any well-formed envelope: a findings array (normal), a config object
+  # (B8 schema error, which a port may emit without findings), or an ignored
+  # object (B7 verdict, likewise). Requiring `.findings` here would let a port
+  # that omits it on a config error or ignore verdict swallow that signal.
+  if ! printf '%s' "$output" | jq -e 'type == "object" and ((.findings | type == "array") or (.config | type == "object") or (.ignored | type == "object"))' >/dev/null 2>&1; then
+    printf 'gruff-code-quality: %s hook returned non-JSON; skipped\n' "$binary" >&2
+    return 0
+  fi
+
+  config_ok="$(printf '%s' "$output" | jq -r 'if (.config.schemaOk == false) then "false" else "true" end' 2>/dev/null || true)"
+  if [[ "$config_ok" == "false" ]]; then
+    config_error="$(printf '%s' "$output" | jq -r '.config.error // "project gruff config rejected"' 2>/dev/null || true)"
+    printf 'gruff-code-quality: %s could not analyse %s - %s\n' "$binary" "$rel_path" "${config_error:-project gruff config rejected}"
+    return 0
+  fi
+
+  # Match the ignored entry against the edited file the same way the legacy
+  # ignored_descriptor does: normalize slashes and a leading ./, read the entry
+  # path from `.path` or `.file`, and accept an exact or trailing-segment match
+  # so a port that echoes ./src/x.ts, a back-slashed path, or an absolute path
+  # still resolves to the edited file.
+  ignored_match="$(printf '%s' "$output" | jq -r --arg p "$rel_path" 'def norm: tostring | gsub("\\\\"; "/") | sub("^\\./"; ""); ($p | norm) as $rel | first((.ignored.paths // [])[] | ((.path? // .file? // "") | norm) as $ip | select($ip == $rel or ($ip | endswith("/" + $rel))) | (.source // "config") + (if (.pattern // "") != "" then " " + .pattern else "" end)) // empty' 2>/dev/null || true)"
+  if [[ -n "$ignored_match" ]]; then
+    printf 'gruff-code-quality: skipped %s %s - ignored by %s; out of scope, do not modify to satisfy gruff.\n' "$binary" "$rel_path" "$ignored_match"
+    return 0
+  fi
+
+  max_findings="$GRUFF_CODE_QUALITY_MAX_FINDINGS"
+  [[ "$max_findings" =~ ^[0-9]+$ && "$max_findings" -ge 1 ]] || max_findings=20
+  floor_rank="$(min_severity_rank "$GRUFF_CODE_QUALITY_MIN_SEVERITY")"
+
+  report_json="$(hook_v1_report "$output" "$floor_rank" "$max_findings")"
+  [[ -n "$report_json" ]] || report_json='{"total":0,"e":0,"w":0,"a":0,"surfaced":0,"floored":0,"more":0,"lines":[]}'
+  suppressed="$(printf '%s' "$output" | jq -r '.suppressed.count // 0' 2>/dev/null || true)"
+  [[ "$suppressed" =~ ^[0-9]+$ ]] || suppressed=0
+
+  scope_fields="$(printf '%s' "$report_json" | jq -r '[.total,.e,.w,.a,.surfaced,.floored,.more] | @tsv' 2>/dev/null || true)"
+  IFS=$'\t' read -r total err warn adv surfaced floored more <<< "$scope_fields"
+  [[ "$total" =~ ^[0-9]+$ ]] || total=0
+  [[ "$surfaced" =~ ^[0-9]+$ ]] || surfaced=0
+  [[ "$floored" =~ ^[0-9]+$ ]] || floored=0
+  [[ "$more" =~ ^[0-9]+$ ]] || more=0
+
+  if [[ "$total" -gt 0 || "$suppressed" -gt 0 ]]; then
+    print_scope_header "$binary" "$rel_path" "$ranges" "$total" "$err" "$warn" "$adv"
+  fi
+  if [[ "$surfaced" -gt 0 ]]; then
+    printf '%s' "$report_json" | jq -r '.lines[]' 2>/dev/null || true
+  fi
+  if [[ "$more" -gt 0 ]]; then
+    printf 'gruff-code-quality: (%s more on changed lines; raise GRUFF_CODE_QUALITY_MAX_FINDINGS to list them)\n' "$more"
+  fi
+  if [[ "$floored" -gt 0 ]]; then
+    printf 'gruff-code-quality: %s finding(s) below GRUFF_CODE_QUALITY_MIN_SEVERITY=%s not listed\n' "$floored" "${GRUFF_CODE_QUALITY_MIN_SEVERITY:-advisory}"
+  fi
+  if [[ "$suppressed" -gt 0 ]]; then
+    printf 'gruff-code-quality: suppressed %s finding(s) outside the changed scope\n' "$suppressed"
+  fi
+  if [[ "$surfaced" -gt 0 ]]; then
+    printf '%s\n' "$FOOTER"
+  fi
+  return 0
+}
+
 process_file() {
   local payload="$1"
   local root="$2"
@@ -810,6 +1009,16 @@ process_file() {
   ranges="$(changed_ranges "$payload" "$root" "$rel_path" "$abs_path" "$file_count" "$allow_cached_fallback")"
   if [[ -z "$ranges" ]]; then
     printf 'gruff-code-quality: no changed lines detected for %s; skipping gruff output\n' "$rel_path" >&2
+    return 0
+  fi
+
+  # Contract path: when the analyzer advertises gruff.hook.v1 it owns changed-region
+  # scoping, scope tagging, metadata, remediation and new-only - the hook only
+  # renders. Pre-contract analyzers fall through to the legacy analyse path below.
+  local hook_caps
+  hook_caps="$(hook_capabilities "$binary_path")"
+  if [[ -n "$hook_caps" ]]; then
+    process_file_contract "$binary_path" "$binary" "$rel_path" "$ranges" "$hook_caps"
     return 0
   fi
 

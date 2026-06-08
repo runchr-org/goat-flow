@@ -1,3 +1,10 @@
+/**
+ * Type contract and runtime parser for the `goat-flow-security-result` artifact a
+ * security agent writes. {@link parseSecurityResult} validates agent JSON across a
+ * trust boundary before the dashboard reads it, rejecting malformed or
+ * unresolved-placeholder fields. Keep these types in sync with the security skill
+ * output and the shared {@link REVIEW_CONTRACT_VERSION}.
+ */
 import {
   EVIDENCE_QUALITIES,
   PROOF_CLASSES,
@@ -25,6 +32,8 @@ const SECURITY_CONFIDENCES = ["CONFIRMED", "PROBABLE", "THEORETICAL"] as const;
 type SecuritySeverity = (typeof SECURITY_SEVERITIES)[number];
 type SecurityConfidence = (typeof SECURITY_CONFIDENCES)[number];
 
+/** A security finding: a base finding plus the threat-model fields (asset, entry,
+ * sink, trust boundary, exploitability, blast radius) and optional diff context. */
 interface SecurityFinding extends BaseFinding {
   kind: "security";
   severity: SecuritySeverity;
@@ -44,11 +53,15 @@ interface SecurityFinding extends BaseFinding {
   };
 }
 
+/** Overall security posture: per-severity finding counts and an analysis
+ * conclusion describing how complete/confident the scan was. */
 interface SecurityPosture {
   rollupBySeverity: Record<SecuritySeverity, number>;
   conclusion: "confident" | "coverage-degraded" | "tool-limited";
 }
 
+/** Security-run integrity: base integrity plus what surfaces/tools were scanned
+ * vs skipped and the proof-class/confidence rollups used to grade coverage. */
 interface SecurityIntegrity extends BaseIntegrity {
   reviewMode: string;
   provenance: "trusted" | "untrusted" | "unknown";
@@ -60,6 +73,8 @@ interface SecurityIntegrity extends BaseIntegrity {
   confidence: Record<SecurityConfidence, number>;
 }
 
+/** Top-level security artifact: target, threat-model snapshot, posture, findings,
+ * attack-path summary, integrity, and the active-testing/persist gates. */
 export interface SecurityResult {
   resultKind: typeof SECURITY_RESULT_KIND;
   contractVersion: typeof REVIEW_CONTRACT_VERSION;
@@ -93,6 +108,16 @@ export interface SecurityResult {
   };
 }
 
+/**
+ * Validate and narrow untrusted agent JSON into a {@link SecurityResult}. Every
+ * field is checked (enums, non-empty strings, non-negative counts, nested gates);
+ * the first failure short-circuits with a path-qualified error message rather
+ * than throwing, so a malformed artifact degrades gracefully.
+ *
+ * @param raw - Parsed-but-unvalidated JSON from a security agent's artifact file.
+ * @returns A {@link ParseResult}: `ok` with the typed artifact, or `error` with
+ *   the first validation failure encountered.
+ */
 export function parseSecurityResult(raw: unknown): ParseResult<SecurityResult> {
   if (!isRecord(raw)) {
     return { ok: false, error: "security result must be an object" };

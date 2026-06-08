@@ -433,6 +433,64 @@ describe("setup --apply installer", () => {
     assert.match(config, /"\*\*\/\.env\*" = "deny"/);
   });
 
+  it("prunes stale removed-tool (MultiEdit) deny rules from existing Claude settings on upgrade", () => {
+    const root = makeTempProject();
+    mkdirSync(join(root, ".claude"), { recursive: true });
+    // Claude Code v2.x removed MultiEdit; surviving MultiEdit(...) deny rules
+    // print "matches no known tool" on every launch. The upgrade must strip
+    // them WITHOUT touching managed (Edit) or user-added unmanaged (WebFetch)
+    // denies for tools Claude still recognises.
+    writeFileSync(
+      join(root, ".claude", "settings.json"),
+      JSON.stringify(
+        {
+          permissions: {
+            deny: [
+              "MultiEdit(**/secrets/**)",
+              "MultiEdit(**/*.key)",
+              "Edit(**/*.key)",
+              "WebFetch(**/internal/**)",
+            ],
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    const result = runInstaller(root, "--agent", "claude");
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /stale removed-tool deny rules/);
+
+    const settings = JSON.parse(
+      readFileSync(join(root, ".claude", "settings.json"), "utf-8"),
+    ) as { permissions?: { deny?: string[] } };
+    const deny = settings.permissions?.deny ?? [];
+    assert.ok(
+      deny.every((rule) => !rule.startsWith("MultiEdit(")),
+      `MultiEdit deny rules should be pruned, got: ${deny.join(", ")}`,
+    );
+    // No collateral damage to valid managed/unmanaged tool denies.
+    assert.ok(deny.includes("Edit(**/*.key)"), "managed Edit deny preserved");
+    assert.ok(
+      deny.includes("WebFetch(**/internal/**)"),
+      "user-added WebFetch deny preserved",
+    );
+
+    // Idempotent: a second upgrade reports no further deny migration.
+    const second = runInstaller(root, "--agent", "claude");
+    assert.equal(second.status, 0, second.stderr || second.stdout);
+    assert.doesNotMatch(second.stdout, /stale removed-tool deny rules/);
+    const settings2 = JSON.parse(
+      readFileSync(join(root, ".claude", "settings.json"), "utf-8"),
+    ) as { permissions?: { deny?: string[] } };
+    assert.ok(
+      (settings2.permissions?.deny ?? []).every(
+        (rule) => !rule.startsWith("MultiEdit("),
+      ),
+    );
+  });
+
   it("migrates legacy skill docs without overwriting target collisions", () => {
     const root = makeTempProject();
     mkdirSync(join(root, ".goat-flow", "skill-reference"), {
