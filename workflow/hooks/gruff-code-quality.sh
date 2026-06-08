@@ -59,6 +59,16 @@
 
 set -euo pipefail
 
+# Bash 4.4+ required - the same baseline the deny-dangerous guard enforces. This
+# hook uses declare -A (capability cache), mapfile (main), and ${var,,} case-folding;
+# on bash 3.2 (notably macOS /bin/bash) those fail mid-run with a cryptic error.
+# Detect the unsupported shell up front and fail soft (exit 0, the hook's standard
+# "skipped" disposition) with the same guidance deny-dangerous gives.
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+  printf 'gruff-code-quality: requires bash 4.4+ (got %s); skipped. On macOS install Homebrew bash and invoke /usr/local/bin/bash or /opt/homebrew/bin/bash explicitly.\n' "${BASH_VERSION:-unknown}" >&2
+  exit 0
+fi
+
 FOOTER="For triage: consult .goat-flow/skill-docs/playbooks/gruff-code-quality.md"
 SUPPORTED_TOOLS=" edit write multiedit write_to_file replace_file_content multi_replace_file_content "
 SKIP_DIR_PATTERN='(^|/)(node_modules|vendor|\.goat-flow|dist|build|coverage|\.git|target|\.venv|\.mypy_cache|\.pytest_cache|\.ruff_cache)(/|$)'
