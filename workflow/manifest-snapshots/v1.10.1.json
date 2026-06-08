@@ -318,11 +318,11 @@
     "_note": "Numeric facts as shipped at v1.10.1 release. Used by CHANGELOG lint to validate claims inside the v1.10.1 section of CHANGELOG.md.",
     "skills_total": 7,
     "skills_functional_count": 6,
-    "checks_setup": 15,
+    "checks_setup": 16,
     "checks_agent": 4,
-    "checks_build": 19,
+    "checks_build": 20,
     "checks_harness": 17,
-    "checks_total": 36,
+    "checks_total": 37,
     "dashboard_views_count": 12,
     "presets_count": 26
   }
