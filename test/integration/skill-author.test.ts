@@ -3,7 +3,13 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -113,7 +119,10 @@ describe("skill new - description mode", () => {
     );
     assertExists(result.proposedPath);
     const content = readFileSync(result.proposedPath, "utf-8");
+    assert.match(content, /goat-flow-reference-version:/);
     assert.match(content, /## Availability Check/);
+    assert.match(content, /## Boundary/);
+    assert.match(content, /## Verification Gate/);
   });
 
   it("does NOT write when candidacy returns a non-skill recommendation", async () => {
@@ -269,6 +278,36 @@ describe("skill new - draft mode", () => {
     assert.equal(result.candidacy.recommendedArtifact.type, "learning-loop");
     assert.equal(result.written, false);
     assert.equal(result.proposedPath, null);
+  });
+
+  // Fixture purpose: writes a playbook-shaped draft to the filesystem so draft mode suggests the playbook route.
+  it("suggests moving playbook-looking drafts under skill-docs playbooks", async () => {
+    const projectRoot = makeTempProject();
+    const draftPath = join(projectRoot, ".claude", "skills", "playwright.md");
+    mkdirSync(join(projectRoot, ".claude", "skills"), { recursive: true });
+    const playbookDraftFixture = [
+      "# Playwright E2E",
+      "## Availability Check",
+      "Run command -v playwright.",
+      "## Workflow",
+      "Capture browser evidence.",
+    ].join("\n");
+    writeFileSync(draftPath, playbookDraftFixture);
+
+    const result = await runSkillNew({
+      draftPath,
+      projectRoot,
+      stdinAnswers: [],
+    });
+
+    assertRecommendedReferenceSubtype(result, "playbook");
+    assert.equal(result.written, false);
+    assert.ok(
+      result.output.some((line) =>
+        line.includes(".goat-flow/skill-docs/playbooks/playwright.md"),
+      ),
+      "playbook-looking drafts should get a move suggestion to skill-docs/playbooks",
+    );
   });
 
   it("returns an error message for a missing draft path", async () => {

@@ -333,6 +333,15 @@ describe("ADR-023 word budget tiers", () => {
   const ALWAYS_LOADED_CAP = 1500;
   const AUTHORING_INDEX_CAP = 400;
   const PROGRESSIVE_CAP = 3000;
+  const TOP_LEVEL_PLAYBOOKS = [
+    "browser-use.md",
+    "changelog.md",
+    "code-comments.md",
+    "gruff-code-quality.md",
+    "observability.md",
+    "page-capture.md",
+    "release-notes.md",
+  ] as const;
 
   const FUNCTIONAL_SKILLS = [
     "goat-debug",
@@ -395,19 +404,41 @@ describe("ADR-023 word budget tiers", () => {
   });
 
   it("progressive reference packs stay within the 3000-word cap per file", () => {
-    for (const path of [
+    const skillQualityTestingFiles = [
       "workflow/skills/playbooks/skill-quality-testing/tdd-iteration.md",
       ".goat-flow/skill-docs/skill-quality-testing/tdd-iteration.md",
       "workflow/skills/playbooks/skill-quality-testing/adversarial-framing.md",
       ".goat-flow/skill-docs/skill-quality-testing/adversarial-framing.md",
       "workflow/skills/playbooks/skill-quality-testing/deployment.md",
       ".goat-flow/skill-docs/skill-quality-testing/deployment.md",
-    ]) {
-      const words = bodyWordCount(path);
-      assert.ok(
-        words < PROGRESSIVE_CAP,
-        `${path}: ${words} words meets or exceeds progressive cap ${PROGRESSIVE_CAP}`,
-      );
-    }
+    ];
+    const topLevelPlaybooks = TOP_LEVEL_PLAYBOOKS.flatMap((name) => [
+      `workflow/skills/playbooks/${name}`,
+      `.goat-flow/skill-docs/playbooks/${name}`,
+    ]);
+
+    const overBudget = [...skillQualityTestingFiles, ...topLevelPlaybooks]
+      .map((path) => ({ path, words: bodyWordCount(path) }))
+      .filter(({ words }) => words >= PROGRESSIVE_CAP);
+
+    assert.deepEqual(
+      overBudget,
+      [],
+      overBudget
+        .map(
+          ({ path, words }) =>
+            `${path}: ${words} words meets or exceeds progressive cap ${PROGRESSIVE_CAP}`,
+        )
+        .join("\n"),
+    );
+  });
+
+  it("progressive reference cap rejects at 3000 words or above", () => {
+    assert.deepEqual(
+      [PROGRESSIVE_CAP - 1, PROGRESSIVE_CAP].map(
+        (words) => words < PROGRESSIVE_CAP,
+      ),
+      [true, false],
+    );
   });
 });

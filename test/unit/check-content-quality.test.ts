@@ -354,7 +354,136 @@ describe("scanContentQuality: prompt wrapper residue", () => {
   });
 });
 
+describe("scanContentQuality: stale skill-playbooks path", () => {
+  it("flags legacy installed playbook paths in active prose", () => {
+    const findings = scanContentQuality(
+      "AGENTS.md",
+      "Read .goat-flow/skill-playbooks/browser-use.md before browser work.",
+    );
+
+    const stale = findings.find(
+      (finding) => finding.rule === "stale-skill-playbooks-path",
+    );
+    assertExists(stale, "expected stale skill-playbooks path finding");
+    assert.equal(stale.severity, "warning");
+  });
+
+  it("allows current installed and workflow template playbook paths", () => {
+    const findings = scanContentQuality(
+      "AGENTS.md",
+      [
+        "Read .goat-flow/skill-docs/playbooks/browser-use.md.",
+        "Mirror workflow templates under workflow/skills/playbooks/browser-use.md.",
+      ].join("\n"),
+    );
+
+    assert.equal(
+      findings.filter(
+        (finding) => finding.rule === "stale-skill-playbooks-path",
+      ).length,
+      0,
+    );
+  });
+
+  it("allows historical legacy path references in learning-loop records", () => {
+    const assertHistoricalPathAllowed = (path: string): void => {
+      const findings = scanContentQuality(
+        path,
+        "Historical record: .goat-flow/skill-playbooks/browser-use.md",
+      );
+
+      assert.equal(
+        findings.filter(
+          (finding) => finding.rule === "stale-skill-playbooks-path",
+        ).length,
+        0,
+        `${path} should preserve historical stale-path evidence`,
+      );
+    };
+
+    assertHistoricalPathAllowed(
+      ".goat-flow/learning-loop/decisions/ADR-023-reference-pack-budget-tiers.md",
+    );
+    assertHistoricalPathAllowed(
+      ".goat-flow/learning-loop/footguns/docs-and-crossrefs.md",
+    );
+    assertHistoricalPathAllowed(".goat-flow/learning-loop/lessons/setup.md");
+    assertHistoricalPathAllowed(
+      ".goat-flow/learning-loop/patterns/workflow.md",
+    );
+  });
+});
+
 describe("runContentQualityChecks: target discovery", () => {
+  it("flags stale skill-playbooks paths in active instruction surfaces", () => {
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path) => path === "AGENTS.md",
+        readFile: (path) =>
+          path === "AGENTS.md"
+            ? "Read .goat-flow/skill-playbooks/browser-use.md."
+            : null,
+      }),
+    });
+
+    const result = runContentQualityChecks(ctx);
+
+    assert.ok(
+      result.findings.some(
+        (finding) =>
+          finding.path === "AGENTS.md" &&
+          finding.rule === "stale-skill-playbooks-path",
+      ),
+      "active instruction files must not point at the retired installed playbook path",
+    );
+  });
+
+  it("does not scan migration-only script paths as active prose", () => {
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path) => path === "workflow/install-goat-flow.sh",
+        readFile: (path) =>
+          path === "workflow/install-goat-flow.sh"
+            ? 'migrate_dir_no_overwrite ".goat-flow/skill-playbooks" ".goat-flow/skill-docs/playbooks"'
+            : null,
+      }),
+    });
+
+    const result = runContentQualityChecks(ctx);
+
+    assert.equal(result.filesScanned, 0);
+    assert.equal(result.findings.length, 0);
+  });
+
+  it("does not flag stale paths in current ADR history", () => {
+    const ctx = makeCtx({
+      fs: stubFS({
+        exists: (path) =>
+          path === ".goat-flow/learning-loop/decisions/" ||
+          path ===
+            ".goat-flow/learning-loop/decisions/ADR-023-reference-pack-budget-tiers.md",
+        listDir: (path) =>
+          path === ".goat-flow/learning-loop/decisions/"
+            ? ["ADR-023-reference-pack-budget-tiers.md"]
+            : [],
+        readFile: (path) =>
+          path ===
+          ".goat-flow/learning-loop/decisions/ADR-023-reference-pack-budget-tiers.md"
+            ? "Historical split: .goat-flow/skill-playbooks/browser-use.md."
+            : null,
+      }),
+    });
+
+    const result = runContentQualityChecks(ctx);
+
+    assert.equal(
+      result.findings.filter(
+        (finding) => finding.rule === "stale-skill-playbooks-path",
+      ).length,
+      0,
+    );
+  });
+
   it("discovers current ADR files instead of relying on a hard-coded ADR list", () => {
     const ctx = makeCtx({
       fs: stubFS({

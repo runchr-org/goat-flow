@@ -1,13 +1,17 @@
 # Changelog
 
-## v1.10.2 - 2026-06-09
+## v1.11.0 - 2026-06-10
 
-Patch: hook launchers now match the central `.goat-flow/hooks` layout, optional gruff startup failures fail soft, and the deny hook closes an `xargs` pipeline bypass.
+Harness hardening release: hook guardrails now run from the active checkout, gruff diagnostics are less brittle in monorepos, learning-loop memory is indexed and visible, and skill/playbook authoring has stronger routing checks before stale guidance ships.
 
-- **Central hook launchers resolve the active worktree** - Claude and Antigravity launchers now use `git rev-parse --show-toplevel` for `.goat-flow/hooks` lookup, so linked worktrees run the hook scripts checked out beside the files being edited instead of borrowing scripts from the primary checkout through `--git-common-dir`. `$CLAUDE_PROJECT_DIR` remains the fallback for sessions whose shell cwd has moved outside the repo.
-- **Optional `gruff-code-quality` no longer hard-denies when missing** - Missing gruff hook scripts now exit 0 with a skipped diagnostic for Claude and Antigravity PostToolUse hooks. The required `deny-dangerous` guard still fails closed with Claude `BLOCKED:` output or Antigravity deny JSON.
-- **`deny-dangerous` catches piped `xargs rm -r`** - The shell policy now scans each pipeline segment for `xargs` payloads, blocking cases like `find . -type f | xargs -r rm -rf` while allowing harmless literal echo payloads. The full self-test corpus covers the regression.
-- **Gruff payload fallback filters unsupported paths first** - PostToolUse payload paths are normalized to supported in-repo analyzer targets before they suppress the git-changed fallback, so an unrelated payload path like `package.json` does not hide gruff findings for dirty TypeScript/PHP/Go/Rust/Python files.
+- **Hook guardrails resolve the active checkout** - Claude, Codex, and Antigravity launchers use the current repo root for `.goat-flow/hooks/`, optional `gruff-code-quality` startup failures skip instead of denying, and installed hook dispatchers now carry audited `goat-flow-hook-version` stamps so partial upgrades tell users to re-run `hooks sync`.
+- **`deny-dangerous` blocks pipeline and `xargs` bypasses** - The policy scans pipeline segments and `xargs` payloads, so destructive repo writes such as `find ... | xargs rm -rf` or piped `git commit` are blocked while harmless read/echo pipelines stay allowed.
+- **Gruff hook diagnostics are safer in monorepos** - `gruff-code-quality` filters unsupported payload paths before git fallback, honours ignored files as explicit skipped output, finds configured analyzer binaries in non-standard layouts, reports timeout/config problems, and preserves changed-line scoping where analyzers support it.
+- **Learning-loop indexes are generated, checked, and visible** - New `goat-flow index` regenerates committed per-bucket `INDEX.md` files, `stats --check` reports stale indexes, setup regenerates after install/customization, and the dashboard Home card shows freshness with a guarded **Regenerate index** action.
+- **goat-* Step 0 retrieval is observable** - Functional goat skills now must read relevant learning-loop indexes and emit `Relevant prior learnings:` (or `none found` with searched terms), making skipped memory retrieval visible in live skill use.
+- **Skill/playbook authoring routes harder cases correctly** - `quality candidacy` and `skill new` now distinguish skills, tool playbooks, instruction-file rules, learning-loop entries, CLI work, and no-artifact cases, while playbook templates require Availability Check, boundary, fallback, troubleshooting, and verification sections.
+- **Reference/playbook quality gates are tighter** - ADR-023 budget enforcement now covers top-level playbooks, preflight reports reference docs above 90% of their cap, and active prose now fails content-quality checks when stale `.goat-flow/skill-playbooks/` paths appear outside preserved migration/history records.
+- **Breaking changes** - No breaking changes. Existing projects should re-run `goat-flow setup` or `goat-flow hooks sync` for the hook updates and `goat-flow index` after editing learning-loop entries.
 
 ## v1.10.1 - 2026-06-09
 
