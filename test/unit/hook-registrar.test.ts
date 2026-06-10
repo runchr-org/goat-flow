@@ -79,7 +79,7 @@ function assertPresent(root: string, paths: string[]): void {
   }
 }
 
-/** Run a git command in a fixture project and fail with stdout/stderr context. */
+/** Spawns a git command in a fixture project and fail with stdout/stderr context. */
 function runGit(cwd: string, args: string[]): string {
   const result = spawnSync("git", args, {
     cwd,
@@ -108,7 +108,7 @@ function commitAll(root: string, message: string): void {
   ]);
 }
 
-/** Read the first generated Claude deny-dangerous launcher from settings. */
+/** Read the first generated Claude deny launcher because hook arrays are nested by event and matcher. */
 function readClaudeDenyLauncher(root: string): string {
   const settings = JSON.parse(
     readFileSync(join(root, ".claude", "settings.json"), "utf-8"),
@@ -124,7 +124,7 @@ function readClaudeDenyLauncher(root: string): string {
   return command;
 }
 
-/** Read the first generated Codex deny-dangerous launcher from hooks.json. */
+/** Read the first generated Codex deny launcher because hook arrays are nested by event and matcher. */
 function readCodexDenyLauncher(root: string): string {
   const settings = JSON.parse(
     readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
@@ -140,12 +140,43 @@ function readCodexDenyLauncher(root: string): string {
   return command;
 }
 
-/** Seed a Claude hook-capable fixture and return the generated deny launcher. */
+/** Writes a Claude hook-capable fixture and return the generated deny launcher. */
 function installClaudeDenyHook(root: string): string {
   mkdirSync(join(root, ".claude"), { recursive: true });
   writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
   applyHookState(HOOK_ID, true, root);
   return readClaudeDenyLauncher(root);
+}
+
+type GeneratedHookEntry = { hooks?: Array<{ command?: string }> };
+
+/** Flatten generated hook entries into command strings for fixture assertions. */
+function generatedHookCommands(entries: GeneratedHookEntry[] = []): string[] {
+  return entries.flatMap(({ hooks = [] }) =>
+    hooks.map(({ command = "" }) => command),
+  );
+}
+
+/** Read generated Claude gruff hook commands because settings nest hooks by event and matcher. */
+function readClaudeGruffCommands(settingsJson: string): string[] {
+  const config = JSON.parse(settingsJson) as {
+    hooks?: {
+      PostToolUse?: GeneratedHookEntry[];
+    };
+  };
+  return generatedHookCommands(config.hooks?.PostToolUse);
+}
+
+/** Read the generated Antigravity gruff hook command because hooks are grouped by hook id. */
+function readAntigravityGruffCommand(hooksJson: string): string {
+  const config = JSON.parse(hooksJson) as {
+    "gruff-code-quality"?: {
+      PostToolUse?: GeneratedHookEntry[];
+    };
+  };
+  return (
+    generatedHookCommands(config["gruff-code-quality"]?.PostToolUse)[0] ?? ""
+  );
 }
 
 /** Execute the generated Claude launcher with a runtime-shaped payload. */
@@ -228,23 +259,9 @@ describe("hook registrar", () => {
         join(root, ".agents", "hooks.json"),
         "utf-8",
       );
-      const claudeConfig = JSON.parse(claudeSettings) as {
-        hooks?: {
-          PostToolUse?: Array<{ hooks?: Array<{ command?: string }> }>;
-        };
-      };
-      const antigravityConfig = JSON.parse(antigravityHooks) as {
-        "gruff-code-quality"?: {
-          PostToolUse?: Array<{ hooks?: Array<{ command?: string }> }>;
-        };
-      };
-      const claudeGruffCommands =
-        claudeConfig.hooks?.PostToolUse?.flatMap(
-          (entry) => entry.hooks?.map((hook) => hook.command ?? "") ?? [],
-        ) ?? [];
+      const claudeGruffCommands = readClaudeGruffCommands(claudeSettings);
       const antigravityGruffCommand =
-        antigravityConfig["gruff-code-quality"]?.PostToolUse?.[0]?.hooks?.[0]
-          ?.command ?? "";
+        readAntigravityGruffCommand(antigravityHooks);
 
       assert.match(
         claudeSettings,

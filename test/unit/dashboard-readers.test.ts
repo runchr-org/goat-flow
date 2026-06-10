@@ -469,20 +469,18 @@ describe("dashboard payload readers", () => {
     const report = readAdvisoryEnforcementReport();
 
     const enforcement = report.agentScores[0]?.enforcement;
+    assert.ok(enforcement);
     const expectedCapabilityCount = 2;
-    assert.equal(enforcement?.agent, "claude");
-    assert.equal(enforcement?.capabilities.length, expectedCapabilityCount);
-    assert.equal(enforcement?.capabilities[1]?.status, "unknown");
-    assert.deepEqual(enforcement?.capabilities[0]?.sources, ["local-hook"]);
-    assert.equal(enforcement?.summary.hard, 1);
-    assert.equal(enforcement?.summary.limited, 0);
-    assert.equal(enforcement?.summary.soft, 0);
-    assert.equal(enforcement?.summary.missing, 0);
-    assert.equal(enforcement?.summary.unknown, 1);
-    assert.equal(
-      Object.hasOwn(enforcement?.summary ?? {}, "experimental"),
-      false,
-    );
+    assert.equal(enforcement.agent, "claude");
+    assert.equal(enforcement.capabilities.length, expectedCapabilityCount);
+    assert.equal(enforcement.capabilities[1]?.status, "unknown");
+    assert.deepEqual(enforcement.capabilities[0]?.sources, ["local-hook"]);
+    assert.equal(enforcement.summary.hard, 1);
+    assert.equal(enforcement.summary.limited, 0);
+    assert.equal(enforcement.summary.soft, 0);
+    assert.equal(enforcement.summary.missing, 0);
+    assert.equal(enforcement.summary.unknown, 1);
+    assert.equal(Object.hasOwn(enforcement.summary, "experimental"), false);
   });
 
   it("preserves task-state fields used by the Plans view", () => {

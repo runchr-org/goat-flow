@@ -213,6 +213,7 @@ describe("skill new - description mode", () => {
 });
 
 describe("skill new - draft mode", () => {
+  // Fixture purpose: writes a draft skill file to cover expected-location validation.
   it("validates a workflow draft against its expected location", async () => {
     const projectRoot = makeTempProject();
     const draftPath = join(projectRoot, "draft.md");

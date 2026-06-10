@@ -31,6 +31,7 @@ afterEach(() => {
   syncBuiltinESMExports();
 });
 
+/** Build the EPERM error shape Node returns when spawnSync cannot launch bash. */
 function spawnEperm(): NodeJS.ErrnoException {
   const error = new Error("spawnSync bash EPERM") as NodeJS.ErrnoException;
   error.code = "EPERM";
@@ -40,6 +41,7 @@ function spawnEperm(): NodeJS.ErrnoException {
   return error;
 }
 
+/** Build the contradictory EPERM fixture that also carries a completed status. */
 function completedEperm(): NodeJS.ErrnoException & { status: number } {
   const error = spawnEperm() as NodeJS.ErrnoException & { status: number };
   error.status = 0;

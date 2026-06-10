@@ -325,6 +325,8 @@ describe("scanContentQuality: legacy execution loop", () => {
 });
 
 describe("scanContentQuality: prompt wrapper residue", () => {
+  const PROMPT_WRAPPER_RESIDUE_TAG_COUNT = 4;
+
   it("flags content/invoke wrapper tags as WARNING", () => {
     const findings = scanContentQuality(
       ".goat-flow/learning-loop/decisions/INDEX.md",
@@ -334,7 +336,7 @@ describe("scanContentQuality: prompt wrapper residue", () => {
     const residue = findings.filter(
       (finding) => finding.rule === "prompt-wrapper-residue",
     );
-    assert.equal(residue.length, 4);
+    assert.equal(residue.length, PROMPT_WRAPPER_RESIDUE_TAG_COUNT);
     assert.equal(residue[0]!.severity, "warning");
   });
 

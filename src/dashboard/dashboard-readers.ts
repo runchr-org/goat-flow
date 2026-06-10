@@ -234,6 +234,101 @@ function readAuditFailure(rawFailure: unknown): AuditFailure | null {
   return failure;
 }
 
+const AUDIT_PROVENANCE_SOURCE_TYPES =
+  "|spec|vendor_docs|paper|incident|community|unknown|";
+const AUDIT_PROVENANCE_NORMATIVE_LEVELS = "|MUST|SHOULD|BEST_PRACTICE|";
+const AUDIT_CHECK_TYPES = "|integrity|advisory|metric|";
+const AUDIT_EVIDENCE_KINDS = "|semantic|structural|";
+const AUDIT_ASSURANCE_LEVELS = "|full|limited|";
+const AUDIT_EVIDENCE_PATH_KEYS = [
+  "evidence_paths",
+  "framework_evidence_paths",
+  "target_evidence_paths",
+] as const;
+
+/** Attach optional provenance evidence paths when the API sends the field as an array. */
+function assignEvidencePaths(
+  provenance: AuditCheckProvenance,
+  key: "evidence_paths" | "framework_evidence_paths" | "target_evidence_paths",
+  value: unknown,
+): void {
+  if (Array.isArray(value)) provenance[key] = readStringArray(value);
+}
+
+/** Read one audit-check provenance block and reject unknown contract discriminants. */
+function readAuditCheckProvenance(
+  rawProvenance: unknown,
+): AuditCheckProvenance | null {
+  if (!isRecord(rawProvenance)) return null;
+  const sourceType = readString(rawProvenance.source_type);
+  const verifiedOn = readString(rawProvenance.verified_on);
+  const normativeLevel = readString(rawProvenance.normative_level);
+  if (
+    !AUDIT_PROVENANCE_SOURCE_TYPES.includes(`|${sourceType}|`) ||
+    !verifiedOn ||
+    !AUDIT_PROVENANCE_NORMATIVE_LEVELS.includes(`|${normativeLevel}|`)
+  ) {
+    return null;
+  }
+
+  const provenance: AuditCheckProvenance = {
+    source_type: sourceType as AuditCheckProvenance["source_type"],
+    source_urls: readStringArray(rawProvenance.source_urls),
+    verified_on: verifiedOn,
+    normative_level: normativeLevel as AuditCheckProvenance["normative_level"],
+  };
+  for (const key of AUDIT_EVIDENCE_PATH_KEYS) {
+    assignEvidencePaths(provenance, key, rawProvenance[key]);
+  }
+  if (typeof rawProvenance.reason === "string")
+    provenance.reason = rawProvenance.reason;
+  return provenance;
+}
+
+/** Read one optional string discriminator only when it is in the allowed API vocabulary. */
+function readEnumValue<T extends string>(
+  value: unknown,
+  allowed: string,
+): T | undefined {
+  return typeof value === "string" && allowed.includes(`|${value}|`)
+    ? (value as T)
+    : undefined;
+}
+
+/** Apply optional audit-check fields because scoring defaults depend on decoded type and acknowledgement. */
+function applyAuditCheckOptionalFields(
+  check: AuditCheck,
+  rawCheck: Record<string, unknown>,
+  status: AuditStatus,
+): void {
+  const type = readEnumValue<NonNullable<AuditCheck["type"]>>(
+    rawCheck.type,
+    AUDIT_CHECK_TYPES,
+  );
+  if (type) check.type = type;
+  if (rawCheck.acknowledged === true) check.acknowledged = true;
+  const acknowledged = check.acknowledged === true;
+  check.displayStatus =
+    readAuditDisplayStatus(rawCheck.displayStatus) ??
+    defaultDisplayStatus(status, check.type, acknowledged);
+  check.impact =
+    readAuditCheckImpact(rawCheck.impact) ??
+    defaultCheckImpact(status, check.type, acknowledged);
+  const evidenceKind = readEnumValue<NonNullable<AuditCheck["evidenceKind"]>>(
+    rawCheck.evidenceKind,
+    AUDIT_EVIDENCE_KINDS,
+  );
+  if (evidenceKind) check.evidenceKind = evidenceKind;
+  const assurance = readEnumValue<NonNullable<AuditCheck["assurance"]>>(
+    rawCheck.assurance,
+    AUDIT_ASSURANCE_LEVELS,
+  );
+  if (assurance) check.assurance = assurance;
+  const failure = readAuditFailure(rawCheck.failure);
+  if (failure) check.failure = failure;
+  if (isRecord(rawCheck.details)) check.details = rawCheck.details;
+}
+
 /**
  * Read one audit check while preserving score-critical discriminants.
  *
@@ -247,25 +342,8 @@ function readAuditCheck(rawCheck: unknown): AuditCheck | null {
   const status = readAuditStatus(rawCheck.status);
   if (!id || !name || !status) return null;
 
-  const provenanceValue = rawCheck.provenance;
-  if (!isRecord(provenanceValue)) return null;
-  const sourceType = readString(provenanceValue.source_type);
-  const verifiedOn = readString(provenanceValue.verified_on);
-  const normativeLevel = readString(provenanceValue.normative_level);
-  if (
-    ![
-      "spec",
-      "vendor_docs",
-      "paper",
-      "incident",
-      "community",
-      "unknown",
-    ].includes(sourceType) ||
-    !verifiedOn ||
-    !["MUST", "SHOULD", "BEST_PRACTICE"].includes(normativeLevel)
-  ) {
-    return null;
-  }
+  const provenance = readAuditCheckProvenance(rawCheck.provenance);
+  if (!provenance) return null;
 
   const check: AuditCheck = {
     id,
@@ -273,62 +351,9 @@ function readAuditCheck(rawCheck: unknown): AuditCheck | null {
     status,
     displayStatus: "pass",
     impact: "none",
-    provenance: {
-      source_type: sourceType as AuditCheckProvenance["source_type"],
-      source_urls: readStringArray(provenanceValue.source_urls),
-      verified_on: verifiedOn,
-      normative_level:
-        normativeLevel as AuditCheckProvenance["normative_level"],
-      ...(Array.isArray(provenanceValue.evidence_paths)
-        ? {
-            evidence_paths: readStringArray(provenanceValue.evidence_paths),
-          }
-        : {}),
-      ...(Array.isArray(provenanceValue.framework_evidence_paths)
-        ? {
-            framework_evidence_paths: readStringArray(
-              provenanceValue.framework_evidence_paths,
-            ),
-          }
-        : {}),
-      ...(Array.isArray(provenanceValue.target_evidence_paths)
-        ? {
-            target_evidence_paths: readStringArray(
-              provenanceValue.target_evidence_paths,
-            ),
-          }
-        : {}),
-      ...(typeof provenanceValue.reason === "string"
-        ? { reason: provenanceValue.reason }
-        : {}),
-    },
+    provenance,
   };
-  if (
-    rawCheck.type === "integrity" ||
-    rawCheck.type === "advisory" ||
-    rawCheck.type === "metric"
-  ) {
-    check.type = rawCheck.type;
-  }
-  if (rawCheck.acknowledged === true) check.acknowledged = true;
-  check.displayStatus =
-    readAuditDisplayStatus(rawCheck.displayStatus) ??
-    defaultDisplayStatus(status, check.type, check.acknowledged === true);
-  check.impact =
-    readAuditCheckImpact(rawCheck.impact) ??
-    defaultCheckImpact(status, check.type, check.acknowledged === true);
-  if (
-    rawCheck.evidenceKind === "semantic" ||
-    rawCheck.evidenceKind === "structural"
-  ) {
-    check.evidenceKind = rawCheck.evidenceKind;
-  }
-  if (rawCheck.assurance === "full" || rawCheck.assurance === "limited") {
-    check.assurance = rawCheck.assurance;
-  }
-  const failure = readAuditFailure(rawCheck.failure);
-  if (failure) check.failure = failure;
-  if (isRecord(rawCheck.details)) check.details = rawCheck.details;
+  applyAuditCheckOptionalFields(check, rawCheck, status);
   return check;
 }
 

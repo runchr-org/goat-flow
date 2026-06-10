@@ -17,9 +17,9 @@ import {
 import {
   buildDenyRegistration,
   buildHookRegistration,
+  extractSkillFacts,
   readHookConfig,
-} from "../../../src/cli/facts/agent/hook-registration.js";
-import { extractSkillFacts } from "../../../src/cli/facts/agent/skills.js";
+} from "../../src.js";
 
 /** Extract hook facts from the packaged deny hook plus its shared pattern libraries. */
 function extractPackagedDenyHookFacts(): ReturnType<typeof extractHookFacts> {

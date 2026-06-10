@@ -191,43 +191,66 @@ function checkDenyHookPresent(ctx: AuditContext): AuditFailure | null {
   return null;
 }
 
+type HookSyntaxCheckResult =
+  | { status: "ok" }
+  | { status: "syntax-error"; path: string }
+  | { status: "spawn-failure"; failure: AuditFailure };
+
+/** List shell hook files and swallows unreadable fixture dirs the same way the audit check always has. */
+function listShellHookFiles(ctx: AuditContext, hooksDir: string): string[] {
+  try {
+    return ctx.fs.listDir(hooksDir).filter((file) => file.endsWith(".sh"));
+  } catch {
+    return [];
+  }
+}
+
+/** Spawn bash syntax validation for one hook and map process failures into audit evidence. */
+function checkHookFileSyntax(
+  ctx: AuditContext,
+  hooksDir: string,
+  file: string,
+): HookSyntaxCheckResult {
+  const hookPath = `${hooksDir}/${file}`;
+  // ctx.fs may be backed by an in-memory fixture, but bash -n needs a real workspace path.
+  const fullPath = join(ctx.projectPath, hooksDir, file);
+  try {
+    childProcess.execFileSync("bash", ["-n", fullPath], {
+      stdio: "pipe",
+      timeout: 5000,
+    });
+    return { status: "ok" };
+  } catch (error) {
+    if (commandCompletedSuccessfully(error)) return { status: "ok" };
+    const spawnFailure = spawnFailureFor(
+      error,
+      `bash syntax check for ${hookPath}`,
+    );
+    if (spawnFailure !== null) {
+      return {
+        status: "spawn-failure",
+        failure: {
+          check: "Agent deny mechanism",
+          message: spawnFailure.message,
+          evidence: evidencePath(hookPath),
+          howToFix: spawnFailure.howToFix,
+        },
+      };
+    }
+    return { status: "syntax-error", path: hookPath };
+  }
+}
+
 /** Check shell syntax; spawns bash and recover from unreadable hook dirs because fixtures may be partial. */
 function checkHookSyntax(ctx: AuditContext): AuditFailure | null {
   const failures: string[] = [];
   for (const agentFacts of ctx.agents) {
     if (!agentFacts.agent.hooksDir) continue;
     const hooksDir = agentFacts.agent.hooksDir;
-    let files: string[];
-    try {
-      files = ctx.fs.listDir(hooksDir);
-    } catch {
-      continue;
-    }
-    for (const file of files) {
-      if (!file.endsWith(".sh")) continue;
-      // ctx.fs may be backed by an in-memory fixture, but bash -n needs a real workspace path.
-      const fullPath = join(ctx.projectPath, hooksDir, file);
-      try {
-        childProcess.execFileSync("bash", ["-n", fullPath], {
-          stdio: "pipe",
-          timeout: 5000,
-        });
-      } catch (error) {
-        if (commandCompletedSuccessfully(error)) continue;
-        const spawnFailure = spawnFailureFor(
-          error,
-          `bash syntax check for ${hooksDir}/${file}`,
-        );
-        if (spawnFailure !== null) {
-          return {
-            check: "Agent deny mechanism",
-            message: spawnFailure.message,
-            evidence: evidencePath(`${hooksDir}/${file}`),
-            howToFix: spawnFailure.howToFix,
-          };
-        }
-        failures.push(`${hooksDir}/${file}`);
-      }
+    for (const file of listShellHookFiles(ctx, hooksDir)) {
+      const result = checkHookFileSyntax(ctx, hooksDir, file);
+      if (result.status === "spawn-failure") return result.failure;
+      if (result.status === "syntax-error") failures.push(result.path);
     }
   }
   if (failures.length === 0) return null;

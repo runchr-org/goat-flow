@@ -21,7 +21,7 @@ const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const HOOK = join(PROJECT_ROOT, "workflow", "hooks", "gruff-code-quality.sh");
 const disposables: string[] = [];
 
-/** Resolve a tool's absolute path from PATH so symlink sandboxes stay portable. */
+/** Resolve a tool's absolute path from PATH; throws when a required sandbox tool is missing. */
 function resolveTool(name: string): string {
   for (const dir of (process.env.PATH ?? "").split(":")) {
     if (!dir) continue;
@@ -218,7 +218,8 @@ exit 1
 
 /**
  * Install a legacy `analyse --format json` mock that exits non-zero with valid
- * JSON but no findings because the project config was rejected.
+ * JSON but no findings because the project config was rejected. Writes an
+ * executable mock binary into the temp root.
  */
 function writeJsonConfigErrorMockGruffPy(root: string): string {
   const binDir = join(root, ".venv", "bin");
@@ -371,6 +372,7 @@ function readArgumentInvocations(root: string): string[] {
 }
 
 describe("gruff-code-quality hook", () => {
+  // Fixture purpose: writes temp source/git state to cover changed-line filtering and the triage footer.
   it("prints changed-line findings, suppressed count, and footer", () => {
     const root = makeRoot();
     initGit(root);
@@ -409,6 +411,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: writes two dirty files to cover payload path precedence.
   it("runs only the named payload file when another supported file is dirty", () => {
     const root = makeRoot();
     initGit(root);
@@ -448,6 +451,7 @@ describe("gruff-code-quality hook", () => {
     assert.deepEqual(readInvocations(root), ["src/example.ts"]);
   });
 
+  // Fixture purpose: mutates git state to cover fallback when payload paths are unsupported.
   it("falls back to git-changed supported files when payload paths are unsupported", () => {
     const root = makeRoot();
     initGit(root);
@@ -504,6 +508,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: writes fallback source to cover Antigravity payloads without file paths.
   it("runs for Antigravity file-tool payloads without a file path", () => {
     const root = makeRoot();
     initGit(root);
@@ -537,6 +542,7 @@ describe("gruff-code-quality hook", () => {
     assert.doesNotMatch(result.stdout, /old\.rule/);
   });
 
+  // Fixture purpose: mutates staged git hunks to cover pathless fallback filtering.
   it("uses staged hunks for pathless fallback files", () => {
     const root = makeRoot();
     initGit(root);
@@ -571,6 +577,7 @@ describe("gruff-code-quality hook", () => {
     assert.doesNotMatch(result.stdout, /no changed lines detected/);
   });
 
+  // Fixture purpose: writes unchanged git state to cover the no-range fallback branch.
   it("does not print whole-file findings when no changed range is available", () => {
     const root = makeRoot();
     initGit(root);
@@ -622,6 +629,7 @@ describe("gruff-code-quality hook", () => {
     ]);
   });
 
+  // Fixture purpose: writes a Python fixture to cover gruff-py's changed-region contract.
   it("uses gruff-py native changed-region filtering when available", () => {
     const root = makeRoot();
     writeNativeChangedRegionGruffPy(root);
@@ -662,6 +670,7 @@ describe("gruff-code-quality hook", () => {
     ]);
   });
 
+  // Fixture purpose: writes two planted binaries because both removed paths must stay unsearched.
   it("does not discover binaries from the removed glob or build-output paths", () => {
     const root = makeRoot();
     // Security (ADR-032): a name-matched binary planted only on a removed path -
@@ -679,28 +688,46 @@ describe("gruff-code-quality hook", () => {
     writeFileSync(join(root, "src", "example.ts"), "a\nb\nc\n");
     writeFileSync(join(root, "src", "example.py"), "a\nb\nc\n");
 
-    for (const file of ["src/example.ts", "src/example.py"]) {
-      const result = runHook(
-        root,
-        {
-          tool_name: "Edit",
-          tool_input: {
-            file_path: file,
-            changed_ranges: [{ startLine: 3, endLine: 3 }],
-          },
+    const tsResult = runHook(
+      root,
+      {
+        tool_name: "Edit",
+        tool_input: {
+          file_path: "src/example.ts",
+          changed_ranges: [{ startLine: 3, endLine: 3 }],
         },
-        "/usr/bin:/bin",
-      );
-      assert.equal(result.status, 0, result.stderr);
-      assert.equal(result.stdout, "", `expected silence for ${file}`);
-      assert.match(
-        result.stderr,
-        /present but gruff-(ts|py) not found on search paths/,
-      );
-    }
+      },
+      "/usr/bin:/bin",
+    );
+    assert.equal(tsResult.status, 0, tsResult.stderr);
+    assert.equal(tsResult.stdout, "", "expected silence for src/example.ts");
+    assert.match(
+      tsResult.stderr,
+      /present but gruff-(ts|py) not found on search paths/,
+    );
+
+    const pyResult = runHook(
+      root,
+      {
+        tool_name: "Edit",
+        tool_input: {
+          file_path: "src/example.py",
+          changed_ranges: [{ startLine: 3, endLine: 3 }],
+        },
+      },
+      "/usr/bin:/bin",
+    );
+    assert.equal(pyResult.status, 0, pyResult.stderr);
+    assert.equal(pyResult.stdout, "", "expected silence for src/example.py");
+    assert.match(
+      pyResult.stderr,
+      /present but gruff-(ts|py) not found on search paths/,
+    );
+
     assert.deepEqual(readInvocations(root), []);
   });
 
+  // Fixture purpose: writes an override binary to cover non-standard monorepo analyzer paths.
   it("uses an explicit env override for a non-standard monorepo gruff binary", () => {
     const root = makeRoot();
     const overrideBinDir = writeMockGruffBinary(
@@ -780,6 +807,7 @@ describe("gruff-code-quality hook", () => {
     assert.equal(noConfig.stdout, "");
   });
 
+  // Fixture purpose: writes a PATH sandbox to cover fail-soft behavior when jq is absent.
   it("fails soft when jq is unavailable", () => {
     const root = makeRoot();
     const gruffBinDir = writeMockGruff(root);
@@ -826,6 +854,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: writes invalid gruff config to cover reported schema rejection output.
   it("relays gruff config-schema rejection with an actionable message", () => {
     const root = makeRoot();
     initGit(root);
@@ -860,6 +889,7 @@ describe("gruff-code-quality hook", () => {
     assert.doesNotMatch(result.stdout, /produced non-JSON output/);
   });
 
+  // Fixture purpose: writes legacy JSON diagnostics to cover config errors without findings.
   it("surfaces legacy JSON config diagnostics with empty findings", () => {
     const root = makeRoot();
     writeJsonConfigErrorMockGruffPy(root);
@@ -887,6 +917,7 @@ describe("gruff-code-quality hook", () => {
     assert.doesNotMatch(result.stdout, /0 on changed lines/);
   });
 
+  // Fixture purpose: writes a hook-envelope mock to cover finding and suppression rendering.
   it("renders gruff.hook.v1 output when the analyzer advertises the contract", () => {
     const root = makeRoot();
     writeContractGruffBinary(root);
@@ -933,6 +964,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: mutates a committed file to cover the regression where --diff hid edited lines.
   it("does not append --diff to the contract call (single-pass new-only would hide changed-line findings)", () => {
     const root = makeRoot();
     initGit(root);
@@ -978,6 +1010,7 @@ describe("gruff-code-quality hook", () => {
     assert.doesNotMatch(hookArgs, /--diff/);
   });
 
+  // Fixture purpose: writes a B8 envelope mock to cover schemaOk:false config-error reports.
   it("relays a gruff.hook.v1 config error (B8) instead of swallowing schemaOk:false", () => {
     const root = makeRoot();
     writeContractGruffBinary(
@@ -1007,6 +1040,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: writes a B7 envelope mock to cover ignored-file reports for the edited path.
   it("relays a gruff.hook.v1 ignore verdict (B7) for the edited file", () => {
     const root = makeRoot();
     writeContractGruffBinary(
@@ -1068,6 +1102,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: writes a config-error envelope mock to cover omitted optional findings.
   it("relays a gruff.hook.v1 config error even when the envelope omits the findings array", () => {
     const root = makeRoot();
     writeContractGruffBinary(
@@ -1097,6 +1132,7 @@ describe("gruff-code-quality hook", () => {
     );
   });
 
+  // Fixture purpose: writes an ignored-file envelope to cover analyzer-emitted ./ path prefixes.
   it("relays a gruff.hook.v1 ignore verdict when the analyzer echoes a ./-prefixed path", () => {
     const root = makeRoot();
     writeContractGruffBinary(

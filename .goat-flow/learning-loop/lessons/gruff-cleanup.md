@@ -1,6 +1,6 @@
 ---
 category: gruff-cleanup
-last_reviewed: 2026-06-09
+last_reviewed: 2026-06-10
 ---
 
 ## Lesson: Do not convert a fix request into threshold tuning
@@ -12,6 +12,16 @@ last_reviewed: 2026-06-09
 **Root cause:** I treated "clear the gruff findings" as interchangeable with "make the report stop flagging them." That violated the requested fix intent. Threshold changes are policy changes, not code fixes, and they need explicit approval when the user asks to fix findings.
 
 **Prevention:** For gruff cleanup, classify the action before editing: FIX code, IGNORE paths, BASELINE accepted debt, or TUNE config. If the user asks to "fix" a rule cluster, do not tune thresholds or other rule numbers unless they explicitly approve that policy change. If a finding cannot be fixed safely in the current scope, stop and say so instead of making the analyzer quieter. Evidence anchors: `.gruff-ts.yaml` (search: `size.file-length`), `CHANGELOG.md` (search: `gruff-ts size cleanup`).
+
+## Lesson: Gruff JSON captures must not go through noisy npm output
+
+**Status:** active | **Created:** 2026-06-10
+
+**What happened:** During the M01 gruff cleanup, redirecting `npm run gruff-ts -- analyse --format json --fail-on none .` to `/tmp/goat-flow-gruff-ts-before.json` produced invalid JSON because npm wrote its script banner before the analyzer payload. Parsing failed even though the analyzer itself had completed.
+
+**Root cause:** I treated an npm script as a transparent binary wrapper while capturing machine-readable output. npm can prepend lifecycle/script text unless invoked silently, which corrupts stdout-only JSON reports.
+
+**Prevention:** For machine-readable gruff reports, use `node_modules/.bin/gruff-ts analyse --format json --fail-on none ...` or an explicitly silent npm invocation. Validate the capture with `JSON.parse` before grouping findings or writing plan evidence. Evidence anchors: `.goat-flow/plans/1.11.0/M01-gruff-ts-zero-findings.md` (search: `For JSON captures, use the local binary directly`).
 
 ## Lesson: Do not leave generated gruff defaults after an init probe
 
