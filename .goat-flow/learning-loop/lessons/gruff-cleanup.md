@@ -23,6 +23,16 @@ last_reviewed: 2026-06-10
 
 **Prevention:** For machine-readable gruff reports, use `node_modules/.bin/gruff-ts analyse --format json --fail-on none ...` or an explicitly silent npm invocation. Validate the capture with `JSON.parse` before grouping findings or writing plan evidence. Evidence anchors: `.goat-flow/plans/1.11.0/M01-gruff-ts-zero-findings.md` (search: `For JSON captures, use the local binary directly`).
 
+## Lesson: Gruff error-behavior comments need rule vocabulary
+
+**Status:** active | **Created:** 2026-06-10
+
+**What happened:** During M01 gruff cleanup, extracting `src/cli/facts/fs.ts` cache helpers added comments that said "read errors cache and return null", "stat errors cache and return false", and "readdir errors cache and return []". Humans could infer the behavior, but `gruff-ts` still reported `docs.missing-error-behavior-doc` until the comments used the installed rule vocabulary: `swallows ... fallback`.
+
+**Root cause:** I wrote comments that described the behavior semantically but did not satisfy the analyzer's marker vocabulary for error recovery.
+
+**Prevention:** When `docs.missing-error-behavior-doc` survives a comment pass, read the installed rule vocabulary and use accepted recovery words such as `swallows`, `fallback`, or `recover` when truthful. Evidence anchors: `src/cli/facts/fs.ts` (search: `swallows read errors as a cached null fallback`) and `node_modules/@blundergoat/gruff-ts/src/context-doc-rules.ts` (search: `hasErrorBehaviorMarker`).
+
 ## Lesson: Do not leave generated gruff defaults after an init probe
 
 **Status:** active | **Created:** 2026-06-09
