@@ -645,6 +645,67 @@ function configuredHookCommandPathFailure(
   return null;
 }
 
+/** Return cwd labels used to replay configured hook launchers. */
+function configuredHookSmokeCwds(
+  ctx: AuditContext,
+  agentFacts: AuditContext["agents"][number],
+): Array<{
+  label: string;
+  cwd: string;
+}> {
+  const cwds = [{ label: "project root", cwd: ctx.projectPath }];
+  if (agentFacts.agent.id === "copilot") return cwds;
+  const nested = join(ctx.projectPath, ".goat-flow");
+  if (existsSync(nested)) {
+    cwds.push({ label: ".goat-flow", cwd: nested });
+  }
+  return cwds;
+}
+
+function configuredHookSmokeFailureFromResult(
+  result: childProcess.SpawnSyncReturns<string>,
+  agentFacts: AuditContext["agents"][number],
+  configured: ConfiguredHookCommand,
+  smoke: ReturnType<typeof runtimeSmokePayloadForScript>,
+  smokeCwd: { label: string; cwd: string },
+): {
+  ok: boolean;
+  message: string;
+  evidence: string;
+  howToFix?: string;
+} | null {
+  const spawnFailure = spawnFailureFromResult(
+    result,
+    `${agentFacts.agent.id} configured hook command for ${configured.scriptFile}`,
+  );
+  if (spawnFailure !== null) {
+    return {
+      ok: false,
+      message: spawnFailure.message,
+      evidence: configured.configPath,
+      howToFix: spawnFailure.howToFix,
+    };
+  }
+  const status = result.status ?? (result.error ? -1 : 0);
+  if (status === 126 || status === 127) {
+    return {
+      ok: false,
+      message: `${agentFacts.agent.id} configured hook command exited before ${configured.scriptFile} could start from ${smokeCwd.label} (exit ${status}): ${configured.scriptPath}`,
+      evidence: configured.configPath,
+    };
+  }
+  const stream =
+    smoke.expectedStream === "stdout" ? result.stdout : result.stderr;
+  if (status === smoke.expectedStatus && smoke.expectedPattern.test(stream)) {
+    return null;
+  }
+  return {
+    ok: false,
+    message: `${agentFacts.agent.id} configured hook command did not return the expected deny response for ${configured.scriptFile} from ${smokeCwd.label}: ${configured.scriptPath}`,
+    evidence: configured.configPath,
+  };
+}
+
 function runConfiguredHookCommandSmoke(
   ctx: AuditContext,
   agentFacts: AuditContext["agents"][number],
@@ -669,45 +730,26 @@ function runConfiguredHookCommandSmoke(
   // project-configured launcher string by design (to validate the real
   // root-resolution/cd glue), so the runtime evidence level should only be run
   // against trusted target projects.
-  const result = childProcess.spawnSync(
-    "bash",
-    ["-c", pipeSmokePayloadTo(configured.command)],
-    {
-      cwd: ctx.projectPath,
-      encoding: "utf8",
-      env: runtimeSmokeEnv(smoke.input),
-      input: "",
-      timeout: 5000,
-    },
-  );
-  const spawnFailure = spawnFailureFromResult(
-    result,
-    `${agentFacts.agent.id} configured hook command for ${configured.scriptFile}`,
-  );
-  if (spawnFailure !== null) {
-    return {
-      ok: false,
-      message: spawnFailure.message,
-      evidence: configured.configPath,
-      howToFix: spawnFailure.howToFix,
-    };
-  }
-  const status = result.status ?? (result.error ? -1 : 0);
-  if (status === 126 || status === 127) {
-    return {
-      ok: false,
-      message: `${agentFacts.agent.id} configured hook command exited before ${configured.scriptFile} could start (exit ${status}): ${configured.scriptPath}`,
-      evidence: configured.configPath,
-    };
-  }
-  const stream =
-    smoke.expectedStream === "stdout" ? result.stdout : result.stderr;
-  if (status !== smoke.expectedStatus || !smoke.expectedPattern.test(stream)) {
-    return {
-      ok: false,
-      message: `${agentFacts.agent.id} configured hook command did not return the expected deny response for ${configured.scriptFile}: ${configured.scriptPath}`,
-      evidence: configured.configPath,
-    };
+  for (const smokeCwd of configuredHookSmokeCwds(ctx, agentFacts)) {
+    const result = childProcess.spawnSync(
+      "bash",
+      ["-c", pipeSmokePayloadTo(configured.command)],
+      {
+        cwd: smokeCwd.cwd,
+        encoding: "utf8",
+        env: runtimeSmokeEnv(smoke.input),
+        input: "",
+        timeout: 5000,
+      },
+    );
+    const failure = configuredHookSmokeFailureFromResult(
+      result,
+      agentFacts,
+      configured,
+      smoke,
+      smokeCwd,
+    );
+    if (failure !== null) return failure;
   }
   return { ok: true, message: "", evidence: configured.configPath };
 }

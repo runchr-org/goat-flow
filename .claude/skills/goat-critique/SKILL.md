@@ -28,7 +28,7 @@ Use when a concrete artifact deserves multi-perspective critique before shipping
 |--------|---------|
 | "The artifact is trivial - a quick critique would cover it" | Quick mode was tried and removed. A single reviewer running lens passes in one context is self-talk under three labels, not multi-perspective critique. |
 | "All three agents agree so it must be right" | Consensus without orchestrator verification is unverified self-declaration. The orchestrator's job is to verify claims, not count votes. |
-| "Inline role-play is faster than spawning agents" | Agents that role-play SBAO inline produce indistinguishable perspectives. Isolated context is what makes findings independent. |
+| "Inline role-play is faster than spawning agents" | Agents that role-play SKEPTIC/ANALYST/STRATEGIST inline produce indistinguishable perspectives. Isolated context is what makes findings independent. |
 | "Closing checks happen after the main answer - skip them" | End-of-task rules have near-zero voluntary compliance. Phase 5.5 meta-audit and outcome capture exist because post-deliverable steps get skipped. |
 
 **Direct invocation is binding.** `$goat-critique` or `/goat-critique` runs Phases 1-5 plus mandatory post-synthesis steps (5.5, 5.6). Dispatcher ambiguity rules do not override direct invocation; raise scope concerns after synthesis.

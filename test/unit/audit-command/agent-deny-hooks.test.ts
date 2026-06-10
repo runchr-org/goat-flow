@@ -405,6 +405,60 @@ describe("agent deny hook template comparison", () => {
     assert.equal(denyCheck.run(ctx), null);
   });
 
+  it("fails when a direct configured command is replayed from nested cwd", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      projectPath: PROJECT_ROOT,
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile: installedGuardrailContent(".codex/hooks", templates, {
+          ".codex/hooks.json": JSON.stringify({
+            hooks: {
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: ".goat-flow/hooks/deny-dangerous.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }),
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected nested-cwd configured command failure");
+    assert.match(
+      result.message,
+      /configured hook command exited before deny-dangerous\.sh could start from \.goat-flow \(exit 127\)/,
+    );
+    assert.equal(result.evidence, ".codex/hooks.json");
+  });
+
   it("fails when a configured hook command hides the script path in shell text", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();
@@ -654,7 +708,7 @@ describe("agent deny hook template comparison", () => {
     assert.ok(result, "expected configured launcher runtime failure");
     assert.match(
       result.message,
-      /configured hook command exited before deny-dangerous\.sh could start \(exit 127\)/,
+      /configured hook command exited before deny-dangerous\.sh could start from project root \(exit 127\)/,
     );
     assert.equal(result.evidence, ".codex/hooks.json");
   });

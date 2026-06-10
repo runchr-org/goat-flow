@@ -761,6 +761,7 @@ done < <(manifest_eval hook-dirs)
 configured_hook_smoke_output=$(
     node <<'NODE'
 const fs = require("node:fs");
+const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const guardScripts = ["deny-dangerous.sh"];
@@ -821,9 +822,18 @@ function collect(value, out = []) {
   return out;
 }
 
-function runCommand(command, input) {
+function smokeCwds(agent) {
+  const root = process.cwd();
+  const cwds = [{ label: "project root", cwd: root }];
+  if (agent === "copilot") return cwds;
+  const nested = path.join(root, ".goat-flow");
+  if (fs.existsSync(nested)) cwds.push({ label: ".goat-flow", cwd: nested });
+  return cwds;
+}
+
+function runCommand(command, input, cwd) {
   return spawnSync("bash", ["-c", `printf %s "$GOAT_HOOK_SMOKE_PAYLOAD" | { ${command}; }`], {
-    cwd: process.cwd(),
+    cwd,
     encoding: "utf8",
     env: { ...process.env, GOAT_HOOK_SMOKE_PAYLOAD: input },
     input: "",
@@ -865,25 +875,27 @@ for (const config of configs) {
   for (const entry of commands) {
     checked += 1;
     const smoke = payloadFor(config.mode, entry.script);
-    const result = runCommand(entry.command, smoke.input);
-    const spawnFailure = spawnFailureMessage(
-      result,
-      `${config.agent}: ${entry.script} configured command`,
-    );
-    if (spawnFailure) {
-      emit("FAIL", spawnFailure);
-      continue;
-    }
-    const status = result.status ?? (result.error ? -1 : 0);
-    if (status === 126 || status === 127) {
-      emit("FAIL", `${config.agent}: ${entry.script} configured command exited ${status}: ${entry.command}`);
-      continue;
-    }
-    const stream = smoke.stream === "stdout" ? result.stdout : result.stderr;
-    if (status === smoke.status && smoke.pattern.test(stream)) {
-      emit("PASS", `${config.agent}: ${entry.script} configured command smoke denied payload`);
-    } else {
-      emit("FAIL", `${config.agent}: ${entry.script} configured command smoke failed (exit ${status})`);
+    for (const smokeCwd of smokeCwds(config.agent)) {
+      const result = runCommand(entry.command, smoke.input, smokeCwd.cwd);
+      const spawnFailure = spawnFailureMessage(
+        result,
+        `${config.agent}: ${entry.script} configured command`,
+      );
+      if (spawnFailure) {
+        emit("FAIL", spawnFailure);
+        continue;
+      }
+      const status = result.status ?? (result.error ? -1 : 0);
+      if (status === 126 || status === 127) {
+        emit("FAIL", `${config.agent}: ${entry.script} configured command exited ${status} from ${smokeCwd.label}: ${entry.command}`);
+        continue;
+      }
+      const stream = smoke.stream === "stdout" ? result.stdout : result.stderr;
+      if (status === smoke.status && smoke.pattern.test(stream)) {
+        emit("PASS", `${config.agent}: ${entry.script} configured command smoke denied payload from ${smokeCwd.label}`);
+      } else {
+        emit("FAIL", `${config.agent}: ${entry.script} configured command smoke failed from ${smokeCwd.label} (exit ${status})`);
+      }
     }
   }
 }

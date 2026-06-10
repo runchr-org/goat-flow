@@ -122,7 +122,6 @@ function shellSingleQuote(value: string): string {
 /** Build the shell command variant that matches each agent's hook response protocol. */
 function shellCommand(agent: AgentProfile, spec: HookSpec): string {
   const path = commandPath(agent, spec.primaryScript);
-  if (agent.id === "codex") return path;
   const unavailable =
     spec.id === "gruff-code-quality"
       ? `{ printf 'gruff-code-quality: hook unavailable: git repository root or hook script unavailable; skipped.\\n' >&2; exit 0; }`
@@ -131,13 +130,19 @@ function shellCommand(agent: AgentProfile, spec: HookSpec): string {
         : `{ printf 'BLOCKED: Policy hook unavailable: git repository root unavailable.\\n' >&2; exit 2; }`;
   // Central hook scripts live in the active worktree under .goat-flow/hooks.
   // Resolve the active tree first so linked worktrees run the policy checked out
-  // beside the files being edited, then fall back to Claude's project-root env
-  // when a session has cd'd outside any git checkout. The launcher cd's into
-  // the resolved root because deny-dangerous.sh resolves its policy store from
-  // cwd; cd failure uses the same hook-specific unavailable behavior.
+  // beside the files being edited. Claude/Antigravity also fall back to
+  // Claude's project-root env when a session has cd'd outside any git checkout;
+  // Codex has no documented equivalent, so it stays fail-closed outside git.
+  // The launcher cd's into the resolved root because deny-dangerous.sh resolves
+  // its policy store from cwd; cd failure uses the same hook-specific
+  // unavailable behavior.
   const resolveRoot = `root="$(git rev-parse --show-toplevel 2>/dev/null || true)"`;
-  const ensureRoot = `[ -f "$root/${path}" ] || root="\${CLAUDE_PROJECT_DIR:-}"; [ -f "$root/${path}" ] || ${unavailable}`;
-  const script = `${resolveRoot}; ${ensureRoot}; cd "$root" || ${unavailable}; bash "$root/${path}"`;
+  const claudeRootFallback =
+    agent.id === "codex"
+      ? ""
+      : `; [ -f "$root/${path}" ] || root="\${CLAUDE_PROJECT_DIR:-}"`;
+  const ensureRoot = `[ -f "$root/${path}" ] || ${unavailable}`;
+  const script = `${resolveRoot}${claudeRootFallback}; ${ensureRoot}; cd "$root" || ${unavailable}; bash "$root/${path}"`;
   return `bash -c ${shellSingleQuote(script)}`;
 }
 

@@ -742,7 +742,11 @@ function hookUnavailableCommand(script) {
 function rootResolvingCommand(script) {
   const unavailable =
     hookUnavailableCommand(script);
-  return `bash -c 'root="$(git rev-parse --show-toplevel 2>/dev/null || true)"; [ -f "$root/.goat-flow/hooks/${script}" ] || root="\${CLAUDE_PROJECT_DIR:-}"; [ -f "$root/.goat-flow/hooks/${script}" ] || ${unavailable}; cd "$root" || ${unavailable}; bash "$root/.goat-flow/hooks/${script}"'`;
+  const claudeRootFallback =
+    agent === "codex"
+      ? ""
+      : `; [ -f "$root/.goat-flow/hooks/${script}" ] || root="\${CLAUDE_PROJECT_DIR:-}"`;
+  return `bash -c 'root="$(git rev-parse --show-toplevel 2>/dev/null || true)"${claudeRootFallback}; [ -f "$root/.goat-flow/hooks/${script}" ] || ${unavailable}; cd "$root" || ${unavailable}; bash "$root/.goat-flow/hooks/${script}"'`;
 }
 
 function gruffHookEntries() {
@@ -753,7 +757,7 @@ function gruffHookEntries() {
       hooks: [
         {
           type: "command",
-          command: ".goat-flow/hooks/gruff-code-quality.sh",
+          command: rootResolvingCommand(script),
           statusMessage: "gruff code quality",
         },
       ],
@@ -1784,12 +1788,17 @@ if $HOOKS_ENABLED && $SETTINGS_SKIPPED && [[ -f "$HOOKS_DIR/deny-dangerous.sh" ]
   echo "⚠ Settings file was preserved (not overwritten)."
   echo "  The central guardrail hooks in $HOOKS_DIR were installed but may not be"
   echo "  registered in $SETTINGS_DST. Verify your settings file includes"
-  echo "  PreToolUse hook entries pointing at .goat-flow/hooks/deny-dangerous.sh."
+  echo "  root-resolving PreToolUse hook entries that invoke .goat-flow/hooks/deny-dangerous.sh."
   if [[ "$AGENT" == "claude" ]]; then
     echo ""
     echo "  For Claude, add this to $SETTINGS_DST under \"hooks\":{\"PreToolUse\":[...]}:"
     # shellcheck disable=SC2016,SC1003 # literal JSON snippet preserves nested shell quoting for copy/paste guidance.
     printf '%s\n' '    {"matcher":"Bash","hooks":[{"type":"command","command":"bash -c '\''root=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\"; [ -f \"$root/.goat-flow/hooks/deny-dangerous.sh\" ] || root=\"${CLAUDE_PROJECT_DIR:-}\"; [ -f \"$root/.goat-flow/hooks/deny-dangerous.sh\" ] || { printf '\''\\'\'''\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\''\\'\'''\'' >&2; exit 2; }; cd \"$root\" || { printf '\''\\'\'''\''BLOCKED: Policy hook unavailable: git repository root unavailable.\\n'\''\\'\'''\'' >&2; exit 2; }; bash \"$root/.goat-flow/hooks/deny-dangerous.sh\"'\''"}]}'
+  elif [[ "$AGENT" == "codex" ]]; then
+    echo ""
+    echo "  For Codex, sync hooks or mirror workflow/hooks/agent-config/codex-hooks.json."
+    echo "  Do not restore a direct .goat-flow/hooks/deny-dangerous.sh command; Codex hooks"
+    echo "  run from the session cwd and need the git-root wrapper."
   fi
   echo ""
 fi

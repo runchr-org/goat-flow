@@ -1,6 +1,6 @@
 ---
 category: gruff-cleanup
-last_reviewed: 2026-06-03
+last_reviewed: 2026-06-09
 ---
 
 ## Lesson: Do not convert a fix request into threshold tuning
@@ -12,6 +12,16 @@ last_reviewed: 2026-06-03
 **Root cause:** I treated "clear the gruff findings" as interchangeable with "make the report stop flagging them." That violated the requested fix intent. Threshold changes are policy changes, not code fixes, and they need explicit approval when the user asks to fix findings.
 
 **Prevention:** For gruff cleanup, classify the action before editing: FIX code, IGNORE paths, BASELINE accepted debt, or TUNE config. If the user asks to "fix" a rule cluster, do not tune thresholds or other rule numbers unless they explicitly approve that policy change. If a finding cannot be fixed safely in the current scope, stop and say so instead of making the analyzer quieter. Evidence anchors: `.gruff-ts.yaml` (search: `size.file-length`), `CHANGELOG.md` (search: `gruff-ts size cleanup`).
+
+## Lesson: Do not leave generated gruff defaults after an init probe
+
+**Status:** active | **Created:** 2026-06-09
+
+**What happened:** After running `gruff-ts init --force` as a probe, I left the generated default `.gruff-ts.yaml` in place while continuing hook work. Preflight later failed `Learning-loop schema` because the generated config removed project-specific tuning anchors such as `repo-standard short names`, `dashboard state and CLI option DTOs`, and `test-quality.setup-bloat`.
+
+**Root cause:** I treated `init --force` as a harmless command run instead of a policy rewrite. In goat-flow, `.gruff-ts.yaml` carries durable tuning plus semantic anchors referenced by lessons, so a generated-default reset can break verification even when the hook implementation is correct.
+
+**Prevention:** Before running `gruff-ts init --force`, classify it as a config policy rewrite and capture/compare the diff immediately. If it was only a probe, restore the project-specific tuning anchors before broad verification. Evidence anchors: `.gruff-ts.yaml` (search: `repo-standard short names`), `.gruff-ts.yaml` (search: `dashboard state and CLI option DTOs`), `.gruff-ts.yaml` (search: `test-quality.setup-bloat`), `scripts/preflight-checks.sh` (search: `Learning-loop schema`).
 
 ## Lesson: Verify a gruff path-ignore by directory scan, not by naming the file
 

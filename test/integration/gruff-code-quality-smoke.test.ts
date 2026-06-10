@@ -117,12 +117,13 @@ function runHook(
   root: string,
   payload: unknown,
   pathPrefix: string,
+  extraEnv: NodeJS.ProcessEnv = {},
 ): ReturnType<typeof spawnSync> {
   return spawnSync("bash", [HOOK], {
     cwd: root,
     input: JSON.stringify(payload),
     encoding: "utf-8",
-    env: { ...process.env, PATH: pathPrefix },
+    env: { ...process.env, ...extraEnv, PATH: pathPrefix },
   });
 }
 
@@ -209,6 +210,37 @@ Suggested fix:
   Run \`gruff-ts init --force\` to regenerate the config from current defaults.
 ERR
 exit 1
+`,
+  );
+  chmodSync(bin, 0o755);
+  return binDir;
+}
+
+/**
+ * Install a legacy `analyse --format json` mock that exits non-zero with valid
+ * JSON but no findings because the project config was rejected.
+ */
+function writeJsonConfigErrorMockGruffPy(root: string): string {
+  const binDir = join(root, ".venv", "bin");
+  mkdirSync(binDir, { recursive: true });
+  const bin = join(binDir, "gruff-py");
+  writeFileSync(
+    bin,
+    `#!/usr/bin/env bash
+if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
+  cat <<'HELP'
+Usage: mock-gruff-py analyse [options] [paths...]
+Options:
+  --format <format>
+  --fail-on <severity>
+HELP
+  exit 0
+fi
+
+cat <<'JSON'
+{"findings":[],"diagnostics":[{"type":"config-error","message":"Unknown threshold size.file-length"}],"filesDiscovered":0}
+JSON
+exit 2
 `,
   );
   chmodSync(bin, 0o755);
@@ -661,8 +693,45 @@ describe("gruff-code-quality hook", () => {
       );
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout, "", `expected silence for ${file}`);
+      assert.match(
+        result.stderr,
+        /present but gruff-(ts|py) not found on search paths/,
+      );
     }
     assert.deepEqual(readInvocations(root), []);
+  });
+
+  it("uses an explicit env override for a non-standard monorepo gruff binary", () => {
+    const root = makeRoot();
+    const overrideBinDir = writeMockGruffBinary(
+      root,
+      "strands_agents/.venv/bin",
+      "gruff-py",
+      "override.rule",
+    );
+    writeFileSync(join(root, ".gruff-py.yaml"), "rules: {}\n");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "sample.py"), "a\nb\nc\n");
+
+    const result = runHook(
+      root,
+      {
+        tool_name: "Edit",
+        tool_input: {
+          file_path: "src/sample.py",
+          changed_ranges: [{ startLine: 3, endLine: 3 }],
+        },
+      },
+      "/usr/bin:/bin",
+      { GRUFF_PY_BIN: join(overrideBinDir, "gruff-py") },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /\[warning\] src\/sample\.py:3 override\.rule - changed line finding/,
+    );
+    assert.deepEqual(readInvocations(root), ["src/sample.py"]);
   });
 
   it("exits silently for fail-soft skip cases", () => {
@@ -677,7 +746,7 @@ describe("gruff-code-quality hook", () => {
     ]);
   });
 
-  it("exits silently when binary or project config is missing", () => {
+  it("exits silently when project config is missing and diagnoses configured languages without a binary", () => {
     const root = makeRoot();
     const noBinary = runHook(
       root,
@@ -686,6 +755,20 @@ describe("gruff-code-quality hook", () => {
     );
     assert.equal(noBinary.status, 0, noBinary.stderr);
     assert.equal(noBinary.stdout, "");
+
+    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
+    const configButNoBinary = runHook(
+      root,
+      { tool_name: "Edit", tool_input: { file_path: "src/example.ts" } },
+      "/usr/bin:/bin",
+    );
+    assert.equal(configButNoBinary.status, 0, configButNoBinary.stdout);
+    assert.match(
+      configButNoBinary.stderr,
+      /gruff-code-quality: \.gruff-ts\.yaml present but gruff-ts not found on search paths/,
+    );
+    assert.match(configButNoBinary.stderr, /GRUFF_TS_BIN/);
+    rmSync(join(root, ".gruff-ts.yaml"));
 
     writeMockGruff(root);
     const noConfig = runHook(
@@ -775,6 +858,33 @@ describe("gruff-code-quality hook", () => {
     assert.match(result.stdout, /gruff-ts init --force/);
     assert.match(result.stdout, /\.gruff-ts\.yaml/);
     assert.doesNotMatch(result.stdout, /produced non-JSON output/);
+  });
+
+  it("surfaces legacy JSON config diagnostics with empty findings", () => {
+    const root = makeRoot();
+    writeJsonConfigErrorMockGruffPy(root);
+    writeFileSync(join(root, ".gruff-py.yaml"), "rules: {}\n");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "sample.py"), "a\nb\nc\n");
+
+    const result = runHook(
+      root,
+      {
+        tool_name: "Edit",
+        tool_input: {
+          file_path: "src/sample.py",
+          changed_ranges: [{ startLine: 3, endLine: 3 }],
+        },
+      },
+      "/usr/bin:/bin",
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /gruff-code-quality: gruff-py could not analyse src\/sample\.py - Unknown threshold size\.file-length/,
+    );
+    assert.doesNotMatch(result.stdout, /0 on changed lines/);
   });
 
   it("renders gruff.hook.v1 output when the analyzer advertises the contract", () => {

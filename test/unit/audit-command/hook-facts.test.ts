@@ -107,6 +107,28 @@ describe("hook fact extraction", () => {
     assert.equal(extractSkillFacts(fs, STUB_AGENT_PROFILE).hasDispatcher, true);
   });
 
+  it("normalizes root-resolving hook launcher commands", () => {
+    const config = {
+      hooks: {
+        PreToolUse: [
+          {
+            hooks: [
+              {
+                command:
+                  'bash -c \'root="$(git rev-parse --show-toplevel 2>/dev/null || true)"; [ -f "$root/.goat-flow/hooks/deny-dangerous.sh" ] || exit 2; cd "$root" || exit 2; bash "$root/.goat-flow/hooks/deny-dangerous.sh"\'',
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    assert.deepEqual(buildDenyRegistration(STUB_AGENT_PROFILE, config), {
+      denyIsRegistered: true,
+      denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+    });
+  });
+
   it("detects current deny hook secret coverage from generalized path matcher", () => {
     const facts = extractPackagedDenyHookFacts();
     assert.equal(facts.bashDenyCoversSecrets, true);

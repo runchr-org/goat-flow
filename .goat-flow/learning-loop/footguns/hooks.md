@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-06-07
+last_reviewed: 2026-06-09
 ---
 
 **Scope:** Hook install / launch / registration / config-drift plumbing. The `deny-dangerous` guardrail's shell-grammar policy parser (substitution/heredoc handling, secret-path and `git`/`gh` write classification, payload parsing) lives in [deny-dangerous.md](deny-dangerous.md).
@@ -36,12 +36,13 @@ last_reviewed: 2026-06-07
 - Preflight/audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configuredGuardCommands`).
 - 2026-06-01 release-review recurrence: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runConfiguredHookCommandSmoke`) parses the configured command but launches `bash` against `configured.scriptPath`, so a broken `$root` resolver, stale wrapper, syntax error, or executable-bit failure passes audit while the configured agent command fails before guard startup.
 - `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case; same file (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case. Runtime contract anchors: `workflow/hooks/README.md` (search: `Failure Modes / Runtime Contracts`) and `src/cli/server/agent-hook-writer.ts` (search: `Policy hook unavailable: git repository root unavailable`).
-- 2026-06-04 PR #47 review recurrence: the generated launcher added a `$CLAUDE_PROJECT_DIR` fallback for the script path but still ran `bash "$root/..."` from the old cwd, so `workflow/hooks/deny-dangerous.sh` (search: `git rev-parse --git-common-dir`) recomputed policy root from the wrong directory and failed closed outside a repo. The change had to stay mirrored across `src/cli/server/agent-hook-writer.ts` (search: `ensureRoot`), `workflow/hooks/agent-config/claude.json` (search: `CLAUDE_PROJECT_DIR`), and `.claude/settings.json` (search: `CLAUDE_PROJECT_DIR`).
+- 2026-06-04 PR #47 review recurrence: the generated launcher added a `$CLAUDE_PROJECT_DIR` fallback for the script path but still ran `bash "$root/..."` from the old cwd, so the dispatcher recomputed policy root from the wrong directory and failed closed outside a repo. The change had to stay mirrored across `src/cli/server/agent-hook-writer.ts` (search: `ensureRoot`), `workflow/hooks/deny-dangerous.sh` (search: `resolve_goat_flow_root_from_git`), `workflow/hooks/agent-config/claude.json` (search: `CLAUDE_PROJECT_DIR`), and `.claude/settings.json` (search: `CLAUDE_PROJECT_DIR`).
+- 2026-06-09 recurrence for Codex: bare `.goat-flow/hooks/deny-dangerous.sh` commands exited 127 from a nested cwd, while a `bash -c` wrapper that resolves `git rev-parse --show-toplevel`, checks `$root/.goat-flow/hooks/deny-dangerous.sh`, `cd`s to `$root`, and then invokes the hook reached the central policy. Current anchors: `workflow/hooks/agent-config/codex-hooks.json` (search: `git rev-parse --show-toplevel`), `src/cli/server/agent-hook-writer.ts` (search: `Codex has no documented equivalent`), and `test/unit/hook-registrar.test.ts` (search: `generated Codex launchers resolve the active root`).
 
 **Prevention:**
 1. Treat configured guard-script replay as part of hook verification, not an optional integration smoke.
 2. Fail hard on exit 126/127 even when direct script self-tests pass.
-3. Document command-shape differences: Claude and Antigravity resolve the git root and fail closed when unavailable; Codex and Copilot use direct project-local paths and need project-root cwd.
+3. Document command-shape differences: Claude, Codex, and Antigravity resolve the active git root for central `.goat-flow/hooks` scripts; Claude/Antigravity have a `$CLAUDE_PROJECT_DIR` fallback outside git, Codex does not; Copilot still uses bare project-local paths and needs a repo-root working directory.
 4. Runtime smoke must execute the configured command string, or a parser-backed equivalent validating every wrapper component. Don't replace a configured command with `bash <scriptPath>` when it contains resolver logic or direct executable invocation.
 5. When a launcher falls back to a root variable, either `cd "$root"` before running the hook or pass root through a contract the hook consumes; resolving only the script path fails when the hook recomputes repo state from cwd.
 
@@ -215,6 +216,29 @@ last_reviewed: 2026-06-07
 Fix shipped 1.10.1: `migrate_claude_permission_deny` in `workflow/install-goat-flow.sh` (search: `migrate_claude_permission_deny`), invoked under `[[ "$AGENT" == "claude" ]]` in the settings block. **Remove-list, not allow-list:** it strips only `REMOVED_CLAUDE_TOOLS = {MultiEdit}`, never "anything not in the allow-set" — a user may legitimately deny valid unmanaged tools (`WebFetch`, `NotebookEdit`, `mcp__*`), and clobbering those in a user-owned file is data loss. Keep the two lists (template allow-set, migration remove-set) in sync when Claude's toolset changes. Regression test: `test/integration/setup-install.test.ts` (search: `prunes stale removed-tool`) seeds an existing settings file with MultiEdit + Edit + WebFetch denies and asserts MultiEdit is pruned, the others survive, and a second run is a no-op. Verified on the real gruff-go payload: 13 → 0, `Bash/Read/Edit/Write` preserved, JSON valid, idempotent.
 
 **Prevention (4):** When you remove or rename anything that ships into a user-owned config, add BOTH a template guard AND an upgrade migration, and a test that seeds the OLD value in an *existing* file then asserts the upgrade prunes it. A template-only test is false confidence — it passes while every already-installed project stays broken.
+
+---
+
+## Footgun: Fail-soft analyzer skips can silently uncover a configured language
+
+**Status:** active | **Created:** 2026-06-09 | **Evidence:** OBSERVED
+
+**Symptoms:** A project has a root `.gruff-<lang>.yaml` config, the matching language file is edited, and the PostToolUse hook exits 0 with no output. The agent sees no gruff feedback and may infer the changed lines are clean, while the analyzer never ran.
+
+**Why it happens:** `gruff-code-quality.sh` is intentionally fail-soft. That is correct for missing config, unsupported files, no `jq`, and no changed-line range. It is dangerous when a matching config exists but `discover_binary` misses the analyzer, because the project has opted that language into gruff coverage. A real monorepo kept `gruff-py` only under `strands_agents/.venv/bin/gruff-py`; ADR-032 correctly removed automatic `*/.venv/bin` discovery, so the old hook returned 0 silently and left Python uncovered.
+
+**Evidence:**
+- Hook contract and search paths: `workflow/hooks/gruff-code-quality.sh` (search: `BINARY_SEARCH_PATHS`) and (search: `GRUFF_PY_BIN`).
+- Diagnostic path: `workflow/hooks/gruff-code-quality.sh` (search: `present but %s not found on search paths`).
+- Config-error surfacing path: `workflow/hooks/gruff-code-quality.sh` (search: `config_error_message`).
+- Regression tests: `test/integration/gruff-code-quality-smoke.test.ts` (search: `uses an explicit env override for a non-standard monorepo gruff binary`) and (search: `surfaces legacy JSON config diagnostics with empty findings`).
+- Security constraint: `.goat-flow/learning-loop/decisions/ADR-032-scope-gruff-hook-binary-discovery.md` (search: `Scope gruff-code-quality hook binary discovery to standard install locations`).
+
+**Prevention:**
+1. Treat config-present/binary-absent as a visible misconfiguration: emit one stderr line naming the config, binary, standard search paths, and the per-language env override. Keep exit 0.
+2. Preserve ADR-032's no-recursive-discovery rule. Do not add `*/.venv/bin`, `target/debug`, or arbitrary subtree search back to `discover_binary`.
+3. For monorepos with managed analyzers outside standard install paths, use explicit executable overrides such as `GRUFF_PY_BIN=/path/to/subproject/.venv/bin/gruff-py`.
+4. When analyzer JSON has empty `findings` but config diagnostics or `filesDiscovered: 0`, surface the diagnostic before reporting a clean changed-line count.
 
 ---
 

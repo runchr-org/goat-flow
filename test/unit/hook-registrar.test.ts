@@ -124,6 +124,22 @@ function readClaudeDenyLauncher(root: string): string {
   return command;
 }
 
+/** Read the first generated Codex deny-dangerous launcher from hooks.json. */
+function readCodexDenyLauncher(root: string): string {
+  const settings = JSON.parse(
+    readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
+  ) as {
+    hooks?: {
+      PreToolUse?: Array<{
+        hooks?: Array<{ command?: string }>;
+      }>;
+    };
+  };
+  const command = settings.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command;
+  assert.equal(typeof command, "string");
+  return command;
+}
+
 /** Seed a Claude hook-capable fixture and return the generated deny launcher. */
 function installClaudeDenyHook(root: string): string {
   mkdirSync(join(root, ".claude"), { recursive: true });
@@ -157,6 +173,19 @@ function assertLauncherAllows(command: string, cwd: string): void {
   );
   assert.equal(result.stdout, "");
   assert.equal(result.stderr, "");
+}
+
+/** Execute the generated Codex launcher with a runtime-shaped payload. */
+function runCodexLauncher(
+  command: string,
+  cwd: string,
+  payload = CLAUDE_SAFE_PAYLOAD,
+): ReturnType<typeof spawnSync> {
+  return spawnSync("bash", ["-c", command], {
+    cwd,
+    encoding: "utf8",
+    input: payload,
+  });
 }
 
 describe("hook registrar", () => {
@@ -344,6 +373,40 @@ describe("hook registrar", () => {
       const withoutEnv = runClaudeLauncher(mainLauncher, scratch);
       assert.equal(withoutEnv.status, 2);
       assert.match(withoutEnv.stderr, /Policy hook unavailable/u);
+    });
+  });
+
+  it("generated Codex launchers resolve the active root without Claude env fallback", () => {
+    withTempProject((root) => {
+      runGit(root, ["init", "-q"]);
+      writeFileSync(join(root, "README.md"), "# codex fixture\n");
+      mkdirSync(join(root, ".codex"), { recursive: true });
+      writeFileSync(join(root, ".codex", "config.toml"), "\n");
+
+      applyHookState(HOOK_ID, true, root);
+
+      const launcher = readCodexDenyLauncher(root);
+      assert.match(launcher, /git rev-parse --show-toplevel/u);
+      assert.match(launcher, /cd "\$root"/u);
+      assert.doesNotMatch(launcher, /CLAUDE_PROJECT_DIR/u);
+      assert.doesNotMatch(launcher, /^\.goat-flow\/hooks/u);
+
+      const nested = join(root, "src", "cli");
+      mkdirSync(nested, { recursive: true });
+      const safe = runCodexLauncher(launcher, nested);
+      assert.equal(
+        safe.status,
+        0,
+        `Codex launcher should allow benign payload from nested cwd\nstdout:\n${safe.stdout}\nstderr:\n${safe.stderr}`,
+      );
+
+      const blocked = runCodexLauncher(
+        launcher,
+        nested,
+        CLAUDE_DANGEROUS_PAYLOAD,
+      );
+      assert.equal(blocked.status, 2);
+      assert.match(blocked.stderr, /BLOCKED: Policy/u);
     });
   });
 
