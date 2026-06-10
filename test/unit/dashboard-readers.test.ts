@@ -544,6 +544,13 @@ describe("dashboard payload readers", () => {
             dirPath: ".goat-flow/learning-loop/footguns/",
             indexPath: ".goat-flow/learning-loop/footguns/INDEX.md",
             state: "stale",
+            entryCount: 94,
+          },
+          {
+            bucket: "patterns",
+            dirPath: ".goat-flow/learning-loop/patterns/",
+            indexPath: ".goat-flow/learning-loop/patterns/INDEX.md",
+            state: "fresh",
           },
           {
             bucket: "lessons",
@@ -591,6 +598,14 @@ describe("dashboard payload readers", () => {
         dirPath: ".goat-flow/learning-loop/footguns/",
         indexPath: ".goat-flow/learning-loop/footguns/INDEX.md",
         state: "stale",
+        entryCount: 94,
+      },
+      {
+        bucket: "patterns",
+        dirPath: ".goat-flow/learning-loop/patterns/",
+        indexPath: ".goat-flow/learning-loop/patterns/INDEX.md",
+        state: "fresh",
+        entryCount: 0,
       },
     ]);
     assert.equal(report.learningLoop?.indexStaleCount, 1);

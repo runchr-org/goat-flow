@@ -184,7 +184,7 @@ export interface DashboardReport {
     staleCount: number;
     invalidLineRefCount: number;
     oversizedCount: number;
-    indexes: IndexFreshness[];
+    indexes: (IndexFreshness & { entryCount: number })[];
     indexStaleCount: number;
     indexMissingCount: number;
     oldestLastReviewed: string | null;

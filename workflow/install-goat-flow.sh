@@ -770,13 +770,13 @@ function gruffHookEntries() {
         type: "command",
         bash: path,
         powershell: `if (Get-Command bash -ErrorAction SilentlyContinue) { bash ${path} } else { Write-Output '{"permissionDecision":"deny","permissionDecisionReason":"Bash, Git Bash, or WSL is required to run ${path} on Windows."}' }`,
-        timeoutSec: 30,
+        timeoutSec: 90,
       },
     ];
   }
   return ["Edit", "Write"].map((matcher) => ({
     matcher,
-    hooks: [{ type: "command", command: rootResolvingCommand(script) }],
+    hooks: [{ type: "command", command: rootResolvingCommand(script), timeout: 90 }],
   }));
 }
 
@@ -800,7 +800,7 @@ function gruffAntigravityDefinition() {
           {
             type: "command",
             command: rootResolvingCommand("gruff-code-quality.sh"),
-            timeout: 30,
+            timeout: 90,
           },
         ],
       },

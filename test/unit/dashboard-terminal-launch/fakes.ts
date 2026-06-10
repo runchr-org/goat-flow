@@ -78,7 +78,12 @@ function runDueTimers(state: FakeTimerState, target: number): void {
     state.now = timer.at;
     timer.callback();
     if (timer.intervalMs !== undefined && !state.cancelled.has(id)) {
-      state.timers.set(id, { ...timer, at: state.now + timer.intervalMs });
+      // A zero-delay interval would requeue at the same virtual timestamp and
+      // spin this loop forever; clamp to the next millisecond like real timers.
+      state.timers.set(id, {
+        ...timer,
+        at: state.now + Math.max(1, timer.intervalMs),
+      });
     }
     state.cancelled.delete(id);
   }

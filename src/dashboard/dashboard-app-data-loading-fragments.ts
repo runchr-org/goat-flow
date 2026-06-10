@@ -178,11 +178,6 @@ async function dashboardLoadSkillQualityInventory(
       `/api/skill-quality/inventory?path=${encodeURIComponent(requestProjectPath)}&agent=${encodeURIComponent(requestRunner)}`,
     );
     const payload = readRecord(await res.json(), "Skill quality inventory");
-    const error = readErrorMessage(payload);
-    if (error) {
-      ctx.showToast(error, true);
-      return;
-    }
     if (
       !dashboardIsCurrentSkillInventoryRequest(
         ctx,
@@ -191,6 +186,11 @@ async function dashboardLoadSkillQualityInventory(
         requestGeneration,
       )
     ) {
+      return;
+    }
+    const error = readErrorMessage(payload);
+    if (error) {
+      ctx.showToast(error, true);
       return;
     }
     ctx.skillQualityArtifacts = dashboardReadSkillQualityArtifacts(payload);
@@ -204,6 +204,18 @@ async function dashboardLoadSkillQualityInventory(
       requestGeneration,
     );
   } catch (err) {
+    // Failures are staleness-guarded like successes: a late error from a
+    // superseded project/runner request must not toast over the current view.
+    if (
+      !dashboardIsCurrentSkillInventoryRequest(
+        ctx,
+        requestProjectPath,
+        requestRunner,
+        requestGeneration,
+      )
+    ) {
+      return;
+    }
     const msg = err instanceof Error ? err.message : String(err);
     ctx.showToast(msg || "Skill quality inventory failed", true);
   }

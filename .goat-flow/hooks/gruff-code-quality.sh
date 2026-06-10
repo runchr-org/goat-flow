@@ -299,6 +299,9 @@ payload_supported_file_paths() {
     file_path="${file_path//\\//}"
     case "$file_path" in
       "$normalized_root"/*) rel_path="${file_path#"$normalized_root"/}" ;;
+      # Windows drive-letter paths that missed the root match above are outside
+      # this repo, same as the rooted-path case below.
+      [A-Za-z]:/*) continue ;;
       /*) continue ;;
       *) rel_path="$(relative_path "$normalized_root" "$file_path")" ;;
     esac
@@ -1273,6 +1276,13 @@ main() {
   allow_cached_fallback=0
   if [[ -n "$payload_paths" ]]; then
     mapfile -t file_paths <<< "$payload_paths"
+  elif [[ -n "$(payload_file_paths "$payload")" ]]; then
+    # The payload named files but none are analyzable (docs/config edits, paths
+    # outside this repo): there is nothing to scan for THIS edit. Scanning
+    # git-changed files instead would surface findings unrelated to the edit,
+    # so the git fallback stays reserved for payloads carrying no paths at all
+    # (e.g. Antigravity file tools).
+    exit 0
   else
     mapfile -t file_paths < <(git_changed_supported_paths "$root")
     allow_cached_fallback=1

@@ -572,6 +572,7 @@ function readLearningLoopIndexFreshness(
     dirPath,
     indexPath,
     state: state as LearningLoopIndexFreshness["state"],
+    entryCount: readFiniteNumber(rawIndex.entryCount),
   };
 }
 

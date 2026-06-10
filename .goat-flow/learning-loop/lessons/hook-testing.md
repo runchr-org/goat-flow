@@ -109,7 +109,7 @@ last_reviewed: 2026-06-09
 
 **Prevention:** Any Bash hook that sources a shared helper must guard the source path explicitly and include a self-test that runs the hook from a temp directory without the helper. The expected result is a fail-closed guardrail message, never exit 127. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `deny_dangerous_unavailable`) and `workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh` (search: `expect_missing_common_fails_closed`).
 
-## Lesson: Codex hook commands should not depend on shell substitution
+## Lesson: Codex hook commands must use the git-root wrapper shape
 
 **Status:** active | **Created:** 2026-05-27
 

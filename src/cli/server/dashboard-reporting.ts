@@ -26,7 +26,10 @@ import type { QualityHistoryEntry } from "../quality/history.js";
 import { collectIndexFreshness } from "../stats/index-freshness.js";
 import { buildStatsReport, checkStats } from "../stats/stats.js";
 import type { AgentId } from "../types.js";
-import { resolveIndexBucketPaths } from "../learning-loop-index/parse-bucket.js";
+import {
+  parseBucket,
+  resolveIndexBucketPaths,
+} from "../learning-loop-index/parse-bucket.js";
 import { resolveLocalStatePath } from "./local-paths.js";
 import type { DashboardReport } from "./types.js";
 
@@ -233,7 +236,10 @@ function buildDashboardLearningLoopSummary(
       staleCount,
       invalidLineRefCount,
       oversizedCount,
-      indexes,
+      indexes: indexes.map((entry) => ({
+        ...entry,
+        entryCount: parseBucket(fs, entry.dirPath, entry.bucket).length,
+      })),
       indexStaleCount,
       indexMissingCount,
       oldestLastReviewed,

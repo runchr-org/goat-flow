@@ -216,6 +216,10 @@ function claudeCodexEntries(agent: AgentProfile, spec: HookSpec): JsonObject[] {
       type: "command",
       command: shellCommand(agent, spec),
     };
+    // Codex's hook schema carries no timeout field, so only Claude gets the override.
+    if (agent.id === "claude" && spec.timeoutSec !== undefined) {
+      command.timeout = spec.timeoutSec;
+    }
     if (agent.id === "codex") command.statusMessage = spec.displayName;
     return {
       matcher,
@@ -230,7 +234,7 @@ function copilotEntry(agent: AgentProfile, spec: HookSpec): JsonObject {
     type: "command",
     bash: commandPath(agent, spec.primaryScript),
     powershell: powershellCommand(agent, spec),
-    timeoutSec: 30,
+    timeoutSec: spec.timeoutSec ?? 30,
   };
 }
 
@@ -247,7 +251,7 @@ function antigravityHookDefinition(
           {
             type: "command",
             command: shellCommand(agent, spec),
-            timeout: 30,
+            timeout: spec.timeoutSec ?? 30,
           },
         ],
       },

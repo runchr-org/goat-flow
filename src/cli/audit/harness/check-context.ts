@@ -60,6 +60,11 @@ interface DocPathAccumulator {
   resolvedCount: number;
   findings: string[];
   unresolved: UnresolvedDocPath[];
+  /**
+   * Set when a canonical doc is missing outright; fails the check even when
+   * every counted path resolves, so the finding cannot be balanced away.
+   */
+  hasHardFailure: boolean;
 }
 
 /** Escape text for dynamic regex construction. */
@@ -399,6 +404,7 @@ function collectArchitectureDocPaths(
 ): void {
   if (!ctx.facts.shared.architecture.exists) {
     accumulator.findings.push("architecture.md does not exist");
+    accumulator.hasHardFailure = true;
     return;
   }
   const content = ctx.fs.readFile(".goat-flow/architecture.md");
@@ -446,6 +452,7 @@ function checkAllDocPaths(ctx: AuditContext) {
     resolvedCount: 0,
     findings: [],
     unresolved: [],
+    hasHardFailure: false,
   };
   collectRouterDocPaths(ctx, accumulator);
   collectArchitectureDocPaths(ctx, accumulator);
@@ -470,22 +477,23 @@ const docPathsResolve: HarnessCheck = {
   ),
   /** Run the Documentation paths resolve check. */
   run: (ctx) => {
-    const { totalPaths, resolvedCount, findings, unresolved } =
+    const { totalPaths, resolvedCount, findings, unresolved, hasHardFailure } =
       checkAllDocPaths(ctx);
     const details = { docPaths: { totalPaths, resolvedCount, unresolved } };
 
+    // A missing canonical doc fails outright - resolved-path counts from other
+    // sources must not balance the finding away.
+    if (hasHardFailure) {
+      return fail(
+        findings,
+        [
+          "Fix missing docs and add backtick-quoted file paths for drift detection",
+        ],
+        undefined,
+        details,
+      );
+    }
     if (totalPaths === 0) {
-      // Missing files still produce findings even when there were no path literals to inspect.
-      if (findings.length > 0) {
-        return fail(
-          findings,
-          [
-            "Fix missing docs and add backtick-quoted file paths for drift detection",
-          ],
-          undefined,
-          details,
-        );
-      }
       return pass(
         ["No file path references found in docs to validate"],
         details,

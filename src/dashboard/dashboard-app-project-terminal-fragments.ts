@@ -57,14 +57,20 @@ async function dashboardRunSkillEvaluator(
     return;
   }
   ctx.skillEvaluatorLoading = true;
+  // Verdicts depend on the project's quality profile, so a project switch
+  // while the request is in flight must not surface the old project's verdict
+  // or error. Loading still clears in finally; leaving it set would keep the
+  // Evaluate button disabled in the new project.
+  const requestProjectPath = ctx.projectPath;
   try {
-    const url = `/api/quality/evaluate?path=${encodeURIComponent(ctx.projectPath)}`;
+    const url = `/api/quality/evaluate?path=${encodeURIComponent(requestProjectPath)}`;
     const res = await dashboardFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dashboardBuildSkillEvaluatorRequestBody(ctx)),
     });
     const data = readRecord(await res.json(), "Evaluate result");
+    if (ctx.projectPath !== requestProjectPath) return;
     const error = readErrorMessage(data);
     if (error) {
       ctx.skillEvaluatorError = error;
@@ -72,6 +78,7 @@ async function dashboardRunSkillEvaluator(
     }
     ctx.skillEvaluatorResult = data;
   } catch (err) {
+    if (ctx.projectPath !== requestProjectPath) return;
     ctx.skillEvaluatorError = err instanceof Error ? err.message : String(err);
   } finally {
     ctx.skillEvaluatorLoading = false;

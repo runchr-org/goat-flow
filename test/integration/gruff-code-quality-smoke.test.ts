@@ -451,8 +451,9 @@ describe("gruff-code-quality hook", () => {
     assert.deepEqual(readInvocations(root), ["src/example.ts"]);
   });
 
-  // Fixture purpose: mutates git state to cover fallback when payload paths are unsupported.
-  it("falls back to git-changed supported files when payload paths are unsupported", () => {
+  // Fixture purpose: mutates git state to prove unsupported payload paths stay
+  // scoped to the edit instead of sweeping unrelated git-changed files.
+  it("skips analysis when payload paths are unsupported even though supported files are dirty", () => {
     const root = makeRoot();
     initGit(root);
     writeMockGruff(root);
@@ -475,11 +476,8 @@ describe("gruff-code-quality hook", () => {
     );
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /\[warning\] src\/fallback\.ts:3 changed\.rule - changed line finding/,
-    );
-    assert.deepEqual(readInvocations(root), ["src/fallback.ts"]);
+    assert.equal(result.stdout, "");
+    assert.deepEqual(readInvocations(root), []);
   });
 
   it("treats new Write files as fully changed", () => {

@@ -144,6 +144,7 @@ interface LearningLoopIndexFreshness {
   dirPath: string;
   indexPath: string;
   state: "fresh" | "stale" | "missing" | "no-bucket";
+  entryCount: number;
 }
 
 /** Dashboard audit report returned by `/api/audit`. */

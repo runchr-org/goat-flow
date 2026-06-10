@@ -79,7 +79,7 @@ function assertPresent(root: string, paths: string[]): void {
   }
 }
 
-/** Spawns a git command in a fixture project and fail with stdout/stderr context. */
+/** Spawns a git command in a fixture project and fails with stdout/stderr context. */
 function runGit(cwd: string, args: string[]): string {
   const result = spawnSync("git", args, {
     cwd,
@@ -263,6 +263,11 @@ describe("hook registrar", () => {
       const antigravityGruffCommand =
         readAntigravityGruffCommand(antigravityHooks);
 
+      // every() on an empty list passes vacuously; require commands first.
+      assert.ok(
+        claudeGruffCommands.length > 0,
+        "expected generated Claude gruff commands",
+      );
       assert.match(
         claudeSettings,
         /Policy hook unavailable: git repository root unavailable\./u,
