@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.11.0 - 2026-06-10
+## v1.11.0 - 2026-06-11
 
 Harness hardening release: hook guardrails now run from the active checkout, gruff diagnostics are less brittle in monorepos, learning-loop memory is indexed and visible, and skill/playbook authoring has stronger routing checks before stale guidance ships.
 
