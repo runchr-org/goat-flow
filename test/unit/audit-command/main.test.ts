@@ -19,7 +19,6 @@ import {
   agentSummary,
   buildProjectStructure,
   checkSelectedInstructionAvailable,
-  computeContent,
   CONSTRAINTS_CHECKS,
   FEEDBACK_LOOP_CHECKS,
   incidentProvenance,
@@ -132,7 +131,6 @@ describe("audit on well-configured project", () => {
     );
     assert.equal(agentDenyMechanism.id, "agent-guardrails");
     assert.deepEqual(scanSemanticDrift(ctx), { findings: [], filesScanned: 0 });
-    assert.equal(typeof computeContent, "function");
     assertHarnessCheckArraysPopulated();
     assert.equal(
       validateRegisteredCheckProvenance(createFS(PROJECT_ROOT)),

@@ -1,7 +1,17 @@
 ---
 category: gruff-cleanup
-last_reviewed: 2026-06-10
+last_reviewed: 2026-06-11
 ---
+
+## Lesson: Nested template literals hide entire code regions from gruff-ts masking
+
+**Status:** active | **Created:** 2026-06-11
+
+**What happened:** `waste.unused-import` flagged `rename` in `test/integration/dashboard-projects-api.test.ts` even though `await rename(root, moved)` was plainly used later in the file. Probing `maskNonCode` from the installed gruff-ts showed the cause: a template literal nested inside another template's `${...}` interpolation corrupted the masker's interpolation-depth state, blanking roughly sixty lines of real code. Every line rule was blind to that region, so the import's only usage did not count - and any real finding in the blanked region would have been invisible too.
+
+**Root cause:** gruff-ts's masking lexer tracks template interpolation depth without a nesting stack, so `` `${fn(`${a},${b}`)}` `` leaves the state dirty and a later code `}` flips the masker into template-body mode until the next backtick.
+
+**Prevention:** When a gruff finding contradicts code you can see (an unused-import with a visible usage, or a rule silent where it clearly should fire), probe the masked source before trusting either side - import `maskNonCode` from the installed analyzer and count occurrences. Until gruff-ts masks nested templates correctly, hoist inner template literals into named consts (clearer code anyway) and report the masker bug upstream. Evidence anchor: `test/integration/dashboard-projects-api.test.ts` (search: `Hoisted out of the fetch template`).
 
 ## Lesson: Do not convert a fix request into threshold tuning
 

@@ -226,8 +226,12 @@ describe("dashboard /api/projects", () => {
       runGit(two, ["init"]);
       runGit(two, ["remote", "add", "origin", remoteUrl]);
 
+      // Hoisted out of the fetch template: nested template literals corrupt gruff-ts's
+      // source masker (false waste.unused-import on `rename`); inline again once gruff-ts
+      // masks nested templates correctly.
+      const pathsParam = `${one},${two}`;
       const { body } = await fetchJson(
-        `/api/projects/status?paths=${encodeURIComponent(`${one},${two}`)}`,
+        `/api/projects/status?paths=${encodeURIComponent(pathsParam)}`,
       );
       const data = expectRecord(body, "Projects status response");
       assert.ok(Array.isArray(data.projects));

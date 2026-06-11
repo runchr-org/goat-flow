@@ -482,42 +482,10 @@ class TerminalManager {
     }
 
     session.ws = socket;
-
-    // Replay buffered output so reconnects do not lose terminal context gathered while detached.
-    if (session.detachBuffer.length > 0) {
-      for (const chunk of session.detachBuffer) {
-        sendMessage(socket, { type: "output", data: chunk });
-      }
-      session.detachBuffer = [];
-      session.detachBufferSize = 0;
-    }
+    this.replayDetachBuffer(session, socket);
 
     socket.on("message", (raw: Buffer | string) => {
-      const text = typeof raw === "string" ? raw : raw.toString("utf-8");
-      const decoded = decodeClientMessage(text);
-      if (!decoded.ok) {
-        sendMessage(socket, {
-          type: "error",
-          message: `${decoded.path}: ${decoded.error}`,
-        });
-        return;
-      }
-      const msg = decoded.value;
-
-      if (msg.type === "input") {
-        session.lastInputAt = Date.now();
-        this.resetIdleTimer(session);
-        this.traceTerminalInput(session, "terminal.send", msg.data);
-        if (looksLikePromptSend(msg.data)) {
-          this.traceTerminalInput(session, "prompt.send", msg.data);
-        }
-        session.pty?.write(msg.data);
-      } else {
-        session.pty?.resize(
-          clampDim(msg.cols, 500, 80),
-          clampDim(msg.rows, 200, 24),
-        );
-      }
+      this.handleClientMessage(session, socket, raw);
     });
 
     // WebSocket close means browser detach, not process exit; only the active socket may detach itself.
@@ -526,6 +494,66 @@ class TerminalManager {
         session.ws = null;
       }
     });
+  }
+
+  /**
+   * Replay buffered PTY output to a newly attached socket so reconnects do not
+   * lose terminal context gathered while detached, then drop the buffer.
+   *
+   * @param session - terminal session holding the detach buffer
+   * @param socket - freshly attached browser WebSocket to replay into
+   */
+  private replayDetachBuffer(
+    session: TerminalSession,
+    socket: WebSocket,
+  ): void {
+    if (session.detachBuffer.length === 0) return;
+    for (const chunk of session.detachBuffer) {
+      sendMessage(socket, { type: "output", data: chunk });
+    }
+    session.detachBuffer = [];
+    session.detachBufferSize = 0;
+  }
+
+  /**
+   * Handle one client WebSocket payload: input keystrokes feed the PTY (with
+   * idle-timer reset and prompt tracing), resize messages clamp and apply
+   * terminal dimensions, and undecodable payloads report an error to the socket.
+   *
+   * @param session - terminal session that owns the PTY the message targets
+   * @param socket - browser WebSocket the payload arrived on
+   * @param raw - wire payload as received (Buffer or string)
+   */
+  private handleClientMessage(
+    session: TerminalSession,
+    socket: WebSocket,
+    raw: Buffer | string,
+  ): void {
+    const text = typeof raw === "string" ? raw : raw.toString("utf-8");
+    const decoded = decodeClientMessage(text);
+    if (!decoded.ok) {
+      sendMessage(socket, {
+        type: "error",
+        message: `${decoded.path}: ${decoded.error}`,
+      });
+      return;
+    }
+    const msg = decoded.value;
+
+    if (msg.type === "input") {
+      session.lastInputAt = Date.now();
+      this.resetIdleTimer(session);
+      this.traceTerminalInput(session, "terminal.send", msg.data);
+      if (looksLikePromptSend(msg.data)) {
+        this.traceTerminalInput(session, "prompt.send", msg.data);
+      }
+      session.pty?.write(msg.data);
+      return;
+    }
+    session.pty?.resize(
+      clampDim(msg.cols, 500, 80),
+      clampDim(msg.rows, 200, 24),
+    );
   }
 
   /** Return the public session snapshot for one terminal session ID. */

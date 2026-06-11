@@ -54,7 +54,13 @@ interface DocPathResolution {
   unresolved: UnresolvedDocPath[];
 }
 
-/** Mutable aggregate carried across router, architecture, and core-doc checks. */
+/**
+ * Mutable aggregate carried across router, architecture, and core-doc checks.
+ *
+ * Contract: counts and finding lists only accumulate as doc sources are scanned -
+ * nothing resets between checks - and `hasHardFailure` latches true to force a
+ * failing result even when every counted path resolves.
+ */
 interface DocPathAccumulator {
   totalPaths: number;
   resolvedCount: number;

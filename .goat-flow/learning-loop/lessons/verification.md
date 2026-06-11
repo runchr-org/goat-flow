@@ -67,7 +67,7 @@ last_reviewed: 2026-06-10
 
 **Root cause:** I treated slash escaping for regex literals and `RegExp` constructor strings as the same problem. In constructor strings, `/` is not a delimiter and does not need escaping; only regex metacharacters do.
 
-**Prevention:** When asserting dynamic paths or rule IDs through `new RegExp(...)`, use a small `escapeRegex` helper for regex metacharacters instead of ad hoc slash replacement. Evidence anchors: `test/integration/gruff-code-quality-smoke.test.ts` (search: `function escapeRegex`) and `test/integration/gruff-code-quality-smoke.test.ts` (search: `selects the gruff binary from the edited file extension`).
+**Prevention:** When asserting dynamic paths or rule IDs through `new RegExp(...)`, use a small `escapeRegex` helper for regex metacharacters instead of ad hoc slash replacement. Evidence anchors: `test/integration/gruff-code-quality-smoke.helpers.ts` (search: `function escapeRegex`) and `test/integration/gruff-code-quality-smoke.test.ts` (search: `selects the gruff binary from the edited file extension`).
 
 ## Lesson: Harness fixture counts must match the reported unit
 
