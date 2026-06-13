@@ -25,6 +25,7 @@ const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const HOOK = join(PROJECT_ROOT, "workflow", "hooks", "gruff-code-quality.sh");
 
 const disposables: string[] = [];
+let payloadCounter = 0;
 
 /**
  * Remove every disposable test root created via `makeRoot`.
@@ -181,12 +182,25 @@ export function runHook(
   pathPrefix: string,
   extraEnv: NodeJS.ProcessEnv = {},
 ): ReturnType<typeof spawnSync> {
-  return spawnSync("bash", [HOOK], {
-    cwd: root,
-    input: JSON.stringify(payload),
-    encoding: "utf-8",
-    env: { ...process.env, ...extraEnv, PATH: pathPrefix },
-  });
+  payloadCounter += 1;
+  const payloadPath = `${root}.payload.${process.pid}.${payloadCounter}.json`;
+  writeFileSync(payloadPath, JSON.stringify(payload));
+  try {
+    // File-backed stdin keeps Bash `cat` readers from waiting forever for EOF
+    // under Codex's sandboxed child-process plumbing.
+    return spawnSync(
+      "bash",
+      ["-c", 'bash "$1" < "$2"', "gruff-code-quality-test", HOOK, payloadPath],
+      {
+        cwd: root,
+        encoding: "utf-8",
+        env: { ...process.env, ...extraEnv, PATH: pathPrefix },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+  } finally {
+    rmSync(payloadPath, { force: true });
+  }
 }
 
 /**

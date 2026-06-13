@@ -23,6 +23,8 @@ last_reviewed: 2026-06-14
 
 **Root cause:** I assumed Node's `spawnSync` `input` option was equivalent to a real stdin file for hook scripts. In this execution environment it was not reliable for hooks that read all stdin with `cat`, and it made correct hook behavior look like a product hang.
 
+**Recurrence 2026-06-14:** A Codex workspace-terminal `bash scripts/preflight-checks.sh` run reached `TESTS` and then stayed silent while `scripts/preflight-checks.sh` captured `npm run test:coverage` output. Process inspection showed the only remaining test workers were `test/integration/gruff-code-quality-contract.test.ts` and `test/integration/gruff-code-quality-smoke.test.ts`, each blocked under `workflow/hooks/gruff-code-quality.sh` at `read_stdin` -> `cat`. The shared gruff test helper still used `spawnSync("bash", [HOOK], { input: JSON.stringify(payload) })`, so it needed the same file-redirection mitigation.
+
 **Prevention:** When a test executes an installed hook that reads stdin with `cat`, write the payload to a temp file and pass an open read-only fd or shell redirection instead of `spawnSync(..., { input })`. Capture hook stderr explicitly if the hook launches nested runtimes. Evidence anchors: `test/integration/plan-checkbox-guard-hook.test.ts` (search: `payloadPath`), `test/unit/hook-registrar.test.ts` (search: `runLauncherWithPayload`).
 
 ---
@@ -262,5 +264,7 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **What happened:** Verifying goat-debug skill edits, I ran `npx vitest run test/contract/skill-hardening-contracts.test.ts test/unit/check-content-quality.test.ts`. Vitest treated the paths as substring filters and matched the gitignored mutation-testing sandboxes under `_temp/stryker-tmp/sandbox-*/`, whose stub copies contain no suites, so every run reported `No test suite found` and `8 failed`. The real `test/` files never executed. Re-running with `node --import tsx --test <files>` ran the actual suites (`# tests 54`).
 
 **Root cause:** This repo's runner is `node scripts/run-tests.mjs fast` (node:test via `node --import tsx --test`), which walks only `test/` and never sees `_temp/`. Vitest is not wired into the project; invoking it globs the whole tree, including Stryker's local-only `_temp/stryker-tmp` sandboxes that are gitignored and hold stubbed test files.
+
+**Recurrence 2026-06-14:** While searching for this lesson, I put the literal Markdown title `` `npx vitest` is not this repo's runner `` inside a double-quoted `rg` pattern. Bash treated the backticked text as command substitution and launched `npx vitest`, reproducing the same wrong-runner failure mode from a read-only search.
 
 **Prevention:** Use `node scripts/run-tests.mjs fast` (or `npm test`) for suite runs and `node --import tsx --test <specific-file.test.ts>` for focused files. Do not use `npx vitest` here. Read `No test suite found` originating from a `_temp/stryker-tmp/sandbox-*` path as a wrong-runner signal, not a product failure. Evidence anchors: `scripts/run-tests.mjs` (search: `listTestFiles`), `package.json` (search: `"test:fast": "node scripts/run-tests.mjs fast"`), `.gitignore` (search: `_temp`).
