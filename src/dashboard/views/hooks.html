@@ -229,6 +229,28 @@
                     </span>
                   </template>
                 </div>
+
+                <div
+                  x-show="unsupportedHookAgents(hook).length > 0"
+                  class="gf-hook-unsupported"
+                  aria-label="Unsupported hook agents"
+                >
+                  <template
+                    x-for="[agentId, state] in unsupportedHookAgents(hook)"
+                    :key="hook.id + '-unsupported-' + agentId"
+                  >
+                    <div class="gf-hook-unsupported-item">
+                      <span
+                        class="gf-hook-unsupported-agent"
+                        x-text="agentId + ' unsupported'"
+                      ></span>
+                      <span
+                        class="gf-hook-unsupported-reason"
+                        x-text="state.reason"
+                      ></span>
+                    </div>
+                  </template>
+                </div>
               </div>
 
               <div class="gf-hook-controls">

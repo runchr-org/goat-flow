@@ -57,7 +57,7 @@ Per-artifact quality view for installed skills and shared references. Shows dete
 
 ### Hooks
 
-Manage shipped guardrails and quality hooks for the selected project. Lists each registered hook (`deny-dangerous`, `gruff-code-quality`, `post-turn-safety`) with its current enabled/disabled state and the agents it is wired into (Claude, Codex, Antigravity, Copilot). Toggles update `.goat-flow/config.yaml` and reconcile per-agent hook config files. Copilot has no project-local post-turn event, so `post-turn-safety` is shown as unsupported for that runner rather than installed. Mirrors the `goat-flow hooks <list|enable|disable|sync>` CLI.
+Manage shipped guardrails and quality hooks for the selected project. Lists each registered hook (`deny-dangerous`, `gruff-code-quality`, `post-turn-safety`) with its current enabled/disabled state and the agents it is wired into (Claude, Codex, Antigravity, Copilot). Toggles update `.goat-flow/config.yaml` and reconcile per-agent hook config files. Codex currently receives only the `PreToolUse` `deny-dangerous` hook; `gruff-code-quality` and `post-turn-safety` are shown as unsupported for Codex until supported post-tool or post-turn lifecycle contracts are verified. Copilot has no project-local post-turn event, so `post-turn-safety` is shown as unsupported for that runner rather than installed. Mirrors the `goat-flow hooks <list|enable|disable|sync>` CLI.
 
 ### Projects
 

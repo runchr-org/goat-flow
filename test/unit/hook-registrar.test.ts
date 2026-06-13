@@ -129,9 +129,7 @@ function readClaudeDenyLauncher(root: string): string {
 
 /** Read the first generated Codex deny launcher because hook arrays are nested by event and matcher. */
 function readCodexDenyLauncher(root: string): string {
-  const settings = JSON.parse(
-    readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
-  ) as {
+  const settings = readCodexHookConfig(root) as {
     hooks?: {
       PreToolUse?: Array<{
         hooks?: Array<{ command?: string }>;
@@ -141,6 +139,35 @@ function readCodexDenyLauncher(root: string): string {
   const command = settings.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command;
   assert.equal(typeof command, "string");
   return command;
+}
+
+/** Read generated Codex hook config for event-key assertions. */
+function readCodexHookConfig(root: string): unknown {
+  return JSON.parse(
+    readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
+  ) as unknown;
+}
+
+/** Assert generated Codex output stays within goat-flow's current supported surface. */
+function assertCodexPreToolUseOnly(root: string): void {
+  const hooksJson = readFileSync(join(root, ".codex", "hooks.json"), "utf-8");
+  const config = JSON.parse(hooksJson) as {
+    hooks?: Record<string, unknown>;
+  };
+  assert.ok(
+    Array.isArray(config.hooks?.PreToolUse),
+    "Codex should retain PreToolUse hooks",
+  );
+  assert.deepEqual(
+    Object.keys(config.hooks ?? {}),
+    ["PreToolUse"],
+    `Codex goat-flow output should be PreToolUse-only; got ${hooksJson}`,
+  );
+  assert.match(hooksJson, /deny-dangerous\.sh/u);
+  assert.doesNotMatch(hooksJson, /PostToolUse/u);
+  assert.doesNotMatch(hooksJson, /Stop/u);
+  assert.doesNotMatch(hooksJson, /gruff-code-quality\.sh/u);
+  assert.doesNotMatch(hooksJson, /post-turn-safety\.sh/u);
 }
 
 /** Writes a Claude hook-capable fixture and return the generated deny launcher. */
@@ -536,6 +563,110 @@ describe("hook registrar", () => {
         readFileSync(join(root, ".codex", "hooks.json"), "utf-8"),
         /deny-dangerous\.sh/u,
       );
+      assertCodexPreToolUseOnly(root);
+    });
+  });
+
+  it("keeps generated Codex hooks PreToolUse-only", () => {
+    withTempProject((root) => {
+      mkdirSync(join(root, ".codex"), { recursive: true });
+      writeFileSync(join(root, ".codex", "config.toml"), "");
+
+      const denyState = applyHookState(HOOK_ID, true, root);
+      const gruffState = applyHookState("gruff-code-quality", true, root);
+      const safetyState = applyHookState("post-turn-safety", true, root);
+
+      assert.equal(denyState.agents.codex.supported, true);
+      assert.equal(denyState.agents.codex.installed, true);
+      assert.equal(gruffState.agents.codex.supported, false);
+      assert.match(gruffState.agents.codex.reason ?? "", /PreToolUse-only/iu);
+      assert.equal(safetyState.agents.codex.supported, false);
+      assert.match(safetyState.agents.codex.reason ?? "", /unverified/iu);
+      assertCodexPreToolUseOnly(root);
+    });
+  });
+
+  it("prunes stale managed Codex post-tool and stop hook entries", () => {
+    withTempProject((root) => {
+      mkdirSync(join(root, ".codex"), { recursive: true });
+      mkdirSync(join(root, ".goat-flow"), { recursive: true });
+      writeFileSync(join(root, ".codex", "config.toml"), "");
+      writeFileSync(
+        join(root, ".goat-flow", "config.yaml"),
+        "hooks:\n  gruff-code-quality:\n    enabled: true\n  post-turn-safety:\n    enabled: true\n",
+      );
+      writeFileSync(
+        join(root, ".codex", "hooks.json"),
+        `${JSON.stringify(
+          {
+            hooks: {
+              PreToolUse: [
+                {
+                  matcher: "Bash",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "bash .goat-flow/hooks/deny-dangerous.sh",
+                    },
+                  ],
+                },
+              ],
+              PostToolUse: [
+                {
+                  matcher: "Edit",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "bash .goat-flow/hooks/gruff-code-quality.sh",
+                    },
+                  ],
+                },
+                {
+                  matcher: "Edit",
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "bash ./custom-user-post-tool.sh",
+                    },
+                  ],
+                },
+              ],
+              Stop: [
+                {
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "bash .goat-flow/hooks/post-turn-safety.sh",
+                    },
+                  ],
+                },
+                {
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "bash ./custom-user-stop.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      syncHookStates(root);
+
+      const hooksJson = readFileSync(
+        join(root, ".codex", "hooks.json"),
+        "utf-8",
+      );
+      assert.doesNotMatch(hooksJson, /gruff-code-quality\.sh/u);
+      assert.doesNotMatch(hooksJson, /post-turn-safety\.sh/u);
+      assert.match(hooksJson, /deny-dangerous\.sh/u);
+      assert.match(hooksJson, /custom-user-post-tool\.sh/u);
+      assert.match(hooksJson, /custom-user-stop\.sh/u);
     });
   });
 
@@ -623,17 +754,15 @@ describe("hook registrar", () => {
       assert.equal(safetyState.enabled, true);
       assert.equal(planGuardState.enabled, true);
       assert.equal(safetyState.agents.claude.installed, true);
-      assert.equal(safetyState.agents.codex.installed, true);
+      assert.equal(safetyState.agents.codex.supported, false);
+      assert.match(safetyState.agents.codex.reason ?? "", /unverified/iu);
       assert.equal(safetyState.agents.antigravity.installed, true);
       assert.equal(safetyState.agents.copilot.supported, false);
       assert.equal(planGuardState.agents.claude.installed, true);
       // M02b spike outcome: only Claude's Stop payload is verified, so the
       // guard skips codex/antigravity with a reason instead of registering.
       assert.equal(planGuardState.agents.codex.supported, false);
-      assert.match(
-        planGuardState.agents.codex.reason ?? "",
-        /unverified/iu,
-      );
+      assert.match(planGuardState.agents.codex.reason ?? "", /unverified/iu);
       assert.equal(planGuardState.agents.antigravity.supported, false);
       assert.match(
         planGuardState.agents.antigravity.reason ?? "",
@@ -669,10 +798,7 @@ describe("hook registrar", () => {
         readStopHookCommands(claudeSettings).join("\n"),
         /plan-checkbox-guard\.sh/u,
       );
-      assert.match(
-        readStopHookCommands(codexHooks).join("\n"),
-        /post-turn-safety\.sh/u,
-      );
+      assertCodexPreToolUseOnly(root);
       assert.doesNotMatch(codexHooks, /plan-checkbox-guard\.sh/u);
       assert.match(
         readAntigravitySafetyCommand(antigravityHooks),
@@ -744,10 +870,7 @@ describe("hook registrar", () => {
       );
       assert.doesNotMatch(codexHooks, /plan-checkbox-guard\.sh/u);
       assert.doesNotMatch(antigravityHooks, /plan-checkbox-guard\.sh/u);
-      assert.match(
-        readStopHookCommands(codexHooks).join("\n"),
-        /post-turn-safety\.sh/u,
-      );
+      assert.doesNotMatch(codexHooks, /post-turn-safety\.sh/u);
       assert.match(
         readAntigravitySafetyCommand(antigravityHooks),
         /post-turn-safety\.sh/u,

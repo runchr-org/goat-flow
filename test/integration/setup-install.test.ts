@@ -46,6 +46,16 @@ describe("setup --apply installer", () => {
       existsSync(join(root, ".goat-flow", "hooks", "plan-checkbox-guard.sh")),
       true,
     );
+    const codexHooks = readFileSync(
+      join(root, ".codex", "hooks.json"),
+      "utf-8",
+    );
+    assert.match(codexHooks, /PreToolUse/u);
+    assert.match(codexHooks, /deny-dangerous\.sh/u);
+    assert.doesNotMatch(codexHooks, /PostToolUse/u);
+    assert.doesNotMatch(codexHooks, /Stop/u);
+    assert.doesNotMatch(codexHooks, /gruff-code-quality\.sh/u);
+    assert.doesNotMatch(codexHooks, /post-turn-safety\.sh/u);
     assert.equal(
       existsSync(
         join(

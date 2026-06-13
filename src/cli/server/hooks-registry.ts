@@ -53,6 +53,10 @@ const HOOKS: HookSpec[] = [
     // Above the script's internal 60s analyzer timeout so the hook's own
     // timeout/config diagnostics print before the runner kills the wrapper.
     timeoutSec: 90,
+    unsupportedAgents: {
+      codex:
+        "Codex goat-flow hooks are PreToolUse-only until a supported post-tool lifecycle path is verified.",
+    },
   },
   {
     id: "post-turn-safety",
@@ -69,6 +73,8 @@ const HOOKS: HookSpec[] = [
     timeoutSec: 60,
     unsupportedAgents: {
       copilot: "Copilot has no project-local post-turn hook event.",
+      codex:
+        "Codex Stop-hook delivery is unverified: registered .codex/hooks.json Stop hooks did not fire under codex exec 0.139.0.",
     },
   },
   {

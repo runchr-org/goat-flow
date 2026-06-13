@@ -529,6 +529,14 @@ function dashboardHookSetupActionsFragment(
       ).length;
     },
 
+    /** Return unsupported agent surfaces with explicit reasons for inline dashboard disclosure. */
+    unsupportedHookAgents(hook: HookState): Array<[RunnerId, HookAgentState]> {
+      return this.hookAgents(hook).filter(
+        ([, state]: [RunnerId, HookAgentState]) =>
+          !state.supported && Boolean(state.reason),
+      );
+    },
+
     /** Count hooks whose desired dashboard state is enabled. */
     hooksEnabledCount(): number {
       return this.hooksState.filter((hook: HookState) => hook.enabled).length;
@@ -591,7 +599,7 @@ function dashboardHookSetupActionsFragment(
 
     /** Format one agent hook state for the hook table. */
     hookAgentStatusLabel(state: HookAgentState): string {
-      if (!state.supported) return "not for this hook";
+      if (!state.supported) return "unsupported";
       if (state.drift === "desired-on-actual-off") return "drift: missing";
       if (state.drift === "desired-off-actual-on") return "drift: installed";
       return state.installed ? "installed" : "not installed";

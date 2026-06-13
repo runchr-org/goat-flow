@@ -830,7 +830,7 @@ function gruffHookEntries() {
 }
 
 function appendGruffHookEntries(currentHooks) {
-  if (!configuredHookEnabled("gruff-code-quality")) return false;
+  if (agent === "codex" || !configuredHookEnabled("gruff-code-quality")) return false;
   const event = agent === "copilot" ? "postToolUse" : "PostToolUse";
   const currentEntries = Array.isArray(currentHooks[event]) ? currentHooks[event] : [];
   const nextEntries = [...currentEntries, ...gruffHookEntries()];
@@ -868,7 +868,7 @@ function postTurnSafetyHookEntries() {
 }
 
 function appendPostTurnSafetyEntries(currentHooks) {
-  if (agent === "copilot" || !configuredHookEnabled("post-turn-safety")) return false;
+  if (agent === "copilot" || agent === "codex" || !configuredHookEnabled("post-turn-safety")) return false;
   const currentEntries = Array.isArray(currentHooks.Stop) ? currentHooks.Stop : [];
   const nextEntries = [...currentEntries, ...postTurnSafetyHookEntries()];
   if (JSON.stringify(currentEntries) === JSON.stringify(nextEntries)) return false;
