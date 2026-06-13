@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-13
-**Updated:** 2026-06-13 (Stop-payload spike outcome: default registration narrowed to Claude)
+**Updated:** 2026-06-14 (changeset scoped to plan-referenced files) · 2026-06-13 (Stop-payload spike: default registration narrowed to Claude)
 
 ## Context
 
@@ -36,3 +36,9 @@ Default registration is therefore Claude-only: the registry's `unsupportedAgents
 ## Reversibility
 
 This is a two-way door. The hook can be disabled with `hooks.plan-checkbox-guard.enabled: false`, narrowed with `plan-guard.plan-file`, or removed from default install if Stop payloads prove unstable in a supported agent — the 2026-06-13 spike exercised exactly this lever for codex/antigravity. Reversal must preserve ADR-037: do not restore `post-turn-validate.sh` or replace this guard with project-specific validation.
+
+## Update (2026-06-14): scope the changeset to plan-referenced files
+
+The first implementation hashed the whole-repo changeset (`git status` + tracked diff + untracked metadata), so **any** edit anywhere blocked the Stop even when the work was unrelated to the active plan — the exact "block unrelated work" failure this ADR's own Failure Mode table rejects. Observed when skill-documentation edits tripped the guard against an unrelated jq16/CI milestone.
+
+The guard now scopes the changeset digest to files the active milestone references: a changed path counts only when its repo-relative path appears as a whole token in the plan body (`planMentionsPath` boundary match in `workflow/hooks/plan-checkbox-guard.sh`). When no referenced file changed, the digest is a stable constant, so unrelated churn never moves the baseline. Genuine plan work still fires because well-formed milestones pin the file paths they touch (the goat-plan cold-start bar). This is a fail-open refinement consistent with "optional plan state must not become a noisy quality gate"; both directions are covered by `test/integration/plan-checkbox-guard-hook.test.ts` ("ignores changes to files the active plan does not reference", "blocks only referenced-file changes, not surrounding churn"). A leading `./` on the plan reference is normalized so a dot-slash path still scopes its file ("blocks changes to files referenced with a ./ prefix"), and the scoped `git status`/`git diff` calls pass `--literal-pathspecs` so a filename containing pathspec magic (`[`, `:`) digests its real content instead of being read as a glob ("blocks changes to a referenced file whose name has pathspec characters"). A bare directory reference still does not cover files beneath it ("does not fire for directory-only references"), matching the cold-start bar that well-formed milestones pin the exact paths they touch.

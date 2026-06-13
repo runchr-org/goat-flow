@@ -2,9 +2,10 @@
 # plan-checkbox-guard.sh
 # goat-flow-hook-version: 1.12.0
 #
-# Universal Stop hook that catches changed-work / unchanged-plan drift.
-# It is workflow hygiene only: it does not run tests, linters, builds, or
-# project-specific validation commands.
+# Universal Stop hook that catches changed-work / unchanged-plan drift,
+# scoped to the files the active plan references (unrelated repo churn is
+# ignored). It is workflow hygiene only: it does not run tests, linters,
+# builds, or project-specific validation commands.
 
 set -uo pipefail
 
@@ -421,12 +422,59 @@ function writeState(root, state) {
   return true;
 }
 
-function readUntrackedMetadata(root) {
+function listChangedPaths(root) {
+  const paths = new Set();
+  const addZ = (buffer) => {
+    for (const entry of buffer.toString("utf8").split("\0")) {
+      if (entry) paths.add(entry);
+    }
+  };
+  try {
+    addZ(gitBuffer(["diff", "--name-only", "-z", "HEAD"], root));
+  } catch {
+    addZ(gitBuffer(["diff", "--name-only", "-z"], root));
+    addZ(gitBuffer(["diff", "--cached", "--name-only", "-z"], root));
+  }
+  addZ(gitBuffer(["ls-files", "--others", "--exclude-standard", "-z"], root));
+  return [...paths];
+}
+
+// A changed path is plan-related when its repo-relative path appears as a whole
+// token in the active plan body. This scopes the guard to the plan the agent is
+// actually working: unrelated repository churn never moves the digest, so the
+// guard stays quiet (ADR-038: optional plan state must not block unrelated work).
+function planMentionsPath(content, path) {
+  const isPathChar = (char) => char !== "" && /[A-Za-z0-9._/-]/u.test(char);
+  let from = 0;
+  for (;;) {
+    const index = content.indexOf(path, from);
+    if (index === -1) return false;
+    const before = index === 0 ? "" : content[index - 1];
+    const after = content[index + path.length] ?? "";
+    if (!isPathChar(before) && !isPathChar(after)) return true;
+    from = index + 1;
+  }
+}
+
+function planRelatedPaths(root, planContent) {
+  // Git reports repo-relative paths (`src/app.ts`); a plan may pin the same file
+  // with a `./` prefix (`./src/app.ts`). Match both forms so a leading `./` does
+  // not silently drop the file from scope and fail the guard open.
+  return listChangedPaths(root)
+    .filter(
+      (path) =>
+        planMentionsPath(planContent, path) ||
+        planMentionsPath(planContent, `./${path}`),
+    )
+    .sort();
+}
+
+function untrackedMetadata(root, related) {
   const raw = gitBuffer(["ls-files", "--others", "--exclude-standard", "-z"], root);
   const paths = raw
     .toString("utf8")
     .split("\0")
-    .filter(Boolean)
+    .filter((path) => path && related.has(path))
     .sort();
   return paths
     .map((path) => {
@@ -446,21 +494,30 @@ function readUntrackedMetadata(root) {
     .join("\0");
 }
 
-function trackedDiffBuffer(root) {
+function scopedDiffBuffer(root, related) {
+  // --literal-pathspecs: treat each related path as a literal, never a glob, so a
+  // filename with pathspec magic (`[`, `:`, `*`) still digests its real content.
+  const pathspec = ["--", ...related];
   try {
-    return gitBuffer(["diff", "--no-ext-diff", "--binary", "HEAD"], root);
+    return gitBuffer(["--literal-pathspecs", "diff", "--no-ext-diff", "--binary", "HEAD", ...pathspec], root);
   } catch {
     return Buffer.concat([
-      gitBuffer(["diff", "--no-ext-diff", "--binary"], root),
-      gitBuffer(["diff", "--cached", "--no-ext-diff", "--binary"], root),
+      gitBuffer(["--literal-pathspecs", "diff", "--no-ext-diff", "--binary", ...pathspec], root),
+      gitBuffer(["--literal-pathspecs", "diff", "--cached", "--no-ext-diff", "--binary", ...pathspec], root),
     ]);
   }
 }
 
-function changesetDigest(root) {
-  const status = gitBuffer(["status", "--porcelain=v1", "-z"], root);
-  const diff = trackedDiffBuffer(root);
-  const untracked = Buffer.from(readUntrackedMetadata(root), "utf8");
+// Digest only the changes to files the active plan references. With nothing
+// plan-related changed, the digest is a stable constant so unrelated work never
+// trips the guard.
+function changesetDigest(root, planContent) {
+  const related = planRelatedPaths(root, planContent);
+  if (related.length === 0) return sha256("plan-scope:no-related-changes");
+  const relatedSet = new Set(related);
+  const status = gitBuffer(["--literal-pathspecs", "status", "--porcelain=v1", "-z", "--", ...related], root);
+  const diff = scopedDiffBuffer(root, related);
+  const untracked = Buffer.from(untrackedMetadata(root, relatedSet), "utf8");
   return sha256(Buffer.concat([
     Buffer.from("status\0", "utf8"),
     status,
@@ -496,7 +553,7 @@ if (config.enabled === false) process.exit(0);
 const activePlan = resolveActivePlan(root, config);
 if (!activePlan) process.exit(0);
 
-const currentDigest = changesetDigest(root);
+const currentDigest = changesetDigest(root, activePlan.content);
 const state = readState(root);
 const prior = state.sessions[sessionId];
 const nextSessionState = {
@@ -520,7 +577,7 @@ if (prior.planHash !== activePlan.hash) {
 
 if (prior.changesetHash !== currentDigest) {
   stderr(
-    `${activePlan.relPath} still has ${activePlan.openBoxes} open checkbox(es), but repository changes moved since the last baseline.`,
+    `${activePlan.relPath} still has ${activePlan.openBoxes} open checkbox(es), but files it references changed since the last baseline.`,
   );
   stderr(
     "Tick completed tasks, update the plan with an out-of-plan note, or explain why no checkbox moved before stopping.",

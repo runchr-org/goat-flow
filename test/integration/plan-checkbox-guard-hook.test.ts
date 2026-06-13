@@ -85,6 +85,29 @@ function writeActivePlan(
       "",
       "**Status:** in-progress",
       "",
+      "Files in scope: `src/app.txt`, `src/file with spaces.txt`, `delete-me.txt`",
+      "",
+      "- [ ] Do the work",
+      "",
+    ].join("\n"),
+  );
+  stageAll(root);
+  return path;
+}
+
+function writeScopedPlan(root: string, scopeLine: string): string {
+  const path = ".goat-flow/plans/1.12.0/M01.md";
+  writeFile(root, ".goat-flow/plans/.active", "1.12.0\n");
+  writeFile(
+    root,
+    path,
+    [
+      "# M01: Scoped plan",
+      "",
+      "**Status:** active",
+      "",
+      scopeLine,
+      "",
       "- [ ] Do the work",
       "",
     ].join("\n"),
@@ -336,6 +359,65 @@ describe("plan-checkbox-guard hook", () => {
       utimesSync(join(root, ".goat-flow/plans/2.0.0/M01.md"), old, old);
       writeFile(root, "src/app.txt", "changed\n");
 
+      assertAllows(runHook(root));
+    });
+  });
+
+  it("ignores changes to files the active plan does not reference", () => {
+    withTempRepo((root) => {
+      writeActivePlan(root);
+      assertAllows(runHook(root));
+
+      // Work unrelated to the plan's referenced files must not trip the guard.
+      writeFile(root, "docs/unrelated.md", "unrelated change\n");
+
+      assertAllows(runHook(root));
+    });
+  });
+
+  it("blocks only referenced-file changes, not surrounding churn", () => {
+    withTempRepo((root) => {
+      const planPath = writeActivePlan(root);
+      assertAllows(runHook(root));
+
+      writeFile(root, "docs/unrelated.md", "noise\n");
+      assertAllows(runHook(root));
+
+      writeFile(root, "src/app.txt", "real plan work\n");
+      assertBlocks(runHook(root), planPath);
+    });
+  });
+
+  it("blocks changes to files referenced with a ./ prefix", () => {
+    withTempRepo((root) => {
+      const planPath = writeScopedPlan(root, "Files in scope: `./src/app.txt`");
+      assertAllows(runHook(root));
+
+      // Git reports `src/app.txt`; the plan pinned `./src/app.txt`. The leading
+      // `./` must still scope the file, otherwise the guard fails open.
+      writeFile(root, "src/app.txt", "changed\n");
+      assertBlocks(runHook(root), planPath);
+    });
+  });
+
+  it("blocks changes to a referenced file whose name has pathspec characters", () => {
+    withTempRepo((root) => {
+      const planPath = writeScopedPlan(root, "Files in scope: `src/a[1].txt`");
+      assertAllows(runHook(root));
+
+      // `[` is pathspec-magic; --literal-pathspecs must still digest the file.
+      writeFile(root, "src/a[1].txt", "changed\n");
+      assertBlocks(runHook(root), planPath);
+    });
+  });
+
+  it("does not fire for directory-only references (children are out of token scope)", () => {
+    withTempRepo((root) => {
+      writeScopedPlan(root, "Files in scope: `src/cli/`");
+      assertAllows(runHook(root));
+
+      // ADR-038 fail-open: a bare directory reference does not cover files beneath it.
+      writeFile(root, "src/cli/foo.txt", "changed\n");
       assertAllows(runHook(root));
     });
   });

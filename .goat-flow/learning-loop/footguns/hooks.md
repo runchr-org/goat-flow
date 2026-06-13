@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-06-13
+last_reviewed: 2026-06-14
 ---
 
 **Scope:** Hook install / launch / registration / config-drift plumbing. The `deny-dangerous` guardrail's shell-grammar policy parser (substitution/heredoc handling, secret-path and `git`/`gh` write classification, payload parsing) lives in [deny-dangerous.md](deny-dangerous.md).
@@ -251,9 +251,9 @@ Fix shipped 1.10.1: `migrate_claude_permission_deny` in `workflow/install-goat-f
 **Evidence:**
 - M02b Evidence section, `.goat-flow/plans/1.12.0/M02b-plan-checkbox-guard.md` (search: `Stop payload fields and supported-agent notes`).
 - `src/cli/server/hooks-registry.ts` (search: `unsupportedAgents`) gates `plan-checkbox-guard` to Claude with the spike reasons.
-- Affects `post-turn-safety` too: it stays registered for codex/antigravity Stop events, but no codex/antigravity Stop execution has been observed in this workspace (`.goat-flow/logs/plan-guard-state.json` had no real agent sessions before 2026-06-13).
+- `post-turn-safety` was held to the same standard on 2026-06-14: `antigravity` was added to its `unsupportedAgents` (codex was already gated), so neither Stop hook now ships default-on to an agent whose delivery is unverified. A default-on *secret scanner* whose Stop event may never fire is false assurance - arguably worse than shipping nothing, because the dashboard still reports it "installed."
 
-**Prevention:** Treat hook registration facts as config evidence only. Before claiming an agent runs a Stop hook, capture a live payload (or hook-side log write) from that agent; for Codex assume an interactive `/hooks` review is required per project, and for Antigravity assume `trusted_hooks.json` approval is required. Gate default registration on verified delivery, not documented support.
+**Prevention:** Treat hook registration facts as config evidence only. Before claiming an agent runs a Stop hook, capture a live payload (or hook-side log write) from that agent; for Codex assume an interactive `/hooks` review is required per project, and for Antigravity assume `trusted_hooks.json` approval is required. Gate default registration on verified delivery, not documented support - and keep the gate consistent across *every* Stop hook for that agent (do not gate `plan-checkbox-guard` while leaving `post-turn-safety` default-on for the same agent). Gating one Stop hook for one agent is a lock-step edit: `workflow/manifest.json` `hook_events.post_turn` -> `null` (which flips `supportsPostTurnHook` in `src/cli/agents/registry.ts` (search: `supportsPostTurnHook`) so `check-verification.ts` *skips* the agent instead of penalising it), `hooks-registry.ts` `unsupportedAgents`, the generated `.agents/hooks.json` (regenerate via `goat-flow hooks sync`, never hand-edit the escaped launcher JSON), plus the README hook table / CHANGELOG / `docs/dashboard.md` and the `hook-registrar` tests.
 
 ## Resolved Entries
 

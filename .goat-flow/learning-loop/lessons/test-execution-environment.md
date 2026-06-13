@@ -1,6 +1,6 @@
 ---
 category: test-execution-environment
-last_reviewed: 2026-06-13
+last_reviewed: 2026-06-14
 ---
 
 ## Lesson: The session shell's `grep` is a ugrep wrapper that silently skips gitignored paths
@@ -252,3 +252,15 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 **Recurrence 2026-06-04:** While fixing PR #47 CI, a clean temporary worktree with symlinked `node_modules` and `dist` produced a false installer round-trip `Skill Template Drift` failure. Re-running the same patch from a clean worktree with real `npm ci` and `npm run build` passed. For installer round-trip proof, symlink shortcuts are not CI-equivalent because the fixture copies the source tree before preflight rebuilds it. Evidence anchors: `test/integration/audit-drift.helpers.ts` (search: `cpSync(PROJECT_ROOT, root`), `package.json` (search: `rmSync('dist'`).
 
 **Prevention:** For "clean checkout" proofs, use a real clone when the test suite includes hooks, audit checks, or git-root discovery. Use `git archive` only for tests that are explicitly gitless. If an archive run fails with `deny-dangerous-self-test.sh --self-test=smoke failed`, rerun in a real clone before changing hook logic. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `resolve_goat_flow_root`), `.goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh` (search: `expect_allow shell "echo safe"`), `test/unit/audit-command/agent-deny-hooks-drift.test.ts` (search: `passes when the installed deny hook matches the canonical template`), `package.json` (search: `"test:fast"`).
+
+---
+
+## Lesson: `npx vitest` is not this repo's runner and trips on `_temp/stryker-tmp` sandboxes
+
+**Status:** active | **Created:** 2026-06-14
+
+**What happened:** Verifying goat-debug skill edits, I ran `npx vitest run test/contract/skill-hardening-contracts.test.ts test/unit/check-content-quality.test.ts`. Vitest treated the paths as substring filters and matched the gitignored mutation-testing sandboxes under `_temp/stryker-tmp/sandbox-*/`, whose stub copies contain no suites, so every run reported `No test suite found` and `8 failed`. The real `test/` files never executed. Re-running with `node --import tsx --test <files>` ran the actual suites (`# tests 54`).
+
+**Root cause:** This repo's runner is `node scripts/run-tests.mjs fast` (node:test via `node --import tsx --test`), which walks only `test/` and never sees `_temp/`. Vitest is not wired into the project; invoking it globs the whole tree, including Stryker's local-only `_temp/stryker-tmp` sandboxes that are gitignored and hold stubbed test files.
+
+**Prevention:** Use `node scripts/run-tests.mjs fast` (or `npm test`) for suite runs and `node --import tsx --test <specific-file.test.ts>` for focused files. Do not use `npx vitest` here. Read `No test suite found` originating from a `_temp/stryker-tmp/sandbox-*` path as a wrong-runner signal, not a product failure. Evidence anchors: `scripts/run-tests.mjs` (search: `listTestFiles`), `package.json` (search: `"test:fast": "node scripts/run-tests.mjs fast"`), `.gitignore` (search: `_temp`).

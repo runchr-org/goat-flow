@@ -1,6 +1,6 @@
 ---
 category: verification-testing
-last_reviewed: 2026-06-03
+last_reviewed: 2026-06-14
 ---
 
 ## Lesson: Hook fallback fixes must preserve the caller-visible failure signal
@@ -70,6 +70,8 @@ last_reviewed: 2026-06-03
 **Status:** active | **Created:** 2026-05-19
 
 **What happened:** Wording/schema edits repeatedly breached ADR-023 word caps: `skill-quality-testing/tdd-iteration.md` hit 3022/3008 words, `skill-preamble.md` exceeded 1500, and on 2026-05-22 proof-class fields pushed `goat-qa/SKILL.md` to 2578+.
+
+**Recurrence 2026-06-14:** While adding concrete examples to the dispatcher, the first `goat/SKILL.md` patch reached 653 words against the 555-word dispatcher cap. The fix compressed examples and anti-excuse wording before final verification. Evidence anchors: `workflow/skills/goat/SKILL.md` (search: `**Route Snapshot examples:**`), `test/contract/skill-hardening-contracts.test.ts` (search: `dispatcher /goat stays within the 555-word cap across all mirrors`).
 
 **Root cause:** Treated prose edits as tiny while changing files governed by hard word-budget contracts.
 
@@ -165,9 +167,11 @@ last_reviewed: 2026-06-03
 
 **What happened:** During M05b verification, a malformed `rg` command accidentally left a literal `>` outside the quoted search pattern. The shell interpreted it as output redirection and truncated `src/dashboard/views/home.html` to an empty file. The mistake was caught by `wc -l`, `git diff`, and the dashboard HTML regression before final verification, then the Home template was restored.
 
-**Root cause:** The search pattern contained HTML text (`pill-label">`) and the command was assembled too casually. A read-only verification command stopped being read-only because the shell parsed the stray `>` before `rg` ever ran.
+**Recurrence 2026-06-14:** While verifying a `goat-qa` skill-doc edit, an `rg` pattern included Markdown backticks around `initialInput`. The deny-dangerous hook blocked it as command substitution before execution. No files were changed by the blocked command, but the verification pass still had to be rerun with a safer pattern. Evidence anchors: `workflow/skills/goat-qa/SKILL.md` (search: `safe to skip more PTY timing tests`) and `.goat-flow/learning-loop/lessons/verification-testing.md` (search: `Shell metacharacters in verification searches can corrupt source files`).
 
-**Prevention:** Quote every search pattern containing `<`, `>`, `|`, or quotes as a single shell argument, or pass it via a safer command form. After any complex shell search over generated/HTML-heavy files, run `git diff --stat` or `wc -l` on touched files before continuing verification.
+**Root cause:** The search pattern contained shell-significant characters (`>` in HTML text, later backticks in Markdown text) and the command was assembled too casually. A read-only verification command stopped being read-only because the shell parsed the pattern before `rg` ever ran.
+
+**Prevention:** Quote every search pattern containing `<`, `>`, `|`, backticks, or quotes as a single shell argument, or pass it via a safer command form. After any complex shell search over generated/HTML-heavy files, run `git diff --stat` or `wc -l` on touched files before continuing verification.
 
 ---
 
@@ -216,4 +220,15 @@ last_reviewed: 2026-06-03
 **Root cause:** I edited a shell regex directly inside `[[ ... =~ ... ]]` instead of moving the pattern to a variable, which is safer for regex metacharacters that the Bash parser can see. I also forgot the existing VM cross-realm lesson when adding a new classic-script helper test.
 
 **Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `workflow/hooks/deny-dangerous/patterns-writes.sh` (search: `is_git_push`), `workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh` (search: `sudo git push`), `src/dashboard/views/quality.html` (search: `qualityHistoryRows.length`).
+---
+
+## Lesson: Coverage classification by filename misjudges in both directions
+
+**Status:** active | **Created:** 2026-06-14
+
+**What happened:** While authoring a worked Audit example for the goat-qa skill, I classified `src/cli/audit/` coverage from same-name unit-test files alone: I marked `check-goat-flow.ts` NONE (no `check-goat-flow.test.ts`) and called `check-drift.ts`'s `checkDrift` orchestrator untested because its unit test only covers two pure helpers. Both verdicts were wrong - `check-goat-flow.ts`'s setup checks run behaviourally in `test/integration/audit-build.test.ts` and `checkDrift` is exercised by `test/integration/audit-drift.test.ts`. The example would have taught the exact filename-only fallacy goat-qa exists to refute, in a skill whose own Excuse/Reality table says "STRUCTURAL is not BEHAVIOURAL".
+
+**Root cause:** I treated filename/same-name matching and one unit file's `describe` blocks as a coverage proxy and skipped the integration suite. Filename presence misleads in both directions: a missing same-name file is not NONE (integration tests may cover it), and a present same-name file is not full coverage (it may exercise only helpers, not the load-bearing entry point).
+
+**Prevention:** When classifying or authoring coverage claims, grep the whole test tree (unit AND integration) for the module's exported symbols and for end-to-end command invocations, not just `test/**/<name>.test.ts`. Substantiate a NONE claim by proving zero references to the file's exports across `test/`, not by absence of a same-name file. Evidence anchors: `src/cli/audit/check-goat-flow.ts` (search: `SETUP_CHECKS`) is covered by `test/integration/audit-build.test.ts` (search: `assertBuildChecksPass`); `src/cli/audit/check-drift.ts` (search: `export function checkDrift`) by `test/integration/audit-drift.test.ts` (search: `checkDrift`); genuinely-uncovered counter-example `src/cli/audit/check-factual-claims.ts` (search: `runFactualClaimChecks`).
 ---

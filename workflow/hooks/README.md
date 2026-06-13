@@ -10,7 +10,7 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 | `deny-dangerous/*.sh` | Sourced policy store | Required with `deny-dangerous.sh` | Shared destructive-shell, secret-path, repository-write policy modules plus the central `deny-dangerous-self-test.sh` |
 | `gruff-code-quality.sh` | PostToolUse | Optional | Runs the matching `gruff-*` analyzer after file edits and surfaces findings whose reported line intersects changed lines |
 | `post-turn-safety.sh` | Stop | Default for supported Stop agents | Scans changed text content for built-in safety hazards such as obvious secrets, private keys, credential assignments, and merge conflict markers |
-| `plan-checkbox-guard.sh` | Stop | Default for Claude only (verified Stop payload) | Reminds agents to update the active milestone plan when repo changes move while open checkboxes remain untouched |
+| `plan-checkbox-guard.sh` | Stop | Default for Claude only (verified Stop payload) | Reminds agents to update the active milestone plan when changes to files it references move while open checkboxes remain untouched |
 
 ## Agent Event Name Mapping
 
@@ -51,7 +51,7 @@ goat-flow does not ship a project-validation Stop hook. Run project-specific bui
 
 ## Plan Checkbox Guard
 
-`plan-checkbox-guard.sh` is a workflow reminder, not a safety or validation hook. On first sighting in a session it records the active plan hash and repo changeset digest under `.goat-flow/logs/plan-guard-state.json`; later Stop events in the same session exit 2 only when repository changes moved, the active plan still has open checkboxes, and the plan file hash did not change.
+`plan-checkbox-guard.sh` is a workflow reminder, not a safety or validation hook. On first sighting in a session it records the active plan hash and a changeset digest scoped to the files the active plan references, under `.goat-flow/logs/plan-guard-state.json`; later Stop events in the same session exit 2 only when changes to those referenced files moved, the active plan still has open checkboxes, and the plan file hash did not change. Changes to files the plan does not reference (unrelated repository churn) never trip the guard.
 
 The active plan resolver prefers an explicit `plan-guard.plan-file`, then files with `status: active`, then the `.goat-flow/plans/.active` version directory, then a single recent frontmatter-less plan inside the configured search paths. Ambiguous or stale roadmap-style plans fail open with a diagnostic instead of blocking a turn.
 

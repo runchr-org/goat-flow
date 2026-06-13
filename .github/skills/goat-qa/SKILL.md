@@ -112,7 +112,9 @@ Map each stated expectation to the code path that implements it. Gaps between in
 
 **Cross-agent verification:** suggest a different agent/model for blind-spot checks.
 
-**BLOCKING GATE:** Present gap analysis plus Verification Integrity and stop. Ask: "Continue to Phase 3, or adjust the analysis first?" For explicit "what should I test" or "test plan" intent, continue through Phase 3 in the same response. Reserve diagrams for Phase 3. After the plan, suggest `/goat-plan` for milestone tasks.
+**BLOCKING GATE (auto-released on explicit test-plan intent):** Present gap analysis plus Verification Integrity, then stop and ask "Continue to Phase 3, or adjust first?" - unless the invocation already gave explicit "what should I test" / "test plan" intent, in which case treat it as a CHECKPOINT and continue through Phase 3 without pausing. Reserve diagrams for Phase 3; then suggest `/goat-plan`.
+
+**Worked Standard example:** Diff touches `src/cli/server/terminal.ts` (search: `buildTerminalSpawnSpec`). Read that diff and `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`, `uses the fallback deadline when runner output keeps updating`). Expected row: HIGH risk runner launch contract; BEHAVIOURAL coverage for prompt injection and delayed/fallback delivery; safe to skip more PTY timing tests unless timer constants changed; proof class STATIC unless executed.
 
 ## Phase 3 - Targeted Testing Plan
 
@@ -173,17 +175,26 @@ Record coverage using the Coverage Depth vocabulary above.
 
 ### A4 - Gap Report
 
-Rank gaps by `Risk × (1 - CoverageLevel)` descending. Output:
+Rank gaps by `Risk × (1 - CoverageLevel)` descending - Risk maps CRITICAL=4, HIGH=3, MEDIUM=2, LOW=1; CoverageLevel is a coverage fraction (NONE=0, STRUCTURAL=0.34, PARTIAL-BEHAVIOURAL=0.67, BEHAVIOURAL=1.0), so `(1 - CoverageLevel)` is the uncovered fraction and a CRITICAL+NONE file ranks top (4.0). Output:
 
 - **Blocking gaps** - CRITICAL-risk file with NONE or STRUCTURAL coverage. One line per file: missing behaviour + the test the user should add.
 - **High-value additions** - HIGH-risk file with PARTIAL coverage. Describe the untested path.
 - **Defer** - LOW-risk or already well-covered files. Name them explicitly so the user sees what was considered and why.
 
-**BLOCKING GATE:** Present gap report; wait for human decision before generating plan files.
+**Worked Audit example:** Scope `src/cli/audit/`; read tests, not filenames - the heuristic misleads both ways. `check-goat-flow.ts` has no same-name test yet runs behaviourally in `test/integration/audit-build.test.ts` (search: `assertBuildChecksPass`) → PARTIAL-BEHAVIOURAL, not NONE; `check-factual-claims.ts` (search: `runFactualClaimChecks`) has no unit or integration test → genuinely NONE. Expected A4 blocking gap: that content-integrity check, CRITICAL by role, NONE coverage - add a test planting a wrong skill-count and asserting it is flagged. Proof class STATIC.
+
+**BLOCKING GATE:** Present gap report; wait for human decision before generating a testing plan response. Create no plan file unless separately approved.
 
 ## Regression Guard Mode
 
-Post-verification guard planning. Cite the prior fix verification source, define 1-2 invariants, assess coverage, then hand off guard tests. This mode does NOT verify the fix itself.
+Use after a fix was already verified and the user asks how to keep it from regressing.
+
+1. Cite the prior fix-verification source.
+2. Define 1-2 human-readable invariants.
+3. Compare each invariant to existing tests/manual coverage.
+4. Output only the Regression Guards table and Verification Integrity.
+
+This mode does NOT verify the fix itself.
 
 ## Constraints
 
@@ -195,12 +206,7 @@ Post-verification guard planning. Cite the prior fix verification source, define
 - MUST apply the Proof Gate from `skill-preamble.md` to every claim made in the gap analysis or testing plan
 - MUST tag every finding/claim row with proof class `RUNTIME | CONTRACT-GREP | STATIC | NOT-REPRODUCED`
 - MUST NOT generate test code - hand off to the coding agent
-- Universal constraints from skill-preamble.md apply.
-- Standard mode: MUST read the actual diff, not just file names - a one-line auth change outranks a 200-line CSS change
-- Standard mode: MUST classify every change by risk level with plain-English description of what changed
-- Standard mode: MUST trace blast radius for CRITICAL/HIGH changes
-- Audit mode: MUST classify every in-scope file by role (load-bearing, interface, glue, UI, support), not by recency; MUST NOT read a diff or ask for one
-- Audit mode: MUST include a risk-ranked gap report with blocking-gap / high-value-addition / defer tiers
+- Universal constraints from skill-preamble.md apply; per-mode MUSTs live in the phase bodies (Phase 1 diff/risk/blast-radius; Audit A2/A4), not restated here.
 - If flow diagrams are requested, use Mermaid flowcharts (8-15 nodes, happy path first, annotate gap status per node).
 - Regression guard: MUST state invariants as human-readable sentences; MUST cite prior fix-verification source; MUST NOT verify the fix itself
 - MUST defend zero-gap results explicitly: state what was checked and why no gaps surfaced. Zero gaps without justification is an error condition, not a clean bill.

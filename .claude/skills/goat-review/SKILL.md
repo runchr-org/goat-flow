@@ -31,7 +31,7 @@ Use when reviewing a diff, PR, or set of changes. Also for quality audits of a c
 
 **PR mode (base fallback):** when no PR link or `gh` unavailable, resolve base: explicit user base, config `skills.goat-review.local_pr_base` (record configured-base or configured-base-unresolved), remote HEAD, ask user, then `main` with `base-detection-failed`. Prefer existing refs; only run `git fetch origin <base> --quiet` after explicit network approval. Diff via `origin/<base>...HEAD` if present, else local `<base>...HEAD` with `base-fetch-skipped` or `base-fetch-failed`. Record base/source/SHA in Review Integrity.
 
-**Size sizing (before Pass 1):** measure the diff. If it exceeds **20 files OR 3000 changed lines**, propose chunking by file group and ask. If the user proceeds un-chunked, record as `large-diff-unchunked` for Review Integrity.
+**Diff sizing (before Pass 1):** measure the diff. If it exceeds **20 files OR 3000 changed lines**, propose chunking by file group and ask. If the user proceeds un-chunked, record as `large-diff-unchunked` for Review Integrity.
 
 **Spec source (opt-in):** if `.goat-flow/plans/.active` exists, read it to find the active plan subdir and scan for a milestone file with `Status: in-progress` or `testing-gate`. If found, offer: "Include Spec Drift check against M[NN] exit criteria?" Default: skip for quick, offer for full. Note the choice in Review Integrity.
 
@@ -128,6 +128,10 @@ Finding line prefix: `[SEVERITY:ACTION]`. Example: `[MUST:needs-decision]`.
 
 **Proof Capsule:** every finding includes a proof class per `skill-preamble.md` Proof Classification: `RUNTIME` | `CONTRACT-GREP` | `STATIC` | `NOT-REPRODUCED`. MUST/correctness-SHOULD should prefer RUNTIME or CONTRACT-GREP. NOT-REPRODUCED adds `not-reproduced-findings` to Review Integrity.
 
+### Systemic Patterns
+
+When 3+ surfaced findings share the same root cause, report one parent entry under `## Systemic Patterns` using the highest applicable severity and action tag. Include the affected file anchors, the repeated failure mode, and the concrete harm. Keep individual findings only when they have distinct harm or distinct fixes; otherwise the systemic pattern is the finding.
+
 ### Pre-existing Separation
 
 - **Pre-existing Nearby** (in-scope surface): a pre-existing bug in the same function or tightly-coupled call-site the diff touches. Surface as a one-line pointer under `## Pre-existing Nearby`. Does not block.
@@ -178,7 +182,9 @@ Anti-hallucination surface -- tells the reader at a glance how confident the rev
 - **Size:** lines changed, files changed, chunking state. PR mode: resolved base, source annotation, short SHA.
 - **Scope snapshot:** source, base, head, uncommitted, chunking.
 - **Refutations logged:** `<N>`
-- **Degradation flags:** `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`, `not-reproduced-findings`, `coverage-degraded`, `configured-base-unresolved=<base>`, `base-detection-failed`, `base-fetch-skipped`, `base-fetch-failed`, `intent-unstated`, `cross-model-refuter-failed`.
+- **PR-mode extension:** when PR mode fetched `reviews,comments`, add `Automated-reviewer overlap: <K> overlap with <reviewer-list>, <M> net-new`; when no bot review exists, add `Automated-reviewer overlap: no-automated-review-present`; outside PR mode, omit or write `n/a`.
+- **Pass-3 extension:** when Pass 3 runs, is triggered, or is skipped after a trigger, add `Refuter pass: yes | no | skipped; confirmed=<N>, refuted=<M>, unresolved=<K>, leads-verified=<N>, model=<id|n/a>`.
+- **Degradation flags:** `chunked-partial`, `large-diff-unchunked`, `high-inference-ratio`, `files-not-opened`, `unfamiliar-area`, `missing-types`, `spec-drift-skipped`, `footguns-unread`, `not-reproduced-findings`, `coverage-degraded`, `configured-base-unresolved=<base>`, `base-detection-failed`, `base-fetch-skipped`, `base-fetch-failed`, `intent-unstated`, `automated-review-uningested`, `cross-model-refuter-failed`, `cross-model-unresolved`.
 - **Conclusion:** `confident` | `coverage-degraded` | `high-inference` | `partial`.
 
 Never leave this section empty. "confident - no degradation flags" is the minimum.
@@ -223,6 +229,8 @@ Never leave this section empty. "confident - no degradation flags" is the minimu
 - Evidence: <N> OBSERVED / <M> INFERRED
 - Refutations logged: <N>
 - Size: <files> files, <lines> lines  (chunked: <group or "no">)
+- Automated-reviewer overlap: <K> overlap with <reviewer-list>, <M> net-new | no-automated-review-present | n/a
+- Refuter pass: yes | no | skipped; confirmed=<N>, refuted=<M>, unresolved=<K>, leads-verified=<N>, model=<id|n/a>
 - Degradation flags: <list or "none">
 - Conclusion: <confident | coverage-degraded | high-inference | partial>
 
@@ -230,6 +238,9 @@ Never leave this section empty. "confident - no degradation flags" is the minimu
 
 ### MUST / SHOULD / MAY
 - [SEVERITY:ACTION] **[title]** `file + semantic anchor` - [desc] | Footgun: [entry or none] | Evidence: OBSERVED/INFERRED | Proof: RUNTIME/CONTRACT-GREP/STATIC/NOT-REPRODUCED
+
+## Systemic Patterns  <!-- only when 3+ findings share one root cause -->
+- [SEVERITY:ACTION] **[pattern title]** - affected anchors: `<file + semantic anchor>`, `<file + semantic anchor>`; repeated failure: <one sentence>; harm: <one sentence>
 
 ## Spec Drift   <!-- only when opt-in triggered; otherwise omit and log spec-drift-skipped -->
 <!-- advisory-only entries (exit-criteria drift, ready-to-tick); assumption invalidation goes under ## Findings as [MUST:needs-decision] -->
