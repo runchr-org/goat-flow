@@ -75,6 +75,8 @@ const HOOKS: HookSpec[] = [
       copilot: "Copilot has no project-local post-turn hook event.",
       codex:
         "Codex Stop-hook delivery is unverified: registered .codex/hooks.json Stop hooks did not fire under codex exec 0.139.0.",
+      antigravity:
+        "Antigravity Stop-hook delivery is unverified: hook trust gates execution and no Stop payload was captured firing.",
     },
   },
   {

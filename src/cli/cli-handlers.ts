@@ -479,6 +479,12 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
     harness: options.includeHarness,
     checkDrift: options.checkDrift,
     checkContent: options.checkContent,
+    // Default to static deny-mechanism proof: the runtime smoke executes the
+    // target checkout's own hook code (configured launcher string and managed
+    // script), so it is opt-in via `--deny-runtime-smoke` and should run only
+    // against a trusted target. The dashboard already audits selected targets
+    // at the "static" level for the same reason.
+    denyMechanismEvidenceLevel: options.denyRuntimeSmoke ? "full" : "static",
   });
 
   const reportForRender = options.auditDetails

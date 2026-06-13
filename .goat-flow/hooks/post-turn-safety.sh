@@ -87,6 +87,13 @@ scan_env_assignment() {
   value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*(.*)$/\1/p' | head -n 1)"
   value="$(trim_value "$value")"
   [ "${#value}" -ge 12 ] || return 0
+  # Free-form assignment values use substring placeholder matching, not the
+  # stricter delimiter-aware is_placeholder_token used for structured tokens
+  # above. A blocking Stop hook errs toward fewer false positives here, and
+  # documented dummies often embed markers without delimiters (e.g. AWS's
+  # wJalrX...EXAMPLEKEY). The accepted cost is missing a secret whose value
+  # merely contains "test"/"sample"; format-bearing tokens are still caught
+  # strictly above.
   if is_placeholder_text "$value"; then
     return 0
   fi

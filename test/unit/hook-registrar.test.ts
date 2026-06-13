@@ -756,7 +756,11 @@ describe("hook registrar", () => {
       assert.equal(safetyState.agents.claude.installed, true);
       assert.equal(safetyState.agents.codex.supported, false);
       assert.match(safetyState.agents.codex.reason ?? "", /unverified/iu);
-      assert.equal(safetyState.agents.antigravity.installed, true);
+      assert.equal(safetyState.agents.antigravity.supported, false);
+      assert.match(
+        safetyState.agents.antigravity.reason ?? "",
+        /unverified/iu,
+      );
       assert.equal(safetyState.agents.copilot.supported, false);
       assert.equal(planGuardState.agents.claude.installed, true);
       // M02b spike outcome: only Claude's Stop payload is verified, so the
@@ -800,10 +804,7 @@ describe("hook registrar", () => {
       );
       assertCodexPreToolUseOnly(root);
       assert.doesNotMatch(codexHooks, /plan-checkbox-guard\.sh/u);
-      assert.match(
-        readAntigravitySafetyCommand(antigravityHooks),
-        /post-turn-safety\.sh/u,
-      );
+      assert.equal(readAntigravitySafetyCommand(antigravityHooks), "");
       assert.doesNotMatch(antigravityHooks, /plan-checkbox-guard\.sh/u);
       assert.doesNotMatch(claudeSettings, /post-turn-validate\.sh/u);
       assert.doesNotMatch(codexHooks, /post-turn-validate\.sh/u);
@@ -871,10 +872,7 @@ describe("hook registrar", () => {
       assert.doesNotMatch(codexHooks, /plan-checkbox-guard\.sh/u);
       assert.doesNotMatch(antigravityHooks, /plan-checkbox-guard\.sh/u);
       assert.doesNotMatch(codexHooks, /post-turn-safety\.sh/u);
-      assert.match(
-        readAntigravitySafetyCommand(antigravityHooks),
-        /post-turn-safety\.sh/u,
-      );
+      assert.equal(readAntigravitySafetyCommand(antigravityHooks), "");
     });
   });
 

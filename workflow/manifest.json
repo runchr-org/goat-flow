@@ -240,12 +240,11 @@
       "local_pattern": "*/AGENTS.md",
       "hook_events": {
         "pre_tool": "PreToolUse",
-        "post_turn": "Stop"
+        "post_turn": null
       },
       "hooks": [
         "deny-dangerous.sh",
-        "gruff-code-quality.sh",
-        "post-turn-safety.sh"
+        "gruff-code-quality.sh"
       ]
     },
     "copilot": {
