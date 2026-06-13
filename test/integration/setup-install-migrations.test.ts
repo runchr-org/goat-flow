@@ -304,8 +304,8 @@ describe("setup --apply installer upgrade migrations", () => {
     assert.match(result.stdout, /removed stale per-agent copy/);
   });
 
-  // Fixture purpose: writes old gruff hook registrations because pruning must preserve enabled central hooks.
-  it("migrates enabled gruff hook registrations to the central hook path before pruning legacy copies", () => {
+  // Fixture purpose: writes old Codex gruff hook registrations because unsupported hooks must be pruned without leaving stale launchers.
+  it("prunes legacy Codex gruff hook registrations because Codex gruff is unsupported", () => {
     const root = makeTempProject();
     mkdirSync(join(root, ".codex", "hooks"), { recursive: true });
     mkdirSync(join(root, ".goat-flow"), { recursive: true });
@@ -357,8 +357,12 @@ describe("setup --apply installer upgrade migrations", () => {
     );
     const hooksJson = readFileSync(join(root, ".codex", "hooks.json"), "utf-8");
     assert.doesNotMatch(hooksJson, /\.codex\/hooks\/gruff-code-quality\.sh/);
-    assert.match(hooksJson, /\.goat-flow\/hooks\/gruff-code-quality\.sh/);
-    assert.match(hooksJson, /"matcher": "Write"/);
+    assert.doesNotMatch(
+      hooksJson,
+      /\.goat-flow\/hooks\/gruff-code-quality\.sh/,
+    );
+    assert.doesNotMatch(hooksJson, /PostToolUse/);
+    assert.match(hooksJson, /\.goat-flow\/hooks\/deny-dangerous\.sh/);
     assert.doesNotMatch(hooksJson, /"matcher": "MultiEdit"/);
   });
 

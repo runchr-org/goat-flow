@@ -410,6 +410,99 @@ describe("agent deny hook template comparison", () => {
     assert.equal(denyCheck.run(ctx), null);
   });
 
+  it("continues to later agents after a configured command passes", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    let smokeCalls = 0;
+    childProcess.execFileSync = (() =>
+      Buffer.from("")) as typeof childProcess.execFileSync;
+    childProcess.spawnSync = (() => {
+      smokeCalls += 1;
+      if (smokeCalls === 1) {
+        return {
+          status: 2,
+          signal: null,
+          error: undefined,
+          output: [
+            null,
+            "",
+            "BLOCKED: Policy repository: git push is not allowed.",
+          ],
+          pid: 0,
+          stdout: "",
+          stderr: "BLOCKED: Policy repository: git push is not allowed.",
+        } as ReturnType<typeof childProcess.spawnSync>;
+      }
+      return {
+        status: 0,
+        signal: null,
+        error: undefined,
+        output: [null, "", ""],
+        pid: 0,
+        stdout: "",
+        stderr: "",
+      } as ReturnType<typeof childProcess.spawnSync>;
+    }) as typeof childProcess.spawnSync;
+    syncBuiltinESMExports();
+
+    const readFile = installedGuardrailContent(".codex/hooks", templates, {
+      ".codex/hooks.json": JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [
+                {
+                  type: "command",
+                  command: ".goat-flow/hooks/deny-dangerous.sh",
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+        stubAgentFacts({
+          agent: PROFILES.claude,
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile,
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected later-agent direct smoke failure");
+    assert.match(
+      result.message,
+      /registered deny hook runtime smoke failed for claude/,
+    );
+    assert.equal(smokeCalls, 2);
+  });
+
   it("fails when a direct configured command is replayed from nested cwd", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();

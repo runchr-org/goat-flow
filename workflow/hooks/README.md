@@ -17,8 +17,8 @@ Copyable hook scripts and agent-config templates for the GOAT Flow enforcement l
 | Purpose | Claude Code | Codex CLI | Antigravity | Copilot CLI |
 |---------|-------------|-----------|-------------|-------------|
 | Block before tool runs | PreToolUse | PreToolUse in `.codex/hooks.json` with `deny-dangerous.sh` matched to `Bash` | PreToolUse in `.agents/hooks.json` with `deny-dangerous.sh` matched to `run_command` and secret-bearing file tools | `preToolUse` in `.github/hooks/hooks.json` with `deny-dangerous.sh` |
-| Changed-line gruff quality | PostToolUse matched to `Edit` and `Write` | PostToolUse matched to `Edit` and `Write` | PostToolUse matched to `write_to_file`, `replace_file_content`, and `multi_replace_file_content` | `postToolUse` entry with the shipped `gruff-code-quality.sh` command |
-| Universal post-turn safety | Stop with `post-turn-safety.sh` | Stop with `post-turn-safety.sh` | Stop with `post-turn-safety.sh` | Not supported; no project-local post-turn event |
+| Changed-line gruff quality | PostToolUse matched to `Edit` and `Write` | Unsupported until a Codex PostToolUse contract is verified; ships `PreToolUse` `deny-dangerous` only | PostToolUse matched to `write_to_file`, `replace_file_content`, and `multi_replace_file_content` | `postToolUse` entry with the shipped `gruff-code-quality.sh` command |
+| Universal post-turn safety | Stop with `post-turn-safety.sh` | Unsupported; Codex Stop-hook delivery is unverified (registered Stop hooks did not fire under codex exec 0.139.0) | Stop with `post-turn-safety.sh` | Not supported; no project-local post-turn event |
 | Plan checkbox reminder | Stop with `plan-checkbox-guard.sh` | Skipped; Codex Stop-hook delivery is unverified (registered Stop hooks did not fire under codex exec 0.139.0) | Skipped; Antigravity Stop payload is unverified (hook trust gates execution; no `stop_hook_active` loop guard observed) | Not supported; no project-local post-turn event |
 | Permission deny list | `.claude/settings.json` deny patterns | Filesystem permission profile in `.codex/config.toml`; command denies in the Bash hooks | Script-only guardrails; no provider-native file-read/file-write deny layer is claimed | Script-only guardrails; no provider-native file-read/file-write deny layer is claimed |
 | Config format | JSON | TOML + JSON | JSON | JSON |
@@ -45,7 +45,7 @@ Claude, Codex, and Antigravity hook commands resolve the active repository root 
 
 ## Post-Turn Safety
 
-goat-flow ships `post-turn-safety.sh` as the universal no-setup Stop hook for Claude, Codex, and Antigravity. It scans changed text content for built-in safety hazards. It does not run builds, tests, linters, typecheckers, or formatters, and must not be treated as project validation.
+goat-flow ships `post-turn-safety.sh` as the universal no-setup Stop hook for Claude and Antigravity; Codex is excluded until its Stop-hook delivery is verified (registered Stop hooks did not fire under codex exec 0.139.0). It scans changed text content for built-in safety hazards. It does not run builds, tests, linters, typecheckers, or formatters, and must not be treated as project validation.
 
 goat-flow does not ship a project-validation Stop hook. Run project-specific build, test, lint, typecheck, and format commands through explicit verification gates. The shipped `gruff-code-quality.sh` is a file-edit hook: it runs on supported file-write tools, prefers the edited path from the hook payload, and falls back to git-changed supported files when a runtime omits the path.
 

@@ -21,6 +21,9 @@ import { describe, it } from "node:test";
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const HOOK_PATH = resolve(PROJECT_ROOT, "workflow/hooks/post-turn-safety.sh");
 const TEST_AWS_ACCESS_KEY = `AKIA${"1234567890ABCDEF"}`;
+const TEST_GITHUB_TOKEN = `ghp_${"abcdefghijklmnopqrsttestuvwxyzABCD"}`;
+const TEST_SLACK_TOKEN = `xoxb-${"1234567890-1234567890-abcdef"}`;
+const TEST_API_TOKEN = `sk-${"12345678901234567890123456789012"}`;
 const TEST_PRIVATE_KEY_HEADER = ["-----BEGIN", "OPENSSH PRIVATE KEY-----"].join(
   " ",
 );
@@ -132,6 +135,48 @@ describe("post-turn-safety hook", () => {
   it("allows safe placeholders in env examples", () => {
     withTempRepo((root) => {
       writeFile(root, ".env.example", "API_KEY=your_api_key_here\n");
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("blocks real tokens on lines that also mention placeholder words", () => {
+    withTempRepo((root) => {
+      // The line contains "test", which previously short-circuited the whole
+      // line past the raw token detectors and let the real token through.
+      writeFile(root, "config.txt", `webhook_test = ${TEST_SLACK_TOKEN}\n`);
+
+      assertHookBlocks(root, /Slack token/u);
+    });
+  });
+
+  it("blocks API tokens when only the surrounding label is placeholder text", () => {
+    withTempRepo((root) => {
+      writeFile(root, "config.txt", `OPENAI test key ${TEST_API_TOKEN}\n`);
+
+      assertHookBlocks(root, /API token/u);
+    });
+  });
+
+  it("blocks token values with placeholder words embedded as ordinary characters", () => {
+    withTempRepo((root) => {
+      writeFile(root, "config.txt", `GITHUB_TOKEN=${TEST_GITHUB_TOKEN}\n`);
+
+      assertHookBlocks(root, /GitHub token/u);
+    });
+  });
+
+  it("allows documented example tokens whose value is a known placeholder", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "docs.md",
+        [
+          "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+          "SLACK_BOT_TOKEN=xoxb-test-1234567890-1234567890",
+          "",
+        ].join("\n"),
+      );
 
       assertHookAllows(root);
     });

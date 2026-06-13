@@ -223,6 +223,36 @@ describe("plan-checkbox-guard hook", () => {
     });
   });
 
+  it("does not search plan files deeper than max-depth", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        ".goat-flow/config.yaml",
+        "plan-guard:\n  search-paths:\n    - .goat-flow/plans\n  max-depth: 1\n",
+      );
+      writeFile(
+        root,
+        ".goat-flow/plans/1.12.0/M01.md",
+        [
+          "# M01: Too deep",
+          "",
+          "**Status:** active",
+          "",
+          "- [ ] Do the work",
+          "",
+        ].join("\n"),
+      );
+      stageAll(root);
+      writeFile(root, "src/app.txt", "changed\n");
+
+      assertAllows(runHook(root));
+      assert.equal(
+        existsSync(join(root, ".goat-flow/logs/plan-guard-state.json")),
+        false,
+      );
+    });
+  });
+
   it("fails with a useful diagnostic when no stable session id is present", () => {
     withTempRepo((root) => {
       writeActivePlan(root);

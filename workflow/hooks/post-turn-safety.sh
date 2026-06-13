@@ -50,6 +50,22 @@ is_placeholder_text() {
   return 1
 }
 
+is_placeholder_token() {
+  local all_x_re
+  local marker_re
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$value" in
+    ""|akiaiosfodnn7example|asiaiosfodnn7example)
+      return 0
+      ;;
+  esac
+  all_x_re='^(gh[pousr]_|github_pat_|npm_|sk-)?x+$'
+  [[ "$value" =~ $all_x_re ]] && return 0
+  marker_re='(^|[_-])(example|placeholder|changeme|change-me|change_me|dummy|fake|sample|test|redacted|xxxx|your-token|your_token|your-key|your_key|not-a-secret)([_-]|$)'
+  [[ "$value" =~ $marker_re ]]
+}
+
 report_finding() {
   local path="$1"
   local family="$2"
@@ -78,6 +94,19 @@ scan_env_assignment() {
   report_finding "$path" "credential assignment ($key)"
 }
 
+# Report a raw token match unless the matched token is itself an obvious
+# placeholder (for example AWS's documented `AKIA...EXAMPLE` key or a
+# `xoxb-test-...` fixture). The placeholder check runs against the matched token,
+# not the whole line, so a real token on a line that merely mentions
+# "test"/"example"/"sample" is still reported instead of silently skipped.
+report_token_if_real() {
+  local path="$1"
+  local family="$2"
+  local token="$3"
+  is_placeholder_token "$token" && return 0
+  report_finding "$path" "$family"
+}
+
 scan_line() {
   local path="$1"
   local line="$2"
@@ -92,25 +121,20 @@ scan_line() {
     report_finding "$path" "private key block"
   fi
 
-  if is_placeholder_text "$line"; then
-    scan_env_assignment "$path" "$line"
-    return 0
-  fi
-
   if [[ "$line" =~ (AKIA|ASIA)[A-Z0-9]{16} ]]; then
-    report_finding "$path" "AWS access key"
+    report_token_if_real "$path" "AWS access key" "${BASH_REMATCH[0]}"
   fi
   if [[ "$line" =~ gh[pousr]_[A-Za-z0-9_]{30,} || "$line" =~ github_pat_[A-Za-z0-9_]{20,} ]]; then
-    report_finding "$path" "GitHub token"
+    report_token_if_real "$path" "GitHub token" "${BASH_REMATCH[0]}"
   fi
   if [[ "$line" =~ npm_[A-Za-z0-9]{36,} ]]; then
-    report_finding "$path" "npm token"
+    report_token_if_real "$path" "npm token" "${BASH_REMATCH[0]}"
   fi
   if [[ "$line" =~ xox[baprs]-[A-Za-z0-9-]{20,} ]]; then
-    report_finding "$path" "Slack token"
+    report_token_if_real "$path" "Slack token" "${BASH_REMATCH[0]}"
   fi
   if [[ "$line" =~ (OPENAI|ANTHROPIC|API_KEY|TOKEN).*(sk-[A-Za-z0-9]{32,}) ]]; then
-    report_finding "$path" "API token"
+    report_token_if_real "$path" "API token" "${BASH_REMATCH[2]}"
   fi
 
   scan_env_assignment "$path" "$line"

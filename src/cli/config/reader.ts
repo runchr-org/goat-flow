@@ -291,31 +291,51 @@ function mergeHooks(value: unknown, merged: GoatFlowConfig): void {
   merged.hooks = hooks;
 }
 
+/** Normalize optional string-list config values while dropping empty entries. */
+function trimmedStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+/** Apply a non-negative integer config value when it is present and valid. */
+function mergeNonNegativeInteger(
+  value: unknown,
+  apply: (value: number) => void,
+): void {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    return;
+  }
+  apply(value);
+}
+
+/** Return a trimmed non-empty config string, or null for invalid/absent values. */
+function trimmedNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /** Apply plan-checkbox guard settings from the optional kebab-case config block. */
 function mergePlanGuard(value: unknown, merged: GoatFlowConfig): void {
   if (!isRecord(value)) return;
   if (typeof value.enabled === "boolean") {
     merged.planGuard.enabled = value.enabled;
   }
-  if (Array.isArray(value["search-paths"])) {
-    const searchPaths = value["search-paths"].filter(
-      (item): item is string =>
-        typeof item === "string" && item.trim().length > 0,
-    );
-    if (searchPaths.length > 0) merged.planGuard.searchPaths = searchPaths;
-  }
-  const maxDepth = value["max-depth"];
-  if (Number.isInteger(maxDepth) && (maxDepth as number) >= 0) {
-    merged.planGuard.maxDepth = maxDepth as number;
-  }
-  const stalenessDays = value["staleness-days"];
-  if (Number.isInteger(stalenessDays) && (stalenessDays as number) >= 0) {
-    merged.planGuard.stalenessDays = stalenessDays as number;
-  }
-  const planFile = value["plan-file"];
-  if (typeof planFile === "string" && planFile.trim().length > 0) {
-    merged.planGuard.planFile = planFile.trim();
-  }
+  const searchPaths = trimmedStringArray(value["search-paths"]);
+  if (searchPaths.length > 0) merged.planGuard.searchPaths = searchPaths;
+  mergeNonNegativeInteger(
+    value["max-depth"],
+    (maxDepth) => (merged.planGuard.maxDepth = maxDepth),
+  );
+  mergeNonNegativeInteger(
+    value["staleness-days"],
+    (stalenessDays) => (merged.planGuard.stalenessDays = stalenessDays),
+  );
+  const planFile = trimmedNonEmptyString(value["plan-file"]);
+  if (planFile !== null) merged.planGuard.planFile = planFile;
 }
 
 /** Pass through the raw quality config block; full validation lives in quality-config.ts. */
@@ -416,6 +436,58 @@ function validateStringArray(
       pushError(errors, `${path}[${index}]`, "must be a non-empty string");
     }
   }
+}
+
+/** Validate an optional boolean property on an object config field. */
+function validateBooleanProperty(
+  value: RawConfig,
+  key: string,
+  path: string,
+  errors: ValidationIssue[],
+): void {
+  if (!(key in value)) return;
+  if (typeof value[key] !== "boolean") {
+    pushError(errors, path, "must be a boolean");
+  }
+}
+
+/** Validate an optional string-array property on an object config field. */
+function validateStringArrayProperty(
+  value: RawConfig,
+  key: string,
+  path: string,
+  errors: ValidationIssue[],
+): void {
+  if (!(key in value)) return;
+  validateStringArray(value[key], path, errors);
+}
+
+/** Validate an optional non-negative integer property on an object config field. */
+function validateNonNegativeIntegerProperty(
+  value: RawConfig,
+  key: string,
+  path: string,
+  errors: ValidationIssue[],
+): void {
+  if (!(key in value)) return;
+  const field = value[key];
+  if (typeof field === "number" && Number.isInteger(field) && field >= 0) {
+    return;
+  }
+  pushError(errors, path, "must be a non-negative integer");
+}
+
+/** Validate an optional non-empty string property on an object config field. */
+function validateNonEmptyStringProperty(
+  value: RawConfig,
+  key: string,
+  path: string,
+  errors: ValidationIssue[],
+): void {
+  if (!(key in value)) return;
+  const field = value[key];
+  if (typeof field === "string" && field.trim().length > 0) return;
+  pushError(errors, path, "must be a non-empty string");
 }
 
 /** Validate version field. */
@@ -598,51 +670,31 @@ function validatePlanGuardField(
   errors: ValidationIssue[],
 ): void {
   validateObjectField(raw, "plan-guard", errors, (value) => {
-    if ("enabled" in value && typeof value.enabled !== "boolean") {
-      pushError(errors, "plan-guard.enabled", "must be a boolean");
-    }
-    if ("search-paths" in value) {
-      validateStringArray(
-        value["search-paths"],
-        "plan-guard.search-paths",
-        errors,
-      );
-    }
-    if ("max-depth" in value) {
-      const maxDepth = value["max-depth"];
-      if (
-        typeof maxDepth !== "number" ||
-        !Number.isInteger(maxDepth) ||
-        maxDepth < 0
-      ) {
-        pushError(
-          errors,
-          "plan-guard.max-depth",
-          "must be a non-negative integer",
-        );
-      }
-    }
-    if ("staleness-days" in value) {
-      const stalenessDays = value["staleness-days"];
-      if (
-        typeof stalenessDays !== "number" ||
-        !Number.isInteger(stalenessDays) ||
-        stalenessDays < 0
-      ) {
-        pushError(
-          errors,
-          "plan-guard.staleness-days",
-          "must be a non-negative integer",
-        );
-      }
-    }
-    if (
-      "plan-file" in value &&
-      (typeof value["plan-file"] !== "string" ||
-        value["plan-file"].trim().length === 0)
-    ) {
-      pushError(errors, "plan-guard.plan-file", "must be a non-empty string");
-    }
+    validateBooleanProperty(value, "enabled", "plan-guard.enabled", errors);
+    validateStringArrayProperty(
+      value,
+      "search-paths",
+      "plan-guard.search-paths",
+      errors,
+    );
+    validateNonNegativeIntegerProperty(
+      value,
+      "max-depth",
+      "plan-guard.max-depth",
+      errors,
+    );
+    validateNonNegativeIntegerProperty(
+      value,
+      "staleness-days",
+      "plan-guard.staleness-days",
+      errors,
+    );
+    validateNonEmptyStringProperty(
+      value,
+      "plan-file",
+      "plan-guard.plan-file",
+      errors,
+    );
   });
 }
 

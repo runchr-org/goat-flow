@@ -504,7 +504,14 @@ export function spawnInheritedSync(
   opts: InheritedSpawnOptions,
 ): SpawnSyncReturns<Buffer> {
   const commandBasename = pathBasename(opts.command).toLowerCase();
-  if (!opts.allowedBasenames.includes(commandBasename)) {
+  // Normalise the allow-list to lowercase too, matching the documented
+  // "lowercase basenames" contract: the command side is already lowercased, so
+  // comparing against verbatim entries would silently reject a correct command
+  // whenever a caller passed a mixed-case allow-list entry.
+  const allowedBasenames = opts.allowedBasenames.map((name) =>
+    name.toLowerCase(),
+  );
+  if (!allowedBasenames.includes(commandBasename)) {
     throw new SafeExecRejection(
       "command-not-in-allow-list",
       `command ${JSON.stringify(opts.command)} is not in the allow-list`,

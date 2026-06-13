@@ -63,6 +63,63 @@ toolchain:
   });
 });
 
+describe("config merges plan-checkbox guard settings", () => {
+  it("trims valid plan-guard paths and numeric settings", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+plan-guard:
+  enabled: false
+  search-paths:
+    - " .goat-flow/plans "
+    - "docs/plans"
+  max-depth: 2
+  staleness-days: 7
+  plan-file: " .goat-flow/plans/1.12.0/M01.md "
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, true);
+    assert.equal(result.config.planGuard.enabled, false);
+    assert.deepStrictEqual(result.config.planGuard.searchPaths, [
+      ".goat-flow/plans",
+      "docs/plans",
+    ]);
+    assert.equal(result.config.planGuard.maxDepth, 2);
+    assert.equal(result.config.planGuard.stalenessDays, 7);
+    assert.equal(
+      result.config.planGuard.planFile,
+      ".goat-flow/plans/1.12.0/M01.md",
+    );
+  });
+
+  it("fails closed when plan-guard config is malformed", () => {
+    const yaml = `
+version: "${AUDIT_VERSION}"
+plan-guard:
+  enabled: "yes"
+  search-paths: ".goat-flow/plans"
+  max-depth: -1
+  staleness-days: 1.5
+  plan-file: "   "
+`;
+    const result = loadConfig("/tmp", configFS(yaml));
+    assert.equal(result.valid, false);
+    assert.equal(result.config.planGuard.enabled, true);
+    assert.deepStrictEqual(result.config.planGuard.searchPaths, [
+      ".goat-flow/plans",
+    ]);
+    assert.equal(result.config.planGuard.maxDepth, 3);
+    assert.equal(result.config.planGuard.stalenessDays, 14);
+    assert.equal(result.config.planGuard.planFile, null);
+    assert.deepStrictEqual(result.errors.map((error) => error.path).sort(), [
+      "plan-guard.enabled",
+      "plan-guard.max-depth",
+      "plan-guard.plan-file",
+      "plan-guard.search-paths",
+      "plan-guard.staleness-days",
+    ]);
+  });
+});
+
 describe("config merges learning-loop auto-capture policy", () => {
   it("defaults automatic capture to disabled with no targets", () => {
     const result = loadConfig("/tmp", configFS(null));

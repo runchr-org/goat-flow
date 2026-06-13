@@ -570,7 +570,17 @@ function directHookRuntimeFailure(
 export function checkHookRuntimeSmoke(ctx: AuditContext): AuditFailure | null {
   for (const agentFacts of ctx.agents) {
     const configuredFailure = configuredHookRuntimeFailure(ctx, agentFacts);
-    if (configuredFailure !== undefined) return configuredFailure;
+    // `undefined` means the agent has no configured guard commands, so fall
+    // through to the direct registered-hook smoke. A non-null value is a real
+    // failure to report now. `null` means the configured commands ran and
+    // passed (authoritative for this agent) - continue to the next agent
+    // instead of returning, which previously short-circuited the whole loop on
+    // the first agent whose configured smoke passed, skipping its direct smoke
+    // and every later agent.
+    if (configuredFailure !== undefined) {
+      if (configuredFailure !== null) return configuredFailure;
+      continue;
+    }
 
     const directFailure = directHookRuntimeFailure(ctx, agentFacts);
     if (directFailure !== null) return directFailure;

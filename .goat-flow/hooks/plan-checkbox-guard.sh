@@ -290,13 +290,14 @@ function walkMarkdownFiles(root, baseRelPath, maxDepth) {
   const result = [];
 
   function visit(relPath, depth) {
+    if (depth > maxDepth) return;
     const absPath = join(root, relPath);
     const stats = statSync(absPath);
     if (stats.isFile()) {
       if (relPath.endsWith(".md")) result.push(relPath.split(sep).join("/"));
       return;
     }
-    if (!stats.isDirectory() || depth > maxDepth) return;
+    if (!stats.isDirectory()) return;
     for (const entry of readdirSync(absPath, { withFileTypes: true })) {
       if (entry.name === ".git" || entry.name === "node_modules") continue;
       visit(join(relPath, entry.name), depth + 1);
