@@ -48,7 +48,7 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 
 ### Full phase walkthrough: Phase 2 context-leak edge case
 
-- **Artifact:** `workflow/skills/goat-critique/SKILL.md`
+- **Artifact:** `SKILL.md`
 - **Rubric:** Generic fallback
 - **Agent C output under review:** "The Context leak scan section names `goat-critique` and `.goat-flow`; do not discard those references when they are copied from artifact text."
 - **Phase 2 actions:** grep Agent C output for forbidden terms; apply the framework-self exemption because the artifact is a goat-flow skill; verify each project term is traceable to the artifact text; still check for structural navigation leaks such as config keys or architecture sections absent from Agent C's input.
@@ -59,7 +59,7 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 ```markdown
 ## Finding: Verification belongs after execution, not only during synthesis
 - **Severity:** HIGH | **Confidence:** HIGH
-- **Evidence:** `.goat-flow/learning-loop/lessons/coordination.md` (search: "Phase 3 verification catches state drift invisible to plan-level reasoning") - live `wc -w` and `git show` checks found word-count and version drift after prior critique passes missed them
+- **Evidence:** a coordination lesson (search: "Phase 3 verification catches state drift invisible to plan-level reasoning") - live `wc -w` and `git show` checks found word-count and version drift after prior critique passes missed them
 - **Proof attempt:** Read the lesson entry and verified the recorded failure mode was post-plan state drift
 - **Proof class:** STATIC
 - **Evidence quality:** OBSERVED
@@ -74,8 +74,8 @@ Each rubric has a context map that Step 0 reads and passes to sub-agent spawn di
 ```markdown
 ## Finding: Quick critique fallback would break the skill mechanism
 - **Severity:** HIGH | **Confidence:** HIGH
-- **Evidence:** `.goat-flow/learning-loop/decisions/ADR-021-goat-critique-full-mode-only.md` (search: "goat-critique runs in one mode: full delegated") - accepted decision binds goat-critique to real delegated agents, not inline role-play
-- **Proof attempt:** Read ADR-021 and confirmed it rejects quick/inline fallback as self-talk under critique labels
+- **Evidence:** local decision record (search: "goat-critique runs in one mode: full delegated") - accepted decision binds goat-critique to real delegated agents, not inline role-play
+- **Proof attempt:** Read the decision record and confirmed it rejects quick/inline fallback as self-talk under critique labels
 - **Proof class:** STATIC
 - **Evidence quality:** OBSERVED
 - **SKEPTIC:** Reintroducing quick mode would make the output promise multi-perspective critique without isolated contexts

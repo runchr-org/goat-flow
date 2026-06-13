@@ -30,12 +30,21 @@ has_head() {
 
 trim_value() {
   local value="$1"
-  value="${value%%#*}"
   value="$(printf '%s' "$value" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-  value="${value#\"}"
-  value="${value%\"}"
-  value="${value#\'}"
-  value="${value%\'}"
+  case "$value" in
+    \"*)
+      value="${value#\"}"
+      value="${value%%\"*}"
+      ;;
+    \'*)
+      value="${value#\'}"
+      value="${value%%\'*}"
+      ;;
+    *)
+      value="${value%%#*}"
+      value="$(printf '%s' "$value" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+      ;;
+  esac
   printf '%s' "$value"
 }
 
@@ -43,7 +52,7 @@ is_placeholder_text() {
   local value
   value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
   case "$value" in
-    ""|*example*|*placeholder*|*changeme*|*change-me*|*change_me*|*dummy*|*fake*|*sample*|*test*|*redacted*|*xxxx*|*your-token*|*your_token*|*your-key*|*your_key*|*not-a-secret*)
+    ""|*example*|*placeholder*|*changeme*|*change-me*|*change_me*|*dummy*|*fake*|*sample*|*test*|*redacted*|*xxxx*|*your-token*|*your_token*|*your-key*|*your_key*|*your-api-key*|*your_api_key*|*not-a-secret*)
       return 0
       ;;
   esac
@@ -62,7 +71,7 @@ is_placeholder_token() {
   esac
   all_x_re='^(gh[pousr]_|github_pat_|npm_|sk-)?x+$'
   [[ "$value" =~ $all_x_re ]] && return 0
-  marker_re='(^|[_-])(example|placeholder|changeme|change-me|change_me|dummy|fake|sample|test|redacted|xxxx|your-token|your_token|your-key|your_key|not-a-secret)([_-]|$)'
+  marker_re='(^|[_-])(example|placeholder|changeme|change-me|change_me|dummy|fake|sample|test|redacted|xxxx|your-token|your_token|your-key|your_key|your-api-key|your_api_key|not-a-secret)([_-]|$)'
   [[ "$value" =~ $marker_re ]]
 }
 
@@ -81,10 +90,14 @@ scan_env_assignment() {
   local key
   local value
 
-  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*(SECRET|TOKEN|API_KEY|PASSWORD|PRIVATE_KEY)[A-Za-z0-9_]*)[[:space:]]*=.*/\1/p' | head -n 1)"
+  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\2/p' | head -n 1)"
   [ -n "$key" ] || return 0
+  case "$key" in
+    *SECRET*|*TOKEN*|*API_KEY*|*PASSWORD*|*PRIVATE_KEY*) ;;
+    *) return 0 ;;
+  esac
 
-  value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*(.*)$/\1/p' | head -n 1)"
+  value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*(.*)$/\2/p' | head -n 1)"
   value="$(trim_value "$value")"
   [ "${#value}" -ge 12 ] || return 0
   # Free-form assignment values use substring placeholder matching, not the
@@ -117,6 +130,7 @@ report_token_if_real() {
 scan_line() {
   local path="$1"
   local line="$2"
+  local api_token_reported=0
 
   case "$line" in
     "<<<<<<< "*|"======="|">>>>>>> "*)
@@ -141,6 +155,10 @@ scan_line() {
     report_token_if_real "$path" "Slack token" "${BASH_REMATCH[0]}"
   fi
   if [[ "$line" =~ (OPENAI|ANTHROPIC|API_KEY|TOKEN).*(sk-[A-Za-z0-9]{32,}) ]]; then
+    report_token_if_real "$path" "API token" "${BASH_REMATCH[2]}"
+    api_token_reported=1
+  fi
+  if [ "$api_token_reported" -eq 0 ] && [[ "$line" =~ (^|[^A-Za-z0-9_])(sk-[A-Za-z0-9]{32,})([^A-Za-z0-9_]|$) ]]; then
     report_token_if_real "$path" "API token" "${BASH_REMATCH[2]}"
   fi
 

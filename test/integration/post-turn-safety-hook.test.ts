@@ -158,6 +158,30 @@ describe("post-turn-safety hook", () => {
     });
   });
 
+  it("blocks bare sk-prefixed API tokens without a provider label", () => {
+    withTempRepo((root) => {
+      writeFile(root, "config.txt", `plain token ${TEST_API_TOKEN}\n`);
+
+      assertHookBlocks(root, /API token/u);
+    });
+  });
+
+  it("blocks exported credential assignments", () => {
+    withTempRepo((root) => {
+      writeFile(root, "env.txt", "export API_KEY=live-secret-value-12345\n");
+
+      assertHookBlocks(root, /credential assignment \(API_KEY\)/u);
+    });
+  });
+
+  it("blocks quoted credential assignments containing hash characters", () => {
+    withTempRepo((root) => {
+      writeFile(root, "env.txt", 'API_KEY="live-secret#value-12345"\n');
+
+      assertHookBlocks(root, /credential assignment \(API_KEY\)/u);
+    });
+  });
+
   it("blocks token values with placeholder words embedded as ordinary characters", () => {
     withTempRepo((root) => {
       writeFile(root, "config.txt", `GITHUB_TOKEN=${TEST_GITHUB_TOKEN}\n`);

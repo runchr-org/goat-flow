@@ -122,10 +122,19 @@ function runHook(
     session_id: "session-1",
     stop_hook_active: false,
   },
+  hookPath = HOOK_PATH,
+): ReturnType<typeof spawnSync> {
+  return runHookWithPayloadText(root, JSON.stringify(payload), hookPath);
+}
+
+function runHookWithPayloadText(
+  root: string,
+  payloadText: string,
+  hookPath = HOOK_PATH,
 ): ReturnType<typeof spawnSync> {
   const payloadPath = `${root}.payload.${process.pid}.${Date.now()}.json`;
   const stderrPath = `${root}.stderr.${process.pid}.${Date.now()}.txt`;
-  writeFileSync(payloadPath, JSON.stringify(payload));
+  writeFileSync(payloadPath, payloadText);
   try {
     const result = spawnSync(
       "bash",
@@ -133,7 +142,7 @@ function runHook(
         "-c",
         'bash "$1" < "$2" 2> "$3"',
         "plan-checkbox-guard-test",
-        HOOK_PATH,
+        hookPath,
         payloadPath,
         stderrPath,
       ],
@@ -154,6 +163,16 @@ function runHook(
     rmSync(payloadPath, { force: true });
     rmSync(stderrPath, { force: true });
   }
+}
+
+function writeHookVariantWithoutLiteralPathspecs(root: string): string {
+  const hookRelPath = "tools/plan-checkbox-guard-no-literal.sh";
+  const original = readFileSync(HOOK_PATH, "utf8");
+  const variant = original.replaceAll('"--literal-pathspecs", ', "");
+  assert.notEqual(variant, original);
+  assert.doesNotMatch(variant, /"--literal-pathspecs"/u);
+  writeFile(root, hookRelPath, variant);
+  return join(root, hookRelPath);
 }
 
 function assertAllows(result: ReturnType<typeof spawnSync>): void {
@@ -287,6 +306,29 @@ describe("plan-checkbox-guard hook", () => {
     });
   });
 
+  it("skips the guard with a diagnostic on malformed Stop hook payload JSON", () => {
+    withTempRepo((root) => {
+      writeActivePlan(root);
+
+      const result = runHookWithPayloadText(root, "{not json");
+
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /malformed Stop hook payload JSON/u);
+    });
+  });
+
+  it("skips the guard with a diagnostic when the git repository root is unavailable", () => {
+    const root = mkdtempSync(join(tmpdir(), "goat-flow-plan-checkbox-no-git-"));
+    try {
+      const result = runHook(root);
+
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /git repository root unavailable/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("skips retry Stop payloads before requiring session fields", () => {
     withTempRepo((root) => {
       writeActivePlan(root);
@@ -408,6 +450,20 @@ describe("plan-checkbox-guard hook", () => {
       // `[` is pathspec-magic; --literal-pathspecs must still digest the file.
       writeFile(root, "src/a[1].txt", "changed\n");
       assertBlocks(runHook(root), planPath);
+    });
+  });
+
+  it("keeps pathspec-character sibling changes out of the scoped digest", () => {
+    withTempRepo((root) => {
+      const planPath = writeScopedPlan(root, "Files in scope: `src/a[1].txt`");
+      writeFile(root, "src/a[1].txt", "dirty before baseline\n");
+      assertAllows(runHook(root));
+
+      writeFile(root, "src/a1.txt", "sibling change\n");
+      assertAllows(runHook(root));
+
+      const noLiteralHook = writeHookVariantWithoutLiteralPathspecs(root);
+      assertBlocks(runHook(root, undefined, noLiteralHook), planPath);
     });
   });
 

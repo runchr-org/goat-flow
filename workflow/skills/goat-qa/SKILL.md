@@ -114,7 +114,7 @@ Map each stated expectation to the code path that implements it. Gaps between in
 
 **BLOCKING GATE (auto-released on explicit test-plan intent):** Present gap analysis plus Verification Integrity, then stop and ask "Continue to Phase 3, or adjust first?" - unless the invocation already gave explicit "what should I test" / "test plan" intent, in which case treat it as a CHECKPOINT and continue through Phase 3 without pausing. Reserve diagrams for Phase 3; then suggest `/goat-plan`.
 
-**Worked Standard example:** Diff touches `src/cli/server/terminal.ts` (search: `buildTerminalSpawnSpec`). Read that diff and `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`, `uses the fallback deadline when runner output keeps updating`). Expected row: HIGH risk runner launch contract; BEHAVIOURAL coverage for prompt injection and delayed/fallback delivery; safe to skip more PTY timing tests unless timer constants changed; proof class STATIC unless executed.
+**Worked Standard example:** Diff touches a terminal launch helper. Read that diff and the smoke tests covering prompt injection plus delayed/fallback delivery. Expected row: HIGH risk runner launch contract; BEHAVIOURAL coverage for prompt injection and delayed/fallback delivery; safe to skip more PTY timing tests unless timer constants changed; proof class STATIC unless executed.
 
 ## Phase 3 - Targeted Testing Plan
 
@@ -140,8 +140,8 @@ For a codebase area with no recent change. Audit mode analyses existing load-bea
 ### A1 - Scope
 
 Declare the audit boundary explicitly. Supported shapes:
-- A directory (e.g. `src/cli/audit/`) - every source file inside.
-- A module (e.g. `src/cli/quality/`) - the module's entry point and direct callees.
+- A directory (e.g. `src/payments/`) - every source file inside.
+- A module (e.g. `src/reporting/`) - the module's entry point and direct callees.
 - A risk class (e.g. "everything touching auth tokens") - files you would need to read to verify the claim.
 
 If unsure, ask the user before A1.5.
@@ -181,7 +181,7 @@ Rank gaps by `Risk × (1 - CoverageLevel)` descending - Risk maps CRITICAL=4, HI
 - **High-value additions** - HIGH-risk file with PARTIAL coverage. Describe the untested path.
 - **Defer** - LOW-risk or already well-covered files. Name them explicitly so the user sees what was considered and why.
 
-**Worked Audit example:** Scope `src/cli/audit/`; read tests, not filenames - the heuristic misleads both ways. `check-goat-flow.ts` has no same-name test yet runs behaviourally in `test/integration/audit-build.test.ts` (search: `assertBuildChecksPass`) → PARTIAL-BEHAVIOURAL, not NONE; `check-factual-claims.ts` (search: `runFactualClaimChecks`) has no unit or integration test → genuinely NONE. Expected A4 blocking gap: that content-integrity check, CRITICAL by role, NONE coverage - add a test planting a wrong skill-count and asserting it is flagged. Proof class STATIC.
+**Worked Audit example:** Scope a small audit module; read tests, not filenames - the heuristic misleads both ways. An orchestrator can lack a same-name test yet run behaviourally through an integration suite, so it is PARTIAL-BEHAVIOURAL, not NONE. A content-integrity helper with no unit, integration, or exported-symbol references is genuinely NONE. Expected A4 blocking gap: that content-integrity check, CRITICAL by role, NONE coverage - add a test planting a wrong count and asserting it is flagged. Proof class STATIC.
 
 **BLOCKING GATE:** Present gap report; wait for human decision before generating a testing plan response. Create no plan file unless separately approved.
 

@@ -71,7 +71,7 @@ last_reviewed: 2026-06-14
 
 **What happened:** Wording/schema edits repeatedly breached ADR-023 word caps: `skill-quality-testing/tdd-iteration.md` hit 3022/3008 words, `skill-preamble.md` exceeded 1500, and on 2026-05-22 proof-class fields pushed `goat-qa/SKILL.md` to 2578+.
 
-**Recurrence 2026-06-14:** While adding concrete examples to the dispatcher, the first `goat/SKILL.md` patch reached 653 words against the 555-word dispatcher cap. The fix compressed examples and anti-excuse wording before final verification. Evidence anchors: `workflow/skills/goat/SKILL.md` (search: `**Route Snapshot examples:**`), `test/contract/skill-hardening-contracts.test.ts` (search: `dispatcher /goat stays within the 555-word cap across all mirrors`).
+**Recurrence 2026-06-14:** While adding concrete examples to the dispatcher, the first `goat/SKILL.md` patch reached 653 words against the 555-word dispatcher cap. The fix compressed examples and anti-excuse wording before final verification. Evidence anchors: `workflow/skills/goat/SKILL.md` (search: `Emit a Route Snapshot`), `test/contract/skill-hardening-contracts.test.ts` (search: `dispatcher /goat stays within the 555-word cap across all mirrors`).
 
 **Root cause:** Treated prose edits as tiny while changing files governed by hard word-budget contracts.
 
@@ -220,6 +220,17 @@ last_reviewed: 2026-06-14
 **Root cause:** I edited a shell regex directly inside `[[ ... =~ ... ]]` instead of moving the pattern to a variable, which is safer for regex metacharacters that the Bash parser can see. I also forgot the existing VM cross-realm lesson when adding a new classic-script helper test.
 
 **Prevention:** After changing Bash hook regexes, run `bash -n <hook>` before interpreting self-test failures; if the regex contains `(`, `)`, `{`, or `}`, prefer a named regex variable. For command wrapper deny rules, probe both bare wrappers and option-bearing wrappers before mirror fanout (`command -p`, `env --`, `env -C`, `time -f`, quoted time formats). For VM-loaded dashboard helper tests, compare scalar fields/lengths or normalize arrays into the host realm. Evidence anchors: `workflow/hooks/deny-dangerous/patterns-writes.sh` (search: `is_git_push`), `workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh` (search: `sudo git push`), `src/dashboard/views/quality.html` (search: `qualityHistoryRows.length`).
+---
+
+## Lesson: Scanner hardening must test block and allow cases together
+
+**Status:** active | **Created:** 2026-06-14
+
+**What happened:** During M08 post-turn safety hardening, live probes showed three false negatives: bare `sk-...` tokens, `export API_KEY=...`, and quoted credential assignments containing `#`. The first parser patch still failed the new exported/quoted tests because key extraction tried to parse and classify sensitive keys in one POSIX ERE. Splitting key extraction from keyword classification fixed those cases, but the next focused run failed existing placeholder tests because `API_KEY=your_api_key_here` had only been allowed when the old key parser missed `API_KEY` entirely.
+
+**Root cause:** I tested new must-block probes before accounting for must-allow placeholders that were accidentally protected by the old false negative.
+
+**Prevention:** For credential-scanner changes, run a matrix that includes must-block misses and must-allow placeholder assignments after each parser edit. Parse/normalize the assignment key first, classify it second, and expect a broader key match to require explicit placeholder allowlist proof. Evidence anchors: `workflow/hooks/post-turn-safety.sh` (search: `scan_env_assignment`), `test/integration/post-turn-safety-hook.test.ts` (search: `blocks exported credential assignments`), and `test/integration/post-turn-safety-hook.test.ts` (search: `allows safe placeholders in env examples`).
 ---
 
 ## Lesson: Coverage classification by filename misjudges in both directions

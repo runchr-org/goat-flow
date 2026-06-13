@@ -93,7 +93,7 @@ Use this as the output shape, not as a canned diagnosis. Real incident: a `goat-
 - **D1.5 minimal case:** the three composed files reproduce the score; dashboard metadata and unrelated skill copies are removed because the missing walkthrough is visible in the composed bundle.
 - **D2 root cause shape:** `SKILL.md` (search: `## Output Format`) had an output skeleton but no concrete phase walkthrough; confidence is HIGH only after reproducing the assessment or rerunning the quality report.
 - **D3 fix plan (human-approved):** add a concrete phase walkthrough (this D1-D4 section) to `SKILL.md`; blast radius = docs only, no `.goat-flow/architecture.md` constraint touched; verification = rerun the quality assessment, then re-grep the file.
-- **D4 post-fix verification:** rerun the original reproduction (the skill quality assessment); the "no full phase walkthrough" deduction no longer fires. Cheap RUNTIME proxy, run this session: `rg -n '### Worked Example' SKILL.md` now returns this section where D1's grep found none. A code change is not a fix until the original repro passes, so downgrade to **UNVERIFIED** if the assessment cannot be rerun.
+- **D4 post-fix verification:** rerun the original reproduction (the skill quality assessment); the "no full phase walkthrough" deduction no longer fires. Static follow-up only: `rg -n '### Worked Example' SKILL.md` now returns this section where D1's grep found none. A code change is not a fix until the original repro passes, so downgrade to **UNVERIFIED** if the assessment cannot be rerun.
 
 ### D2 - Diagnosis
 

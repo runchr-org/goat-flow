@@ -64,7 +64,7 @@ Scan only the categories that fit the repo:
 For diff/PR mode, bucket changed files explicitly:
 - `.github/workflows/**`, release automation, and other CI/CD files
 - `scripts/**`, shell entrypoints, installers, and maintenance scripts
-- local server/runtime files (`src/cli/server/dashboard*.ts`, `src/cli/server/terminal.ts`, WebSocket handlers, PTY/session bridges, terminal runners)
+- local server/runtime files (dashboard/server entrypoints, WebSocket handlers, PTY/session bridges, terminal runners)
 - application code (`src/**`, handlers, auth, serializers, query builders)
 - config/docs (`package.json`, lockfiles, Dockerfiles, devcontainer/editor config, docs with URLs or commands)
 - agent surfaces (`AGENTS.md`, `CLAUDE.md`, `.agents/**`, `.claude/**`, `.github/**`, hooks, prompts, templates)
@@ -135,7 +135,7 @@ Worked examples:
 - local dashboard token is printed in a startup URL and accepted from `?token=`; a same-host process can replay it to attach a terminal WebSocket, while loopback-only bind and ephemeral token prevent a remote path -> `Low`
 
 Report calibration example:
-- S-01: `src/cli/server/dashboard.ts` (search: `return url.searchParams.get("token")`) | asset: local dashboard authorization token | entry->sink: query token in startup/dev logs -> local history or scrollback -> replay against API/WebSocket | trust boundary: process secret to local stores readable by same-host actors | preconditions: same-host read access while the process is alive | confidence: CONFIRMED | severity: Low | proof-class: STATIC | blast radius: local dashboard API and PTY attach as the running user | proof-of-fix: stop logging query tokens, prefer `x-goat-flow-dashboard-token`, and verify no request logger prints raw `url.search`.
+- S-01: local dashboard token parser (search: `return url.searchParams.get("token")`) | asset: local dashboard authorization token | entry->sink: query token in startup/dev logs -> local history or scrollback -> replay against API/WebSocket | trust boundary: process secret to local stores readable by same-host actors | preconditions: same-host read access while the process is alive | confidence: CONFIRMED | severity: Low | proof-class: STATIC | blast radius: local dashboard API and PTY attach as the running user | proof-of-fix: stop logging query tokens, prefer a header token, and verify no request logger prints raw URL search params.
 
 For Critical/High, write the attack scenario: "An [attacker] can [action] via [vector], resulting in [impact]."
 For diff reviews, map posture explicitly:
