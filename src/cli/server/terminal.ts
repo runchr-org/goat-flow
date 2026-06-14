@@ -41,6 +41,7 @@ const WINDOWS_TERMINAL_SHELL = "powershell.exe";
 const POSIX_PROMPT_ENV_CLEANUP = "unset GOAT_RUNNER";
 const WINDOWS_PROMPT_ENV_CLEANUP =
   "Remove-Item Env:GOAT_RUNNER -ErrorAction SilentlyContinue";
+const CODEX_DASHBOARD_ARGS = "--sandbox danger-full-access";
 const INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS = 150;
 const INITIAL_PROMPT_FALLBACK_DELAY_MS = 5000;
 export const INITIAL_PROMPT_CHUNK_SIZE = 2048;
@@ -153,10 +154,23 @@ export function pickWindowsRunnerPath(
   return cleaned[0] ?? null;
 }
 
+/** Build the runner command embedded in the shell wrapper. */
+function terminalRunnerCommand(
+  runner: Runner,
+  platform: NodeJS.Platform,
+): string {
+  if (runner !== "codex") {
+    return platform === "win32" ? "& $env:GOAT_RUNNER" : '"$GOAT_RUNNER"';
+  }
+  return platform === "win32"
+    ? `& $env:GOAT_RUNNER ${CODEX_DASHBOARD_ARGS}`
+    : `"$GOAT_RUNNER" ${CODEX_DASHBOARD_ARGS}`;
+}
+
 /**
  * Build the PTY shell invocation that keeps a usable terminal open per OS.
  *
- * @param _runner Runner identity retained so spawn-shape callers can stay runner-aware.
+ * @param runner Runner identity used for runner-specific launch flags.
  * @param cliPath Absolute runner binary path to launch inside the shell.
  * @param prompt Optional launch prompt delivered through PTY input after startup.
  * @param environment Environment snapshot merged into the spawned process.
@@ -164,7 +178,7 @@ export function pickWindowsRunnerPath(
  * @returns Spawn details plus deferred initial input; callers own the actual PTY spawn.
  */
 export function buildTerminalSpawnSpec(
-  _runner: Runner,
+  runner: Runner,
   cliPath: string,
   prompt: string,
   environment: NodeJS.ProcessEnv = process.env,
@@ -184,7 +198,7 @@ export function buildTerminalSpawnSpec(
         "-NoLogo",
         "-NoExit",
         "-Command",
-        `try { & $env:GOAT_RUNNER } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
+        `try { ${terminalRunnerCommand(runner, platform)} } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
       ],
       env,
       initialInput,
@@ -193,7 +207,7 @@ export function buildTerminalSpawnSpec(
 
   const configuredShell = environment.SHELL;
   const shell = configuredShell?.length ? configuredShell : "/bin/bash";
-  const shellCmd = `"$GOAT_RUNNER"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
+  const shellCmd = `${terminalRunnerCommand(runner, platform)}; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
 
   return {
     shell,

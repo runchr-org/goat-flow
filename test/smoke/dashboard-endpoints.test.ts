@@ -289,6 +289,7 @@ describe("terminal exports", () => {
     ]);
     assert.match(spec.args[3] ?? "", /GOAT_RUNNER/);
     assert.match(spec.args[3] ?? "", /Remove-Item Env:GOAT_RUNNER/);
+    assert.doesNotMatch(spec.args[3] ?? "", /danger-full-access/);
     assert.doesNotMatch(spec.args[3] ?? "", /review this/);
     assert.equal(spec.env.GOAT_PROMPT, undefined);
     assert.equal(
@@ -296,6 +297,25 @@ describe("terminal exports", () => {
       "C:\\Users\\thatm\\AppData\\Roaming\\npm\\copilot.cmd",
     );
     assert.equal(spec.initialInput, "\x1b[200~review this\x1b[201~\r");
+  });
+
+  it("launches Codex on Windows with an explicit preflight-capable sandbox", () => {
+    const spec = buildTerminalSpawnSpec(
+      "codex",
+      "C:\\Users\\thatm\\AppData\\Roaming\\npm\\codex.cmd",
+      "",
+      {},
+      "win32",
+    );
+
+    assert.equal(spec.shell, "powershell.exe");
+    assert.match(spec.args[3] ?? "", /& \$env:GOAT_RUNNER/);
+    assert.match(spec.args[3] ?? "", /--sandbox danger-full-access/);
+    assert.equal(
+      spec.env.GOAT_RUNNER,
+      "C:\\Users\\thatm\\AppData\\Roaming\\npm\\codex.cmd",
+    );
+    assert.equal(spec.initialInput, null);
   });
 
   it("builds a POSIX PTY launch that returns to the interactive shell", () => {
@@ -315,6 +335,24 @@ describe("terminal exports", () => {
     assert.equal(spec.env.GOAT_PROMPT, undefined);
     assert.equal(spec.initialInput, null);
     assert.equal(spec.env.SHELL, "/bin/zsh");
+  });
+
+  it("launches Codex on POSIX with an explicit preflight-capable sandbox", () => {
+    const spec = buildTerminalSpawnSpec(
+      "codex",
+      "/usr/local/bin/codex",
+      "",
+      { SHELL: "/bin/bash" },
+      "linux",
+    );
+
+    assert.equal(spec.shell, "/bin/bash");
+    assert.deepStrictEqual(spec.args, [
+      "-c",
+      '"$GOAT_RUNNER" --sandbox danger-full-access; unset GOAT_RUNNER; exec "$SHELL" -i',
+    ]);
+    assert.equal(spec.env.GOAT_RUNNER, "/usr/local/bin/codex");
+    assert.equal(spec.initialInput, null);
   });
 
   it("injects POSIX launch prompts through PTY input instead of runner flags", () => {

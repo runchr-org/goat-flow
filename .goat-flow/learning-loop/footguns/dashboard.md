@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-06-13
+last_reviewed: 2026-06-14
 ---
 
 <!-- Note: pre-v1.8.0 entries below may reference "Gemini"; Antigravity replaced Gemini in v1.8.0. Where the underlying trap shape applies equally to Antigravity (box-bordered menus, selection-bullet glyphs, CUP positioning), the Gemini references are kept as historical evidence. Where they describe current code behavior, they have been updated to Antigravity. -->
@@ -224,6 +224,27 @@ last_reviewed: 2026-06-13
 1. When composing a fix/action command or prompt for harness issues, resolve the target agent from the audit data (which agent actually has the finding), not from `activeRunner`. Use a priority-specific target helper such as `failingHarnessAgent()` (search: `failingHarnessAgent()` in `home.html`) so a concern-only failure does not hijack a harness action.
 2. When a dashboard surface displays a grade/score and also generates a prompt below it, both MUST use the same audit scope. If the card shows harness scores, the prompt API must pass `harness: true`.
 3. Watch for the runner-vs-target conflation pattern: `activeRunner` is correct for the `launchPreset` executor argument, but wrong for the prompt content's agent target, the command's `--agent` flag, and the `agentFilter` in API calls that feed those prompts.
+
+---
+
+## Footgun: Dashboard-launched Codex must override the default restricted sandbox
+
+**Status:** active | **Created:** 2026-06-14 | **Evidence:** OBSERVED
+
+**Symptoms:** A Codex session launched from the Workspace terminal fails `bash scripts/preflight-checks.sh` even though Claude Code and a normal terminal pass. The failure shape looks like product regressions at first: four child-process-heavy test files fail, `npm audit` reports `getaddrinfo EAI_AGAIN registry.npmjs.org`, and the package README check reports `spawnSync npm EPERM`.
+
+**Evidence:**
+- `src/cli/server/terminal.ts` (search: `CODEX_DASHBOARD_ARGS`) keeps dashboard-launched Codex on `--sandbox danger-full-access`.
+- `src/cli/server/terminal.ts` (search: `terminalRunnerCommand`) is the PTY shell command builder; the previous bare `$GOAT_RUNNER` launch inherited Codex's restricted command sandbox.
+- `test/smoke/dashboard-endpoints.test.ts` (search: `preflight-capable sandbox`) pins the POSIX and Windows Codex launch shapes.
+- Live probe on 2026-06-14: bare `codex doctor --summary` reported `restricted fs + restricted network`, while `codex --sandbox danger-full-access doctor --summary` reported `unrestricted fs + enabled network`.
+
+**Why it happens:** The dashboard starts a real agent runner, and the runner owns the command sandbox used by that agent's tool calls. A bare Codex launch can default to restricted filesystem/network behavior, which breaks verification commands that depend on nested Node child processes, `git`, `npm`, and npm registry DNS. The same checkout can pass in Claude Code because Claude's runner is not using Codex's restricted bwrap/seccomp command sandbox.
+
+**Prevention:**
+1. When refactoring `buildTerminalSpawnSpec`, preserve the Codex-specific `--sandbox danger-full-access` launch argument unless Codex provides a safer profile that still permits nested `child_process` calls and npm registry access.
+2. For Codex-only preflight failures, run `codex doctor --summary` and a Node `child_process.spawnSync` probe before treating child-process test failures as product regressions.
+3. Do not weaken `scripts/preflight-checks.sh` or skip subprocess tests to satisfy a restricted Codex runner; fix the runner launch/profile instead.
 
 ---
 
