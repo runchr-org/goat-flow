@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   readHookEnabled,
+  removeTopLevelConfigBlock,
   setHookEnabled,
 } from "../../src/cli/config/writer.js";
 
@@ -82,6 +83,29 @@ describe("config writer", () => {
       assert.match(next, /gruff-code-quality:\n    enabled: false/u);
       assert.match(next, /deny-dangerous:\n    enabled: false/u);
       assert.match(next, /# Project-wide toggles/u);
+      assert.match(next, /line-limits:\n  target: 125/u);
+    });
+  });
+
+  it("ignores unsafe top-level block keys instead of constructing a regex", () => {
+    withTempProject((root) => {
+      const configPath = join(root, ".goat-flow", "config.yaml");
+      writeFileSync(
+        configPath,
+        [
+          'version: "1.8.0"',
+          "plan-guard:",
+          "  enabled: true",
+          "line-limits:",
+          "  target: 125",
+          "",
+        ].join("\n"),
+      );
+
+      removeTopLevelConfigBlock(root, "plan-guard|line-limits");
+
+      const next = readFileSync(configPath, "utf-8");
+      assert.match(next, /plan-guard:\n  enabled: true/u);
       assert.match(next, /line-limits:\n  target: 125/u);
     });
   });

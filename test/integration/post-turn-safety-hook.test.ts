@@ -211,6 +211,8 @@ describe("post-turn-safety hook", () => {
           'password = "hunter2hunter2hunter2"',
           'api_key: "sk-AbC123456789012345678901234567890"',
           "CLIENT_SECRET=Zx9AbCdEf123456",
+          'CLIENT_SECRETS="Zx9AbCdEf123456"',
+          'DB_PASSWORDS="dbPasswordValue123"',
           "auth_token = 8f3c1a9b7e2d4f60aa11",
           "",
         ].join("\n"),
@@ -224,7 +226,17 @@ describe("post-turn-safety hook", () => {
       assert.match(result.stderr, /credential assignment \(password\)/u);
       assert.match(result.stderr, /credential assignment \(api_key\)/u);
       assert.match(result.stderr, /credential assignment \(CLIENT_SECRET\)/u);
+      assert.match(result.stderr, /credential assignment \(CLIENT_SECRETS\)/u);
+      assert.match(result.stderr, /credential assignment \(DB_PASSWORDS\)/u);
       assert.match(result.stderr, /credential assignment \(auth_token\)/u);
+    });
+  });
+
+  it("allows interpolated double-quoted credential expressions", () => {
+    withTempRepo((root) => {
+      writeFile(root, "env.txt", 'API_KEY="${PREFIX}SecretValue123"\n');
+
+      assertHookAllows(root);
     });
   });
 

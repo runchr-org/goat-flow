@@ -133,6 +133,7 @@ function topLevelBlockRange(
   lines: string[],
   key: string,
 ): { start: number; end: number } | null {
+  if (!/^[A-Za-z0-9_-]+$/u.test(key)) return null;
   const start = lines.findIndex((line) =>
     new RegExp(`^${key}:\\s*(?:#.*)?$`, "u").test(line),
   );

@@ -2,6 +2,7 @@
 
 **Status:** Superseded by ADR-039
 **Date:** 2026-06-13
+**Superseded:** 2026-06-14
 **Updated:** 2026-06-14 (superseded by removal) · 2026-06-14 (changeset scoped to plan-referenced files) · 2026-06-13 (Stop-payload spike: default registration narrowed to Claude)
 
 Superseded by ADR-039. The design below remains historical evidence for why the guard existed briefly in v1.12.0; it is no longer a shipped hook contract.

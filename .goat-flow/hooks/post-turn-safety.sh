@@ -84,7 +84,7 @@ strip_space() {
 is_excluded_credential_key() {
   local key="$1"
   case "$key" in
-    tokens|secrets|passwords|*tokens|*secrets|*passwords|tokenizer|tokeniser|tokenize|*tokenizer*|*tokeniser*|*tokenize*|*_count|*_index|*_id|*_name|*_type|*_header|*_url|*_path|*_list|*_re|*_pattern|*_field)
+    tokens|*tokens|tokenizer|tokeniser|tokenize|*tokenizer*|*tokeniser*|*tokenize*|*_count|*_index|*_id|*_name|*_type|*_header|*_url|*_path|*_list|*_re|*_pattern|*_field)
       return 0
       ;;
   esac
@@ -96,10 +96,10 @@ is_credential_key() {
   key="$(printf '%s' "$1" | tr '[:upper:]-' '[:lower:]_')"
   is_excluded_credential_key "$key" && return 1
   case "$key" in
-    token|secret|password|api_key|apikey|private_key|access_token|auth_token|refresh_token|bearer_token|client_secret|secret_key)
+    token|secret|secrets|password|passwords|api_key|apikey|private_key|access_token|auth_token|refresh_token|bearer_token|client_secret|client_secrets|secret_key|secret_keys)
       return 0
       ;;
-    *_api_key|*_apikey|*_private_key|*_access_token|*_auth_token|*_refresh_token|*_bearer_token|*_client_secret|*_secret_key|*_password|*_token|*_secret)
+    *_api_key|*_apikey|*_private_key|*_access_token|*_auth_token|*_refresh_token|*_bearer_token|*_client_secret|*_client_secrets|*_secret_key|*_secret_keys|*_password|*_passwords|*_token|*_secret|*_secrets)
       return 0
       ;;
   esac
@@ -147,6 +147,9 @@ literal_assignment_value() {
       rest="${raw:1}"
       [[ "$rest" == *\"* ]] || return 1
       value="${rest%%\"*}"
+      case "$value" in
+        *'$'*) return 1 ;;
+      esac
       after="${rest#*\"}"
       after="$(strip_space "$after")"
       case "$after" in

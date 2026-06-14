@@ -57,6 +57,7 @@ src/cli/                         = Node CLI, audit engine, dashboard server, pro
 ├── server/                      = dashboard HTTP/WebSocket server and route modules
 │   ├── dashboard.ts             = server bootstrap, route dispatch, live reload, shutdown
 │   ├── dashboard-routes.ts      = non-terminal route composition
+│   ├── dashboard-index-routes.ts = learning-loop index maintenance routes
 │   ├── dashboard-*-routes.ts    = audit, project, quality, shell, and skill-quality route groups
 │   ├── dashboard-terminal.ts    = terminal HTTP routes and WebSocket upgrades
 │   ├── terminal.ts              = PTY-backed terminal session manager

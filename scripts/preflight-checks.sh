@@ -59,6 +59,8 @@ Environment:
   FORCE_COLOR=1  - force colour even when stdout is not a TTY
   COLUMNS=N      - override terminal width detection (default: tput cols, or 80)
   CI=true        - implies --no-color unless FORCE_COLOR is set
+  GOAT_FLOW_PREFLIGHT_TEST_TIMEOUT_SECONDS=N
+                 - test command timeout in seconds (default: 600; 0 disables)
 HELP
             exit 0
             ;;
@@ -310,6 +312,76 @@ details_pipe() {
     while IFS= read -r line; do
         printf 'DETAIL\t%s\t%s\n' "$current_section" "$line" >> "$LEDGER"
     done
+}
+
+run_command_capture_with_timeout() {
+    local __output_var="$1"
+    local __status_var="$2"
+    local timeout_seconds="$3"
+    shift 3
+    local output status
+
+    output="$(
+        node - "$timeout_seconds" "$@" <<'NODE' 2>&1
+const { spawn } = require("node:child_process");
+
+const timeoutSeconds = Number(process.argv[2] || "0");
+const command = process.argv[3];
+const args = process.argv.slice(4);
+let timedOut = false;
+let forceKillTimer = null;
+const chunks = [];
+const child = spawn(command, args, {
+  detached: process.platform !== "win32",
+  stdio: ["ignore", "pipe", "pipe"],
+});
+
+function killChild(signal) {
+  if (!child.pid) return;
+  try {
+    if (process.platform === "win32") child.kill(signal);
+    else process.kill(-child.pid, signal);
+  } catch {
+    // The child may already have exited between the timeout and signal.
+  }
+}
+
+child.stdout.on("data", (chunk) => chunks.push(chunk));
+child.stderr.on("data", (chunk) => chunks.push(chunk));
+child.on("error", (error) => {
+  chunks.push(Buffer.from(String(error.message || error)));
+});
+
+const timer =
+  Number.isFinite(timeoutSeconds) && timeoutSeconds > 0
+    ? setTimeout(() => {
+        timedOut = true;
+        killChild("SIGTERM");
+        forceKillTimer = setTimeout(() => killChild("SIGKILL"), 1000);
+        forceKillTimer.unref();
+      }, timeoutSeconds * 1000)
+    : null;
+
+child.on("close", (code) => {
+  if (timer) clearTimeout(timer);
+  if (forceKillTimer) clearTimeout(forceKillTimer);
+  process.stdout.write(Buffer.concat(chunks));
+  if (timedOut) {
+    process.stdout.write(
+      `\n[preflight] command timed out after ${timeoutSeconds}s: ${[
+        command,
+        ...args,
+      ].join(" ")}\n`,
+    );
+    process.exit(124);
+  }
+  process.exit(code === null ? 1 : code);
+});
+NODE
+    )" && status=0 || status=$?
+
+    printf -v "$__output_var" '%s' "$output"
+    printf -v "$__status_var" '%s' "$status"
 }
 
 # ── Phase mapping (centralised) ──────────────────────────────────────
@@ -1678,7 +1750,16 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
         test_command=(npm test)
         test_label="All"
     fi
-    test_output=$("${test_command[@]}" 2>&1) && test_exit=0 || test_exit=$?
+    test_output=""
+    test_exit=1
+    test_timeout_seconds="${GOAT_FLOW_PREFLIGHT_TEST_TIMEOUT_SECONDS:-600}"
+    if [[ "$test_timeout_seconds" =~ ^[0-9]+$ ]]; then
+        :
+    else
+        warn "Invalid GOAT_FLOW_PREFLIGHT_TEST_TIMEOUT_SECONDS=$test_timeout_seconds; using 600"
+        test_timeout_seconds=600
+    fi
+    run_command_capture_with_timeout test_output test_exit "$test_timeout_seconds" "${test_command[@]}"
 
     test_count=$(echo "$test_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
     pass_count=$(echo "$test_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
@@ -1689,8 +1770,13 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
         coverage_output="$test_output"
     elif [[ "$test_exit" -eq 0 ]] && [[ "$test_count" == "0" || "$test_count" == "?" ]]; then
         warn "No tests found ($pass_count/$test_count) - test suite needs rebuilding"
+    elif [[ "$test_exit" -eq 124 ]]; then
+        fail "$test_label timed out after ${test_timeout_seconds}s"
+        printf '%s\n' "$test_output" | tail -20 | details_pipe || true
     elif [[ "$test_retryable" == true ]]; then
-        retry_output=$("${test_command[@]}" 2>&1) && retry_exit=0 || retry_exit=$?
+        retry_output=""
+        retry_exit=1
+        run_command_capture_with_timeout retry_output retry_exit "$test_timeout_seconds" "${test_command[@]}"
         retry_test_count=$(echo "$retry_output" | grep '# tests' | grep -oE '[0-9]+' || echo "?")
         retry_pass_count=$(echo "$retry_output" | grep '# pass' | grep -oE '[0-9]+' || echo "?")
         retry_fail_count=$(echo "$retry_output" | grep '# fail' | grep -oE '[0-9]+' || echo "0")
@@ -1699,6 +1785,10 @@ if [[ -f package.json ]] && grep -q '"test"' package.json; then
             warn "$test_label passed on retry after initial failure ($retry_pass_count/$retry_test_count); investigate transient test isolation"
             coverage_output="$retry_output"
             printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/initial: /' | details_pipe || true
+        elif [[ "$retry_exit" -eq 124 ]]; then
+            fail "Tests timed out after retry (initial $fail_count/$test_count failures, retry timed out after ${test_timeout_seconds}s)"
+            printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/initial: /' | details_pipe || true
+            printf '%s\n' "$retry_output" | tail -20 | sed 's/^/retry: /' | details_pipe || true
         else
             fail "Tests failed after retry (initial $fail_count/$test_count failures, retry $retry_fail_count/$retry_test_count failures)"
             printf '%s\n' "$test_output" | grep 'not ok' | head -5 | sed 's/^/initial: /' | details_pipe || true

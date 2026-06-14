@@ -556,6 +556,7 @@ const fs = require("node:fs");
 const path = process.argv[2];
 const content = fs.readFileSync(path, "utf8");
 const eol = content.includes("\r\n") ? "\r\n" : "\n";
+const repeatedEol = new RegExp(`(?:${eol === "\r\n" ? "\\r\\n" : "\\n"}){3,}`, "gu");
 const hadFinalNewline = /\r?\n$/u.test(content);
 let lines = content.split(/\r?\n/u);
 if (hadFinalNewline) lines.pop();
@@ -662,7 +663,7 @@ if (prefixStart > 0 && (lines[prefixStart - 1] ?? "").trim() === "") {
 }
 const next = [...lines.slice(0, prefixStart), ...lines.slice(end)]
   .join(eol)
-  .replace(new RegExp(`${eol}{3,}`, "gu"), `${eol}${eol}`);
+  .replace(repeatedEol, `${eol}${eol}`);
 fs.writeFileSync(path, `${next.replace(/\s+$/u, "")}${hadFinalNewline ? eol : ""}`);
 console.log("changed");
 NODE

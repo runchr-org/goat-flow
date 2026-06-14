@@ -573,6 +573,7 @@ export function applyHookState(
   enabled: boolean,
   projectPath: string,
 ): HookState {
+  pruneRemovedHookTombstones(projectPath);
   const spec = resolveSpec(hookId);
   if (!spec.togglable) {
     throw new HookRegistrarError(`Hook is not togglable: ${hookId}`, 400);

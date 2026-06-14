@@ -930,6 +930,65 @@ describe("hook registrar", () => {
     });
   });
 
+  it("direct hook toggles prune stale removed plan-checkbox-guard entries and config", () => {
+    withTempProject((root) => {
+      writePostTurnCapableSurfaces(root);
+      mkdirSync(join(root, ".goat-flow", "hooks"), { recursive: true });
+      writeFileSync(
+        join(root, ".goat-flow", "hooks", "plan-checkbox-guard.sh"),
+        "",
+      );
+      writeFileSync(
+        join(root, ".goat-flow", "config.yaml"),
+        [
+          "hooks:",
+          "  plan-checkbox-guard:",
+          "    enabled: true",
+          "plan-guard:",
+          "  enabled: true",
+          "",
+        ].join("\n"),
+      );
+      writeFileSync(
+        join(root, ".claude", "settings.json"),
+        `${JSON.stringify(
+          {
+            hooks: {
+              Stop: [
+                {
+                  hooks: [
+                    {
+                      type: "command",
+                      command: "bash .goat-flow/hooks/plan-checkbox-guard.sh",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const safetyState = applyHookState("post-turn-safety", true, root);
+
+      const claudeSettings = readFileSync(
+        join(root, ".claude", "settings.json"),
+        "utf-8",
+      );
+      const config = readFileSync(
+        join(root, ".goat-flow", "config.yaml"),
+        "utf-8",
+      );
+      assert.equal(safetyState.id, "post-turn-safety");
+      assert.match(claudeSettings, /post-turn-safety\.sh/u);
+      assert.doesNotMatch(claudeSettings, /plan-checkbox-guard\.sh/u);
+      assert.doesNotMatch(config, /plan-checkbox-guard|plan-guard/u);
+      assertMissing(root, [".goat-flow/hooks/plan-checkbox-guard.sh"]);
+    });
+  });
+
   it("does not treat shared AGENTS.md surfaces as a Codex or Antigravity opt-in", () => {
     withTempProject((root) => {
       writeFileSync(join(root, "AGENTS.md"), "# Local agent instructions\n");

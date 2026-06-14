@@ -60,7 +60,7 @@ const RESOLVED_MARKER = "## Resolved Entries";
 
 /** Metadata-only paragraphs skipped when falling back to the first body paragraph. */
 const METADATA_LABEL =
-  /^\*\*(?:Status|Created|Updated|Resolved|Evidence|Date|Related):\*\*/;
+  /^\*\*(?:Status|Created|Updated|Resolved|Evidence|Date|Superseded|Related):\*\*/;
 
 /** ADR record filenames; non-ADR files in the decisions dir are a stats finding, not index rows. */
 const ADR_FILE = /^ADR-\d{3}-.+\.md$/;
@@ -185,12 +185,29 @@ function parseEntryFile(
     }));
 }
 
+/** Read one `**Label:** YYYY-MM-DD` metadata date from an ADR body. */
+function metadataDate(body: string, label: string): string | null {
+  return (
+    body.match(
+      new RegExp(`^\\*\\*${label}:\\*\\*\\s*(\\d{4}-\\d{2}-\\d{2})`, "m"),
+    )?.[1] ?? null
+  );
+}
+
+/** Pick the date displayed beside an ADR status in generated indexes. */
+function decisionIndexDate(body: string, status: string): string | null {
+  if (/^Superseded\b/u.test(status)) {
+    return metadataDate(body, "Superseded") ?? metadataDate(body, "Date");
+  }
+  return metadataDate(body, "Date");
+}
+
 /** Read the status/date prefix for one ADR index hook. */
 function decisionStatusPart(body: string): string {
   const status = firstSentence(
     body.match(/^\*\*Status:\*\*\s*(.+)$/m)?.[1]?.trim() ?? "Unknown status",
   );
-  const date = body.match(/^\*\*Date:\*\*\s*(\d{4}-\d{2}-\d{2})/m)?.[1] ?? null;
+  const date = decisionIndexDate(body, status);
   return date === null ? status : `${status}, ${date}`;
 }
 

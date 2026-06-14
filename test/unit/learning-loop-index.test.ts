@@ -83,6 +83,7 @@ const ADR_FILE = `# ADR-001: Adopt the sentinel merge
 
 **Status:** Superseded by ADR-002
 **Date:** 2026-05-20
+**Superseded:** 2026-06-01
 
 ## Context
 
@@ -173,7 +174,7 @@ describe("parseBucket", () => {
     assert.equal(entries[0]?.anchor, "# ADR-001: Adopt the sentinel merge");
     assert.equal(
       entries[0]?.hook,
-      "Superseded by ADR-002, 2026-05-20 - Adopt the UNSET sentinel merge for every config layer.",
+      "Superseded by ADR-002, 2026-06-01 - Adopt the UNSET sentinel merge for every config layer.",
     );
   });
 
