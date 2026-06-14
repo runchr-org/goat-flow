@@ -4,47 +4,23 @@
  * renders exactly one Home view root.
  */
 import { assert, baseUrl, describe, it } from "./dashboard-server.helpers.js";
-import {
-  assembleDashboardHtml,
-  loadDashboardAssetCached,
-  loadDashboardPresets,
-} from "../../src/cli/server/dashboard-assets.js";
-import { createAuditRouteHandlers } from "../../src/cli/server/dashboard-audit-routes.js";
-import { createProjectRouteHandlers } from "../../src/cli/server/dashboard-project-routes.js";
+import { loadDashboardPresets } from "../../src/cli/server/dashboard-assets.js";
 import { resolveProjectIdentity } from "../../src/cli/server/dashboard-project-state.js";
-import { createQualityRouteHandlers } from "../../src/cli/server/dashboard-quality-routes.js";
 import {
   createDashboardAuditProfiler,
   shouldProfileAuditRequest,
 } from "../../src/cli/server/dashboard-reporting.js";
-import { createDashboardRouteContext } from "../../src/cli/server/dashboard-route-context.js";
-import { createDashboardRouteHandlers } from "../../src/cli/server/dashboard-routes.js";
-import { createShellRouteHandlers } from "../../src/cli/server/dashboard-shell-routes.js";
-import { createSkillQualityRouteHandlers } from "../../src/cli/server/dashboard-skill-quality-routes.js";
-import { buildDashboardTaskState } from "../../src/cli/server/dashboard-task-state.js";
-import { createDashboardTerminalHandlers } from "../../src/cli/server/dashboard-terminal.js";
 import {
   buildSetupDetectPayload,
   isProjectDirectory,
 } from "../../src/cli/server/setup-detect.js";
 
 describe("dashboard HTML", () => {
-  it("keeps dashboard route modules importable behind the server integration surface", () => {
+  it("exercises dashboard support helper behaviour behind the server integration surface", () => {
     const profiler = createDashboardAuditProfiler(true);
     const profiled = profiler.span("demo", () => "ok");
 
-    assert.equal(typeof assembleDashboardHtml, "function");
-    assert.equal(typeof loadDashboardAssetCached, "function");
     assert.equal(loadDashboardPresets().length > 0, true);
-    assert.equal(typeof createAuditRouteHandlers, "function");
-    assert.equal(typeof createProjectRouteHandlers, "function");
-    assert.equal(typeof createQualityRouteHandlers, "function");
-    assert.equal(typeof createDashboardRouteContext, "function");
-    assert.equal(typeof createDashboardRouteHandlers, "function");
-    assert.equal(typeof createShellRouteHandlers, "function");
-    assert.equal(typeof createSkillQualityRouteHandlers, "function");
-    assert.equal(typeof buildDashboardTaskState, "function");
-    assert.equal(typeof createDashboardTerminalHandlers, "function");
     assert.equal(
       resolveProjectIdentity(process.cwd()).currentPath.length > 0,
       true,

@@ -1,6 +1,6 @@
 ---
 category: hooks
-last_reviewed: 2026-06-09
+last_reviewed: 2026-06-14
 ---
 
 **Scope:** Hook install / launch / registration / config-drift plumbing. The `deny-dangerous` guardrail's shell-grammar policy parser (substitution/heredoc handling, secret-path and `git`/`gh` write classification, payload parsing) lives in [deny-dangerous.md](deny-dangerous.md).
@@ -33,9 +33,9 @@ last_reviewed: 2026-06-09
 **Why it happens:** Agent configs name launch paths, not the abstract hook file. A stale path, lost executable bit, unsupported shell substitution, or cwd assumption can fail before `deny-dangerous.sh` and the thin hook code start. Direct `bash workflow/hooks/<guard>.sh` smoke tests skip that surface.
 
 **Evidence:**
-- Preflight/audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configuredGuardCommands`).
-- 2026-06-01 release-review recurrence: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runConfiguredHookCommandSmoke`) parses the configured command but launches `bash` against `configured.scriptPath`, so a broken `$root` resolver, stale wrapper, syntax error, or executable-bit failure passes audit while the configured agent command fails before guard startup.
-- `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case; same file (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case. Runtime contract anchors: `workflow/hooks/README.md` (search: `Failure Modes / Runtime Contracts`) and `src/cli/server/agent-hook-writer.ts` (search: `Policy hook unavailable: git repository root unavailable`).
+- Preflight/audit parse configured command strings from `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, and `.github/hooks/hooks.json`, require an exact guard script path, then run that guard with safe deny payloads. Anchors: `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), `src/cli/audit/check-agent-deny-runtime.ts` (search: `configuredGuardCommands`).
+- 2026-06-01 release-review recurrence (now fixed): an earlier `runConfiguredHookCommandSmoke` parsed the configured command but launched `bash` against `configured.scriptPath`, so a broken `$root` resolver, stale wrapper, syntax error, or executable-bit failure could pass audit while the configured agent command failed before guard startup. `src/cli/audit/check-agent-deny-runtime.ts` (search: `runConfiguredHookCommandSmoke`) now executes the configured launcher string (`configured.command`) directly, and the drift tests below lock that it must not fall back to the bare script path.
+- `test/unit/audit-command/agent-deny-hooks-drift.test.ts` (search: `exact configured hook command points at a stale path`) locks the stale-path case; same file (search: `hides the script path in shell text`) locks the unsafe hidden-script-path case. Runtime contract anchors: `workflow/hooks/README.md` (search: `Failure Modes / Runtime Contracts`) and `src/cli/server/agent-hook-writer.ts` (search: `Policy hook unavailable: git repository root unavailable`).
 - 2026-06-04 PR #47 review recurrence: the generated launcher added a `$CLAUDE_PROJECT_DIR` fallback for the script path but still ran `bash "$root/..."` from the old cwd, so the dispatcher recomputed policy root from the wrong directory and failed closed outside a repo. The change had to stay mirrored across `src/cli/server/agent-hook-writer.ts` (search: `ensureRoot`), `workflow/hooks/deny-dangerous.sh` (search: `resolve_goat_flow_root_from_git`), `workflow/hooks/agent-config/claude.json` (search: `CLAUDE_PROJECT_DIR`), and `.claude/settings.json` (search: `CLAUDE_PROJECT_DIR`).
 - 2026-06-09 recurrence for Codex: bare `.goat-flow/hooks/deny-dangerous.sh` commands exited 127 from a nested cwd, while a `bash -c` wrapper that resolves `git rev-parse --show-toplevel`, checks `$root/.goat-flow/hooks/deny-dangerous.sh`, `cd`s to `$root`, and then invokes the hook reached the central policy. Current anchors: `workflow/hooks/agent-config/codex-hooks.json` (search: `git rev-parse --show-toplevel`), `src/cli/server/agent-hook-writer.ts` (search: `Codex has no documented equivalent`), and `test/unit/hook-registrar.test.ts` (search: `generated Codex launchers resolve the active root`).
 
@@ -110,7 +110,7 @@ last_reviewed: 2026-06-09
 
 **Evidence:**
 - `workflow/hooks/agent-config/copilot-hooks.json` and `.github/hooks/hooks.json` (search: `"preToolUse"`).
-- `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runtimeSmokePayload`) validates script-shaped stdin only.
+- `src/cli/audit/check-agent-deny-runtime.ts` (search: `runtimeSmokePayload`) validates script-shaped stdin only.
 
 **Prevention:** In release QA, label Copilot coverage as script/config evidence unless live capture writes a payload or emits `hook.start`. `POLICY_HOOKS: false` means runtime enforcement is unavailable/limited.
 
@@ -207,13 +207,13 @@ last_reviewed: 2026-06-09
 - Sources scrubbed: `.claude/settings.json`, `.codex/hooks.json`, template `workflow/hooks/agent-config/claude.json`, generators `src/cli/server/hooks-registry.ts` (matcher `Edit|Write`) + `workflow/install-goat-flow.sh` (`gruffHookEntries`), docs `workflow/hooks/README.md`, and the hook self-test in `workflow/hooks/gruff-code-quality.sh` (synced to the installed `.goat-flow/hooks/` copy or `audit` drift fails).
 
 **Prevention:**
-1. A "fixed" config regression needs a test, not just a CHANGELOG line. Guards now in place: `test/unit/agent-config-template-parity.test.ts` (search: `never denies a removed/unknown Claude tool`) locks every Claude deny rule to `{Bash,Read,Edit,Write}`; `test/unit/hook-registrar.test.ts` (search: `Edit|Write`) and `test/integration/setup-install.test.ts` (search: `/"matcher": "MultiEdit"/`) lock the gruff matcher.
+1. A "fixed" config regression needs a test, not just a CHANGELOG line. Guards now in place: `test/unit/agent-config-template-parity.test.ts` (search: `never denies a removed/unknown Claude tool`) locks every Claude deny rule to `{Bash,Read,Edit,Write}`; `test/unit/hook-registrar.test.ts` (search: `Edit|Write`) and `test/integration/setup-install-migrations.test.ts` (search: `/"matcher": "MultiEdit"/`) lock the gruff matcher.
 2. When mirroring `Edit`/`Write` permission or hook entries for a new tool, confirm the tool still exists in the target agent version first — Claude Code v2.x has `Edit`/`Write`/`NotebookEdit`, not `MultiEdit`.
 3. Editing a `workflow/hooks/*.sh` template means re-syncing the installed `.goat-flow/hooks/` copy in the same change; `audit` drift (search: `hook template ... and installed copy ... differ`) fails otherwise.
 
 **Follow-up (2026-06-08): the template guard was necessary but NOT sufficient — upgrades didn't clean existing installs.** The 1.10.0 fix above scrubbed the templates and added `test/unit/agent-config-template-parity.test.ts` (allow-set `{Bash,Read,Edit,Write}`). Both green — yet every real user still saw the 13 warnings on launch. All five `gruff-workspace` projects (`gruff-go|rs|ts|php|py`), upgraded to 1.10.x, still carried 13 `MultiEdit(...)` rules in `.claude/settings.json`. Root cause: `workflow/install-goat-flow.sh` settings block (search: `SETTINGS_MIGRATIONS=()`) only ran *Codex* migrations on an existing settings file; for Claude it fell through to "exists, skipped", and the Claude hook-config migration `migrate_agent_hook_config` only rewrites `current.hooks`, never `permissions.deny`. **A test on the template can't see the thousands of user-owned installed files that already hold the bad value.** Removing/renaming anything that lands in a user-owned config (a deny rule, a hook matcher, a config key) needs an UPGRADE MIGRATION that prunes the orphaned value from existing files — not just a clean template (cf. the standing rule: upgrades MUST prune orphaned/renamed artifacts).
 
-Fix shipped 1.10.1: `migrate_claude_permission_deny` in `workflow/install-goat-flow.sh` (search: `migrate_claude_permission_deny`), invoked under `[[ "$AGENT" == "claude" ]]` in the settings block. **Remove-list, not allow-list:** it strips only `REMOVED_CLAUDE_TOOLS = {MultiEdit}`, never "anything not in the allow-set" — a user may legitimately deny valid unmanaged tools (`WebFetch`, `NotebookEdit`, `mcp__*`), and clobbering those in a user-owned file is data loss. Keep the two lists (template allow-set, migration remove-set) in sync when Claude's toolset changes. Regression test: `test/integration/setup-install.test.ts` (search: `prunes stale removed-tool`) seeds an existing settings file with MultiEdit + Edit + WebFetch denies and asserts MultiEdit is pruned, the others survive, and a second run is a no-op. Verified on the real gruff-go payload: 13 → 0, `Bash/Read/Edit/Write` preserved, JSON valid, idempotent.
+Fix shipped 1.10.1: `migrate_claude_permission_deny` in `workflow/install-goat-flow.sh` (search: `migrate_claude_permission_deny`), invoked under `[[ "$AGENT" == "claude" ]]` in the settings block. **Remove-list, not allow-list:** it strips only `REMOVED_CLAUDE_TOOLS = {MultiEdit}`, never "anything not in the allow-set" — a user may legitimately deny valid unmanaged tools (`WebFetch`, `NotebookEdit`, `mcp__*`), and clobbering those in a user-owned file is data loss. Keep the two lists (template allow-set, migration remove-set) in sync when Claude's toolset changes. Regression test: `test/integration/setup-install-migrations.test.ts` (search: `prunes stale removed-tool`) seeds an existing settings file with MultiEdit + Edit + WebFetch denies and asserts MultiEdit is pruned, the others survive, and a second run is a no-op. Verified on the real gruff-go payload: 13 → 0, `Bash/Read/Edit/Write` preserved, JSON valid, idempotent.
 
 **Prevention (4):** When you remove or rename anything that ships into a user-owned config, add BOTH a template guard AND an upgrade migration, and a test that seeds the OLD value in an *existing* file then asserts the upgrade prunes it. A template-only test is false confidence — it passes while every already-installed project stays broken.
 
@@ -241,6 +241,37 @@ Fix shipped 1.10.1: `migrate_claude_permission_deny` in `workflow/install-goat-f
 4. When analyzer JSON has empty `findings` but config diagnostics or `filesDiscovered: 0`, surface the diagnostic before reporting a clean changed-line count.
 
 ---
+
+## Footgun: Registered Stop hooks can be dead config behind agent trust gates
+
+**Status:** active | **Created:** 2026-06-13 | **Evidence:** ACTUAL_MEASURED
+
+**Trap:** Writing a Stop entry into `.codex/hooks.json` or `.agents/hooks.json` does not mean the agent will ever execute it. On 2026-06-13, a capture fixture with Stop hooks registered for all three agents showed: Claude fired and delivered the full payload; Codex (codex-cli 0.139.0, `features` reports `hooks stable true`, docs document the `Stop` event) never executed the hook across four `codex exec` runs even with `--dangerously-bypass-hook-trust`, project trust, and a project config layer; Antigravity (agy 1.0.6) logged `Loaded hooks.json ... 1 total handlers` and `JSON hook "jsonhook__stop-capture_Stop_0_0": executing command` but the command never ran because execution waits on `~/.gemini/trusted_hooks.json` review (`toolPermission=request-review`) and print mode exits first.
+
+**Evidence:**
+- M02b Evidence section, `.goat-flow/plans/1.12.0/M02b-plan-checkbox-guard.md` (search: `Stop payload fields and supported-agent notes`).
+- `src/cli/server/hooks-registry.ts` (search: `unsupportedAgents`) gates `plan-checkbox-guard` to Claude with the spike reasons.
+- `post-turn-safety` was held to the same standard on 2026-06-14: `antigravity` was added to its `unsupportedAgents` (codex was already gated), so neither Stop hook now ships default-on to an agent whose delivery is unverified. A default-on *secret scanner* whose Stop event may never fire is false assurance - arguably worse than shipping nothing, because the dashboard still reports it "installed."
+
+**Prevention:** Treat hook registration facts as config evidence only. Before claiming an agent runs a Stop hook, capture a live payload (or hook-side log write) from that agent; for Codex assume an interactive `/hooks` review is required per project, and for Antigravity assume `trusted_hooks.json` approval is required. Gate default registration on verified delivery, not documented support - and keep the gate consistent across *every* Stop hook for that agent (do not gate `plan-checkbox-guard` while leaving `post-turn-safety` default-on for the same agent). Gating one Stop hook for one agent is a lock-step edit: `workflow/manifest.json` `hook_events.post_turn` -> `null` (which flips `supportsPostTurnHook` in `src/cli/agents/registry.ts` (search: `supportsPostTurnHook`) so `check-verification.ts` *skips* the agent instead of penalising it), `hooks-registry.ts` `unsupportedAgents`, the generated `.agents/hooks.json` (regenerate via `goat-flow hooks sync`, never hand-edit the escaped launcher JSON), plus the README hook table / CHANGELOG / `docs/dashboard.md` and the `hook-registrar` tests.
+
+## Footgun: Blocking Stop scanners can wedge on gitignored local state
+
+**Status:** active | **Created:** 2026-06-14 | **Evidence:** OBSERVED
+
+**Symptoms:** A Claude turn cannot stop even though the tracked/staged repo changes are safe. The Stop hook repeatedly reports findings under ignored generated output, scratch material, caches, or mutation-test sandboxes; every attempted "holding" response re-runs the Stop hook and repeats the block.
+
+**Why it happens:** A blocking Stop hook runs at turn-end, not at commit time. If it scans gitignored files, it treats local runtime state as work the agent must fix before it can yield. That is too broad for a default hook: ignored paths commonly include real local `.env` files, `_temp/`, coverage output, caches, and test sandboxes. The safety boundary for `post-turn-safety` is committable content: tracked diffs, staged diffs, and untracked non-ignored files.
+
+**Evidence:**
+- 2026-06-14 live loop: `post-turn-safety` scanned ignored `_temp/stryker-tmp/sandbox-*` copies of `.goat-flow/scratchpad/.../.env.example` and blocked placeholder assignments such as `NOTION_TOKEN="ntn_your_notion_token_here"`, causing Claude Stop to re-fire repeatedly.
+- Current hook scope: `workflow/hooks/post-turn-safety.sh` (search: `scan_tracked_changes`) and (search: `scan_untracked_changes`) scan tracked/staged/non-ignored changes only; there is no ignored-file scan.
+- Regression coverage: `test/integration/post-turn-safety-hook.test.ts` (search: `allows ignored env files that are not staged`) and (search: `blocks ignored env files once they are force-staged`) lock the boundary: local ignored files are skipped, force-staged ignored files still block.
+
+**Prevention:**
+1. For default blocking Stop hooks, define "changed content" as committable content. Do not add `git ls-files --others -i --exclude-standard` scans unless the hook is explicitly opt-in or advisory.
+2. Preserve staged-diff scanning so `git add -f .env` still blocks even though the path is ignored.
+3. Any scanner expansion needs paired block/allow tests: one real staged hazard that must block and one ignored local-state fixture that must not wedge the agent.
 
 ## Resolved Entries
 

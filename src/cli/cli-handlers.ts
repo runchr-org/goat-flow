@@ -7,7 +7,6 @@
  * non-zero-but-successful outcomes like a failing audit, so buffered stdout still flushes.
  */
 
-import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import type { AgentId, ProjectFacts } from "./types.js";
@@ -396,8 +395,8 @@ function emitCommitGuidanceInstallResult(projectPath: string): void {
   );
 }
 
-/** Handle deterministic install/update; spawns the bundled installer and reports CLIError failures. */
-function handleInstallCommand(options: ParsedCLI): void {
+/** Handle deterministic install/update; spawns the bundled installer through the safe-exec gate and reports CLIError failures. */
+async function handleInstallCommand(options: ParsedCLI): Promise<void> {
   if (!options.agent) {
     throw new CLIError(
       `install requires --agent. Use one of: ${validAgentFlags()}\n  (--apply installs per-agent surfaces; each agent needs a separate run)`,
@@ -419,10 +418,13 @@ function handleInstallCommand(options: ParsedCLI): void {
     throw new CLIError(invocation.error, 1);
   }
 
+  const { spawnInheritedSync } = await import("./server/safe-exec.js");
   const spawnSpec = buildInstallerSpawnSpec(invocation);
-  const result = spawnSync(spawnSpec.command, spawnSpec.args, {
+  const result = spawnInheritedSync({
+    command: spawnSpec.command,
+    args: spawnSpec.args,
+    allowedBasenames: ["bash", "bash.exe"],
     env: spawnSpec.env,
-    stdio: "inherit",
   });
   if (result.error) {
     throw new CLIError(
@@ -477,6 +479,14 @@ async function handleAuditCommand(options: ParsedCLI): Promise<void> {
     harness: options.includeHarness,
     checkDrift: options.checkDrift,
     checkContent: options.checkContent,
+    // The deny-mechanism runtime smoke executes the target checkout's own hook
+    // code (configured launcher string and managed script) and runs by default.
+    // `--untrusted-target` keeps the deny check static for a checkout you do not
+    // trust; otherwise the property is omitted, leaving the default unchanged.
+    // (The dashboard separately audits selected targets at "static".)
+    ...(options.untrustedTarget
+      ? { denyMechanismEvidenceLevel: "static" as const }
+      : {}),
   });
 
   const reportForRender = options.auditDetails
@@ -733,7 +743,7 @@ export async function dispatchCommand(options: ParsedCLI): Promise<void> {
     return;
   }
   if (options.shouldApply) {
-    handleInstallCommand(options);
+    await handleInstallCommand(options);
     return;
   }
   // Remaining command: setup (uses audit + facts to compose setup guidance).

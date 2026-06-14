@@ -1,6 +1,6 @@
 ---
 category: dashboard
-last_reviewed: 2026-05-28
+last_reviewed: 2026-06-14
 ---
 
 <!-- Note: pre-v1.8.0 entries below may reference "Gemini"; Antigravity replaced Gemini in v1.8.0. Where the underlying trap shape applies equally to Antigravity (box-bordered menus, selection-bullet glyphs, CUP positioning), the Gemini references are kept as historical evidence. Where they describe current code behavior, they have been updated to Antigravity. -->
@@ -140,31 +140,21 @@ last_reviewed: 2026-05-28
 **Symptoms:** Clicking a dashboard action such as "Run Quality Assessment in Runner" creates a Claude terminal session with the right title, but the terminal lands at Claude's empty `❯` prompt with no assessment prompt pasted. A related Claude Code variant shows `[Pasted text #N +... lines]` in the composer and never submits it.
 
 **Evidence:**
-- User-observed dashboard session on 2026-05-10: "Quality Agent Installation for Claude Code via Claude Code" opened in Claude Code v2.1.138, reached the `❯` prompt, and no quality prompt appeared.
 - `test/smoke/dashboard-endpoints.test.ts` (search: `waits for runner output to settle before initial prompt delivery`) reproduces the multi-chunk startup condition: a second output chunk must reset the initial-input timer, and no prompt may be written until output has been quiet.
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksReadyForLaunchPrompt`) sends dashboard-launched prompts after the browser terminal is attached and the runner output reaches an interactive prompt, with a fallback timer for runners whose readiness cannot be detected.
-- Built-dashboard browser verification on 2026-05-10: clicking "Run Quality Assessment in Runner" opened Claude Code v2.1.138 and pasted the generated `# GOAT Flow Quality Assessment - Claude Code` prompt into the terminal.
-- User-observed Skills page session on 2026-05-10: "Assess in Runner" opened Claude Code v2.1.138 and showed `[Pasted text #1 +110 lines]` instead of running the skill quality prompt.
 - `src/dashboard/dashboard-terminal.ts` (search: `TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS`) submits dashboard-launched pasted prompts as a second PTY input after the bracketed paste, so Claude Code can commit the pasted-text block before Enter is sent.
 - `test/unit/dashboard-terminal-launch/launch-flow-02.test.ts` (search: `data: "\r"`) pins the split paste-then-submit browser wire contract.
-- Built-dashboard browser verification on 2026-05-11: clicking Skills -> Assess in Runner sent the prompt when Claude Code reached its footer, detected the `[Pasted text #1 +108 lines]` echo, sent Enter 112 ms after paste, and the terminal proceeded to read `.goat-flow/skill-docs/skill-preamble.md` instead of remaining at the pasted-text composer.
 - `src/dashboard/dashboard-terminal-paste.ts` (search: `dashboardHandlePasteSubmitOutput`) submits browser-side pasted prompts on Claude Code's pasted-text echo, with `TERMINAL_PASTE_COMMIT_FALLBACK_DELAY_MS` as the fallback for runners that do not echo that state.
-- Built-dashboard browser verification on 2026-05-12: clicking Setup with runner `gemini` and target Gemini CLI opened Gemini CLI v0.41.2, waited through the signed-in/auth splash, then sent `# GOAT Flow Setup - Gemini CLI`; Gemini entered `Thinking...` after receiving the `goat-flow audit . --harness --agent gemini` instruction.
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksReadyForLaunchPrompt`) treats Antigravity's `Antigravity CLI [version]` identity line plus the `for shortcuts` composer hint as the input-safe marker before sending launch prompts. (Pre-v1.8.0 this slot was held by Gemini's `Type your message or @path/to/file` marker; Gemini was removed when Antigravity replaced it.)
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksCommittedPaste`) recognises the `[Pasted text #N +M lines]` / `[Pasted Text: N lines]` marker for Claude and Antigravity, and `src/dashboard/dashboard-terminal-paste.ts` (search: `dashboardHandlePasteSubmitOutput`) delays Enter submits briefly after that marker so the TUI has committed the collapsed paste.
-- User-provided installed dashboard at `http://127.0.0.1:34769/` on 2026-05-12: clicking Setup -> Run Setup in Terminal for Claude Code v2.1.139 pasted `[Pasted text #1 +36 lines]` and stayed there after a 4s wait; one manual Enter advanced the same prompt into Claude's command execution.
 - `src/dashboard/dashboard-terminal.ts` (search: `TERMINAL_PASTE_MARKER_SETTLE_DELAY_MS`) now delays Claude and Antigravity Enter submits after pasted-text markers so the TUI has a quiet window to commit the collapsed paste before Enter is sent.
-- User-observed dashboard session on 2026-05-27: Claude Code v2.1.152 "Run Quality Assessment in Runner" landed a 394-line / ~32 KB prompt as `[Pasted text #1 +394 lines]` and never submitted. Live `_terminalRefs` snapshot (session id ending `63940c04`) showed `pasteSubmitTimer: false`, `pasteSubmitAwaitingCommit: false` while xterm buffer still showed the parked paste, proving the dashboard had fired `\r` before Claude's TUI was ready to treat it as submit.
-- PTY artifacts in the stuck 2026-05-27 buffer included `\x1b[7m[\x1b[27m` (reverse-video literal `[`) and a stray `PR #44` line, evidence that Claude's renderer/parser briefly exposed bracketed-paste internals on the fat payload.
 - `src/dashboard/dashboard-terminal-paste.ts` (search: `dashboardArmPasteSubmitRetryIfStillCommitted`) now turns the post-submit verifier into a bounded retry loop while `dashboardOutputStillAtCommittedPaste` still classifies the composer as parked.
-- User-observed dashboard sessions on 2026-05-28: Codex and Antigravity "Run in Terminal" quality launches auto-submitted, but Claude Code left the same prompt pasted and waiting for manual Enter. Local trace inspection for the comparable 2026-05-27 Claude sessions showed a ~33 KB `prompt.send` without a following `"\r"` submit before cleanup, so marker-triggered submit/retry was not enough when the visible Claude pasted-text marker failed to drive the browser helper path.
 - `src/dashboard/dashboard-terminal.ts` (search: `TERMINAL_CLAUDE_PASTE_NO_MARKER_FALLBACK_DELAY_MS`) adds a short Claude-only no-marker submit fallback before the generic 15s delayed-paste safety net, and routes that fallback through `dashboardArmPasteSubmitRetryIfStillCommitted`.
-- User-provided live WebSocket probe on 2026-05-28 after the no-marker fallback was deployed showed bracketed paste at +933 ms, xterm DA response `\x1b[?1;2c` at +1049 ms, then no `"\r"` / `"\n"` for the next ~7 seconds. Manual Enter immediately advanced Claude Code, proving the browser-to-server input channel was healthy and the pending fallback had been cancelled in the browser helper path.
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardTerminalDataLooksProtocolResponse`) keeps xterm-generated focus, DA, DSR, and cursor-position protocol replies from clearing pending paste-submit state while still forwarding them to the PTY. `test/unit/dashboard-terminal-launch/launch-flow-01.test.ts` (search: `keeps Claude no-marker fallback armed across xterm protocol replies`) pins the live failure shape: bracketed paste, `\x1b[?1;2c`, then fallback Enter.
-- User-observed Codex dashboard session on 2026-05-19: Codex CLI 0.131.0 failed during config load, returned to the fallback shell, and the queued quality prompt was pasted into bash where its Markdown lines executed as shell commands.
 - `src/dashboard/dashboard-terminal.ts` (search: `dashboardOutputLooksRunnerStartupFailure`) suppresses queued launch prompts when runner startup output proves the prompt would land in a fallback shell instead of the agent composer.
+- Historical live reproductions from 2026-05-10 through 2026-05-28 covered missing prompt paste, parked `[Pasted text #N +... lines]`, manual-Enter recovery, Claude no-marker fallback cancellation by xterm protocol replies, and prompt leakage into fallback shells after runner startup failure.
 
-**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code's remote-control startup can ignore a server-side initial PTY paste even after a simple delay. The PTY write succeeds from goat-flow's perspective, but the runner can drop or ignore the prompt before the browser-attached terminal path is ready. For browser-side Claude Code sends, sending bracketed paste markers, prompt text, and Enter in one PTY write, sending Enter before Claude has committed the pasted-text block, relying only on the pasted-text marker callback, or treating every `term.onData` event as human input can leave Claude in its pasted-text composer state without submitting. Xterm can emit protocol replies such as focus-in/focus-out, device-attributes, device-status, and cursor-position responses through the same `onData` path as keystrokes; if those replies clear `pasteSubmitTimer`, the fallback Enter never fires. If the runner exits during startup, goat-flow's terminal wrapper intentionally leaves an interactive shell open, so launch-prompt fallback timers must distinguish agent composers from shell prompts after runner failure.
+**Why it happens:** Agent CLIs render startup screens in multiple PTY chunks, and Claude Code can ignore early server-side PTY pastes. Browser-side sends also fail when bracketed paste, prompt text, and Enter are collapsed into one payload; when Enter fires before Claude commits the pasted-text block; when marker callbacks never arrive; or when xterm protocol replies are misclassified as human input and clear pending timers. If the runner exits during startup, goat-flow intentionally leaves a fallback shell open, so launch-prompt timers must distinguish an agent composer from a shell prompt.
 
 **Prevention:**
 1. For dashboard launch buttons, create promptless backend terminal sessions and send the prompt after the browser terminal is attached and runner output looks ready or has gone quiet.
@@ -234,6 +224,27 @@ last_reviewed: 2026-05-28
 1. When composing a fix/action command or prompt for harness issues, resolve the target agent from the audit data (which agent actually has the finding), not from `activeRunner`. Use a priority-specific target helper such as `failingHarnessAgent()` (search: `failingHarnessAgent()` in `home.html`) so a concern-only failure does not hijack a harness action.
 2. When a dashboard surface displays a grade/score and also generates a prompt below it, both MUST use the same audit scope. If the card shows harness scores, the prompt API must pass `harness: true`.
 3. Watch for the runner-vs-target conflation pattern: `activeRunner` is correct for the `launchPreset` executor argument, but wrong for the prompt content's agent target, the command's `--agent` flag, and the `agentFilter` in API calls that feed those prompts.
+
+---
+
+## Footgun: Dashboard-launched Codex must override the default restricted sandbox
+
+**Status:** active | **Created:** 2026-06-14 | **Evidence:** OBSERVED
+
+**Symptoms:** A Codex session launched from the Workspace terminal fails `bash scripts/preflight-checks.sh` even though Claude Code and a normal terminal pass. The failure shape looks like product regressions at first: four child-process-heavy test files fail, `npm audit` reports `getaddrinfo EAI_AGAIN registry.npmjs.org`, and the package README check reports `spawnSync npm EPERM`.
+
+**Evidence:**
+- `src/cli/server/terminal.ts` (search: `CODEX_DASHBOARD_ARGS`) keeps dashboard-launched Codex on `--sandbox danger-full-access`.
+- `src/cli/server/terminal.ts` (search: `terminalRunnerCommand`) is the PTY shell command builder; the previous bare `$GOAT_RUNNER` launch inherited Codex's restricted command sandbox.
+- `test/smoke/dashboard-endpoints.test.ts` (search: `preflight-capable sandbox`) pins the POSIX and Windows Codex launch shapes.
+- Live probe on 2026-06-14: bare `codex doctor --summary` reported `restricted fs + restricted network`, while `codex --sandbox danger-full-access doctor --summary` reported `unrestricted fs + enabled network`.
+
+**Why it happens:** The dashboard starts a real agent runner, and the runner owns the command sandbox used by that agent's tool calls. A bare Codex launch can default to restricted filesystem/network behavior, which breaks verification commands that depend on nested Node child processes, `git`, `npm`, and npm registry DNS. The same checkout can pass in Claude Code because Claude's runner is not using Codex's restricted bwrap/seccomp command sandbox.
+
+**Prevention:**
+1. When refactoring `buildTerminalSpawnSpec`, preserve the Codex-specific `--sandbox danger-full-access` launch argument unless Codex provides a safer profile that still permits nested `child_process` calls and npm registry access.
+2. For Codex-only preflight failures, run `codex doctor --summary` and a Node `child_process.spawnSync` probe before treating child-process test failures as product regressions.
+3. Do not weaken `scripts/preflight-checks.sh` or skip subprocess tests to satisfy a restricted Codex runner; fix the runner launch/profile instead.
 
 ---
 

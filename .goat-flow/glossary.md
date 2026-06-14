@@ -1,6 +1,6 @@
 # GOAT Flow Glossary
 
-Domain-specific terms for new contributors. Standard programming terms are excluded.
+Domain-specific terms for new contributors. Standard programming terms are excluded. For mirrored skill/reference content, "Canonical File" points at the authoring source under `workflow/`; installed copies under `.goat-flow/skill-docs/`, `.agents/skills/`, and `.claude/skills/` are runtime mirrors kept in sync by preflight.
 
 | Term | Definition | Canonical File | Aliases |
 |------|-----------|----------------|---------|
@@ -10,7 +10,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Audit | Deterministic structural integrity/completeness check surfaced by the CLI (setup-scope, agent-scope, harness tiers). Distinct from Quality (agent judgment) by definition and by storage. Never conflated with scores or quality ratings. | `src/cli/audit/types.ts` (search: `audit = deterministic integrity/completeness`) | -- |
 | Autonomy Tiers | Three-level permission system (Always / Ask First / Never) controlling what the agent can do without human approval. | `workflow/setup/reference/execution-loop.md` | -- |
 | Blast Radius | The declared maximum scope of files and systems a task is allowed to touch before the agent must stop and re-scope. | `workflow/setup/reference/execution-loop.md` | -- |
-| Category Bucket | A markdown file grouping multiple related entries (lessons or footguns) by theme instead of one file per incident. | `.goat-flow/skill-docs/skill-preamble.md` | Bucket file |
+| Category Bucket | A markdown file grouping multiple related entries (lessons or footguns) by theme instead of one file per incident. | `workflow/skills/reference/skill-preamble.md` | Bucket file |
 | Ceremony | The amount of planning process required for a task, ranging from Minimal (hotfix) to Full (system change/infrastructure). | `workflow/setup/reference/execution-loop.md` | -- |
 | Cold Path | Documentation loaded on demand (skills, templates) rather than every session. | `workflow/setup/01-system-overview.md` | -- |
 | Concern | A grouping of related harness checks. Currently 5 concerns: context, constraints, verification, recovery, feedback-loop. Each concern's checks live in a matching file under `src/cli/audit/harness/`. | `docs/harness-audit.md` | Harness concern |
@@ -22,7 +22,7 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | Execution Loop | The four-step agent workflow: READ, SCOPE, ACT, VERIFY. | `workflow/setup/reference/execution-loop.md` | Default loop |
 | Footgun | A documented architectural trap with file-path + semantic-anchor evidence (per ADR-024) stored in category bucket files under `.goat-flow/learning-loop/footguns/`. | `workflow/setup/05-customise-to-project.md` | Architectural landmine |
 | Guide Mode | Deprecated. Was a rendering mode that turned the CLI into an interactive setup assistant. Replaced by the dashboard setup view. | Removed in v1.1.0 | -- |
-| Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in `.goat-flow/skill-docs/skill-conventions.md`. | `.goat-flow/skill-docs/skill-conventions.md` | -- |
+| Handoff | Deprecated in v1.1.0. Replaced by milestone files with ticked checkboxes as the continuity mechanism. See Task Tracking in the shared skill conventions. | `workflow/skills/reference/skill-conventions.md` | -- |
 | Harness | The AI Harness audit tier. Validates agent governance installation via 17 checks across 5 concerns (context, constraints, verification, recovery, feedback-loop). Separate from setup-scope (16 checks) and agent-scope (4 checks). Invoked via `goat-flow audit --harness`. | `docs/harness-audit.md` | AI Harness |
 | Hot Path | Instruction content loaded every session (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, plus any local instruction files) with a strict line budget. Codex and Antigravity share `AGENTS.md`. | `workflow/setup/01-system-overview.md` | -- |
 | Instruction Budget | The practical limit (~100-150 instructions) an agent can follow reliably; exceeding it degrades all instructions uniformly. | `.goat-flow/learning-loop/decisions/ADR-008-instruction-budget-constraint.md` | Line budget |
@@ -44,4 +44,4 @@ Domain-specific terms for new contributors. Standard programming terms are exclu
 | State Declaration | The required format (`State: [MODE] \| Goal: [one line] \| Exit: [condition]`) an agent must announce before acting. | `workflow/setup/reference/execution-loop.md` | -- |
 | Stop-the-Line | A Level 2 VERIFY escalation requiring the agent to fully stop, preserve error output, and wait for human review. | `workflow/setup/reference/execution-loop.md` | Level 2 escalation |
 | Triangular Tension | Deprecated in v1.1.0. Was a mob elaboration technique. Now part of goat-critique's SKEPTIC/ANALYST/STRATEGIST core trio. | - | - |
-| Working Memory | Progress tracking via milestone file checkboxes (`.goat-flow/plans/`). On `/compact`, session log written to `.goat-flow/logs/sessions/`. | `.goat-flow/skill-docs/skill-conventions.md` | Working Notes |
+| Working Memory | Progress tracking via milestone file checkboxes (`.goat-flow/plans/`). On `/compact`, session log written to `.goat-flow/logs/sessions/`. | `workflow/skills/reference/skill-conventions.md` | Working Notes |

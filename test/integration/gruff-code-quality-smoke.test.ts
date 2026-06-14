@@ -1,377 +1,141 @@
 /**
- * Integration smoke tests for the gruff-code-quality hook's changed-line filtering behavior.
+ * Integration smoke tests for the gruff-code-quality hook's changed-line filtering
+ * behavior on the legacy analyse path: payload/git range resolution, extension
+ * routing, binary discovery limits, fail-soft skips, and config diagnostics.
+ * gruff.hook.v1 contract rendering lives in gruff-code-quality-contract.test.ts;
+ * shared fixtures live in gruff-code-quality-smoke.helpers.ts.
  */
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
-  mkdtempSync,
-  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import {
+  assertExtensionRoutesToExpectedGruff,
+  assertFailSoftSkipPayloadsSilent,
+  cleanupHookTestDirs,
+  git,
+  initGit,
+  makeRoot,
+  readArgumentInvocations,
+  readInvocations,
+  resolveTool,
+  runHook,
+  writeJsonConfigErrorMockGruffPy,
+  writeMockGruff,
+  writeMockGruffBinary,
+  writeNativeChangedRegionGruffPy,
+  writeSchemaErrorMockGruff,
+} from "./gruff-code-quality-smoke.helpers.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
-const HOOK = join(PROJECT_ROOT, "workflow", "hooks", "gruff-code-quality.sh");
-const disposables: string[] = [];
+const GRUFF_HOOK_COPIES = [
+  {
+    label: "workflow",
+    path: join(PROJECT_ROOT, "workflow", "hooks", "gruff-code-quality.sh"),
+  },
+  {
+    label: "installed",
+    path: join(PROJECT_ROOT, ".goat-flow", "hooks", "gruff-code-quality.sh"),
+  },
+] as const;
 
-/** Resolve a tool's absolute path from PATH; throws when a required sandbox tool is missing. */
-function resolveTool(name: string): string {
-  for (const dir of (process.env.PATH ?? "").split(":")) {
-    if (!dir) continue;
-    const candidate = join(dir, name);
-    if (existsSync(candidate)) return candidate;
+after(cleanupHookTestDirs);
+
+/** Return true when a candidate jq binary exists and can be executed. */
+function isExecutableFile(path: string): boolean {
+  if (!existsSync(path)) return false;
+  const result = spawnSync(path, ["--version"], { encoding: "utf-8" });
+  return result.status === 0;
+}
+
+/** Locate the optional jq 1.6 binary used by the compatibility regression leg. */
+function resolveJq16Binary(): { path: string | null; skipReason: string } {
+  const fromEnv = process.env.GOAT_FLOW_JQ16_BIN;
+  if (fromEnv !== undefined && fromEnv.trim() !== "") {
+    if (!isExecutableFile(fromEnv)) {
+      throw new Error(
+        `GOAT_FLOW_JQ16_BIN is set but is not executable: ${fromEnv}`,
+      );
+    }
+    return { path: fromEnv, skipReason: "" };
   }
-  throw new Error(`required tool not found on PATH: ${name}`);
+
+  for (const candidate of ["/tmp/jq16/jq", "/tmp/jq16/jq-linux64"]) {
+    if (isExecutableFile(candidate)) {
+      return { path: candidate, skipReason: "" };
+    }
+  }
+
+  return {
+    path: null,
+    skipReason:
+      "jq 1.6 binary not found; set GOAT_FLOW_JQ16_BIN or download jq-1.6 to /tmp/jq16/jq",
+  };
 }
 
-after(() => {
-  for (const dir of disposables) rmSync(dir, { recursive: true, force: true });
-});
-
-/** Create a disposable git root for hook smoke-test isolation. */
-function makeRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "goat-flow-gruff-hook-"));
-  disposables.push(root);
-  return root;
-}
-
-/** Install the default mock gruff binary used by most hook scenarios. */
-function writeMockGruff(root: string): string {
-  return writeMockGruffBinary(root, "bin", "gruff-ts", "changed.rule");
-}
-
-function writeMockGruffBinary(
-  root: string,
-  relativeBinDir: string,
-  binaryName: string,
-  changedRuleId: string,
-): string {
-  const binDir = join(root, relativeBinDir);
-  mkdirSync(binDir, { recursive: true });
-  const bin = join(binDir, binaryName);
-  writeFileSync(
-    bin,
-    `#!/usr/bin/env bash
-if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
-  cat <<'HELP'
-Usage: mock-gruff analyse [options] [paths...]
-Options:
-  --format <format>
-  --fail-on <severity>
-HELP
-  exit 0
-fi
-
-if [[ "$1" == "hook" ]]; then
-  echo "unknown command: hook" >&2
-  exit 2
-fi
-
-file="\${@: -1}"
-printf '%s\\n' "$file" >> "$PWD/gruff-invocations.log"
-if [[ "$file" == "src/new-file.ts" ]]; then
-  cat <<JSON
-{"findings":[{"ruleId":"new.rule","message":"new file finding","filePath":"$file","line":2,"severity":"warning"}]}
-JSON
-  exit 1
-fi
-
-cat <<JSON
-{"findings":[{"ruleId":"old.rule","message":"pre-existing finding","filePath":"$file","line":1,"severity":"advisory"},{"ruleId":"${changedRuleId}","message":"changed line finding","filePath":"$file","line":3,"severity":"warning"}]}
-JSON
-exit 1
-`,
-  );
-  chmodSync(bin, 0o755);
-  return binDir;
-}
-
-/** Spawns git with a deterministic PATH inside the disposable test repo. */
-function git(root: string, args: string[]): void {
-  const result = spawnSync("git", args, {
-    cwd: root,
-    encoding: "utf-8",
-    env: { ...process.env, PATH: "/usr/bin:/bin" },
-  });
-  assert.equal(result.status, 0, result.stderr);
-}
-
-/** Initialize the disposable repo without leaking command details into tests. */
-function initGit(root: string): void {
-  git(root, ["init", "--quiet"]);
-}
-
-/** Escape file names before embedding them in assertion regular expressions. */
-function escapeRegex(value: string): string {
-  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-}
-
-function runHook(
-  root: string,
-  payload: unknown,
+/** Run one hook copy's smoke self-test under a controlled PATH. */
+function runHookSelfTest(
+  hookPath: string,
   pathPrefix: string,
-  extraEnv: NodeJS.ProcessEnv = {},
 ): ReturnType<typeof spawnSync> {
-  return spawnSync("bash", [HOOK], {
-    cwd: root,
-    input: JSON.stringify(payload),
+  return spawnSync("bash", [hookPath, "--self-test=smoke"], {
+    cwd: makeRoot(),
     encoding: "utf-8",
-    env: { ...process.env, ...extraEnv, PATH: pathPrefix },
+    env: { ...process.env, PATH: pathPrefix },
   });
 }
 
-/**
- * Assert extension-based binary routing through the hook using real payloads.
- *
- * @param root - disposable git root containing mock gruff binaries
- * @param cases - file/rule pairs that prove each extension selects its analyzer
- */
-function assertExtensionRoutesToExpectedGruff(
-  root: string,
-  cases: ReadonlyArray<{ file: string; expectedRule: string }>,
+/** Assert one gruff hook self-test succeeds and prints the expected marker. */
+function assertSelfTestOk(
+  label: string,
+  result: ReturnType<typeof spawnSync>,
 ): void {
-  cases.forEach(({ file, expectedRule }) => {
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: file,
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      new RegExp(
-        `\\[warning\\] ${escapeRegex(file)}:3 ${escapeRegex(expectedRule)} - changed line finding`,
-      ),
-    );
-  });
-}
-
-/**
- * Assert unsupported hook payloads fail soft without surfacing analyzer output.
- *
- * @param root - disposable git root with the mock gruff binary installed
- * @param payloads - payload shapes that should be skipped by hook preflight
- */
-function assertFailSoftSkipPayloadsSilent(
-  root: string,
-  payloads: ReadonlyArray<unknown>,
-): void {
-  payloads.forEach((payload) => {
-    const result = runHook(root, payload, "/usr/bin:/bin");
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, "");
-  });
-}
-
-/**
- * Install a mock gruff binary that rejects the project config the way a real
- * gruff does when `.gruff-*.yaml` lacks the required `schemaVersion:` line:
- * it prints a config error naming `schemaVersion` and `init --force` to stderr
- * and exits non-zero, emitting no JSON. Used to assert the hook relays gruff's
- * real reason instead of the generic "produced non-JSON output" note. Writes
- * an executable mock binary into the temp root.
- */
-function writeSchemaErrorMockGruff(root: string): string {
-  const binDir = join(root, "bin");
-  mkdirSync(binDir, { recursive: true });
-  const bin = join(binDir, "gruff-ts");
-  writeFileSync(
-    bin,
-    `#!/usr/bin/env bash
-if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
-  cat <<'HELP'
-Usage: mock-gruff analyse [options] [paths...]
-Options:
-  --format <format>
-  --fail-on <severity>
-HELP
-  exit 0
-fi
-
-cat >&2 <<'ERR'
-gruff-ts: config error
-  Config must include \`schemaVersion: gruff-ts.config.v0.1\` at the top.
-
-Suggested fix:
-  Run \`gruff-ts init --force\` to regenerate the config from current defaults.
-ERR
-exit 1
-`,
+  assert.equal(
+    result.status,
+    0,
+    `${label} self-test failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
   );
-  chmodSync(bin, 0o755);
-  return binDir;
-}
-
-/**
- * Install a legacy `analyse --format json` mock that exits non-zero with valid
- * JSON but no findings because the project config was rejected. Writes an
- * executable mock binary into the temp root.
- */
-function writeJsonConfigErrorMockGruffPy(root: string): string {
-  const binDir = join(root, ".venv", "bin");
-  mkdirSync(binDir, { recursive: true });
-  const bin = join(binDir, "gruff-py");
-  writeFileSync(
-    bin,
-    `#!/usr/bin/env bash
-if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
-  cat <<'HELP'
-Usage: mock-gruff-py analyse [options] [paths...]
-Options:
-  --format <format>
-  --fail-on <severity>
-HELP
-  exit 0
-fi
-
-cat <<'JSON'
-{"findings":[],"diagnostics":[{"type":"config-error","message":"Unknown threshold size.file-length"}],"filesDiscovered":0}
-JSON
-exit 2
-`,
-  );
-  chmodSync(bin, 0o755);
-  return binDir;
-}
-
-/**
- * Install a gruff-py-shaped mock that advertises native changed-region flags.
- *
- * It returns a finding on line 8 while the payload edits line 9, matching
- * gruff-py's symbol-scope contract: the analyzer owns changed-region filtering
- * and can retain findings whose primary line sits outside the edited hunk.
- *
- * Side effect: creates `<root>/.venv/bin/` and writes an executable `gruff-py`
- * shim there (chmod 0o755) so the hook discovers it through normal binary resolution.
- *
- * @param root - temp project root the shim is installed under
- * @returns absolute path to the created `.venv/bin` directory
- */
-function writeNativeChangedRegionGruffPy(root: string): string {
-  const binDir = join(root, ".venv", "bin");
-  mkdirSync(binDir, { recursive: true });
-  const bin = join(binDir, "gruff-py");
-  writeFileSync(
-    bin,
-    `#!/usr/bin/env bash
-if [[ "$1" == "analyse" && "$2" == "--help" ]]; then
-  cat <<'HELP'
-Usage: mock-gruff-py analyse [options] [paths...]
-Options:
-  --format <format>
-  --fail-on <severity>
-  --changed-ranges <ranges>
-  --changed-scope <scope>
-  --no-baseline
-HELP
-  exit 0
-fi
-
-if [[ "$1" == "hook" ]]; then
-  echo "unknown command: hook" >&2
-  exit 2
-fi
-
-printf '%s\\n' "$*" >> "$PWD/gruff-args.log"
-if [[ " $* " == *" --no-baseline "* && " $* " == *" --changed-ranges 9-9 "* && " $* " == *" --changed-scope symbol "* ]]; then
-  cat <<JSON
-{"findings":[{"ruleId":"security.shell-injection","message":"symbol-scoped finding","filePath":"src/sample.py","line":8,"severity":"error"}],"suppressedCount":2,"diff":{"suppressedCount":2}}
-JSON
-  exit 1
-fi
-
-cat <<JSON
-{"findings":[{"ruleId":"security.shell-injection","message":"unscoped finding","filePath":"src/sample.py","line":8,"severity":"error"}]}
-JSON
-exit 1
-`,
-  );
-  chmodSync(bin, 0o755);
-  return binDir;
-}
-
-/**
- * Install a contract-aware mock that advertises gruff.hook.v1 from
- * `hook --capabilities` and emits a gruff.hook.v1 envelope from `hook --format
- * json`, so the test exercises the hook's thin-renderer contract path (not the
- * legacy analyse path). Logs the `hook` argv to gruff-hook-args.log.
- *
- * @param root - temp project root the shim is installed under
- * @returns absolute path to the created node_modules/.bin directory
- */
-const DEFAULT_CONTRACT_ENVELOPE =
-  '{"contractVersion":"gruff.hook.v1","findings":[{"ruleId":"size.file-length","pillar":"size","severity":"warning","scope":"file","file":"src/sample.ts","line":1,"message":"file too long","remediation":"split it"},{"ruleId":"naming.short","pillar":"naming","severity":"advisory","scope":"line","file":"src/sample.ts","line":3,"message":"too short"}],"suppressed":{"count":2},"ignored":{"paths":[]},"config":{"schemaOk":true,"error":null}}';
-
-function writeContractGruffBinary(
-  root: string,
-  envelope: string = DEFAULT_CONTRACT_ENVELOPE,
-): string {
-  const binDir = join(root, "node_modules", ".bin");
-  mkdirSync(binDir, { recursive: true });
-  const bin = join(binDir, "gruff-ts");
-  writeFileSync(
-    bin,
-    `#!/usr/bin/env bash
-if [[ "$1" == "hook" && " $* " == *" --capabilities "* ]]; then
-  cat <<'JSON'
-{"contractVersion":"gruff.hook.v1","analyzer":{"name":"gruff-ts","version":"9.9.9"},"supports":{"changedRanges":true,"diff":true,"baseline":true,"scopeField":true,"metadata":true,"stableIdentity":true,"ignoreReport":true,"newOnly":true},"flags":{"changedRanges":"--changed-ranges","diff":"--diff","baseline":"--baseline"},"flagOrder":"any"}
-JSON
-  exit 0
-fi
-if [[ "$1" == "hook" ]]; then
-  printf '%s\\n' "$*" >> "$PWD/gruff-hook-args.log"
-  cat <<'JSON'
-${envelope}
-JSON
-  exit 0
-fi
-exit 2
-`,
-  );
-  chmodSync(bin, 0o755);
-  return binDir;
-}
-
-/** Read the files passed to the mock gruff binary; missing invocation logs use an empty-list fallback. */
-function readInvocations(root: string): string[] {
-  try {
-    const content = readFileSync(
-      join(root, "gruff-invocations.log"),
-      "utf-8",
-    ).trim();
-    return content.length > 0 ? content.split("\n") : [];
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-}
-
-/** Read the raw mock-gruff argument log; missing logs use an empty-list fallback. */
-function readArgumentInvocations(root: string): string[] {
-  try {
-    const content = readFileSync(join(root, "gruff-args.log"), "utf-8").trim();
-    return content.length > 0 ? content.split("\n") : [];
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
+  assert.match(result.stdout, /gruff-code-quality self-test: ok/u);
 }
 
 describe("gruff-code-quality hook", () => {
+  it("passes the smoke self-test for both hook copies with system jq", () => {
+    for (const hook of GRUFF_HOOK_COPIES) {
+      assertSelfTestOk(
+        hook.label,
+        runHookSelfTest(hook.path, process.env.PATH ?? "/usr/bin:/bin"),
+      );
+    }
+  });
+
+  const jq16 = resolveJq16Binary();
+  it(
+    "passes the smoke self-test for both hook copies with pinned jq 1.6",
+    jq16.path === null ? { skip: jq16.skipReason } : {},
+    () => {
+      assert.ok(jq16.path, jq16.skipReason);
+      const version = spawnSync(jq16.path, ["--version"], {
+        encoding: "utf-8",
+      });
+      assert.equal(version.stdout.trim(), "jq-1.6");
+
+      const pinnedBin = makeRoot();
+      symlinkSync(jq16.path, join(pinnedBin, "jq"));
+      const pathPrefix = `${pinnedBin}:${process.env.PATH ?? "/usr/bin:/bin"}`;
+
+      for (const hook of GRUFF_HOOK_COPIES) {
+        assertSelfTestOk(hook.label, runHookSelfTest(hook.path, pathPrefix));
+      }
+    },
+  );
+
   // Fixture purpose: writes temp source/git state to cover changed-line filtering and the triage footer.
   it("prints changed-line findings, suppressed count, and footer", () => {
     const root = makeRoot();
@@ -451,8 +215,7 @@ describe("gruff-code-quality hook", () => {
     assert.deepEqual(readInvocations(root), ["src/example.ts"]);
   });
 
-  // Fixture purpose: mutates git state to prove unsupported payload paths stay
-  // scoped to the edit instead of sweeping unrelated git-changed files.
+  // Fixture purpose: writes/stages a dirty supported file to prove unsupported payload paths skip analysis.
   it("skips analysis when payload paths are unsupported even though supported files are dirty", () => {
     const root = makeRoot();
     initGit(root);
@@ -913,250 +676,5 @@ describe("gruff-code-quality hook", () => {
       /gruff-code-quality: gruff-py could not analyse src\/sample\.py - Unknown threshold size\.file-length/,
     );
     assert.doesNotMatch(result.stdout, /0 on changed lines/);
-  });
-
-  // Fixture purpose: writes a hook-envelope mock to cover finding and suppression rendering.
-  it("renders gruff.hook.v1 output when the analyzer advertises the contract", () => {
-    const root = makeRoot();
-    writeContractGruffBinary(root);
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    // file-scope finding renders WITHOUT a :line (location semantics); line-scope keeps its line.
-    assert.match(
-      result.stdout,
-      /\[warning\] src\/sample\.ts size\.file-length - file too long/,
-    );
-    assert.match(
-      result.stdout,
-      /\[advisory\] src\/sample\.ts:3 naming\.short - too short/,
-    );
-    // The analyzer-owned suppression count is surfaced, not re-derived by the hook.
-    assert.match(
-      result.stdout,
-      /suppressed 2 finding\(s\) outside the changed scope/,
-    );
-    assert.match(
-      result.stdout,
-      /For triage: consult \.goat-flow\/skill-docs\/playbooks\/gruff-code-quality\.md/,
-    );
-    // The hook drove the `hook` subcommand, not the legacy `analyse` path.
-    const hookArgs = readFileSync(join(root, "gruff-hook-args.log"), "utf-8");
-    assert.match(
-      hookArgs,
-      /hook --format json --changed-ranges 3-3 src\/sample\.ts/,
-    );
-  });
-
-  // Fixture purpose: mutates a committed file to cover the regression where --diff hid edited lines.
-  it("does not append --diff to the contract call (single-pass new-only would hide changed-line findings)", () => {
-    const root = makeRoot();
-    initGit(root);
-    writeContractGruffBinary(root);
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-    git(root, ["add", "src/sample.ts", ".gruff-ts.yaml"]);
-    git(root, [
-      "-c",
-      "user.email=t@test",
-      "-c",
-      "user.name=Test",
-      "commit",
-      "-m",
-      "baseline",
-      "--quiet",
-    ]);
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\ne\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    const hookArgs = readFileSync(join(root, "gruff-hook-args.log"), "utf-8");
-    assert.match(
-      hookArgs,
-      /hook --format json --changed-ranges 3-3 src\/sample\.ts/,
-    );
-    // Single-pass --diff applies new-only to line/symbol too, suppressing
-    // pre-existing findings on edited lines (confirmed across all five
-    // analyzers). Re-enabling new-only file/project surfacing needs the
-    // scope-specific combined mode tracked in M02, not a bare --diff append.
-    assert.doesNotMatch(hookArgs, /--diff/);
-  });
-
-  // Fixture purpose: writes a B8 envelope mock to cover schemaOk:false config-error reports.
-  it("relays a gruff.hook.v1 config error (B8) instead of swallowing schemaOk:false", () => {
-    const root = makeRoot();
-    writeContractGruffBinary(
-      root,
-      '{"contractVersion":"gruff.hook.v1","findings":[],"suppressed":{"count":0},"ignored":{"paths":[]},"config":{"schemaOk":false,"error":"missing schemaVersion; run gruff-ts init --force"}}',
-    );
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /could not analyse src\/sample\.ts - missing schemaVersion; run gruff-ts init --force/,
-    );
-  });
-
-  // Fixture purpose: writes a B7 envelope mock to cover ignored-file reports for the edited path.
-  it("relays a gruff.hook.v1 ignore verdict (B7) for the edited file", () => {
-    const root = makeRoot();
-    writeContractGruffBinary(
-      root,
-      '{"contractVersion":"gruff.hook.v1","findings":[],"suppressed":{"count":0},"ignored":{"paths":[{"path":"src/sample.ts","source":"config","pattern":"src/**"}]},"config":{"schemaOk":true,"error":null}}',
-    );
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /skipped gruff-ts src\/sample\.ts - ignored by config src\/\*\*; out of scope/,
-    );
-  });
-
-  // Cross-analyzer hardening: the five gruff ports (Go/Rust/TS/PHP/Py) may emit
-  // subtly different gruff.hook.v1 envelopes. The hook's contract reader matches
-  // the legacy reader's tolerance so any conforming port renders identically.
-  it("renders a gruff.hook.v1 finding that reports its location under `path` instead of `file`", () => {
-    const root = makeRoot();
-    writeContractGruffBinary(
-      root,
-      '{"contractVersion":"gruff.hook.v1","findings":[{"ruleId":"naming.short","severity":"advisory","scope":"line","path":"src/sample.ts","line":3,"message":"too short"}],"suppressed":{"count":0},"ignored":{"paths":[]},"config":{"schemaOk":true,"error":null}}',
-    );
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /\[advisory\] src\/sample\.ts:3 naming\.short - too short/,
-    );
-  });
-
-  // Fixture purpose: writes a config-error envelope mock to cover omitted optional findings.
-  it("relays a gruff.hook.v1 config error even when the envelope omits the findings array", () => {
-    const root = makeRoot();
-    writeContractGruffBinary(
-      root,
-      '{"contractVersion":"gruff.hook.v1","config":{"schemaOk":false,"error":"missing schemaVersion; run gruff-ts init --force"}}',
-    );
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /could not analyse src\/sample\.ts - missing schemaVersion; run gruff-ts init --force/,
-    );
-  });
-
-  // Fixture purpose: writes an ignored-file envelope to cover analyzer-emitted ./ path prefixes.
-  it("relays a gruff.hook.v1 ignore verdict when the analyzer echoes a ./-prefixed path", () => {
-    const root = makeRoot();
-    writeContractGruffBinary(
-      root,
-      '{"contractVersion":"gruff.hook.v1","findings":[],"suppressed":{"count":0},"ignored":{"paths":[{"path":"./src/sample.ts","source":"config","pattern":"src/**"}]},"config":{"schemaOk":true,"error":null}}',
-    );
-    writeFileSync(join(root, ".gruff-ts.yaml"), "rules: {}\n");
-    mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src", "sample.ts"), "a\nb\nc\nd\n");
-
-    const result = runHook(
-      root,
-      {
-        tool_name: "Edit",
-        tool_input: {
-          file_path: "src/sample.ts",
-          changed_ranges: [{ startLine: 3, endLine: 3 }],
-        },
-      },
-      "/usr/bin:/bin",
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      /skipped gruff-ts src\/sample\.ts - ignored by config src\/\*\*; out of scope/,
-    );
   });
 });

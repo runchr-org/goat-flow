@@ -22,6 +22,7 @@ Validate setup correctness. The base audit runs two deterministic scopes (all pa
 | `--harness` | Add AI Harness Completeness scope (17 checks, installed/not-installed per concern) |
 | `--check-drift` | Add skill template-vs-installed drift detection (orphan directories, byte-level divergence) |
 | `--check-content` | Add cold-path content lint (vague terms, generic instructions, factual-claim drift) |
+| `--untrusted-target` | Skip executing the target's deny-hook code (its configured launcher string and managed script). By default the audit runs that code for runtime proof; pass this when auditing a checkout you don't trust so the deny-mechanism check stays static (no execution). |
 | `--format <type>` | Output: json, text, markdown, sarif (default: auto) |
 | `--verbose` | Show per-check details |
 | `--output <file>` | Write to file instead of stdout |
@@ -194,7 +195,7 @@ npx goat-flow dashboard --dev         # Live reload mode
 
 ### `goat-flow hooks <list|enable|disable|sync> [hook-id] [path]`
 
-Manage the project's registered guardrail and quality hooks (`deny-dangerous`, `gruff-code-quality`) in `.goat-flow/config.yaml`, then reconcile the per-agent hook config files so every agent stays in sync.
+Manage the project's registered guardrail, quality, and safety hooks (`deny-dangerous`, `gruff-code-quality`, `post-turn-safety`, `plan-checkbox-guard`) in `.goat-flow/config.yaml`, then reconcile the per-agent hook config files so every agent stays in sync.
 
 ```bash
 npx goat-flow hooks list                        # Show each hook's enabled/disabled state

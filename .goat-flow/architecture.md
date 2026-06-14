@@ -40,8 +40,9 @@ src/cli/
   paths.ts            # Path resolution utilities
   config/             # Configuration (reader.ts, types.ts)
   detect/             # Agent and stack detection (agents.ts, project-stack.ts)
+  evidence/           # Evidence envelopes, redaction, JSONL append/tail helpers
   facts/              # Fact extraction (orchestrator.ts, fs.ts, agent/, shared/)
-  prompt/             # Prompt generation: commit-guidance.ts, compose-setup.ts, compose-quality.ts, compose-quality-agent-report.ts, compose-quality-agent-setup.ts, compose-quality-artifact.ts, compose-quality-common.ts, compose-quality-focused.ts, learning-loop-context.ts
+  prompt/             # Prompt generation: commit-guidance.ts, compose-setup.ts, compose-quality.ts, compose-quality-agent-report.ts, compose-quality-agent-setup.ts, compose-quality-artifact.ts, compose-quality-common.ts, compose-quality-focused.ts, compose-quality-static-sections.ts, learning-loop-context.ts
   quality/            # Quality report schema, positional ids, history, and diff
   audit/              # Build checks, quality checks, render.ts (output formatters: text, json, markdown)
   server/             # Dashboard server modules:
@@ -57,6 +58,7 @@ src/cli/
                      #   setup-detect.ts (setup-detection payload helpers)
                      #   terminal.ts, types.ts
   agents/             # Manifest-backed agent registry (M12)
+  learning-loop-index/ # Generated learning-loop INDEX.md parser/generator
   manifest/           # Single-source-of-truth manifest loader (M06a)
   stats/              # Learning-loop health report (goat-flow stats)
 

@@ -13,7 +13,7 @@
  *   - Always use positional `args: string[]`, never a single command string.
  *   - The `allowList` is the security boundary, not `command -v`.
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   closeSync,
   fsyncSync,
@@ -466,6 +466,62 @@ export function execSafely(opts: ExecOptions): Promise<ExecResult> {
     child.on("close", (code, signal) => {
       finish(code, signal);
     });
+  });
+}
+
+/**
+ * Spawn request accepted by `spawnInheritedSync` for interactive CLI children.
+ *
+ * Contract: `allowedBasenames` matches the command's lowercased basename rather
+ * than the full path, because interactive callers pass resolved absolute
+ * binaries (for example a discovered Windows Git Bash path).
+ */
+export interface InheritedSpawnOptions {
+  /** Resolved binary to spawn; its basename must appear in `allowedBasenames`. */
+  command: string;
+  /** Positional argv; rejected on shell metacharacters like `execSafely` args. */
+  args: string[];
+  /** Lowercase command basenames this call site permits (e.g. ["bash", "bash.exe"]). */
+  allowedBasenames: readonly string[];
+  /** Optional environment passed through to the child unchanged. */
+  env?: NodeJS.ProcessEnv;
+}
+
+/**
+ * Spawn an allow-listed command with inherited stdio for interactive CLI flows.
+ *
+ * Unlike `execSafely`, output is not captured or capped: stdin/stdout/stderr stay
+ * attached to the caller's terminal, which suits long-running interactive children
+ * such as the bundled installer. The same pre-spawn gates apply - basename
+ * allow-list, metacharacter-free string args - and the child always runs with
+ * `shell: false`. Throws `SafeExecRejection` before any process is spawned when a
+ * gate fails.
+ *
+ * @param opts - command, argv, allowed basenames, and optional child environment
+ * @returns the raw `spawnSync` result; callers read `status`, `signal`, and `error`
+ */
+export function spawnInheritedSync(
+  opts: InheritedSpawnOptions,
+): SpawnSyncReturns<Buffer> {
+  const commandBasename = pathBasename(opts.command).toLowerCase();
+  // Normalise the allow-list to lowercase too, matching the documented
+  // "lowercase basenames" contract: the command side is already lowercased, so
+  // comparing against verbatim entries would silently reject a correct command
+  // whenever a caller passed a mixed-case allow-list entry.
+  const allowedBasenames = opts.allowedBasenames.map((name) =>
+    name.toLowerCase(),
+  );
+  if (!allowedBasenames.includes(commandBasename)) {
+    throw new SafeExecRejection(
+      "command-not-in-allow-list",
+      `command ${JSON.stringify(opts.command)} is not in the allow-list`,
+    );
+  }
+  rejectIfUnsafeArgs(opts.args);
+  return spawnSync(opts.command, opts.args, {
+    env: opts.env,
+    stdio: "inherit",
+    shell: false,
   });
 }
 

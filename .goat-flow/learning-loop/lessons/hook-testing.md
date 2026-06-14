@@ -1,7 +1,57 @@
 ---
 category: hook-testing
-last_reviewed: 2026-06-09
+last_reviewed: 2026-06-12
 ---
+
+## Lesson: Hook tests should inspect executable lines when checking failure masking
+
+**Status:** active | **Created:** 2026-06-11
+
+**What happened:** A focused post-turn hook test failed because it searched an entire shell script for `|| true`. The script correctly warned about not adding `|| true` in a comment, while the production detector ignores comments and checks executable validation lines.
+
+**Root cause:** The test asserted a policy token against raw file text instead of mirroring the runtime/audit parser boundary. This made a documentation warning look like executable failure masking.
+
+**Prevention:** When testing shell hook safety markers such as `|| true`, filter out blank lines and comment lines before matching. Keep separate assertions for operator-facing comments if the comment wording itself matters. Evidence anchors: `test/unit/audit-command/hook-facts.test.ts` (search: `detects validation commands that mask failure with || true`) and `src/cli/facts/agent/hooks.ts` (search: `lineSwallowsValidationFailure`).
+
+## Lesson: Secret-scanner tests must not embed literal secret-shaped fixtures
+
+**Status:** active | **Created:** 2026-06-12
+
+**What happened:** After `post-turn-safety` became the default Stop hook, the current Codex Stop command blocked this repo because the changed safety-hook test source embedded literal secret-shaped fixtures. The fixtures were fake, but the hook correctly scans changed source text and cannot know that a literal token-shaped string inside a test file is harmless.
+
+**Root cause:** The test generated dangerous fixture content by storing the exact dangerous strings in the source file. That made the repository source itself look like changed secret material, even though the test only needed the dangerous value inside a temporary repo at runtime.
+
+**Prevention:** Secret-scanner tests should construct secret-shaped fixture values from split constants or helpers so the runtime fixture still exercises the scanner, but the committed source does not contain contiguous token/private-key patterns. After adding or editing scanner fixtures, run the scanner against the current repo, not only against temp repos. Evidence anchors: `test/integration/post-turn-safety-hook.test.ts` (search: `TEST_AWS_ACCESS_KEY`) and `workflow/hooks/post-turn-safety.sh` (search: `scan_line`).
+
+## Lesson: Generated hook templates need template-safe ShellCheck annotations
+
+**Status:** resolved | **Created:** 2026-06-11 | **Resolved:** 2026-06-12
+
+**What happened:** ShellCheck failed on an unrendered generated-hook template with SC2317 because its helper was only called after install-time rendering inserted project commands between template markers.
+
+**Root cause:** The template and generated installed script have different control-flow shapes. The function is intentionally unreachable in the fail-closed template but reachable in the installed copy, so checking both files with the same command needs a scoped annotation.
+
+**Prevention:** Generated shell templates should keep the unrendered template syntactically valid and fail-closed, but annotate template-only unreachable helpers with a narrow `shellcheck disable=SC2317` plus a comment naming the render-time call path. Regenerate installed output after changing a template before rerunning ShellCheck. This specific generated-hook path was removed before release; current replacement decision: `.goat-flow/learning-loop/decisions/ADR-037-separate-post-turn-safety-from-validation.md` (search: `does not ship a generated project-validation Stop hook`).
+
+## Lesson: Generated hook bodies must expose literal validation commands
+
+**Status:** resolved | **Created:** 2026-06-11 | **Resolved:** 2026-06-12
+
+**What happened:** The verification-score spike proved that a post-turn hook whose body delegates to config at runtime remains invisible to `POST_TURN_VALIDATION_COMMAND_PATTERN`, so `post-turn-hook-integrity` correctly reports "no validation logic" even when a separate config file names real commands.
+
+**Root cause:** The audit detector reads installed hook script content, not arbitrary config. A runtime config loader inside the hook collapses validation evidence into opaque indirection; the audit can see a runner, but not the commands whose failures need to propagate.
+
+**Prevention:** If a future custom validation hook is intended to count toward Verification, keep auditable command lines visible in the installed script. Do not make a hook parse config at runtime and then claim deterministic validation evidence. goat-flow itself no longer ships this generated hook; current replacement decision: `.goat-flow/learning-loop/decisions/ADR-037-separate-post-turn-safety-from-validation.md` (search: `Ship one goat-flow post-turn hook`). Detector evidence anchor: `src/cli/facts/agent/hooks.ts` (search: `POST_TURN_VALIDATION_COMMAND_PATTERN`).
+
+## Lesson: Drift render helpers must apply every hook toggle
+
+**Status:** active | **Created:** 2026-06-11
+
+**What happened:** While reducing ESLint complexity in `expectedHookConfig`, I replaced the Copilot hook-toggle loop with `Array.some`. `npm run test:fast` then failed the well-configured repo audit because `some` stopped after applying `deny-dangerous`, skipped the enabled `gruff-code-quality` toggle, and made `.github/hooks/hooks.json` look drifted from the generated expectation.
+
+**Root cause:** I treated "did any toggle change?" as the only outcome, but the loop also had side effects that had to run for every hook spec. Short-circuiting preserved the boolean result and lost later generated config entries.
+
+**Prevention:** When refactoring generated-state or drift-render code, separate "apply all mutations" from "did anything change?" helpers. Do not use short-circuiting array methods (`some`, `find`, `every`) when each item may need to mutate the rendered artifact. Add focused drift tests that include at least two enabled optional hooks so skipped later entries fail visibly. Evidence anchors: `src/cli/audit/check-drift.ts` (search: `applyExplicitHookToggles`) and `test/integration/audit-drift-checkdrift-hook-templates.test.ts` (search: `allows Copilot hook config entries for enabled optional hooks`).
 
 ## Lesson: deny-dangerous self-test missed a whole false-positive class while green
 
@@ -35,9 +85,9 @@ last_reviewed: 2026-06-09
 
 **Root cause:** I treated direct shell execution as equivalent to the Node child-process path used by audit and preflight. Codex's managed sandbox can allow the initial Bash process while blocking child processes spawned from Node, so direct hook self-tests are necessary but not sufficient evidence for TypeScript validation gates.
 
-**Prevention:** When a sandbox finding involves audit/preflight hook checks, reproduce the exact runtime layer: direct hook script, configured command smoke, and a Node `child_process` probe. Audit and preflight diagnostics must surface `EPERM`/`ENOENT`/timeout as environment failures instead of syntax or hook-behavior defects. Evidence anchors: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `spawnFailureFor`), `scripts/preflight-checks.sh` (search: `spawnFailureMessage`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `reports sandbox spawn denial`).
+**Prevention:** When a sandbox finding involves audit/preflight hook checks, reproduce the exact runtime layer: direct hook script, configured command smoke, and a Node `child_process` probe. Audit and preflight diagnostics must surface `EPERM`/`ENOENT`/timeout as environment failures instead of syntax or hook-behavior defects. Evidence anchors: `src/cli/audit/check-agent-deny-runtime.ts` (search: `spawnFailureFor`), `scripts/preflight-checks.sh` (search: `spawnFailureMessage`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `reports sandbox spawn denial`).
 
-**Updated 2026-06-05:** A follow-up probe showed two subtler cases: Node `execFileSync` / `spawnSync` can attach `EPERM` error metadata while also reporting a successful child status and expected stdout/stderr, and `spawnSync(..., { input })` can hang while a shell-side `printf` pipe completes. Treating any `result.error` as fatal caused a false audit failure after the hook had actually completed; pushing runtime JSON through Node-owned stdin caused configured-command smoke timeouts. Prevention: check `status` before classifying child-process errors, and feed hook runtime payloads through a shell-side pipe when validating from Node in the Codex sandbox. Evidence anchors: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `pipeSmokePayloadTo`), `scripts/preflight-checks.sh` (search: `GOAT_HOOK_SMOKE_PAYLOAD`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `ignores sandbox error metadata when hook commands completed`).
+**Updated 2026-06-05:** A follow-up probe showed two subtler cases: Node `execFileSync` / `spawnSync` can attach `EPERM` error metadata while also reporting a successful child status and expected stdout/stderr, and `spawnSync(..., { input })` can hang while a shell-side `printf` pipe completes. Treating any `result.error` as fatal caused a false audit failure after the hook had actually completed; pushing runtime JSON through Node-owned stdin caused configured-command smoke timeouts. Prevention: check `status` before classifying child-process errors, and feed hook runtime payloads through a shell-side pipe when validating from Node in the Codex sandbox. Evidence anchors: `src/cli/audit/check-agent-deny-runtime.ts` (search: `pipeSmokePayloadTo`), `scripts/preflight-checks.sh` (search: `GOAT_HOOK_SMOKE_PAYLOAD`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `ignores sandbox error metadata when hook commands completed`).
 
 ---
 
@@ -63,7 +113,7 @@ last_reviewed: 2026-06-09
 
 **Prevention:** After patching TypeScript hook tests with template literals, long strings, or generated fixture scripts, run `npx prettier --check <changed-test-file>` before full preflight, or format the changed file immediately. If preflight reports a Prettier-only failure, format the changed file, rerun the focused test, then rerun preflight. Evidence anchors: `test/integration/gruff-code-quality-smoke.test.ts` (search: `writeNativeChangedRegionGruffPy`) and `scripts/preflight-checks.sh` (search: `Prettier`).
 
-**Updated 2026-06-03:** The same check caught formatting drift in a TypeScript audit message patch before full preflight. Evidence anchor: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `configured hook command exited before`).
+**Updated 2026-06-03:** The same check caught formatting drift in a TypeScript audit message patch before full preflight. Evidence anchor: `src/cli/audit/check-agent-deny-runtime.ts` (search: `configured hook command exited before`).
 
 ---
 
@@ -127,7 +177,7 @@ last_reviewed: 2026-06-09
 
 **Root cause:** The verification target was the hook file, not the runtime contract. That missed stale paths, executable-bit loss, and shell-substitution assumptions before guard code could run.
 
-**Prevention:** Hook verification must include configured guard-script replay in addition to direct script self-tests. Reject commands that hide the script path inside shell text, fail hard on exit 126/127 for the extracted script, and assert the agent-specific deny stream from the configured script path. Evidence anchors: `src/cli/audit/check-agent-deny-mechanism.ts` (search: `runConfiguredHookCommandSmoke`), `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`).
+**Prevention:** Hook verification must include configured guard-script replay in addition to direct script self-tests. Reject commands that hide the script path inside shell text, fail hard on exit 126/127 for the extracted script, and assert the agent-specific deny stream from the configured script path. Evidence anchors: `src/cli/audit/check-agent-deny-runtime.ts` (search: `runConfiguredHookCommandSmoke`), `scripts/preflight-checks.sh` (search: `configured_hook_smoke_output`), and `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `hides the script path in shell text`).
 
 ## Lesson: Hook parser regressions need false-positive grammar probes
 

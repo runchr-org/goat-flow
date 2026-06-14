@@ -6,8 +6,8 @@
 
 type ProjectSortKey = "name" | "state" | "action" | "details";
 type HookFilter = "all" | "enabled" | "disabled" | "drift";
-type HookSection = "safety" | "git" | "quality";
-type HookTone = "danger" | "warning" | "neutral";
+type HookSection = "safety" | "workflow" | "git" | "quality";
+type HookTone = "danger" | "workflow" | "warning" | "neutral";
 
 /** Decoded terminal upload response used to paste notes and report rejected files. */
 interface TerminalUploadResult {

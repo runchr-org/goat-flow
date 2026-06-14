@@ -11,7 +11,7 @@ last_reviewed: 2026-06-07
 
 **Root cause:** I asserted the clean-destination output shape even though the fixture setup was exercising the destination-exists branch.
 
-**Prevention:** For migration fixtures, align assertions with the branch under test: clean destination should assert whole-directory moves; collision fixtures should assert per-entry moves and `target exists, left old entry in place`. Evidence anchor: `test/integration/setup-install.test.ts` (search: `migrates legacy skill docs without overwriting target collisions`).
+**Prevention:** For migration fixtures, align assertions with the branch under test: clean destination should assert whole-directory moves; collision fixtures should assert per-entry moves and `target exists, left old entry in place`. Evidence anchor: `test/integration/setup-install-migrations.test.ts` (search: `migrates legacy skill docs without overwriting target collisions`).
 
 ---
 

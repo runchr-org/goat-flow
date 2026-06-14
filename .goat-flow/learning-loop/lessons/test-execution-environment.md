@@ -1,6 +1,44 @@
 ---
 category: test-execution-environment
-last_reviewed: 2026-06-07
+last_reviewed: 2026-06-14
+---
+
+## Lesson: The session shell's `grep` is a ugrep wrapper that silently skips gitignored paths
+
+**Status:** active | **Created:** 2026-06-13
+
+**What happened:** During the M02b review, `grep -rl "plan-checkbox-guard" .goat-flow --include="*.md"` returned nothing even though `.goat-flow/plans/1.12.0/M02b-plan-checkbox-guard.md` and ADR-038 matched when grepped directly. `type grep` showed the Claude Code session shell defines `grep` as a function that execs the claude binary as `ugrep -G --ignore-files --hidden -I ...`, and `--ignore-files` applies `.gitignore`-style ignore files during recursion - so sweeps that descend into ignored trees (`.goat-flow/plans/`, `.goat-flow/logs/`) silently return clean.
+
+**Root cause:** I treated recursive `grep` output as filesystem truth. In this environment it is gitignore-filtered, which can false-clean a verification sweep exactly where stale or historical content lives.
+
+**Prevention:** For verification sweeps that must include gitignored content, use `command grep` (bypasses the function), `find`, or pass the ignored files as explicit operands (direct-file grep is unaffected). Treat a suspiciously empty recursive grep over a dot-directory as a wrapper artifact until reproduced with `command grep`. Evidence: `type grep` in-session (search: `--ignore-files`); the M02b `post-turn-validate` sweep was re-proven with `find` and `command grep`.
+
+---
+
+## Lesson: Hook tests should feed stdin through files when child `cat` must see EOF
+
+**Status:** active | **Created:** 2026-06-13
+
+**What happened:** While implementing M02b, `test/integration/plan-checkbox-guard-hook.test.ts` repeatedly timed out when it invoked `workflow/hooks/plan-checkbox-guard.sh` with `spawnSync("bash", [HOOK_PATH], { input: payload })`. Tracing with `bash -x` showed the hook stalled at `payload="$(cat)"`: the child saw the payload bytes but did not receive EOF in this sandbox. The same hook sequence completed from a normal shell with file redirection and produced `baseline_exit=0`, `changed_repo_exit=2`, and `plan_changed_exit=0`.
+
+**Root cause:** I assumed Node's `spawnSync` `input` option was equivalent to a real stdin file for hook scripts. In this execution environment it was not reliable for hooks that read all stdin with `cat`, and it made correct hook behavior look like a product hang.
+
+**Recurrence 2026-06-14:** A Codex workspace-terminal `bash scripts/preflight-checks.sh` run reached `TESTS` and then stayed silent while `scripts/preflight-checks.sh` captured `npm run test:coverage` output. Process inspection showed the only remaining test workers were `test/integration/gruff-code-quality-contract.test.ts` and `test/integration/gruff-code-quality-smoke.test.ts`, each blocked under `workflow/hooks/gruff-code-quality.sh` at `read_stdin` -> `cat`. The shared gruff test helper still used `spawnSync("bash", [HOOK], { input: JSON.stringify(payload) })`, so it needed the same file-redirection mitigation.
+
+**Prevention:** When a test executes an installed hook that reads stdin with `cat`, write the payload to a temp file and pass an open read-only fd or shell redirection instead of `spawnSync(..., { input })`. Capture hook stderr explicitly if the hook launches nested runtimes. Evidence anchors: `test/integration/plan-checkbox-guard-hook.test.ts` (search: `payloadPath`), `test/unit/hook-registrar.test.ts` (search: `runLauncherWithPayload`).
+
+---
+
+## Lesson: Directory targets can break Node's test runner
+
+**Status:** active | **Created:** 2026-06-11
+
+**What happened:** While executing `.goat-flow/plans/1.12.0/M01-verification-score-spike-and-decision.md`, the milestone's baseline command `node --import tsx --test test/unit/` failed before running tests: Node treated the directory argument as a module target and tried to import `test/unit/index.json`, producing `ERR_MODULE_NOT_FOUND`. The canonical repo runner `node scripts/run-tests.mjs fast` immediately passed with `# pass 661`, `# fail 0`.
+
+**Root cause:** I trusted a milestone's directory-shaped test command instead of checking `package.json` and `scripts/run-tests.mjs`. In this repo, test file discovery and slow/fast partitioning live in `scripts/run-tests.mjs`; direct Node `--test` invocations should name specific `*.test.ts` files, not a directory.
+
+**Prevention:** For suite-wide verification, use `node scripts/run-tests.mjs fast` or the matching npm script from `package.json`. Use `node --import tsx --test <specific-file.test.ts>` only for focused files. Treat `ERR_MODULE_NOT_FOUND` on a test directory or `index.json` as an invocation-shape failure before diagnosing product code. Evidence anchors: `scripts/run-tests.mjs` (search: `listTestFiles`), `package.json` (search: `"test:fast": "node scripts/run-tests.mjs fast"`), `.goat-flow/plans/1.12.0/M01-verification-score-spike-and-decision.md` (search: `node scripts/run-tests.mjs fast`).
+
 ---
 
 ## Lesson: Test runners need CI-runtime reproduction when local Node is newer
@@ -215,4 +253,18 @@ Each test that uses `symlinkSync` accepts a `TestContext` arg (`(t) => { ... }`)
 
 **Recurrence 2026-06-04:** While fixing PR #47 CI, a clean temporary worktree with symlinked `node_modules` and `dist` produced a false installer round-trip `Skill Template Drift` failure. Re-running the same patch from a clean worktree with real `npm ci` and `npm run build` passed. For installer round-trip proof, symlink shortcuts are not CI-equivalent because the fixture copies the source tree before preflight rebuilds it. Evidence anchors: `test/integration/audit-drift.helpers.ts` (search: `cpSync(PROJECT_ROOT, root`), `package.json` (search: `rmSync('dist'`).
 
-**Prevention:** For "clean checkout" proofs, use a real clone when the test suite includes hooks, audit checks, or git-root discovery. Use `git archive` only for tests that are explicitly gitless. If an archive run fails with `deny-dangerous-self-test.sh --self-test=smoke failed`, rerun in a real clone before changing hook logic. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `resolve_goat_flow_root`), `.goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh` (search: `expect_allow shell "echo safe"`), `test/unit/audit-command/agent-deny-hooks.test.ts` (search: `passes when the installed deny hook matches the canonical template`), `package.json` (search: `"test:fast"`).
+**Prevention:** For "clean checkout" proofs, use a real clone when the test suite includes hooks, audit checks, or git-root discovery. Use `git archive` only for tests that are explicitly gitless. If an archive run fails with `deny-dangerous-self-test.sh --self-test=smoke failed`, rerun in a real clone before changing hook logic. Evidence anchors: `workflow/hooks/deny-dangerous.sh` (search: `resolve_goat_flow_root`), `.goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh` (search: `expect_allow shell "echo safe"`), `test/unit/audit-command/agent-deny-hooks-drift.test.ts` (search: `passes when the installed deny hook matches the canonical template`), `package.json` (search: `"test:fast"`).
+
+---
+
+## Lesson: `npx vitest` is not this repo's runner and trips on `_temp/stryker-tmp` sandboxes
+
+**Status:** active | **Created:** 2026-06-14
+
+**What happened:** Verifying goat-debug skill edits, I ran `npx vitest run test/contract/skill-hardening-contracts.test.ts test/unit/check-content-quality.test.ts`. Vitest treated the paths as substring filters and matched the gitignored mutation-testing sandboxes under `_temp/stryker-tmp/sandbox-*/`, whose stub copies contain no suites, so every run reported `No test suite found` and `8 failed`. The real `test/` files never executed. Re-running with `node --import tsx --test <files>` ran the actual suites (`# tests 54`).
+
+**Root cause:** This repo's runner is `node scripts/run-tests.mjs fast` (node:test via `node --import tsx --test`), which walks only `test/` and never sees `_temp/`. Vitest is not wired into the project; invoking it globs the whole tree, including Stryker's local-only `_temp/stryker-tmp` sandboxes that are gitignored and hold stubbed test files.
+
+**Recurrence 2026-06-14:** While searching for this lesson, I put the literal Markdown title `` `npx vitest` is not this repo's runner `` inside a double-quoted `rg` pattern. Bash treated the backticked text as command substitution and launched `npx vitest`, reproducing the same wrong-runner failure mode from a read-only search.
+
+**Prevention:** Use `node scripts/run-tests.mjs fast` (or `npm test`) for suite runs and `node --import tsx --test <specific-file.test.ts>` for focused files. Do not use `npx vitest` here. Read `No test suite found` originating from a `_temp/stryker-tmp/sandbox-*` path as a wrong-runner signal, not a product failure. Evidence anchors: `scripts/run-tests.mjs` (search: `listTestFiles`), `package.json` (search: `"test:fast": "node scripts/run-tests.mjs fast"`), `.gitignore` (search: `_temp`).

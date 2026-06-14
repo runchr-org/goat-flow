@@ -41,6 +41,7 @@ const WINDOWS_TERMINAL_SHELL = "powershell.exe";
 const POSIX_PROMPT_ENV_CLEANUP = "unset GOAT_RUNNER";
 const WINDOWS_PROMPT_ENV_CLEANUP =
   "Remove-Item Env:GOAT_RUNNER -ErrorAction SilentlyContinue";
+const CODEX_DASHBOARD_ARGS = "--sandbox danger-full-access";
 const INITIAL_PROMPT_AFTER_OUTPUT_DELAY_MS = 150;
 const INITIAL_PROMPT_FALLBACK_DELAY_MS = 5000;
 export const INITIAL_PROMPT_CHUNK_SIZE = 2048;
@@ -153,10 +154,23 @@ export function pickWindowsRunnerPath(
   return cleaned[0] ?? null;
 }
 
+/** Build the runner command embedded in the shell wrapper. */
+function terminalRunnerCommand(
+  runner: Runner,
+  platform: NodeJS.Platform,
+): string {
+  if (runner !== "codex") {
+    return platform === "win32" ? "& $env:GOAT_RUNNER" : '"$GOAT_RUNNER"';
+  }
+  return platform === "win32"
+    ? `& $env:GOAT_RUNNER ${CODEX_DASHBOARD_ARGS}`
+    : `"$GOAT_RUNNER" ${CODEX_DASHBOARD_ARGS}`;
+}
+
 /**
  * Build the PTY shell invocation that keeps a usable terminal open per OS.
  *
- * @param _runner Runner identity retained so spawn-shape callers can stay runner-aware.
+ * @param runner Runner identity used for runner-specific launch flags.
  * @param cliPath Absolute runner binary path to launch inside the shell.
  * @param prompt Optional launch prompt delivered through PTY input after startup.
  * @param environment Environment snapshot merged into the spawned process.
@@ -164,7 +178,7 @@ export function pickWindowsRunnerPath(
  * @returns Spawn details plus deferred initial input; callers own the actual PTY spawn.
  */
 export function buildTerminalSpawnSpec(
-  _runner: Runner,
+  runner: Runner,
   cliPath: string,
   prompt: string,
   environment: NodeJS.ProcessEnv = process.env,
@@ -184,7 +198,7 @@ export function buildTerminalSpawnSpec(
         "-NoLogo",
         "-NoExit",
         "-Command",
-        `try { & $env:GOAT_RUNNER } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
+        `try { ${terminalRunnerCommand(runner, platform)} } finally { ${WINDOWS_PROMPT_ENV_CLEANUP} }`,
       ],
       env,
       initialInput,
@@ -193,7 +207,7 @@ export function buildTerminalSpawnSpec(
 
   const configuredShell = environment.SHELL;
   const shell = configuredShell?.length ? configuredShell : "/bin/bash";
-  const shellCmd = `"$GOAT_RUNNER"; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
+  const shellCmd = `${terminalRunnerCommand(runner, platform)}; ${POSIX_PROMPT_ENV_CLEANUP}; exec "$SHELL" -i`;
 
   return {
     shell,
@@ -482,42 +496,10 @@ class TerminalManager {
     }
 
     session.ws = socket;
-
-    // Replay buffered output so reconnects do not lose terminal context gathered while detached.
-    if (session.detachBuffer.length > 0) {
-      for (const chunk of session.detachBuffer) {
-        sendMessage(socket, { type: "output", data: chunk });
-      }
-      session.detachBuffer = [];
-      session.detachBufferSize = 0;
-    }
+    this.replayDetachBuffer(session, socket);
 
     socket.on("message", (raw: Buffer | string) => {
-      const text = typeof raw === "string" ? raw : raw.toString("utf-8");
-      const decoded = decodeClientMessage(text);
-      if (!decoded.ok) {
-        sendMessage(socket, {
-          type: "error",
-          message: `${decoded.path}: ${decoded.error}`,
-        });
-        return;
-      }
-      const msg = decoded.value;
-
-      if (msg.type === "input") {
-        session.lastInputAt = Date.now();
-        this.resetIdleTimer(session);
-        this.traceTerminalInput(session, "terminal.send", msg.data);
-        if (looksLikePromptSend(msg.data)) {
-          this.traceTerminalInput(session, "prompt.send", msg.data);
-        }
-        session.pty?.write(msg.data);
-      } else {
-        session.pty?.resize(
-          clampDim(msg.cols, 500, 80),
-          clampDim(msg.rows, 200, 24),
-        );
-      }
+      this.handleClientMessage(session, socket, raw);
     });
 
     // WebSocket close means browser detach, not process exit; only the active socket may detach itself.
@@ -526,6 +508,66 @@ class TerminalManager {
         session.ws = null;
       }
     });
+  }
+
+  /**
+   * Replay buffered PTY output to a newly attached socket so reconnects do not
+   * lose terminal context gathered while detached, then drop the buffer.
+   *
+   * @param session - terminal session holding the detach buffer
+   * @param socket - freshly attached browser WebSocket to replay into
+   */
+  private replayDetachBuffer(
+    session: TerminalSession,
+    socket: WebSocket,
+  ): void {
+    if (session.detachBuffer.length === 0) return;
+    for (const chunk of session.detachBuffer) {
+      sendMessage(socket, { type: "output", data: chunk });
+    }
+    session.detachBuffer = [];
+    session.detachBufferSize = 0;
+  }
+
+  /**
+   * Handle one client WebSocket payload: input keystrokes feed the PTY (with
+   * idle-timer reset and prompt tracing), resize messages clamp and apply
+   * terminal dimensions, and undecodable payloads report an error to the socket.
+   *
+   * @param session - terminal session that owns the PTY the message targets
+   * @param socket - browser WebSocket the payload arrived on
+   * @param raw - wire payload as received (Buffer or string)
+   */
+  private handleClientMessage(
+    session: TerminalSession,
+    socket: WebSocket,
+    raw: Buffer | string,
+  ): void {
+    const text = typeof raw === "string" ? raw : raw.toString("utf-8");
+    const decoded = decodeClientMessage(text);
+    if (!decoded.ok) {
+      sendMessage(socket, {
+        type: "error",
+        message: `${decoded.path}: ${decoded.error}`,
+      });
+      return;
+    }
+    const msg = decoded.value;
+
+    if (msg.type === "input") {
+      session.lastInputAt = Date.now();
+      this.resetIdleTimer(session);
+      this.traceTerminalInput(session, "terminal.send", msg.data);
+      if (looksLikePromptSend(msg.data)) {
+        this.traceTerminalInput(session, "prompt.send", msg.data);
+      }
+      session.pty?.write(msg.data);
+      return;
+    }
+    session.pty?.resize(
+      clampDim(msg.cols, 500, 80),
+      clampDim(msg.rows, 200, 24),
+    );
   }
 
   /** Return the public session snapshot for one terminal session ID. */

@@ -506,12 +506,14 @@ function dashboardHookSetupActionsFragment(
     /** Group a hook into the section that owns its primary risk surface. */
     hookSectionFor(hook: HookState): HookSection {
       if (hook.id === "gruff-code-quality") return "quality";
+      if (hook.id === "plan-checkbox-guard") return "workflow";
       return "safety";
     },
 
     /** Return the visual tone for a hook based on its dashboard section. */
     hookTone(hook: HookState): HookTone {
       const section = this.hookSectionFor(hook);
+      if (section === "workflow") return "workflow";
       if (section === "git") return "warning";
       if (section === "quality") return "neutral";
       return "danger";
@@ -527,6 +529,14 @@ function dashboardHookSetupActionsFragment(
       return this.hookAgents(hook).filter(
         ([, state]: [RunnerId, HookAgentState]) => state.installed,
       ).length;
+    },
+
+    /** Return unsupported agent surfaces with explicit reasons for inline dashboard disclosure. */
+    unsupportedHookAgents(hook: HookState): Array<[RunnerId, HookAgentState]> {
+      return this.hookAgents(hook).filter(
+        ([, state]: [RunnerId, HookAgentState]) =>
+          !state.supported && Boolean(state.reason),
+      );
     },
 
     /** Count hooks whose desired dashboard state is enabled. */
@@ -591,7 +601,7 @@ function dashboardHookSetupActionsFragment(
 
     /** Format one agent hook state for the hook table. */
     hookAgentStatusLabel(state: HookAgentState): string {
-      if (!state.supported) return "not for this hook";
+      if (!state.supported) return "unsupported";
       if (state.drift === "desired-on-actual-off") return "drift: missing";
       if (state.drift === "desired-off-actual-on") return "drift: installed";
       return state.installed ? "installed" : "not installed";

@@ -14,7 +14,6 @@ import {
   validAgents,
 } from "../../src/cli/cli-agent-options.js";
 import { CLIError } from "../../src/cli/cli-error.js";
-import { dispatchCommand } from "../../src/cli/cli-handlers.js";
 import { writeOutput } from "../../src/cli/cli-output.js";
 import { parseCLIArgs } from "../../src/cli/cli-parser.js";
 import {
@@ -24,7 +23,6 @@ import {
   VALID_FORMATS,
 } from "../../src/cli/cli-types.js";
 import type { ParsedCLI } from "../../src/cli/cli-types.js";
-import { handleHooksCommand } from "../../src/cli/hooks-command.js";
 
 const CLI_USAGE_EXIT_CODE = 2;
 
@@ -59,8 +57,6 @@ describe("quality subcommand parsing", () => {
       new CLIError("usage", CLI_USAGE_EXIT_CODE).exitCode,
       CLI_USAGE_EXIT_CODE,
     );
-    assert.equal(typeof dispatchCommand, "function");
-    assert.equal(typeof handleHooksCommand, "function");
     assert.equal(COMMANDS.includes("quality"), true);
     assert.equal(HOOK_SUBCOMMANDS.has("sync"), true);
     assert.equal(VALID_FORMATS.includes("json"), true);

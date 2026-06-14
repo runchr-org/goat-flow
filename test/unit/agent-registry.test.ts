@@ -24,12 +24,12 @@ describe("agent registry", () => {
     );
   });
 
-  it("keeps Codex hook config separate from settings and maps Stop for post-turn hooks", () => {
+  it("keeps Codex hook config separate from settings without a post-turn event", () => {
     const codex = getAgentProfile("codex");
     assert.equal(codex.settingsFile, ".codex/config.toml");
     assert.equal(codex.hookConfigFile, ".codex/hooks.json");
     assert.equal(codex.denyHookFile, ".goat-flow/hooks/deny-dangerous.sh");
-    assert.equal(codex.hookEvents.postTurn, "Stop");
+    assert.equal(codex.hookEvents.postTurn, null);
   });
 
   it("exposes Copilot's hook-config-only profile cleanly", () => {

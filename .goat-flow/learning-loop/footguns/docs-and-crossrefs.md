@@ -1,6 +1,6 @@
 ---
 category: docs-and-crossrefs
-last_reviewed: 2026-06-07
+last_reviewed: 2026-06-13
 ---
 
 ## Footgun: Path validators can treat gitignored local-state markers as missing docs
@@ -110,40 +110,13 @@ Live instruction files (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.
 
 **Status:** active | **Created:** 2026-05-24 | **Evidence:** ACTUAL_MEASURED
 
-**Symptoms:** A new playbook is dropped into `workflow/skills/playbooks/` and `.goat-flow/skill-docs/playbooks/`, listed in the manifest, and seemingly working - but later silently drifts from its template because one of several parity checks was never enrolled. Or a future contributor adding a similar playbook misses one of the surfaces, leaving the playbook discoverable but undocumented in audit / drift / prompt output.
+**Symptoms:** A playbook appears in `workflow/skills/playbooks/` and `.goat-flow/skill-docs/playbooks/`, but one parity, audit, prompt, install, or docs surface is not enrolled. The playbook works locally until template-vs-installed drift or missing setup context surfaces later.
 
-**Why it happens:** `workflow/manifest.json` is the nominal source of truth for "which playbooks exist", but many other surfaces independently enumerate the same list and each must be updated by hand:
+**Why it happens:** `workflow/manifest.json` is the nominal source of truth, but playbooks are still hand-enumerated across template, installed copy, manifest required files and directory prose, installer copy lines, both README indexes, `scripts/preflight-checks.sh`, `test/integration/preamble-sync.test.ts`, `test/integration/audit-build.test.ts`, `src/cli/audit/check-goat-flow.ts`, `src/cli/audit/check-drift.ts`, `workflow/setup/03-install-skills.md`, `.goat-flow/architecture.md`, `.goat-flow/code-map.md`, and sometimes `knip.json`.
 
-1. `workflow/skills/playbooks/<name>.md` - template
-2. `.goat-flow/skill-docs/playbooks/<name>.md` - installed copy (must byte-match template)
-3. `workflow/manifest.json` - two entries: `required_files` list AND the `directories.".goat-flow/skill-docs/playbooks/"` description string
-4. `workflow/install-goat-flow.sh` (search: `copy_file "$GOAT_FLOW_ROOT/workflow/skills/playbooks/`) - installer copy line
-5. `workflow/skills/playbooks/README.md` AND `.goat-flow/skill-docs/playbooks/README.md` - index tables (must byte-match each other)
-6. `scripts/preflight-checks.sh` (search: `if [[ -f workflow/skills/playbooks/`) - byte-exact parity block per playbook
-7. `test/integration/preamble-sync.test.ts` (search: `template and installed`) - per-playbook sync assertion + path constants block
-8. `test/integration/audit-build.test.ts` (search: `requiredSkillDocsFiles`) - required-files list
-9. `src/cli/audit/check-goat-flow.ts` (search: `REQUIRED_SKILL_DOC_FILES`) - two lists: the `Set` used for the manifest-catch-all gate AND the `REQUIRED_SKILL_DOC_FILES` const used for agent-skill audits
-10. `src/cli/audit/check-drift.ts` (search: `template: "workflow/skills/playbooks/`) - drift comparison entries plus a parallel comment header at the top of the file
-11. `workflow/setup/03-install-skills.md` (search: `Standalone playbooks`) - prompt-context description string
-12. `.goat-flow/architecture.md` (search: `the standalone playbooks indexed by`) - inline playbook list in the Committed knowledge row
-13. `.goat-flow/code-map.md` - two entries: inline list comment on the `playbooks/` template line AND the per-file description block under `skill-playbooks/`
-14. `knip.json` (search: `ignoreDependencies`) - only when the playbook relies on a CLI-only devDependency that is invoked from docs/scripts instead of imported by TypeScript.
+**Evidence:** `code-comments.md` and `observability.md` initially shipped without full parity enrollment; the gap was closed when later playbooks forced updates to `scripts/preflight-checks.sh` (search: `if [[ -f workflow/skills/playbooks/code-comments.md`), `src/cli/audit/check-drift.ts` (search: `template: "workflow/skills/playbooks/code-comments.md"`), and `test/integration/preamble-sync.test.ts` (search: `template and installed code-comments.md match`). The 2026-05-25 gruff-code-quality addition also proved package-surface coupling when preflight exposed a Knip dependency classification issue.
 
-Two playbooks (`code-comments.md`, `observability.md`) shipped earlier in this PR with #6, #7, and #10 partially or fully missing - the playbooks were installed, copied on update, and visible in the README, but byte-exact parity between template and installed was not enforced. The gap was caught while adding `release-notes.md` and `changelog.md`; all four playbooks are now enrolled everywhere.
-
-**Evidence:**
-- `scripts/preflight-checks.sh` (search: `if [[ -f workflow/skills/playbooks/code-comments.md`) added during the same change set that added `changelog.md` and `release-notes.md` parity, retroactively closing the gap for the two prior playbooks.
-- `src/cli/audit/check-drift.ts` (search: `template: "workflow/skills/playbooks/code-comments.md"`) similarly added retroactively.
-- `test/integration/preamble-sync.test.ts` (search: `template and installed code-comments.md match`) similarly added.
-- 2026-05-25 gruff-code-quality addition/rename: `bash scripts/preflight-checks.sh --verbose --no-color` in the installer round-trip fixture enrolled `gruff-code-quality.md`, then failed Knip because the gruff CLI was initially treated as an unused devDependency. `knip.json` (search: `ignoreDependencies`) was the related config surface; by 2026-06-06 Knip recognised the npm-script usage and the gruff ignore was removed, but the incident still proves this surface must be checked.
-
-**Prevention:**
-1. When adding a new skill-playbook, walk the checklist above before declaring done. Every surface is independent; missing one leaves silent drift.
-2. Run `bash scripts/preflight-checks.sh` after enrolling the new playbook. If preflight does not name the new playbook in its parity output (look for `template and installed copy match`), surface #6 is unenrolled.
-3. Run `npm test` after enrolling. If `preamble-sync.test.ts` does not list the new playbook in test names, surface #7 is unenrolled.
-4. Treat the manifest as the source of truth structurally, but treat the other surfaces as load-bearing duplicates that must be updated in lock-step. A future refactor that derives the parity blocks from `manifest.json` would eliminate this footgun, but until that lands, the enumeration is the contract.
-5. When reviewing a playbook-addition PR, grep for the new filename in every surface listed above. Missing surfaces = blocking comment.
-6. If the playbook introduces or documents a package that is used only as a CLI, run `npx knip --no-progress`; update `ignoreDependencies` only when Knip still reports the dependency as unused after real npm-script or shell usage is present.
+**Prevention:** When adding a playbook, grep the new filename through every surface above before declaring done. Then run `bash scripts/preflight-checks.sh`; the output must name the new playbook in parity rows. Run `npm test`; `preamble-sync.test.ts` must include the new playbook. If the playbook documents a CLI-only package, run `npx knip --no-progress` and only add `ignoreDependencies` after real npm-script or shell usage still leaves Knip unable to see it.
 
 ---
 

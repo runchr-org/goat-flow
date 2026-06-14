@@ -13,7 +13,49 @@ import {
   execSafely,
   SafeExecRejection,
   sideEffectfulRouteKey,
+  spawnInheritedSync,
 } from "../../src/cli/server/safe-exec.js";
+
+describe("safe-exec/spawnInheritedSync", () => {
+  it("rejects a command whose basename is not allow-listed", () => {
+    assert.throws(
+      () =>
+        spawnInheritedSync({
+          command: "/usr/bin/python3",
+          args: [],
+          allowedBasenames: ["bash", "bash.exe"],
+        }),
+      (err: unknown) =>
+        err instanceof SafeExecRejection &&
+        err.reason === "command-not-in-allow-list",
+    );
+  });
+
+  it("rejects shell metacharacters in args before spawning", () => {
+    assert.throws(
+      () =>
+        spawnInheritedSync({
+          command: process.execPath,
+          args: ["-e", "true; process.exit(1)"],
+          allowedBasenames: ["node", "node.exe"],
+        }),
+      (err: unknown) =>
+        err instanceof SafeExecRejection &&
+        err.reason === "args-contain-metacharacters",
+    );
+  });
+
+  it("propagates the child exit status for an allow-listed command", () => {
+    // Arbitrary non-zero, non-one status so pass-through is distinguishable from defaults.
+    const expectedExitCode = 7;
+    const result = spawnInheritedSync({
+      command: process.execPath,
+      args: ["-e", `process.exit(${expectedExitCode})`],
+      allowedBasenames: ["node", "node.exe"],
+    });
+    assert.equal(result.status, expectedExitCode);
+  });
+});
 
 describe("safe-exec/execSafely", () => {
   it("rejects when command not in allow-list", async () => {

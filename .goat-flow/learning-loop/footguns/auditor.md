@@ -1,6 +1,6 @@
 ---
 category: auditor
-last_reviewed: 2026-06-10
+last_reviewed: 2026-06-14
 ---
 
 ## Footgun: Audit does not prove end-to-end deny enforcement at runtime
@@ -18,9 +18,24 @@ The selected-agent audit validates hook syntax, self-test behavior, registration
 **Evidence:**
 - `src/cli/audit/harness/check-constraints.ts` (search: `deny-hook-registered`) - cross-checks hook file existence against settings.json registration.
 - `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookSelfTest`) - invokes the hook's `--self-test` so quoted-alternation false positives and pipe-to-shell bypass attempts are exercised, not just parsed.
-- `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookRuntimeSmoke`) - sends a runtime-shaped structured Bash payload through the registered deny hook path and expects a deny result for `git push origin main`. This is local hook execution, not proof that the external agent binary delivered the hook event.
+- `src/cli/audit/check-agent-deny-runtime.ts` (search: `checkHookRuntimeSmoke`) - sends a runtime-shaped structured Bash payload through the registered deny hook path and expects a deny result for `git push origin main`. This is local hook execution, not proof that the external agent binary delivered the hook event.
 - `src/cli/facts/agent/hooks.ts` (search: `detectBashDenyCoversSecrets`) - derives the harness secret-coverage fact from static markers in the hook file; it must stay aligned with `workflow/hooks/deny-dangerous/patterns-paths.sh` (search: `is_secret_path_touch`).
 - `test/unit/audit-command/hook-facts.test.ts` (search: `detects current deny hook secret coverage from generalized path matcher`) - regression coverage for the static detector against the canonical hook template.
+
+---
+
+## Footgun: The deny-mechanism runtime smoke executes the target checkout's own hook command
+
+**Status:** active | **Created:** 2026-06-14 | **Evidence:** ACTUAL_MEASURED
+
+**Trap:** The runtime evidence level of the agent deny-mechanism audit does not only run goat-flow's own managed script - it executes the *target project's* configured launcher string through `bash -c`. `src/cli/audit/check-agent-deny-runtime.ts` (search: `runConfiguredHookCommandSmoke`, `pipeSmokePayloadTo(configured.command)`) pipes a blocked payload into `configured.command` taken verbatim from the checkout's `.claude/settings.json` / `.codex/hooks.json` / `.agents/hooks.json`. So `goat-flow audit --agent <id>` against a checkout you do not control is arbitrary-shell-execution-on-audit: a hostile or compromised hook config that merely wraps the managed script in other shell still runs that shell before the smoke can classify anything. This is deliberate (it validates the real `$root` resolution and `cd` glue, which a sanitized re-invocation would skip), but the exec surface is easy to widen by accident.
+
+**Evidence:**
+- `src/cli/audit/check-agent-deny-runtime.ts` (search: `runConfiguredHookCommandSmoke`) - the comment above the `spawnSync` documents the trusted-target-only intent; runtime runs when `denyMechanismEvidenceLevel` is `"full"` or unset.
+- `src/cli/cli-handlers.ts` (search: `untrustedTarget`) - `--untrusted-target` maps to `denyMechanismEvidenceLevel: "static"` so a CLI audit can skip execution; `src/cli/server/dashboard-audit-routes.ts` (search: `denyMechanismEvidenceLevel`) already audits selected targets at `"static"` for the same reason.
+- Inverse concern (audit proving too *little*, not too much): the "Audit does not prove end-to-end deny enforcement at runtime" footgun above. Side-effect cousin: [internal-run-isolation.md](internal-run-isolation.md).
+
+**Prevention:** Keep an execution opt-out reachable and keep the dashboard / arbitrary-selected-target path on `"static"`. Never make runtime smoke the unconditional default for a surface that can audit untrusted checkouts. Treat any change to the default evidence level as a security decision - and note it can also flip a CI audit gate, because runtime smoke catches launcher / `$root` failures that static checks do not. Do not "harden" this by parsing the launcher and running only the managed script: that reintroduces the stale-path / broken-glue blind spot the full-command smoke exists to catch (see [hooks.md](hooks.md) search: `Hook command strings can fail before guard code starts`).
 
 ---
 

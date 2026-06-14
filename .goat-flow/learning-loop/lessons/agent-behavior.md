@@ -1,6 +1,6 @@
 ---
 category: agent-behavior
-last_reviewed: 2026-06-10
+last_reviewed: 2026-06-13
 ---
 
 ## Lesson: Agent proposed disabling gruff-ts rules to silence high-volume advisory findings
@@ -29,24 +29,20 @@ Related: `feedback_gruff_never_disable` (auto-memory, 2026-05-25).
 
 **Created:** 2026-05-20
 
-**What happened:** User in cwd `/home/devgoat/projects/goat-flow` asked: *"can u use /home/devgoat/projects/gruff-workspace/gruff-ts to try and find low quality tests"*. The agent read this as "audit gruff-ts's own test file" and spent a multi-turn session reading `gruff-workspace/gruff-ts/src/cli.test.ts` (4270 lines), producing a 9-finding report, then drafting a milestone (`M35-gruff-ts-test-quality-fixes.md`) full of fixes to gruff-ts's test file. The user actually meant: *use gruff-ts (a "TypeScript project quality analyzer" CLI with `bin/gruff-ts`) to scan this repo's tests*. When the user asked for the milestone in `goat-flow/.goat-flow/plans/1.7.0/`, the agent had a second chance to re-read the request and didn't - it asked only about file location, not which project was tool vs target, then doubled down through three more rounds (self-critique, full rewrite) until the user lost trust and stopped the work.
+**What happened:** User in cwd `/home/devgoat/projects/goat-flow` asked to use `/home/devgoat/projects/gruff-workspace/gruff-ts` to find low-quality tests. The agent treated that path as the target repo, audited `gruff-workspace/gruff-ts/src/cli.test.ts`, and drafted fixes for gruff-ts itself. The user meant to invoke gruff-ts as a CLI against goat-flow tests. The agent missed the second chance to recover when the user clarified the milestone should live in goat-flow.
 
-**Root cause:** The agent parsed "use X to find Y" as "audit X for Y" without checking whether X was tool or target. Three signals were present and missed:
+**Root cause:** The request shape was "use X to scan Y", but the agent never classified X as TOOL or TARGET. Missed signals: gruff-ts has a `package.json` `bin` entry and analyzer README language; the cwd was a different project; the follow-up question asked only where to put the milestone instead of whether gruff-ts was tool or target.
 
-1. **gruff-ts's package.json declares `"bin": { "gruff-ts": "./bin/gruff-ts" }`** and the README describes it as a "TypeScript project quality analyzer." This is a CLI tool, not a codebase to audit. "Use a CLI tool" almost always means "invoke it", not "audit its source".
-2. **The cwd was a different project** (`goat-flow`) than the path mentioned (`gruff-workspace/gruff-ts`). When a user in project A references project B, the default reading is "B is a tool/reference," not "switch your target to B." Switching project context mid-session is unusual; introducing a tool for the current context is normal.
-3. **The disambiguation question was wrong.** When the user said "milestone here", the agent asked *"which workspace?"* (file-location) instead of *"is gruff-ts the tool to run or the project to fix?"* (semantic). The answer ("goat-flow workspace") fit both readings - but the agent took it as ratification rather than a signal to re-read the request.
-
-**Why it matters:** Hours of work produced a milestone targeting the wrong repository. Worse, the self-critique pass (which caught real formatting flaws) created false confidence - "the doc is well-structured" masked "the doc is for the wrong project." The user explicitly lost trust in the agent's reading. A tool-vs-target misread is among the highest-cost interpretation errors because everything downstream - research, scoping, planning, writing - compounds on the wrong premise. Format checks (anchors, sequencing, conventions) came back green while the work was fundamentally misaimed.
+**Why it matters:** The whole plan targeted the wrong repository. Self-critique improved the document form but could not repair the premise, which cost multiple rounds and destroyed trust.
 
 **Prevention:**
 
-1. **When a request names a path or project, classify it as TOOL or TARGET before any work.** TOOL signals: has `bin/` with executable; `package.json` declares `bin`; README uses words like "CLI", "analyzer", "linter", "tool", "checker"; lives outside the cwd. TARGET signals: is the cwd or a subpath; the request is about modifying, refactoring, or understanding it as code; no executable surface. **If both are plausible, ASK before reading more than the README and `package.json`.**
-2. **Parse "use X to find/check/analyze/scan Y" as "invoke X against Y" by default when X is a CLI tool.** "Use" plus a tool-shaped object means invocation, not audit. "Audit X" / "review X" / "find issues in X" mean the opposite - they target X.
-3. **Working directory is load-bearing context.** When cwd is project A and a request mentions project B, the default null hypothesis is "B is a tool or reference for work in A." Switching the target to B requires explicit signal ("look at the tests in B and tell what's wrong").
-4. **Disambiguation questions must target the semantic uncertainty, not the surface uncertainty.** "Which workspace for the milestone?" is surface (file path); "Is X the tool or the target?" is semantic. Ask the semantic question first; surface questions can be answered after the interpretation is locked.
-5. **When a user provides clarification mid-task, re-read the original request before continuing.** Clarifications are evidence to re-evaluate the whole interpretation, not ratify the current direction. If consistent with two readings, the agent has not disambiguated.
-6. **Self-critique passes verify form, not premise.** A milestone with correct anchors, sequencing, and conventions can still be aimed at the wrong project. Self-critique catches presentation bugs, not interpretation bugs. Before iterating on a doc's quality, sanity-check its premise against the request verbatim.
+1. Classify every named path/project as TOOL or TARGET before work. TOOL signals: `bin`, executable wrapper, README words like CLI/analyzer/linter/tool/checker, or path outside cwd. TARGET signals: current repo/subpath, modify/review/refactor verbs, no executable surface. Ask when both fit.
+2. Parse "use X to find/check/analyze/scan Y" as "invoke X against Y" when X is tool-shaped. "Audit X" / "review X" / "find issues in X" target X.
+3. Treat cwd as load-bearing: a path outside cwd is tool/reference by default unless the user explicitly switches target.
+4. Ask semantic questions first: "Is X the tool or the target?" before file-location questions.
+5. Re-read the original request when the user clarifies mid-task; compatible clarification is not ratification.
+6. Before polishing or self-critiquing a plan, sanity-check that its target repo still matches the user's wording.
 
 ---
 
@@ -149,7 +145,7 @@ Round 4 entries in `.goat-flow/learning-loop/footguns/docs-drift.md` (search: `R
 
 **Root cause:** The assessors saw `goat-critique` spawns three sub-agents per invocation and pattern-matched the cost as over-engineering without reading history.
 
-**Prevention:** Before accepting a quality recommendation that changes a skill mode, read the relevant ADR and prompt constraints first. If it contradicts an accepted ADR, fix the assessor prompt or cite the ADR; don't re-litigate the mode inside the skill file. Anchors: `.goat-flow/learning-loop/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) and `src/cli/prompt/compose-quality-agent-setup.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`).
+**Prevention:** Before accepting a quality recommendation that changes a skill mode, read the relevant ADR and prompt constraints first. If it contradicts an accepted ADR, fix the assessor prompt or cite the ADR; don't re-litigate the mode inside the skill file. Anchors: `.goat-flow/learning-loop/decisions/ADR-021-goat-critique-full-mode-only.md` (search: `goat-critique runs in one mode: full delegated`) and `src/cli/prompt/compose-quality-static-sections.ts` (search: `Do NOT recommend adding quick/lite/reduced modes`).
 
 ---
 

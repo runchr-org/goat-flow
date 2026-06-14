@@ -1,7 +1,10 @@
 /**
- * Audit checks that compare an installed agent deny hook against the canonical template: failing when a
- * configured command hides the script path in shell text, points at a stale path, diverges from the template,
- * or the shared self-test is missing, and passing on an exact match and on the Copilot JSON runtime smoke.
+ * Audit checks for the agent deny hook under spawn and sandbox failure: EPERM denials are
+ * reported distinctly from hook syntax errors and deny-dangerous failures, the self-test
+ * honours GOAT_DENY_DANGEROUS_HOOK dispatcher selection, completed-status metadata beats
+ * error shells, nested-cwd replays and shell-hidden script paths fail, and leftover legacy
+ * split guardrail installs are flagged. Template-drift and pass cases live in
+ * agent-deny-hooks-drift.test.ts.
  */
 import {
   AGENT_CHECKS,
@@ -407,6 +410,99 @@ describe("agent deny hook template comparison", () => {
     assert.equal(denyCheck.run(ctx), null);
   });
 
+  it("continues to later agents after a configured command passes", () => {
+    assert.ok(denyCheck, "agent deny check should exist");
+    const templates = guardrailTemplates();
+    let smokeCalls = 0;
+    childProcess.execFileSync = (() =>
+      Buffer.from("")) as typeof childProcess.execFileSync;
+    childProcess.spawnSync = (() => {
+      smokeCalls += 1;
+      if (smokeCalls === 1) {
+        return {
+          status: 2,
+          signal: null,
+          error: undefined,
+          output: [
+            null,
+            "",
+            "BLOCKED: Policy repository: git push is not allowed.",
+          ],
+          pid: 0,
+          stdout: "",
+          stderr: "BLOCKED: Policy repository: git push is not allowed.",
+        } as ReturnType<typeof childProcess.spawnSync>;
+      }
+      return {
+        status: 0,
+        signal: null,
+        error: undefined,
+        output: [null, "", ""],
+        pid: 0,
+        stdout: "",
+        stderr: "",
+      } as ReturnType<typeof childProcess.spawnSync>;
+    }) as typeof childProcess.spawnSync;
+    syncBuiltinESMExports();
+
+    const readFile = installedGuardrailContent(".codex/hooks", templates, {
+      ".codex/hooks.json": JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [
+                {
+                  type: "command",
+                  command: ".goat-flow/hooks/deny-dangerous.sh",
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    const ctx = makeCtx({
+      agentFilter: "codex",
+      agents: [
+        stubAgentFacts({
+          agent: PROFILES.codex,
+          settings: {
+            exists: true,
+            valid: true,
+            parsed: {},
+            hasDenyPatterns: false,
+          },
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+            readDenyCoversSecrets: false,
+          },
+        }),
+        stubAgentFacts({
+          agent: PROFILES.claude,
+          hooks: {
+            ...stubAgentFacts().hooks,
+            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
+          },
+        }),
+      ],
+      fs: stubFS({
+        readFile,
+        listDir: (path) =>
+          path === ".codex/hooks" ? ["deny-dangerous.sh"] : [],
+      }),
+    });
+
+    const result = denyCheck.run(ctx);
+    assert.ok(result, "expected later-agent direct smoke failure");
+    assert.match(
+      result.message,
+      /registered deny hook runtime smoke failed for claude/,
+    );
+    assert.equal(smokeCalls, 2);
+  });
+
   it("fails when a direct configured command is replayed from nested cwd", () => {
     assert.ok(denyCheck, "agent deny check should exist");
     const templates = guardrailTemplates();
@@ -547,561 +643,5 @@ describe("agent deny hook template comparison", () => {
     assert.ok(result, "expected legacy guardrail drift failure");
     assert.match(result.message, /legacy guardrail hook/);
     assert.equal(result.evidence, ".codex/hooks/guard-repository-writes.sh");
-  });
-});
-
-describe("agent deny hook template comparison", () => {
-  const denyCheck = AGENT_CHECKS.find(
-    (check) => check.id === "agent-guardrails",
-  );
-  /** Read canonical deny-dangerous templates used for drift comparisons. */
-  function guardrailTemplates() {
-    return {
-      dispatcher: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-        "utf-8",
-      ),
-      shell: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-shell.sh",
-        ),
-        "utf-8",
-      ),
-      paths: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-paths.sh",
-        ),
-        "utf-8",
-      ),
-      writes: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-writes.sh",
-        ),
-        "utf-8",
-      ),
-      selfTest: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
-        ),
-        "utf-8",
-      ),
-    };
-  }
-
-  function installedGuardrailContent(
-    hooksDir: string,
-    templates: ReturnType<typeof guardrailTemplates>,
-    overrides: Record<string, string | null> = {},
-  ) {
-    const files: Record<string, string> = {
-      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
-      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
-      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
-      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
-      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
-        templates.selfTest,
-    };
-    /** Resolve installed hook content from overrides before template defaults. */
-    const readInstalledGuardrail = (path: string) => {
-      if (Object.hasOwn(overrides, path)) return overrides[path] ?? null;
-      return files[path] ?? null;
-    };
-    return readInstalledGuardrail;
-  }
-
-  it("fails when an exact configured hook command points at a stale path", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "codex",
-      projectPath: PROJECT_ROOT,
-      agents: [
-        stubAgentFacts({
-          agent: PROFILES.codex,
-          settings: {
-            exists: true,
-            valid: true,
-            parsed: {},
-            hasDenyPatterns: false,
-          },
-          hooks: {
-            ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
-            readDenyCoversSecrets: false,
-          },
-        }),
-      ],
-      fs: stubFS({
-        readFile: installedGuardrailContent(".codex/hooks", templates, {
-          ".codex/hooks.json": JSON.stringify({
-            hooks: {
-              PreToolUse: [
-                {
-                  matcher: "Bash",
-                  hooks: [
-                    {
-                      type: "command",
-                      command: ".codex/hooks/stale-deny-dangerous.sh",
-                    },
-                  ],
-                },
-              ],
-            },
-          }),
-        }),
-      }),
-    });
-
-    const result = denyCheck.run(ctx);
-    assert.ok(result, "expected configured command runtime failure");
-    assert.match(result.message, /configured hook command/);
-    assert.equal(result.evidence, ".codex/hooks.json");
-  });
-
-  it("runs the configured launcher string instead of bypassing it with bash script path", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "codex",
-      projectPath: PROJECT_ROOT,
-      agents: [
-        stubAgentFacts({
-          agent: PROFILES.codex,
-          settings: {
-            exists: true,
-            valid: true,
-            parsed: {},
-            hasDenyPatterns: false,
-          },
-          hooks: {
-            ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
-            readDenyCoversSecrets: false,
-          },
-        }),
-      ],
-      fs: stubFS({
-        readFile: installedGuardrailContent(".codex/hooks", templates, {
-          ".codex/hooks.json": JSON.stringify({
-            hooks: {
-              PreToolUse: [
-                {
-                  matcher: "Bash",
-                  hooks: [
-                    {
-                      type: "command",
-                      command:
-                        'root="/missing-goat-flow-root"; bash "$root/.goat-flow/hooks/deny-dangerous.sh"',
-                    },
-                  ],
-                },
-              ],
-            },
-          }),
-        }),
-      }),
-    });
-
-    const result = denyCheck.run(ctx);
-    assert.ok(result, "expected configured launcher runtime failure");
-    assert.match(
-      result.message,
-      /configured hook command exited before deny-dangerous\.sh could start from project root \(exit 127\)/,
-    );
-    assert.equal(result.evidence, ".codex/hooks.json");
-  });
-
-  it("fails when a configured hook command points at a legacy per-agent mirror", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "codex",
-      projectPath: PROJECT_ROOT,
-      agents: [
-        stubAgentFacts({
-          agent: PROFILES.codex,
-          settings: {
-            exists: true,
-            valid: true,
-            parsed: {},
-            hasDenyPatterns: false,
-          },
-          hooks: {
-            ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
-            readDenyCoversSecrets: false,
-          },
-        }),
-      ],
-      fs: stubFS({
-        readFile: installedGuardrailContent(".codex/hooks", templates, {
-          ".codex/hooks.json": JSON.stringify({
-            hooks: {
-              PreToolUse: [
-                {
-                  matcher: "Bash",
-                  hooks: [
-                    {
-                      type: "command",
-                      command: ".claude/hooks/deny-dangerous.sh",
-                    },
-                  ],
-                },
-              ],
-            },
-          }),
-        }),
-      }),
-    });
-
-    const result = denyCheck.run(ctx);
-    assert.ok(result, "expected configured hook path mismatch failure");
-    assert.match(
-      result.message,
-      /points at \.claude\/hooks\/deny-dangerous\.sh, expected \.goat-flow\/hooks\/deny-dangerous\.sh/,
-    );
-    assert.equal(result.evidence, ".codex/hooks.json");
-  });
-});
-
-describe("agent deny hook template comparison", () => {
-  const denyCheck = AGENT_CHECKS.find(
-    (check) => check.id === "agent-guardrails",
-  );
-  /** Read canonical deny-dangerous templates used for drift comparisons. */
-  function guardrailTemplates() {
-    return {
-      dispatcher: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-        "utf-8",
-      ),
-      shell: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-shell.sh",
-        ),
-        "utf-8",
-      ),
-      paths: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-paths.sh",
-        ),
-        "utf-8",
-      ),
-      writes: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-writes.sh",
-        ),
-        "utf-8",
-      ),
-      selfTest: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
-        ),
-        "utf-8",
-      ),
-    };
-  }
-
-  function installedGuardrailContent(
-    hooksDir: string,
-    templates: ReturnType<typeof guardrailTemplates>,
-    overrides: Record<string, string | null> = {},
-  ) {
-    const files: Record<string, string> = {
-      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
-      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
-      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
-      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
-      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
-        templates.selfTest,
-    };
-    /** Resolve installed hook content from overrides before template defaults. */
-    const readInstalledGuardrail = (path: string) => {
-      if (Object.hasOwn(overrides, path)) return overrides[path] ?? null;
-      return files[path] ?? null;
-    };
-    return readInstalledGuardrail;
-  }
-
-  it("fails when an installed deny hook differs from the canonical template", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "claude",
-      projectPath: PROJECT_ROOT,
-      fs: stubFS({
-        readFile: installedGuardrailContent(".claude/hooks", templates, {
-          ".goat-flow/hooks/deny-dangerous.sh": `${templates.dispatcher}\n# local drift\n`,
-        }),
-      }),
-    });
-    const result = denyCheck.run(ctx);
-    assert.ok(result, "expected hook version drift failure");
-    assert.match(result.message, /differs from the current goat-flow template/);
-    assert.equal(result.evidence, ".goat-flow/hooks/deny-dangerous.sh");
-  });
-});
-
-describe("agent deny hook template comparison", () => {
-  const denyCheck = AGENT_CHECKS.find(
-    (check) => check.id === "agent-guardrails",
-  );
-  /** Read canonical deny-dangerous templates used for drift comparisons. */
-  function guardrailTemplates() {
-    return {
-      dispatcher: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-        "utf-8",
-      ),
-      shell: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-shell.sh",
-        ),
-        "utf-8",
-      ),
-      paths: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-paths.sh",
-        ),
-        "utf-8",
-      ),
-      writes: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-writes.sh",
-        ),
-        "utf-8",
-      ),
-      selfTest: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
-        ),
-        "utf-8",
-      ),
-    };
-  }
-
-  function installedGuardrailContent(
-    hooksDir: string,
-    templates: ReturnType<typeof guardrailTemplates>,
-    overrides: Record<string, string | null> = {},
-  ) {
-    const files: Record<string, string> = {
-      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
-      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
-      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
-      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
-      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
-        templates.selfTest,
-    };
-    /** Resolve installed hook content from overrides before template defaults. */
-    const readInstalledGuardrail = (path: string) => {
-      if (Object.hasOwn(overrides, path)) return overrides[path] ?? null;
-      return files[path] ?? null;
-    };
-    return readInstalledGuardrail;
-  }
-
-  it("fails when the shared deny hook self-test is missing", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "claude",
-      projectPath: PROJECT_ROOT,
-      fs: stubFS({
-        readFile: installedGuardrailContent(".claude/hooks", templates, {
-          ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh": null,
-        }),
-      }),
-    });
-    const result = denyCheck.run(ctx);
-    assert.ok(result, "expected missing self-test sibling failure");
-    assert.match(result.message, /deny-dangerous-self-test\.sh is missing/);
-    assert.equal(
-      result.evidence,
-      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
-    );
-  });
-});
-
-describe("agent deny hook template comparison", () => {
-  const denyCheck = AGENT_CHECKS.find(
-    (check) => check.id === "agent-guardrails",
-  );
-  /** Read canonical deny-dangerous templates used for drift comparisons. */
-  function guardrailTemplates() {
-    return {
-      dispatcher: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-        "utf-8",
-      ),
-      shell: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-shell.sh",
-        ),
-        "utf-8",
-      ),
-      paths: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-paths.sh",
-        ),
-        "utf-8",
-      ),
-      writes: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-writes.sh",
-        ),
-        "utf-8",
-      ),
-      selfTest: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
-        ),
-        "utf-8",
-      ),
-    };
-  }
-
-  function installedGuardrailContent(
-    hooksDir: string,
-    templates: ReturnType<typeof guardrailTemplates>,
-    overrides: Record<string, string | null> = {},
-  ) {
-    const files: Record<string, string> = {
-      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
-      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
-      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
-      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
-      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
-        templates.selfTest,
-    };
-    /** Resolve installed hook content from overrides before template defaults. */
-    const readInstalledGuardrail = (path: string) => {
-      if (Object.hasOwn(overrides, path)) return overrides[path] ?? null;
-      return files[path] ?? null;
-    };
-    return readInstalledGuardrail;
-  }
-
-  it("passes registered-hook runtime smoke for Copilot JSON payloads", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "copilot",
-      projectPath: PROJECT_ROOT,
-      agents: [
-        stubAgentFacts({
-          agent: PROFILES.copilot,
-          settings: {
-            exists: true,
-            valid: true,
-            parsed: {},
-            hasDenyPatterns: false,
-          },
-          hooks: {
-            ...stubAgentFacts().hooks,
-            denyRegisteredPath: ".goat-flow/hooks/deny-dangerous.sh",
-            readDenyCoversSecrets: false,
-          },
-        }),
-      ],
-      fs: stubFS({
-        readFile: installedGuardrailContent(".github/hooks", templates),
-      }),
-    });
-
-    assert.equal(denyCheck.run(ctx), null);
-  });
-});
-
-describe("agent deny hook template comparison", () => {
-  const denyCheck = AGENT_CHECKS.find(
-    (check) => check.id === "agent-guardrails",
-  );
-  /** Read canonical deny-dangerous templates used for drift comparisons. */
-  function guardrailTemplates() {
-    return {
-      dispatcher: readFileSync(
-        resolve(PROJECT_ROOT, "workflow/hooks/deny-dangerous.sh"),
-        "utf-8",
-      ),
-      shell: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-shell.sh",
-        ),
-        "utf-8",
-      ),
-      paths: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-paths.sh",
-        ),
-        "utf-8",
-      ),
-      writes: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/patterns-writes.sh",
-        ),
-        "utf-8",
-      ),
-      selfTest: readFileSync(
-        resolve(
-          PROJECT_ROOT,
-          "workflow/hooks/deny-dangerous/deny-dangerous-self-test.sh",
-        ),
-        "utf-8",
-      ),
-    };
-  }
-
-  function installedGuardrailContent(
-    hooksDir: string,
-    templates: ReturnType<typeof guardrailTemplates>,
-    overrides: Record<string, string | null> = {},
-  ) {
-    const files: Record<string, string> = {
-      [".goat-flow/hooks/deny-dangerous.sh"]: templates.dispatcher,
-      ".goat-flow/hooks/deny-dangerous/patterns-shell.sh": templates.shell,
-      ".goat-flow/hooks/deny-dangerous/patterns-paths.sh": templates.paths,
-      ".goat-flow/hooks/deny-dangerous/patterns-writes.sh": templates.writes,
-      ".goat-flow/hooks/deny-dangerous/deny-dangerous-self-test.sh":
-        templates.selfTest,
-    };
-    /** Resolve installed hook content from overrides before template defaults. */
-    const readInstalledGuardrail = (path: string) => {
-      if (Object.hasOwn(overrides, path)) return overrides[path] ?? null;
-      return files[path] ?? null;
-    };
-    return readInstalledGuardrail;
-  }
-
-  it("passes when the installed deny hook matches the canonical template", () => {
-    assert.ok(denyCheck, "agent deny check should exist");
-    const templates = guardrailTemplates();
-    const ctx = makeCtx({
-      agentFilter: "claude",
-      projectPath: PROJECT_ROOT,
-      fs: stubFS({
-        readFile: installedGuardrailContent(".claude/hooks", templates),
-      }),
-    });
-    assert.equal(denyCheck.run(ctx), null);
   });
 });

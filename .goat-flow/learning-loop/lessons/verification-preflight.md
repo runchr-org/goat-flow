@@ -1,6 +1,6 @@
 ---
 category: verification-preflight
-last_reviewed: 2026-06-10
+last_reviewed: 2026-06-14
 ---
 
 ## Lesson: Formatter verification must preserve repo style flags
@@ -115,7 +115,7 @@ last_reviewed: 2026-06-10
 
 **Root cause:** I treated focused unit tests, typecheck, and fast-suite results as enough after changing a prompt helper and test fixture. The slow installer round-trip runs repo preflight inside a copied checkout, so it catches lint and format debt that focused tests do not.
 
-**Recurrence update (2026-05-24):** Adding registered deny-hook runtime smoke coverage passed focused audit tests and typecheck, but the first full `bash scripts/preflight-checks.sh` failed in the TypeScript gate because `src/cli/audit/check-agent-deny-mechanism.ts` (search: `checkHookRuntimeSmoke`) exceeded ESLint complexity by one branch. Splitting path selection and smoke execution into helpers (`search: runHookRuntimeSmoke`) cleared `npx eslint src/cli/audit/check-agent-setup.ts` and the rerun preflight TypeScript gate.
+**Recurrence update (2026-05-24):** Adding registered deny-hook runtime smoke coverage passed focused audit tests and typecheck, but the first full `bash scripts/preflight-checks.sh` failed in the TypeScript gate because `src/cli/audit/check-agent-deny-runtime.ts` (search: `checkHookRuntimeSmoke`) exceeded ESLint complexity by one branch. Splitting path selection and smoke execution into helpers (search: `runConfiguredHookCommandSmoke`) cleared `npx eslint src/cli/audit/check-agent-deny-runtime.ts` and the rerun preflight TypeScript gate.
 
 **Prevention:** Before rerunning `npm run test:slow` after prompt/test changes, run `npx eslint src/cli src/dashboard` and `npm run format:check` locally. If the slow round-trip preflight fails, reproduce the reported gate directly in the source checkout before changing installer or drift logic.
 
@@ -131,11 +131,11 @@ last_reviewed: 2026-06-10
 
 **Recurrence update (2026-05-19):** The same closeout also added a dashboard markdown performance sanity test whose 500KB fixture was newline-heavy. Focused runs passed, but preflight's concurrent fast-suite runner exceeded the 100ms budget. The fixture still needed to be 500KB, but it needed to measure plain markdown throughput rather than line-break parsing stress.
 
-**Recurrence update (2026-05-26):** The same `test/unit/dashboard-markdown.test.ts` performance sanity test passed standalone and in `npm test`, but failed under preflight's `npm run test:coverage` because Node's coverage instrumentation and full-suite concurrency pushed the 500KB render over hard 100ms/250ms budgets (`expected <100ms, got 115ms` and later `159ms`; the full preflight still needed the retry path at 250ms). The test now uses one coverage-stable sanity budget because the coverage flag was not visible inside the `tsx` test process.
+**Recurrence update (2026-05-26, 2026-06-14):** The same `test/unit/dashboard-markdown.test.ts` performance sanity test passed standalone and in `npm test`, but failed under preflight's `npm run test:coverage` because Node's coverage instrumentation and full-suite concurrency pushed the 500KB render over hard 100ms/250ms budgets (`expected <100ms, got 115ms` and later `159ms`; the full preflight still needed the retry path at 250ms). A later fixed `750ms` ceiling was still machine-sensitive, so the test now compares the 500KB render against a same-process 100KB baseline with a generous floor.
 
 **Recurrence update (2026-05-19):** M01 commit-guidance work added a new helper and tests. Focused `npx tsc --noEmit` and the new test file passed, but the first full preflight failed in the TypeScript gate: `Knip: 2 unused exports/types`. The exported names were internal helper types, not public API. Removing the unnecessary `export` keywords fixed `npx knip`. Evidence anchor: `src/cli/prompt/commit-guidance.ts` (search: `type CommitGuidanceStatus`).
 
-**Prevention:** Use the repo's supported scopes for final gates (`npx eslint src/cli src/dashboard`, `npm run format:check`, `npx knip --no-progress`). Run full `npm test` alone or capture it to a log before starting parallel expensive checks. When Knip reports configuration hints after a dependency starts being used for real, remove the temporary ignore entry instead of carrying it forward. For performance sanity tests that run in the default fast suite and preflight coverage suite, keep fixtures representative of the named budget and set a threshold that is stable under coverage instrumentation instead of tuning to a focused local run. Evidence anchors: `package.json` (search: `test:fast`), `test/unit/dashboard-markdown.test.ts` (search: `const budgetMs = 750`), `knip.json` (search: `ignoreDependencies`).
+**Prevention:** Use the repo's supported scopes for final gates (`npx eslint src/cli src/dashboard`, `npm run format:check`, `npx knip --no-progress`). Run full `npm test` alone or capture it to a log before starting parallel expensive checks. When Knip reports configuration hints after a dependency starts being used for real, remove the temporary ignore entry instead of carrying it forward. For performance sanity tests that run in the default fast suite and preflight coverage suite, keep fixtures representative and prefer same-process relative budgets over fixed local-run ceilings. Evidence anchors: `package.json` (search: `test:fast`), `test/unit/dashboard-markdown.test.ts` (search: `baseline.durationMs * 12`), `knip.json` (search: `ignoreDependencies`).
 
 ---
 
@@ -150,6 +150,18 @@ last_reviewed: 2026-06-10
 **Fix:** Patch the direct dependency to the current non-vulnerable release, sync `package-lock.json`, then rerun `npm audit` and full preflight before claiming the new gate works. Evidence anchors: `scripts/preflight-checks.sh` (search: `Dependency Audit`), `package.json` (search: `"ws": "^8.20.1"`).
 
 **Prevention:** Before adding a repo-wide dependency-audit gate, run the raw audit command first. If it finds baseline vulnerabilities, either include the smallest compatible dependency update in the same change or stop and report the blocker before wiring a failing gate.
+
+---
+
+## Lesson: Dependency-audit gates can mutate lockfile metadata
+
+**Status:** active | **Created:** 2026-06-14
+
+**What happened:** During M08 self-review, `package-lock.json` appeared in `git status` only after the final `npm test` / `bash scripts/preflight-checks.sh` verification pass. A forced text diff showed registry metadata churn for transitive dev dependencies such as `@types/node`, `acorn`, `caniuse-lite`, and `eslint`, even though dependency updates were out of scope. The lockfile was reverted before closeout.
+
+**Root cause:** I treated dependency audit/preflight as read-only for the working tree. In this environment, npm tooling can refresh `package-lock.json` metadata while producing otherwise passing audit/preflight output.
+
+**Prevention:** After `npm audit`, `npm test`, or full preflight, run `git status --short --untracked-files=all` before final scope claims. If `package-lock.json` changed and dependency updates are out of scope, inspect with `git diff --text -- package-lock.json` and revert only audit-generated metadata drift before rerunning any required checks. Evidence anchors: `scripts/preflight-checks.sh` (search: `audit_output=$(npm audit 2>&1)`) and `package-lock.json` (search: `node_modules/@types/node`).
 
 ---
 

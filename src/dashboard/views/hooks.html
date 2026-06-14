@@ -145,6 +145,7 @@
     <template
       x-for="section in [
         { id: 'safety', label: 'Safety', tone: 'danger' },
+        { id: 'workflow', label: 'Workflow', tone: 'workflow' },
         { id: 'git', label: 'Git & deploy', tone: 'warning' },
         { id: 'quality', label: 'Quality', tone: 'neutral' }
       ]"
@@ -227,6 +228,28 @@
                       <span x-text="agentId"></span>
                       <strong x-text="hookAgentStatusLabel(state)"></strong>
                     </span>
+                  </template>
+                </div>
+
+                <div
+                  x-show="unsupportedHookAgents(hook).length > 0"
+                  class="gf-hook-unsupported"
+                  aria-label="Unsupported hook agents"
+                >
+                  <template
+                    x-for="[agentId, state] in unsupportedHookAgents(hook)"
+                    :key="hook.id + '-unsupported-' + agentId"
+                  >
+                    <div class="gf-hook-unsupported-item">
+                      <span
+                        class="gf-hook-unsupported-agent"
+                        x-text="agentId + ' unsupported'"
+                      ></span>
+                      <span
+                        class="gf-hook-unsupported-reason"
+                        x-text="state.reason"
+                      ></span>
+                    </div>
                   </template>
                 </div>
               </div>
