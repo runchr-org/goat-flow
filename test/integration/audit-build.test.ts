@@ -300,7 +300,6 @@ const CURRENT_HOOK_STAMP = `#!/usr/bin/env bash\n# goat-flow-hook-version: ${AUD
 const REQUIRED_HOOKS = new Map([
   [".goat-flow/hooks/deny-dangerous.sh", CURRENT_HOOK_STAMP],
   [".goat-flow/hooks/post-turn-safety.sh", CURRENT_HOOK_STAMP],
-  [".goat-flow/hooks/plan-checkbox-guard.sh", CURRENT_HOOK_STAMP],
 ]);
 
 /** Build an audit context whose optional gruff hook content varies. */

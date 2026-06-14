@@ -178,7 +178,11 @@ describe("post-turn-safety hook", () => {
 
   it("blocks exported credential assignments", () => {
     withTempRepo((root) => {
-      writeFile(root, "env.txt", "export API_KEY=live-secret-value-12345\n");
+      writeFile(
+        root,
+        "settings.sh",
+        "export API_KEY=live-secret-value-12345\n",
+      );
 
       assertHookBlocks(root, /credential assignment \(API_KEY\)/u);
     });
@@ -186,7 +190,7 @@ describe("post-turn-safety hook", () => {
 
   it("blocks quoted credential assignments containing hash characters", () => {
     withTempRepo((root) => {
-      writeFile(root, "env.txt", 'API_KEY="live-secret#value-12345"\n');
+      writeFile(root, ".env", 'API_KEY="live-secret#value-12345"\n');
 
       assertHookBlocks(root, /credential assignment \(API_KEY\)/u);
     });
@@ -194,9 +198,214 @@ describe("post-turn-safety hook", () => {
 
   it("blocks lowercase credential assignment keys", () => {
     withTempRepo((root) => {
-      writeFile(root, "env.txt", "api_key=live-secret-value-12345\n");
+      writeFile(root, "settings.env", "api_key=live-secret-value-12345\n");
 
       assertHookBlocks(root, /credential assignment \(api_key\)/u);
+    });
+  });
+
+  it("blocks Dockerfile ARG and ENV credential assignments", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "Dockerfile",
+        [
+          "ARG CLIENT_SECRET=LiteralDockerSecret123",
+          "ARG AUTH_TOKEN LiteralDockerArgSecret123",
+          'ENV API_TOKEN="LiteralDockerToken123"',
+          "ENV SECRET_KEY LiteralDockerEnvSecret123",
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(CLIENT_SECRET\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(AUTH_TOKEN\)/u);
+      assert.match(result.stderr, /credential assignment \(API_TOKEN\)/u);
+      assert.match(result.stderr, /credential assignment \(SECRET_KEY\)/u);
+    });
+  });
+
+  it("blocks Dockerfile multi-assignment ENV credentials", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "Dockerfile",
+        [
+          "ENV SAFE=x API_TOKEN=LiteralDockerToken123",
+          "ENV CLIENT_SECRET=LiteralDockerSecret123 SAFE=x",
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(API_TOKEN\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(CLIENT_SECRET\)/u);
+    });
+  });
+
+  it("allows Dockerfile non-secret multi-assignment ENV values", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "Dockerfile",
+        [
+          "ENV SAFE=x TOKEN_COUNT=LiteralTokenCount123 API_TOKEN=$BUILD_TOKEN",
+          "ARG CLIENT_SECRET",
+          "# ENV API_TOKEN=LiteralDockerToken123",
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("blocks literal credential assignment forms", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "settings.env",
+        [
+          `API_TOKEN = "${TEST_GITHUB_TOKEN}"`,
+          'export SECRET_KEY="aVeryLongRealSecretValue123"',
+          'password = "hunter2hunter2hunter2"',
+          `api_key: "${TEST_API_TOKEN}"`,
+          "CLIENT_SECRET=Zx9AbCdEf123456",
+          'CLIENT_SECRETS="Zx9AbCdEf123456"',
+          'DB_PASSWORDS="dbPasswordValue123"',
+          "auth_token = 8f3c1a9b7e2d4f60aa11",
+          "bearer_token = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(API_TOKEN\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(SECRET_KEY\)/u);
+      assert.match(result.stderr, /credential assignment \(password\)/u);
+      assert.match(result.stderr, /credential assignment \(api_key\)/u);
+      assert.match(result.stderr, /credential assignment \(CLIENT_SECRET\)/u);
+      assert.match(result.stderr, /credential assignment \(CLIENT_SECRETS\)/u);
+      assert.match(result.stderr, /credential assignment \(DB_PASSWORDS\)/u);
+      assert.match(result.stderr, /credential assignment \(auth_token\)/u);
+      assert.match(result.stderr, /credential assignment \(bearer_token\)/u);
+    });
+  });
+
+  it("blocks camelCase credential assignment keys", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "settings.yaml",
+        [
+          'clientSecret: "CamelClientSecret123"',
+          'authToken: "CamelAuthToken123"',
+          'refreshToken: "CamelRefreshToken123"',
+          'secretKey: "CamelSecretKey123"',
+          'privateKey: "CamelPrivateKey123"',
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(clientSecret\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(authToken\)/u);
+      assert.match(result.stderr, /credential assignment \(refreshToken\)/u);
+      assert.match(result.stderr, /credential assignment \(secretKey\)/u);
+      assert.match(result.stderr, /credential assignment \(privateKey\)/u);
+    });
+  });
+
+  it("allows excluded camelCase credential metadata keys", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "settings.yaml",
+        [
+          'tokenCount: "LiteralTokenCount123"',
+          'secretName: "LiteralSecretName123"',
+          'passwordField: "LiteralPasswordField123"',
+          'clientSecretId: "CamelSecretId123"',
+          'notASecret: "LiteralNotSecret123"',
+          'nonSecret: "LiteralNonSecret123"',
+          'notAToken: "LiteralNotToken123"',
+          "authToken: getToken()",
+          "clientSecret: config.clientSecret",
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("allows interpolated double-quoted credential expressions", () => {
+    withTempRepo((root) => {
+      writeFile(root, ".env.local", 'API_KEY="${PREFIX}SecretValue123"\n');
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("allows token-like source-code expressions", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "query_scrub.py",
+        [
+          'tokens = re.findall(r"[a-z0-9]+", message)',
+          "token_count = len(items)",
+          'next_token = page["next_token"]',
+          "access_token = get_token()",
+          "self.tokens = tokens",
+          "tokenizer = build_tokenizer(cfg)",
+          "secret = compute_secret(seed)",
+          'password_field = form["password"]',
+          "refresh_token = cached_token",
+          "auth_token = settings.API_TOKEN1",
+          "auth_token = SETTINGS.API_TOKEN1",
+          "password = config.DEFAULT_PASSWORD1",
+          "password = Config.DEFAULT_PASSWORD1",
+          "client_secret = prefix+Suffix123",
+          "client_secret = PREFIX+Suffix123",
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("does not run generic credential-assignment guessing in source files", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "app.py",
+        [
+          'API_TOKEN = "LiteralSourceSecret123"',
+          'CLIENT_SECRET = "ClientSourceSecret123"',
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("keeps provider token scanning active in source files", () => {
+    withTempRepo((root) => {
+      writeFile(root, "app.py", `API_TOKEN = "${TEST_API_TOKEN}"\n`);
+
+      assertHookBlocks(root, /API token/u);
     });
   });
 

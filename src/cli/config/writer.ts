@@ -1,8 +1,8 @@
 /**
  * Minimal `.goat-flow/config.yaml` writer for hook toggle state.
  *
- * The writer only replaces the top-level `hooks:` block so comments and
- * ordering in the rest of the config file survive normal dashboard toggles.
+ * The writer only replaces targeted top-level blocks so comments and ordering
+ * in the rest of the config file survive normal dashboard toggles.
  */
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -20,6 +20,12 @@ const HOOK_ID_ALIASES = new Map([
 const HOOK_BLOCK_COMMENT_LINES = new Set([
   "# Togglable goat-flow hook state. Missing entries use registry defaults.",
   "# Manage with the dashboard Hooks page or `goat-flow hooks <enable|disable|sync>`.",
+]);
+const REMOVED_TOP_LEVEL_BLOCK_COMMENTS = new Map([
+  [
+    "plan-guard",
+    new Set(["# Workflow reminder settings for the plan checkbox guard."]),
+  ],
 ]);
 
 /** Narrow parsed YAML values before reading the hooks block. */
@@ -123,6 +129,53 @@ function replaceTopLevelHooksBlock(text: string, block: string): string {
     .concat("\n");
 }
 
+function topLevelBlockRange(
+  lines: string[],
+  key: string,
+): { start: number; end: number } | null {
+  if (!/^[A-Za-z0-9_-]+$/u.test(key)) return null;
+  const start = lines.findIndex((line) =>
+    new RegExp(`^${key}:\\s*(?:#.*)?$`, "u").test(line),
+  );
+  if (start === -1) return null;
+  let end = start + 1;
+  while (end < lines.length) {
+    const line = lines[end] ?? "";
+    if (line.trim() !== "" && isTopLevelLine(line)) break;
+    end += 1;
+  }
+  return { start, end };
+}
+
+function removablePrefixStart(
+  lines: string[],
+  start: number,
+  key: string,
+): number {
+  const comments = REMOVED_TOP_LEVEL_BLOCK_COMMENTS.get(key);
+  if (!comments) return start;
+  let prefixStart = start;
+  while (prefixStart > 0 && comments.has(lines[prefixStart - 1] ?? "")) {
+    prefixStart -= 1;
+  }
+  if (prefixStart > 0 && (lines[prefixStart - 1] ?? "").trim() === "") {
+    prefixStart -= 1;
+  }
+  return prefixStart;
+}
+
+function removeTopLevelBlockFromText(text: string, key: string): string {
+  const lines = text.replace(/\s*$/u, "\n").split("\n");
+  const range = topLevelBlockRange(lines, key);
+  if (!range) return text;
+  const prefixStart = removablePrefixStart(lines, range.start, key);
+  return [...lines.slice(0, prefixStart), ...lines.slice(range.end)]
+    .join("\n")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trimEnd()
+    .concat("\n");
+}
+
 /** Return the explicitly configured hook state, excluding registry defaults. */
 function readHookConfig(projectPath: string): HookConfigMap {
   return readRawHooks(readConfigText(projectPath));
@@ -166,4 +219,30 @@ export function setHookEnabled(
     replaceTopLevelHooksBlock(text, renderHooksBlock(hooks)),
     projectPath,
   );
+}
+
+export function removeHookConfig(projectPath: string, hookId: string): void {
+  const path = configPath(projectPath);
+  if (!existsSync(path)) return;
+  const text = readConfigText(projectPath);
+  const hooks = readRawHooks(text);
+  if (!Object.prototype.hasOwnProperty.call(hooks, hookId)) return;
+  Reflect.deleteProperty(hooks, hookId);
+  writeFileAtomic(
+    path,
+    replaceTopLevelHooksBlock(text, renderHooksBlock(hooks)),
+    projectPath,
+  );
+}
+
+export function removeTopLevelConfigBlock(
+  projectPath: string,
+  key: string,
+): void {
+  const path = configPath(projectPath);
+  if (!existsSync(path)) return;
+  const text = readConfigText(projectPath);
+  const next = removeTopLevelBlockFromText(text, key);
+  if (next === text) return;
+  writeFileAtomic(path, next, projectPath);
 }

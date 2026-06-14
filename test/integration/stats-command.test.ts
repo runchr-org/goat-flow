@@ -58,13 +58,6 @@ function stubConfig(overrides: Partial<GoatFlowConfig> = {}): LoadedConfig {
       harness: { acknowledge: [] },
       terminal: { idleTimeoutMinutes: 480 },
       hooks: {},
-      planGuard: {
-        enabled: true,
-        searchPaths: [".goat-flow/plans"],
-        maxDepth: 3,
-        stalenessDays: 14,
-        planFile: null,
-      },
       ...overrides,
     },
     warnings: [],

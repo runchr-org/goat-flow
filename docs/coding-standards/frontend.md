@@ -58,7 +58,7 @@ Each AI Harness Completeness check is a `HarnessCheck` object in the `src/cli/au
 
 `HarnessCheckResult`: `{ status: 'pass' | 'fail', findings: string[], recommendations: string[], howToFix?: string[] }`
 
-Harness checks feed the AI Harness Completeness score and do not affect the deterministic audit exit code (only build checks do).
+Harness checks feed the AI Harness Completeness score. When `audit --harness` is used, harness failures contribute to the overall audit status and exit code.
 
 ## Key Patterns
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # post-turn-safety.sh
-# goat-flow-hook-version: 1.12.0
+# goat-flow-hook-version: 1.12.1
 #
 # Purpose:
 #   Universal Stop-event safety guard for supported agents. This hook checks
@@ -77,6 +77,250 @@ is_placeholder_token() {
   [[ "$value" =~ $marker_re ]]
 }
 
+strip_space() {
+  printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
+}
+
+is_excluded_credential_key() {
+  local key="$1"
+  case "$key" in
+    tokens|*tokens|tokenizer|tokeniser|tokenize|*tokenizer*|*tokeniser*|*tokenize*|*_count|*_index|*_id|*_name|*_type|*_header|*_url|*_path|*_list|*_re|*_pattern|*_field)
+      return 0
+      ;;
+    *not_secret|*not_a_secret|*non_secret|*no_secret|*not_token|*not_a_token|*non_token|*no_token|*not_password|*not_a_password|*non_password|*no_password|*not_api_key|*not_an_api_key|*non_api_key|*no_api_key|*not_private_key|*not_a_private_key|*non_private_key|*no_private_key)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+normalize_credential_key() {
+  printf '%s' "$1" |
+    sed -E 's/([[:lower:][:digit:]])([[:upper:]])/\1_\2/g; s/([[:upper:]])([[:upper:]][[:lower:]])/\1_\2/g' |
+    tr '[:upper:]-' '[:lower:]_'
+}
+
+is_credential_key() {
+  local key
+  key="$(normalize_credential_key "$1")"
+  is_excluded_credential_key "$key" && return 1
+  case "$key" in
+    token|secret|secrets|password|passwords|api_key|apikey|private_key|access_token|auth_token|refresh_token|bearer_token|client_secret|client_secrets|secret_key|secret_keys)
+      return 0
+      ;;
+    *_api_key|*_apikey|*_private_key|*_access_token|*_auth_token|*_refresh_token|*_bearer_token|*_client_secret|*_client_secrets|*_secret_key|*_secret_keys|*_password|*_passwords|*_token|*_secret|*_secrets)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+scan_literal_credential_assignment() {
+  local path="$1"
+  local key="$2"
+  local raw_value="$3"
+  local value
+
+  [ -n "$key" ] || return 0
+  is_credential_key "$key" || return 0
+
+  if ! value="$(literal_assignment_value "$raw_value")"; then
+    return 0
+  fi
+  [ "${#value}" -ge 12 ] || return 0
+  # Assignment values use delimiter-aware placeholder matching so ordinary
+  # substrings such as "test" inside a generated password do not suppress a
+  # credential finding. Known documented token placeholders are handled there.
+  if is_placeholder_token "$value"; then
+    return 0
+  fi
+
+  report_finding "$path" "credential assignment ($key)"
+}
+
+scan_dockerfile_assignment() {
+  local path="$1"
+  local line="$2"
+  local instruction
+  local payload
+  local first_word
+  local key
+  local raw_value
+  local word
+  local -a words=()
+  local docker_instruction_re='^[[:space:]]*([aA][rR][gG]|[eE][nN][vV])[[:space:]]+(.*)$'
+  local docker_key_value_re='^([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]*=[[:space:]]*(.*)$'
+  local docker_key_space_re='^([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]+(.+)$'
+  local docker_key_only_re='^([A-Za-z_][A-Za-z0-9_-]*)$'
+  local docker_env_word_re='^([A-Za-z_][A-Za-z0-9_-]*)=(.*)$'
+
+  [[ "$line" =~ $docker_instruction_re ]] || return 0
+  instruction="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+  payload="$(strip_space "${BASH_REMATCH[2]}")"
+  [ -n "$payload" ] || return 0
+
+  if [[ "$instruction" == "env" ]]; then
+    first_word="${payload%%[[:space:]]*}"
+    if [[ "$first_word" =~ $docker_env_word_re ]]; then
+      read -r -a words <<< "$payload"
+      for word in "${words[@]}"; do
+        if [[ "$word" =~ $docker_env_word_re ]]; then
+          scan_literal_credential_assignment "$path" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+        fi
+      done
+      return 0
+    fi
+  fi
+
+  if [[ "$payload" =~ $docker_key_value_re ]]; then
+    key="${BASH_REMATCH[1]}"
+    raw_value="${BASH_REMATCH[2]}"
+  elif [[ "$payload" =~ $docker_key_space_re ]]; then
+    key="${BASH_REMATCH[1]}"
+    raw_value="${BASH_REMATCH[2]}"
+  elif [[ "$payload" =~ $docker_key_only_re ]]; then
+    key="${BASH_REMATCH[1]}"
+    raw_value=""
+  else
+    return 0
+  fi
+
+  scan_literal_credential_assignment "$path" "$key" "$raw_value"
+}
+
+has_credential_entropy() {
+  local value="$1"
+  case "$value" in
+    gh[pousr]_*|github_pat_*|npm_*|sk-*|xox[baprs]-*|AKIA*|ASIA*)
+      return 0
+      ;;
+  esac
+  [[ "$value" =~ [0-9] ]] || return 1
+  if [[ "$value" =~ [[:lower:]] ]] && [[ "$value" =~ [[:upper:]] ]]; then
+    return 0
+  fi
+  if [[ "$value" =~ [._+/=~-] ]]; then
+    return 0
+  fi
+  if [ "${#value}" -ge 20 ] && [[ "$value" =~ ^[a-f0-9]+$ ]]; then
+    return 0
+  fi
+  return 1
+}
+
+literal_assignment_value() {
+  local after
+  local bare
+  local dotted_identifier_re
+  local first_segment
+  local first_segment_lower
+  local operator_expression_re
+  local raw
+  local rest
+  local value
+
+  raw="$(strip_space "$1")"
+  case "$raw" in
+    [fF]\"*|[fF]\'*|[fF][rR]\"*|[fF][rR]\'*|[rR][fF]\"*|[rR][fF]\'*)
+      return 1
+      ;;
+  esac
+
+  case "${raw:0:1}" in
+    '"')
+      rest="${raw:1}"
+      [[ "$rest" == *\"* ]] || return 1
+      value="${rest%%\"*}"
+      case "$value" in
+        *'$'*) return 1 ;;
+      esac
+      after="${rest#*\"}"
+      after="$(strip_space "$after")"
+      case "$after" in
+        ""|\#*) ;;
+        *) return 1 ;;
+      esac
+      printf '%s' "$value"
+      return 0
+      ;;
+    "'")
+      rest="${raw:1}"
+      [[ "$rest" == *"'"* ]] || return 1
+      value="${rest%%\'*}"
+      after="${rest#*\'}"
+      after="$(strip_space "$after")"
+      case "$after" in
+        ""|\#*) ;;
+        *) return 1 ;;
+      esac
+      printf '%s' "$value"
+      return 0
+      ;;
+  esac
+
+  bare="${raw%%#*}"
+  bare="$(strip_space "$bare")"
+  [ -n "$bare" ] || return 1
+  case "$bare" in
+    *[[:space:]]*|*"("*|*")"*|*"["*|*"]"*|*"{"*|*"}"*|*","*|*";"*|*"<"*|*">"*|*"|"*|*"&"*|*'`'*|*'$'*)
+      return 1
+      ;;
+  esac
+  if [[ "$bare" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+    return 1
+  fi
+  dotted_identifier_re='^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$'
+  if [[ "$bare" =~ $dotted_identifier_re ]]; then
+    first_segment="${bare%%.*}"
+    first_segment_lower="$(printf '%s' "$first_segment" | tr '[:upper:]' '[:lower:]')"
+    case "$first_segment_lower" in
+      app|application|cfg|conf|config|configs|configuration|constant|constants|context|credentials|credential|creds|ctx|default|defaults|env|environ|environment|os|process|self|setting|settings|this)
+        return 1
+        ;;
+    esac
+    if ! has_credential_entropy "$first_segment"; then
+      return 1
+    fi
+  fi
+  operator_expression_re='^([A-Za-z_][A-Za-z0-9_]*)([+*/%=]|==|!=)([A-Za-z_][A-Za-z0-9_]*)$'
+  if [[ "$bare" =~ $operator_expression_re ]]; then
+    has_credential_entropy "${BASH_REMATCH[1]}" || return 1
+  fi
+  if [[ ! "$bare" =~ ^[A-Za-z0-9._+/=~-]{12,}$ ]]; then
+    return 1
+  fi
+  has_credential_entropy "$bare" || return 1
+  printf '%s' "$bare"
+}
+
+is_dockerfile_path() {
+  local basename
+  local lower_path
+
+  lower_path="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  basename="${lower_path##*/}"
+  case "$basename" in
+    dockerfile|dockerfile.*|*.dockerfile)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+is_env_assignment_file() {
+  local basename
+  local lower_path
+
+  lower_path="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  basename="${lower_path##*/}"
+  case "$basename" in
+    .env*|*.env|*.env.*|dockerfile|dockerfile.*|*.dockerfile|*.sh|*.bash|*.zsh|*.ksh|*.yaml|*.yml|*.ini|*.toml|*.properties|*.conf|*.cfg)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 report_finding() {
   local path="$1"
   local family="$2"
@@ -98,28 +342,16 @@ scan_env_assignment() {
   local path="$1"
   local line="$2"
   local key
-  local key_family
-  local value
+  local raw_value
 
-  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\2/p' | head -n 1)"
-  [ -n "$key" ] || return 0
-  key_family="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
-  case "$key_family" in
-    *SECRET*|*TOKEN*|*API_KEY*|*PASSWORD*|*PRIVATE_KEY*) ;;
-    *) return 0 ;;
-  esac
-
-  value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*(.*)$/\2/p' | head -n 1)"
-  value="$(trim_value "$value")"
-  [ "${#value}" -ge 12 ] || return 0
-  # Assignment values use delimiter-aware placeholder matching so ordinary
-  # substrings such as "test" inside a generated password do not suppress a
-  # credential finding. Known documented token placeholders are handled there.
-  if is_placeholder_token "$value"; then
+  if is_dockerfile_path "$path"; then
+    scan_dockerfile_assignment "$path" "$line"
     return 0
   fi
 
-  report_finding "$path" "credential assignment ($key)"
+  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*((export|EXPORT|arg|ARG|env|ENV)[[:space:]]+)?([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]*[:=].*/\3/p' | head -n 1)"
+  raw_value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*((export|EXPORT|arg|ARG|env|ENV)[[:space:]]+)?[A-Za-z_][A-Za-z0-9_-]*[[:space:]]*[:=][[:space:]]*(.*)$/\3/p' | head -n 1)"
+  scan_literal_credential_assignment "$path" "$key" "$raw_value"
 }
 
 # Report a raw token match unless the matched token is itself an obvious
@@ -170,7 +402,9 @@ scan_line() {
     report_token_if_real "$path" "API token" "${BASH_REMATCH[2]}"
   fi
 
-  scan_env_assignment "$path" "$line"
+  if is_env_assignment_file "$path"; then
+    scan_env_assignment "$path" "$line"
+  fi
 }
 
 is_scannable_file() {

@@ -68,7 +68,6 @@ const NAMED_PATHS = new Set([
   ".goat-flow/hooks/deny-dangerous.sh",
   ".goat-flow/hooks/gruff-code-quality.sh",
   ".goat-flow/hooks/post-turn-safety.sh",
-  ".goat-flow/hooks/plan-checkbox-guard.sh",
   ".goat-flow/hooks/deny-dangerous/",
   ".goat-flow/hooks/deny-dangerous/patterns-shell.sh",
   ".goat-flow/hooks/deny-dangerous/patterns-paths.sh",
@@ -689,7 +688,6 @@ const hookVersionCurrent: BuildCheck = {
     ".goat-flow/hooks/deny-dangerous.sh",
     ".goat-flow/hooks/gruff-code-quality.sh",
     ".goat-flow/hooks/post-turn-safety.sh",
-    ".goat-flow/hooks/plan-checkbox-guard.sh",
     "src/cli/constants.ts",
   ]),
   /** Run the Hook version check. */
@@ -701,7 +699,6 @@ const hookVersionCurrent: BuildCheck = {
       { file: "deny-dangerous.sh", required: true },
       { file: "gruff-code-quality.sh", required: false },
       { file: "post-turn-safety.sh", required: true },
-      { file: "plan-checkbox-guard.sh", required: true },
     ];
     for (const { file: hookFile, required } of hookFiles) {
       const relPath = `.goat-flow/hooks/${hookFile}`;

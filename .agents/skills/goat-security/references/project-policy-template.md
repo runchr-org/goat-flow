@@ -1,5 +1,5 @@
 ---
-goat-flow-reference-version: "1.12.0"
+goat-flow-reference-version: "1.12.1"
 ---
 # Project Security Policy Template
 

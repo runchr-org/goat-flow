@@ -127,11 +127,9 @@ function shellCommand(agent: AgentProfile, spec: HookSpec): string {
       ? `{ printf 'gruff-code-quality: hook unavailable: git repository root or hook script unavailable; skipped.\\n' >&2; exit 0; }`
       : spec.id === "post-turn-safety"
         ? `{ printf 'post-turn-safety: hook unavailable: git repository root or hook script unavailable.\\n' >&2; exit 2; }`
-        : spec.id === "plan-checkbox-guard"
-          ? `{ printf 'plan-checkbox-guard: hook unavailable: git repository root or hook script unavailable.\\n' >&2; exit 1; }`
-          : agent.id === "antigravity"
-            ? `{ printf '{"decision":"deny","reason":"Policy hook unavailable: git repository root unavailable."}\\n'; exit 0; }`
-            : `{ printf 'BLOCKED: Policy hook unavailable: git repository root unavailable.\\n' >&2; exit 2; }`;
+        : agent.id === "antigravity"
+          ? `{ printf '{"decision":"deny","reason":"Policy hook unavailable: git repository root unavailable."}\\n'; exit 0; }`
+          : `{ printf 'BLOCKED: Policy hook unavailable: git repository root unavailable.\\n' >&2; exit 2; }`;
   // Central hook scripts live in the active worktree under .goat-flow/hooks.
   // Resolve the active tree first so linked worktrees run the policy checked out
   // beside the files being edited. Claude/Antigravity also fall back to

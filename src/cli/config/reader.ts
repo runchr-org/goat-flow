@@ -30,7 +30,6 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "skill-overrides",
   "harness",
   "hooks",
-  "plan-guard",
   "terminal",
   "quality",
 ]);
@@ -66,13 +65,6 @@ const CONFIG_DEFAULTS: GoatFlowConfig = {
   terminal: { idleTimeoutMinutes: 480 },
   harness: { acknowledge: [] },
   hooks: {},
-  planGuard: {
-    enabled: true,
-    searchPaths: [".goat-flow/plans"],
-    maxDepth: 3,
-    stalenessDays: 14,
-    planFile: null,
-  },
 };
 
 /** Clone the default config object so callers can mutate it safely. */
@@ -107,13 +99,6 @@ function cloneDefaults(): GoatFlowConfig {
     terminal: { ...CONFIG_DEFAULTS.terminal },
     harness: { acknowledge: [...CONFIG_DEFAULTS.harness.acknowledge] },
     hooks: { ...CONFIG_DEFAULTS.hooks },
-    planGuard: {
-      enabled: CONFIG_DEFAULTS.planGuard.enabled,
-      searchPaths: [...CONFIG_DEFAULTS.planGuard.searchPaths],
-      maxDepth: CONFIG_DEFAULTS.planGuard.maxDepth,
-      stalenessDays: CONFIG_DEFAULTS.planGuard.stalenessDays,
-      planFile: CONFIG_DEFAULTS.planGuard.planFile,
-    },
   };
 }
 
@@ -273,7 +258,6 @@ function mergeConfig(raw: unknown): GoatFlowConfig {
 
   mergeHarness(raw.harness, merged);
   mergeHooks(raw.hooks, merged);
-  mergePlanGuard(raw["plan-guard"], merged);
   mergeQuality(raw.quality, merged);
 
   return merged;
@@ -289,53 +273,6 @@ function mergeHooks(value: unknown, merged: GoatFlowConfig): void {
     hooks[hookId] = { enabled: hookValue.enabled };
   }
   merged.hooks = hooks;
-}
-
-/** Normalize optional string-list config values while dropping empty entries. */
-function trimmedStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-/** Apply a non-negative integer config value when it is present and valid. */
-function mergeNonNegativeInteger(
-  value: unknown,
-  apply: (value: number) => void,
-): void {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    return;
-  }
-  apply(value);
-}
-
-/** Return a trimmed non-empty config string, or null for invalid/absent values. */
-function trimmedNonEmptyString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-/** Apply plan-checkbox guard settings from the optional kebab-case config block. */
-function mergePlanGuard(value: unknown, merged: GoatFlowConfig): void {
-  if (!isRecord(value)) return;
-  if (typeof value.enabled === "boolean") {
-    merged.planGuard.enabled = value.enabled;
-  }
-  const searchPaths = trimmedStringArray(value["search-paths"]);
-  if (searchPaths.length > 0) merged.planGuard.searchPaths = searchPaths;
-  mergeNonNegativeInteger(
-    value["max-depth"],
-    (maxDepth) => (merged.planGuard.maxDepth = maxDepth),
-  );
-  mergeNonNegativeInteger(
-    value["staleness-days"],
-    (stalenessDays) => (merged.planGuard.stalenessDays = stalenessDays),
-  );
-  const planFile = trimmedNonEmptyString(value["plan-file"]);
-  if (planFile !== null) merged.planGuard.planFile = planFile;
 }
 
 /** Pass through the raw quality config block; full validation lives in quality-config.ts. */
@@ -436,58 +373,6 @@ function validateStringArray(
       pushError(errors, `${path}[${index}]`, "must be a non-empty string");
     }
   }
-}
-
-/** Validate an optional boolean property on an object config field. */
-function validateBooleanProperty(
-  value: RawConfig,
-  key: string,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (!(key in value)) return;
-  if (typeof value[key] !== "boolean") {
-    pushError(errors, path, "must be a boolean");
-  }
-}
-
-/** Validate an optional string-array property on an object config field. */
-function validateStringArrayProperty(
-  value: RawConfig,
-  key: string,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (!(key in value)) return;
-  validateStringArray(value[key], path, errors);
-}
-
-/** Validate an optional non-negative integer property on an object config field. */
-function validateNonNegativeIntegerProperty(
-  value: RawConfig,
-  key: string,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (!(key in value)) return;
-  const field = value[key];
-  if (typeof field === "number" && Number.isInteger(field) && field >= 0) {
-    return;
-  }
-  pushError(errors, path, "must be a non-negative integer");
-}
-
-/** Validate an optional non-empty string property on an object config field. */
-function validateNonEmptyStringProperty(
-  value: RawConfig,
-  key: string,
-  path: string,
-  errors: ValidationIssue[],
-): void {
-  if (!(key in value)) return;
-  const field = value[key];
-  if (typeof field === "string" && field.trim().length > 0) return;
-  pushError(errors, path, "must be a non-empty string");
 }
 
 /** Validate version field. */
@@ -663,41 +548,6 @@ function validateHooksField(
   });
 }
 
-/** Validate optional plan-checkbox guard configuration. */
-function validatePlanGuardField(
-  raw: RawConfig,
-  _warnings: ValidationIssue[],
-  errors: ValidationIssue[],
-): void {
-  validateObjectField(raw, "plan-guard", errors, (value) => {
-    validateBooleanProperty(value, "enabled", "plan-guard.enabled", errors);
-    validateStringArrayProperty(
-      value,
-      "search-paths",
-      "plan-guard.search-paths",
-      errors,
-    );
-    validateNonNegativeIntegerProperty(
-      value,
-      "max-depth",
-      "plan-guard.max-depth",
-      errors,
-    );
-    validateNonNegativeIntegerProperty(
-      value,
-      "staleness-days",
-      "plan-guard.staleness-days",
-      errors,
-    );
-    validateNonEmptyStringProperty(
-      value,
-      "plan-file",
-      "plan-guard.plan-file",
-      errors,
-    );
-  });
-}
-
 /** Validate the telemetry field when present. */
 function validateTelemetryField(
   raw: RawConfig,
@@ -813,7 +663,6 @@ const CONFIG_VALIDATORS: ConfigValidator[] = [
   validateSkillOverridesField,
   validateHarnessField,
   validateHooksField,
-  validatePlanGuardField,
   validateTerminalField,
 ];
 

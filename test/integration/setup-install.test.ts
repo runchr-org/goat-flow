@@ -30,8 +30,8 @@ describe("setup --apply installer", () => {
       "utf-8",
     );
     assert.doesNotMatch(config, /^agents:/m);
-    assert.match(config, /plan-checkbox-guard:\n    enabled: true/);
-    assert.match(config, /plan-guard:\n  enabled: true/);
+    assert.doesNotMatch(config, /plan-checkbox-guard/u);
+    assert.doesNotMatch(config, /plan-guard/u);
     const gitignore = readFileSync(join(root, ".gitignore"), "utf-8");
     assert.match(gitignore, /^node_modules\/$/m);
     assert.equal(
@@ -44,7 +44,7 @@ describe("setup --apply installer", () => {
     );
     assert.equal(
       existsSync(join(root, ".goat-flow", "hooks", "plan-checkbox-guard.sh")),
-      true,
+      false,
     );
     const codexHooks = readFileSync(
       join(root, ".codex", "hooks.json"),
