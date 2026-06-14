@@ -19,6 +19,8 @@ MAX_FILE_BYTES="${GOAT_FLOW_POST_TURN_SAFETY_MAX_BYTES:-1048576}"
 MAX_FINDINGS="${GOAT_FLOW_POST_TURN_SAFETY_MAX_FINDINGS:-20}"
 
 findings=0
+reported_findings="
+"
 
 repo_root() {
   git rev-parse --show-toplevel 2>/dev/null
@@ -78,6 +80,14 @@ is_placeholder_token() {
 report_finding() {
   local path="$1"
   local family="$2"
+  local fingerprint="${path}|${family}"
+  case "$reported_findings" in
+    *"
+$fingerprint
+"*) return 0 ;;
+  esac
+  reported_findings="${reported_findings}${fingerprint}
+"
   findings=$((findings + 1))
   if [ "$findings" -le "$MAX_FINDINGS" ]; then
     printf 'post-turn-safety: blocked %s in %s\n' "$family" "$path" >&2
@@ -88,11 +98,13 @@ scan_env_assignment() {
   local path="$1"
   local line="$2"
   local key
+  local key_family
   local value
 
   key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\2/p' | head -n 1)"
   [ -n "$key" ] || return 0
-  case "$key" in
+  key_family="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
+  case "$key_family" in
     *SECRET*|*TOKEN*|*API_KEY*|*PASSWORD*|*PRIVATE_KEY*) ;;
     *) return 0 ;;
   esac
@@ -100,14 +112,10 @@ scan_env_assignment() {
   value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*(.*)$/\2/p' | head -n 1)"
   value="$(trim_value "$value")"
   [ "${#value}" -ge 12 ] || return 0
-  # Free-form assignment values use substring placeholder matching, not the
-  # stricter delimiter-aware is_placeholder_token used for structured tokens
-  # above. A blocking Stop hook errs toward fewer false positives here, and
-  # documented dummies often embed markers without delimiters (e.g. AWS's
-  # wJalrX...EXAMPLEKEY). The accepted cost is missing a secret whose value
-  # merely contains "test"/"sample"; format-bearing tokens are still caught
-  # strictly above.
-  if is_placeholder_text "$value"; then
+  # Assignment values use delimiter-aware placeholder matching so ordinary
+  # substrings such as "test" inside a generated password do not suppress a
+  # credential finding. Known documented token placeholders are handled there.
+  if is_placeholder_token "$value"; then
     return 0
   fi
 
@@ -191,10 +199,22 @@ scan_untracked_file() {
   done < "$root/$path"
 }
 
-scan_changed_file() {
+scan_diff_added_lines() {
+  local path="$1"
+  local line
+
+  shift 1
+  while IFS= read -r line; do
+    case "$line" in
+      "+++"*|"---"*|"@@"*) continue ;;
+      +*) scan_line "$path" "${line#+}" ;;
+    esac
+  done < <("$@" 2>/dev/null || true)
+}
+
+scan_worktree_diff_file() {
   local root="$1"
   local path="$2"
-  local line
 
   is_scannable_file "$root" "$path" || return 0
   if ! has_head; then
@@ -202,12 +222,27 @@ scan_changed_file() {
     return 0
   fi
 
-  while IFS= read -r line; do
-    case "$line" in
-      "+++"*|"---"*|"@@"*) continue ;;
-      +*) scan_line "$path" "${line#+}" ;;
-    esac
-  done < <(git diff --no-ext-diff --no-color --unified=0 HEAD -- "$path" 2>/dev/null || true)
+  scan_diff_added_lines "$path" git diff --no-ext-diff --no-color --unified=0 HEAD -- "$path"
+}
+
+is_scannable_staged_file() {
+  local root="$1"
+  local path="$2"
+  local bytes
+
+  bytes="$(git -C "$root" cat-file -s ":$path" 2>/dev/null | tr -d '[:space:]')"
+  case "$bytes" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  [ "$bytes" -le "$MAX_FILE_BYTES" ] || return 1
+}
+
+scan_cached_diff_file() {
+  local root="$1"
+  local path="$2"
+
+  is_scannable_staged_file "$root" "$path" || return 0
+  scan_diff_added_lines "$path" git diff --cached --no-ext-diff --no-color --unified=0 -- "$path"
 }
 
 scan_tracked_changes() {
@@ -216,13 +251,16 @@ scan_tracked_changes() {
 
   if has_head; then
     while IFS= read -r -d '' path; do
-      scan_changed_file "$root" "$path"
+      scan_worktree_diff_file "$root" "$path"
     done < <(git diff --name-only -z --diff-filter=ACMR HEAD -- 2>/dev/null || true)
+    while IFS= read -r -d '' path; do
+      scan_cached_diff_file "$root" "$path"
+    done < <(git diff --cached --name-only -z --diff-filter=ACMR -- 2>/dev/null || true)
     return 0
   fi
 
   while IFS= read -r -d '' path; do
-    scan_changed_file "$root" "$path"
+    scan_worktree_diff_file "$root" "$path"
   done < <(git ls-files -z 2>/dev/null || true)
 }
 

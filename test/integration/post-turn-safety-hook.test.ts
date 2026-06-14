@@ -182,6 +182,14 @@ describe("post-turn-safety hook", () => {
     });
   });
 
+  it("blocks lowercase credential assignment keys", () => {
+    withTempRepo((root) => {
+      writeFile(root, "env.txt", "api_key=live-secret-value-12345\n");
+
+      assertHookBlocks(root, /credential assignment \(api_key\)/u);
+    });
+  });
+
   it("blocks token values with placeholder words embedded as ordinary characters", () => {
     withTempRepo((root) => {
       writeFile(root, "config.txt", `GITHUB_TOKEN=${TEST_GITHUB_TOKEN}\n`);
@@ -216,6 +224,39 @@ describe("post-turn-safety hook", () => {
         "settings.env",
         `API_KEY=your_api_key_here\nAWS_ACCESS_KEY_ID=${TEST_AWS_ACCESS_KEY}\n`,
       );
+
+      assertHookBlocks(root, /AWS access key/u);
+    });
+  });
+
+  it("blocks staged-only secrets when the worktree copy is restored", () => {
+    withTempRepo((root) => {
+      writeFile(root, "settings.env", "API_KEY=your_api_key_here\n");
+      commitAll(root, "add placeholder settings");
+      writeFile(root, "settings.env", `API_KEY=${TEST_API_TOKEN}\n`);
+      runGit(root, ["add", "settings.env"]);
+      runGit(root, ["restore", "--worktree", "--source=HEAD", "settings.env"]);
+
+      assertHookBlocks(root, /API token/u);
+    });
+  });
+
+  it("allows ignored env files that are not staged", () => {
+    withTempRepo((root) => {
+      writeFile(root, ".gitignore", ".env\n");
+      commitAll(root, "ignore local env");
+      writeFile(root, ".env", `AWS_ACCESS_KEY_ID=${TEST_AWS_ACCESS_KEY}\n`);
+
+      assertHookAllows(root);
+    });
+  });
+
+  it("blocks ignored env files once they are force-staged", () => {
+    withTempRepo((root) => {
+      writeFile(root, ".gitignore", ".env\n");
+      commitAll(root, "ignore local env");
+      writeFile(root, ".env", `AWS_ACCESS_KEY_ID=${TEST_AWS_ACCESS_KEY}\n`);
+      runGit(root, ["add", "-f", ".env"]);
 
       assertHookBlocks(root, /AWS access key/u);
     });

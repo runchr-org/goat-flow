@@ -332,8 +332,8 @@ function copyHookScripts(
     writeFileAtomic(target, hookScriptContent(script), projectPath);
     chmodSync(target, 0o755);
   }
+  ensureHookGitignoreEntries(projectPath);
   if (spec.id === "deny-dangerous") {
-    ensureHookGitignoreEntries(projectPath);
     const targetDir = join(
       projectPath,
       ".goat-flow",

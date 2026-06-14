@@ -694,19 +694,27 @@ const hookVersionCurrent: BuildCheck = {
   ]),
   /** Run the Hook version check. */
   run: (ctx) => {
-    // Central hook dispatchers carry a `# goat-flow-hook-version: X.Y.Z` stamp. An
-    // installed dispatcher whose stamp is missing (installed before the stamp
-    // shipped) or behind the current release is a partial upgrade - re-sync. A
-    // dispatcher that is not installed is skipped (optional hooks may be absent).
-    for (const hookFile of [
-      "deny-dangerous.sh",
-      "gruff-code-quality.sh",
-      "post-turn-safety.sh",
-      "plan-checkbox-guard.sh",
-    ]) {
+    // Central hook dispatchers carry a `# goat-flow-hook-version: X.Y.Z` stamp.
+    // Missing required dispatchers are a partial install; optional gruff may be
+    // absent until enabled.
+    const hookFiles = [
+      { file: "deny-dangerous.sh", required: true },
+      { file: "gruff-code-quality.sh", required: false },
+      { file: "post-turn-safety.sh", required: true },
+      { file: "plan-checkbox-guard.sh", required: true },
+    ];
+    for (const { file: hookFile, required } of hookFiles) {
       const relPath = `.goat-flow/hooks/${hookFile}`;
       const content = ctx.fs.readFile(relPath);
-      if (content === null) continue;
+      if (content === null) {
+        if (!required) continue;
+        return {
+          check: "Hook version",
+          message: `${relPath} is missing from the installed hook dispatcher set`,
+          evidence: relPath,
+          howToFix: `Re-run \`npx @blundergoat/goat-flow@${AUDIT_VERSION} hooks sync\` to install the required hook files.`,
+        };
+      }
       const stamped = content.match(
         /goat-flow-hook-version:\s*([0-9]+\.[0-9]+\.[0-9]+)/,
       );

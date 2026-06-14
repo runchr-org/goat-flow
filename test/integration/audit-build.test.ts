@@ -296,22 +296,31 @@ describe("audit build: skill-docs discoverability", () => {
 const hookVersionCheck = SETUP_CHECKS.find((c) => c.id === "hook-version");
 assertExists(hookVersionCheck);
 
-/** Build an audit context whose only readable hook is gruff-code-quality.sh. */
+const CURRENT_HOOK_STAMP = `#!/usr/bin/env bash\n# goat-flow-hook-version: ${AUDIT_VERSION}\n`;
+const REQUIRED_HOOKS = new Map([
+  [".goat-flow/hooks/deny-dangerous.sh", CURRENT_HOOK_STAMP],
+  [".goat-flow/hooks/post-turn-safety.sh", CURRENT_HOOK_STAMP],
+  [".goat-flow/hooks/plan-checkbox-guard.sh", CURRENT_HOOK_STAMP],
+]);
+
+/** Build an audit context whose optional gruff hook content varies. */
 function hookVersionCtx(gruffHook: string | null) {
   return makeCtx({
     fs: stubFS({
       readFile: (path) =>
-        path === ".goat-flow/hooks/gruff-code-quality.sh" ? gruffHook : null,
+        path === ".goat-flow/hooks/gruff-code-quality.sh"
+          ? gruffHook
+          : (REQUIRED_HOOKS.get(path) ?? null),
     }),
   });
 }
 
-/** Build an audit context whose only readable hook is the mandatory deny-dangerous.sh. */
-function denyHookVersionCtx(denyHook: string | null) {
+/** Build an audit context whose required hook content varies. */
+function requiredHookVersionCtx(path: string, content: string | null) {
   return makeCtx({
     fs: stubFS({
-      readFile: (path) =>
-        path === ".goat-flow/hooks/deny-dangerous.sh" ? denyHook : null,
+      readFile: (candidate) =>
+        candidate === path ? content : (REQUIRED_HOOKS.get(candidate) ?? null),
     }),
   });
 }
@@ -350,7 +359,8 @@ describe("audit build: hook version currency", () => {
 
   it("fails when the mandatory deny-dangerous dispatcher stamp is behind the release", () => {
     const result = hookVersionCheck.run(
-      denyHookVersionCtx(
+      requiredHookVersionCtx(
+        ".goat-flow/hooks/deny-dangerous.sh",
         "#!/usr/bin/env bash\n# goat-flow-hook-version: 0.0.1\n",
       ),
     );
@@ -364,13 +374,25 @@ describe("audit build: hook version currency", () => {
 
   it("fails when the mandatory deny-dangerous dispatcher has no version stamp", () => {
     const result = hookVersionCheck.run(
-      denyHookVersionCtx("#!/usr/bin/env bash\n# (no stamp)\n"),
+      requiredHookVersionCtx(
+        ".goat-flow/hooks/deny-dangerous.sh",
+        "#!/usr/bin/env bash\n# (no stamp)\n",
+      ),
     );
     assertExists(result);
     assert.match(
       result.message,
       /deny-dangerous\.sh has no goat-flow-hook-version stamp/,
     );
+  });
+
+  it("fails when a required Stop hook dispatcher is missing", () => {
+    const result = hookVersionCheck.run(
+      requiredHookVersionCtx(".goat-flow/hooks/post-turn-safety.sh", null),
+    );
+    assertExists(result);
+    assert.match(result.message, /post-turn-safety\.sh is missing/u);
+    assert.match(result.howToFix ?? "", /hooks sync/u);
   });
 });
 

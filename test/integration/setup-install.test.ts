@@ -82,6 +82,21 @@ describe("setup --apply installer", () => {
     );
   });
 
+  it("does not register unverified Antigravity Stop hooks during install", () => {
+    const root = makeTempProject();
+    const result = runInstaller(root, "--agent", "antigravity");
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const hooksJson = readFileSync(
+      join(root, ".agents", "hooks.json"),
+      "utf-8",
+    );
+    assert.match(hooksJson, /deny-dangerous/u);
+    assert.doesNotMatch(hooksJson, /post-turn-safety\.sh/u);
+    assert.doesNotMatch(hooksJson, /plan-checkbox-guard\.sh/u);
+    assert.doesNotMatch(hooksJson, /"Stop"/u);
+  });
+
   it("removes an existing agents allowlist from config.yaml", () => {
     const root = makeTempProject();
     const configDir = join(root, ".goat-flow");

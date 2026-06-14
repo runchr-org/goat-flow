@@ -433,8 +433,8 @@ function listChangedPaths(root) {
     addZ(gitBuffer(["diff", "--name-only", "-z", "HEAD"], root));
   } catch {
     addZ(gitBuffer(["diff", "--name-only", "-z"], root));
-    addZ(gitBuffer(["diff", "--cached", "--name-only", "-z"], root));
   }
+  addZ(gitBuffer(["diff", "--cached", "--name-only", "-z"], root));
   addZ(gitBuffer(["ls-files", "--others", "--exclude-standard", "-z"], root));
   return [...paths];
 }
@@ -499,7 +499,10 @@ function scopedDiffBuffer(root, related) {
   // filename with pathspec magic (`[`, `:`, `*`) still digests its real content.
   const pathspec = ["--", ...related];
   try {
-    return gitBuffer(["--literal-pathspecs", "diff", "--no-ext-diff", "--binary", "HEAD", ...pathspec], root);
+    return Buffer.concat([
+      gitBuffer(["--literal-pathspecs", "diff", "--no-ext-diff", "--binary", "HEAD", ...pathspec], root),
+      gitBuffer(["--literal-pathspecs", "diff", "--cached", "--no-ext-diff", "--binary", ...pathspec], root),
+    ]);
   } catch {
     return Buffer.concat([
       gitBuffer(["--literal-pathspecs", "diff", "--no-ext-diff", "--binary", ...pathspec], root),

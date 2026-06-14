@@ -688,6 +688,25 @@ describe("hook registrar", () => {
     });
   });
 
+  it("unignores hooks when enabling plan-checkbox-guard on a stale goat-flow gitignore", () => {
+    withTempProject((root) => {
+      mkdirSync(join(root, ".claude"), { recursive: true });
+      mkdirSync(join(root, ".goat-flow"), { recursive: true });
+      writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
+      writeFileSync(join(root, ".goat-flow", ".gitignore"), "*\n!.gitignore\n");
+
+      applyHookState("plan-checkbox-guard", true, root);
+
+      const gitignore = readFileSync(
+        join(root, ".goat-flow", ".gitignore"),
+        "utf-8",
+      );
+      assert.match(gitignore, /^!hooks\/$/m);
+      assert.match(gitignore, /^!hooks\/\*\*$/m);
+      assert.match(gitignore, /^logs\/plan-guard-state\.json$/m);
+    });
+  });
+
   it("does not treat shared AGENTS.md surfaces as a Codex or Antigravity opt-in", () => {
     withTempProject((root) => {
       writeFileSync(join(root, "AGENTS.md"), "# Local agent instructions\n");

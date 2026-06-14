@@ -36,6 +36,15 @@ const HEALTHY_GOAT_FLOW_GITIGNORE = [
 export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
   const defaultReadFile = (path: string): string | null => {
     if (path === ".goat-flow/.gitignore") return HEALTHY_GOAT_FLOW_GITIGNORE;
+    if (
+      [
+        ".goat-flow/hooks/deny-dangerous.sh",
+        ".goat-flow/hooks/post-turn-safety.sh",
+        ".goat-flow/hooks/plan-checkbox-guard.sh",
+      ].includes(path)
+    ) {
+      return `#!/usr/bin/env bash\n# goat-flow-hook-version: ${AUDIT_VERSION}\n`;
+    }
     return null;
   };
   const fs = {

@@ -68,6 +68,18 @@ function stageAll(root: string): void {
   runGit(root, ["add", "."]);
 }
 
+function commitAll(root: string, message: string): void {
+  runGit(root, [
+    "-c",
+    "user.name=goat-flow-test",
+    "-c",
+    "user.email=goat-flow-test@example.invalid",
+    "commit",
+    "-m",
+    message,
+  ]);
+}
+
 function statusPorcelain(root: string): string {
   return runGit(root, ["status", "--porcelain=v1", "-z"]);
 }
@@ -426,6 +438,19 @@ describe("plan-checkbox-guard hook", () => {
       assertAllows(runHook(root));
 
       writeFile(root, "src/app.txt", "real plan work\n");
+      assertBlocks(runHook(root), planPath);
+    });
+  });
+
+  it("blocks staged-only referenced-file changes", () => {
+    withTempRepo((root) => {
+      const planPath = writeActivePlan(root);
+      commitAll(root, "baseline plan");
+      assertAllows(runHook(root));
+      writeFile(root, "src/app.txt", "staged plan work\n");
+      stageAll(root);
+      runGit(root, ["restore", "--worktree", "--source=HEAD", "src/app.txt"]);
+
       assertBlocks(runHook(root), planPath);
     });
   });

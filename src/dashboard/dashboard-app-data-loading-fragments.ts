@@ -506,12 +506,14 @@ function dashboardHookSetupActionsFragment(
     /** Group a hook into the section that owns its primary risk surface. */
     hookSectionFor(hook: HookState): HookSection {
       if (hook.id === "gruff-code-quality") return "quality";
+      if (hook.id === "plan-checkbox-guard") return "workflow";
       return "safety";
     },
 
     /** Return the visual tone for a hook based on its dashboard section. */
     hookTone(hook: HookState): HookTone {
       const section = this.hookSectionFor(hook);
+      if (section === "workflow") return "workflow";
       if (section === "git") return "warning";
       if (section === "quality") return "neutral";
       return "danger";

@@ -921,23 +921,6 @@ function gruffAntigravityDefinition() {
   };
 }
 
-function postTurnSafetyAntigravityDefinition() {
-  return {
-    enabled: true,
-    Stop: [
-      {
-        hooks: [
-          {
-            type: "command",
-            command: rootResolvingCommand("post-turn-safety.sh"),
-            timeout: 60,
-          },
-        ],
-      },
-    ],
-  };
-}
-
 const current = readJson(dst);
 const template = readJson(src);
 if (!current || !template) {
@@ -972,17 +955,9 @@ if (agent === "antigravity") {
       changed = true;
     }
   }
-  if (configuredHookEnabled("post-turn-safety")) {
-    const safety = postTurnSafetyAntigravityDefinition();
-    if (JSON.stringify(current["post-turn-safety"]) !== JSON.stringify(safety)) {
-      current["post-turn-safety"] = safety;
-      changed = true;
-    }
-  }
-  // plan-checkbox-guard is not re-added for Antigravity: the M02b spike could
-  // not verify its Stop payload (hook trust gates execution; no
-  // stop_hook_active loop guard observed). The managedHookIds delete above
-  // prunes any previously installed definition.
+  // Stop hooks are not re-added for Antigravity: the M02b spike could not
+  // verify Stop delivery (hook trust gates execution; no stop_hook_active loop
+  // guard observed). The managedHookIds delete above prunes stale definitions.
 } else if (isObject(template.hooks)) {
   if (!isObject(current.hooks)) {
     current.hooks = {};
