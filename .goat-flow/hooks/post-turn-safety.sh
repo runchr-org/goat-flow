@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # post-turn-safety.sh
-# goat-flow-hook-version: 1.12.0
+# goat-flow-hook-version: 1.12.1
 #
 # Purpose:
 #   Universal Stop-event safety guard for supported agents. This hook checks
@@ -77,6 +77,126 @@ is_placeholder_token() {
   [[ "$value" =~ $marker_re ]]
 }
 
+strip_space() {
+  printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
+}
+
+is_excluded_credential_key() {
+  local key="$1"
+  case "$key" in
+    tokens|secrets|passwords|*tokens|*secrets|*passwords|tokenizer|tokeniser|tokenize|*tokenizer*|*tokeniser*|*tokenize*|*_count|*_index|*_id|*_name|*_type|*_header|*_url|*_path|*_list|*_re|*_pattern|*_field)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+is_credential_key() {
+  local key
+  key="$(printf '%s' "$1" | tr '[:upper:]-' '[:lower:]_')"
+  is_excluded_credential_key "$key" && return 1
+  case "$key" in
+    token|secret|password|api_key|apikey|private_key|access_token|auth_token|refresh_token|bearer_token|client_secret|secret_key)
+      return 0
+      ;;
+    *_api_key|*_apikey|*_private_key|*_access_token|*_auth_token|*_refresh_token|*_bearer_token|*_client_secret|*_secret_key|*_password|*_token|*_secret)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+has_credential_entropy() {
+  local value="$1"
+  case "$value" in
+    gh[pousr]_*|github_pat_*|npm_*|sk-*|xox[baprs]-*|AKIA*|ASIA*)
+      return 0
+      ;;
+  esac
+  [[ "$value" =~ [0-9] ]] || return 1
+  if [[ "$value" =~ [[:lower:]] ]] && [[ "$value" =~ [[:upper:]] ]]; then
+    return 0
+  fi
+  if [[ "$value" =~ [._+/=~-] ]]; then
+    return 0
+  fi
+  if [ "${#value}" -ge 20 ] && [[ "$value" =~ ^[a-f0-9]+$ ]]; then
+    return 0
+  fi
+  return 1
+}
+
+literal_assignment_value() {
+  local after
+  local bare
+  local dotted_identifier_re
+  local operator_expression_re
+  local raw
+  local rest
+  local value
+
+  raw="$(strip_space "$1")"
+  case "$raw" in
+    [fF]\"*|[fF]\'*|[fF][rR]\"*|[fF][rR]\'*|[rR][fF]\"*|[rR][fF]\'*)
+      return 1
+      ;;
+  esac
+
+  case "${raw:0:1}" in
+    '"')
+      rest="${raw:1}"
+      [[ "$rest" == *\"* ]] || return 1
+      value="${rest%%\"*}"
+      after="${rest#*\"}"
+      after="$(strip_space "$after")"
+      case "$after" in
+        ""|\#*) ;;
+        *) return 1 ;;
+      esac
+      printf '%s' "$value"
+      return 0
+      ;;
+    "'")
+      rest="${raw:1}"
+      [[ "$rest" == *"'"* ]] || return 1
+      value="${rest%%\'*}"
+      after="${rest#*\'}"
+      after="$(strip_space "$after")"
+      case "$after" in
+        ""|\#*) ;;
+        *) return 1 ;;
+      esac
+      printf '%s' "$value"
+      return 0
+      ;;
+  esac
+
+  bare="${raw%%#*}"
+  bare="$(strip_space "$bare")"
+  [ -n "$bare" ] || return 1
+  case "$bare" in
+    *[[:space:]]*|*"("*|*")"*|*"["*|*"]"*|*"{"*|*"}"*|*","*|*";"*|*"<"*|*">"*|*"|"*|*"&"*|*'`'*|*'$'*)
+      return 1
+      ;;
+  esac
+  if [[ "$bare" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+    return 1
+  fi
+  dotted_identifier_re='^[a-z_][a-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$'
+  if [[ "$bare" =~ $dotted_identifier_re ]]; then
+    return 1
+  fi
+  operator_expression_re='^[a-z_][a-z0-9_]*([-+*/%=]|==|!=)[A-Za-z_][A-Za-z0-9_]*$'
+  if [[ "$bare" =~ $operator_expression_re ]]; then
+    return 1
+  fi
+  if [[ ! "$bare" =~ ^[A-Za-z0-9._+/=~-]{12,}$ ]]; then
+    return 1
+  fi
+  has_credential_entropy "$bare" || return 1
+  printf '%s' "$bare"
+}
+
 report_finding() {
   local path="$1"
   local family="$2"
@@ -98,19 +218,17 @@ scan_env_assignment() {
   local path="$1"
   local line="$2"
   local key
-  local key_family
+  local raw_value
   local value
 
-  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\2/p' | head -n 1)"
+  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]*[:=].*/\2/p' | head -n 1)"
   [ -n "$key" ] || return 0
-  key_family="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
-  case "$key_family" in
-    *SECRET*|*TOKEN*|*API_KEY*|*PASSWORD*|*PRIVATE_KEY*) ;;
-    *) return 0 ;;
-  esac
+  is_credential_key "$key" || return 0
 
-  value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*(.*)$/\2/p' | head -n 1)"
-  value="$(trim_value "$value")"
+  raw_value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_-]*[[:space:]]*[:=][[:space:]]*(.*)$/\2/p' | head -n 1)"
+  if ! value="$(literal_assignment_value "$raw_value")"; then
+    return 0
+  fi
   [ "${#value}" -ge 12 ] || return 0
   # Assignment values use delimiter-aware placeholder matching so ordinary
   # substrings such as "test" inside a generated password do not suppress a

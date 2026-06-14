@@ -129,6 +129,7 @@ workflow/                        = packaged template source copied into target p
 ├── hooks/                       = hook templates and agent hook config templates
 │   ├── deny-dangerous.sh        = canonical deny-dangerous dispatcher template
 │   ├── gruff-code-quality.sh    = canonical gruff code-quality hook template
+│   ├── post-turn-safety.sh      = canonical post-turn safety hook template
 │   ├── deny-dangerous/          = deny-dangerous policy modules and self-test templates
 │   └── agent-config/            = claude, codex, antigravity, copilot hook config templates
 │
@@ -205,6 +206,7 @@ docs/                            = user and maintainer documentation
 ├── hooks/                       = committed central hook dispatchers and policy store
 │   ├── deny-dangerous.sh        = central deny-dangerous dispatcher used by all agents
 │   ├── gruff-code-quality.sh    = central gruff quality dispatcher used by all agents
+│   ├── post-turn-safety.sh      = central post-turn safety hook used by supported Stop agents
 │   └── deny-dangerous/          = policy modules and self-test
 ├── skill-docs/                  = installed shared skill doctrine and playbooks
 │   ├── README.md                = index for shared skill doctrine and playbooks

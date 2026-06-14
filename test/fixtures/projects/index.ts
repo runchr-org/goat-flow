@@ -24,7 +24,6 @@ const HEALTHY_GOAT_FLOW_GITIGNORE = [
   "!skill-docs/**",
   "!hooks/",
   "!hooks/**",
-  "logs/plan-guard-state.json",
   "!plans/",
   "!plans/**",
   "",
@@ -40,7 +39,6 @@ export function stubFS(overrides: Partial<ReadonlyFS> = {}): ReadonlyFS {
       [
         ".goat-flow/hooks/deny-dangerous.sh",
         ".goat-flow/hooks/post-turn-safety.sh",
-        ".goat-flow/hooks/plan-checkbox-guard.sh",
       ].includes(path)
     ) {
       return `#!/usr/bin/env bash\n# goat-flow-hook-version: ${AUDIT_VERSION}\n`;
@@ -96,13 +94,6 @@ export function stubConfig(
       terminal: { idleTimeoutMinutes: 480 },
       harness: { acknowledge: [] },
       hooks: {},
-      planGuard: {
-        enabled: true,
-        searchPaths: [".goat-flow/plans"],
-        maxDepth: 3,
-        stalenessDays: 14,
-        planFile: null,
-      },
       ...overrides,
     },
     warnings: [],

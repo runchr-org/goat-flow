@@ -1,7 +1,7 @@
 # .goat-flow/config.yaml - project configuration
 # Docs: https://github.com/blundergoat/goat-flow
 
-version: "1.12.0"
+version: "1.12.1"
 
 # ── Project Setup ───────────────────────────────
 skills:
@@ -58,17 +58,6 @@ hooks:
     enabled: true
   post-turn-safety:
     enabled: true
-  plan-checkbox-guard:
-    enabled: true
-
-# ── Plan Checkbox Guard ────────────────────────
-# Workflow reminder only: tracks active plan checkbox drift after agent turns.
-plan-guard:
-  enabled: true
-  search-paths:
-    - .goat-flow/plans
-  max-depth: 3
-  staleness-days: 14
 line-limits:
   target: 125
   limit: 150

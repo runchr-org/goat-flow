@@ -79,32 +79,6 @@ const HOOKS: HookSpec[] = [
         "Antigravity Stop-hook delivery is unverified: hook trust gates execution and no Stop payload was captured firing.",
     },
   },
-  {
-    id: "plan-checkbox-guard",
-    displayName: "Plan checkbox guard",
-    description:
-      "Remind agents to update the active milestone plan when repository changes move while open checkboxes remain untouched.",
-    event: "Stop",
-    matcher: "",
-    scriptFiles: ["plan-checkbox-guard.sh"],
-    primaryScript: "plan-checkbox-guard.sh",
-    togglable: true,
-    defaultEnabled: true,
-    requiresConfirmDialog: false,
-    timeoutSec: 15,
-    // Per the M02b Stop-payload spike (2026-06-13): only Claude delivered a
-    // verified payload (session_id/transcript_path/cwd/stop_hook_active).
-    // Codex and Antigravity Stop delivery is unverified, and a blocking guard
-    // without a proven stop_hook_active loop guard risks turn-end loops, so
-    // they are gated off until a verified capture supersedes this (ADR-038).
-    unsupportedAgents: {
-      copilot: "Copilot has no project-local post-turn hook event.",
-      codex:
-        "Codex Stop-hook delivery is unverified: registered .codex/hooks.json Stop hooks did not fire under codex exec 0.139.0.",
-      antigravity:
-        "Antigravity Stop payload is unverified: hook trust gates execution and no stop_hook_active loop guard was observed.",
-    },
-  },
 ];
 
 const HOOKS_BY_IDENTIFIER = new Map(HOOKS.map((hook) => [hook.id, hook]));

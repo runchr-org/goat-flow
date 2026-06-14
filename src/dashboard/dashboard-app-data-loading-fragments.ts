@@ -506,7 +506,6 @@ function dashboardHookSetupActionsFragment(
     /** Group a hook into the section that owns its primary risk surface. */
     hookSectionFor(hook: HookState): HookSection {
       if (hook.id === "gruff-code-quality") return "quality";
-      if (hook.id === "plan-checkbox-guard") return "workflow";
       return "safety";
     },
 

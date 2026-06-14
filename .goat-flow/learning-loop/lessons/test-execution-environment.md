@@ -9,6 +9,8 @@ last_reviewed: 2026-06-14
 
 **What happened:** During the M02b review, `grep -rl "plan-checkbox-guard" .goat-flow --include="*.md"` returned nothing even though `.goat-flow/plans/1.12.0/M02b-plan-checkbox-guard.md` and ADR-038 matched when grepped directly. `type grep` showed the Claude Code session shell defines `grep` as a function that execs the claude binary as `ugrep -G --ignore-files --hidden -I ...`, and `--ignore-files` applies `.gitignore`-style ignore files during recursion - so sweeps that descend into ignored trees (`.goat-flow/plans/`, `.goat-flow/logs/`) silently return clean.
 
+**Recurrence 2026-06-14:** While verifying new plan files under `.goat-flow/plans/1.12.1/`, `rg -n "Status: not-started|## Testing Gate|## Mid-Implementation Proof|## Kill Criteria|## Deferred" .goat-flow/plans/1.12.1` returned no matches because ripgrep honored the ignored plan directory. Rerunning with `rg --no-ignore` found the expected milestone headings. Evidence anchors: `.goat-flow/plans/1.12.1/M01-plan-checkbox-guard-deletion-surface.md` (search: `## Testing Gate`), `.goat-flow/plans/1.12.1/M02-remove-plan-checkbox-guard-product-surface.md` (search: `## Testing Gate`), `.goat-flow/plans/1.12.1/M03-prune-plan-checkbox-guard-tests-docs-verify.md` (search: `## Testing Gate`).
+
 **Root cause:** I treated recursive `grep` output as filesystem truth. In this environment it is gitignore-filtered, which can false-clean a verification sweep exactly where stale or historical content lives.
 
 **Prevention:** For verification sweeps that must include gitignored content, use `command grep` (bypasses the function), `find`, or pass the ignored files as explicit operands (direct-file grep is unaffected). Treat a suspiciously empty recursive grep over a dot-directory as a wrapper artifact until reproduced with `command grep`. Evidence: `type grep` in-session (search: `--ignore-files`); the M02b `post-turn-validate` sweep was re-proven with `find` and `command grep`.
@@ -19,13 +21,13 @@ last_reviewed: 2026-06-14
 
 **Status:** active | **Created:** 2026-06-13
 
-**What happened:** While implementing M02b, `test/integration/plan-checkbox-guard-hook.test.ts` repeatedly timed out when it invoked `workflow/hooks/plan-checkbox-guard.sh` with `spawnSync("bash", [HOOK_PATH], { input: payload })`. Tracing with `bash -x` showed the hook stalled at `payload="$(cat)"`: the child saw the payload bytes but did not receive EOF in this sandbox. The same hook sequence completed from a normal shell with file redirection and produced `baseline_exit=0`, `changed_repo_exit=2`, and `plan_changed_exit=0`.
+**What happened:** While implementing M02b, the retired plan checkbox guard integration test repeatedly timed out when it invoked the hook with `spawnSync("bash", [HOOK_PATH], { input: payload })`. Tracing with `bash -x` showed the hook stalled at `payload="$(cat)"`: the child saw the payload bytes but did not receive EOF in this sandbox. The same hook sequence completed from a normal shell with file redirection and produced `baseline_exit=0`, `changed_repo_exit=2`, and `plan_changed_exit=0`.
 
 **Root cause:** I assumed Node's `spawnSync` `input` option was equivalent to a real stdin file for hook scripts. In this execution environment it was not reliable for hooks that read all stdin with `cat`, and it made correct hook behavior look like a product hang.
 
 **Recurrence 2026-06-14:** A Codex workspace-terminal `bash scripts/preflight-checks.sh` run reached `TESTS` and then stayed silent while `scripts/preflight-checks.sh` captured `npm run test:coverage` output. Process inspection showed the only remaining test workers were `test/integration/gruff-code-quality-contract.test.ts` and `test/integration/gruff-code-quality-smoke.test.ts`, each blocked under `workflow/hooks/gruff-code-quality.sh` at `read_stdin` -> `cat`. The shared gruff test helper still used `spawnSync("bash", [HOOK], { input: JSON.stringify(payload) })`, so it needed the same file-redirection mitigation.
 
-**Prevention:** When a test executes an installed hook that reads stdin with `cat`, write the payload to a temp file and pass an open read-only fd or shell redirection instead of `spawnSync(..., { input })`. Capture hook stderr explicitly if the hook launches nested runtimes. Evidence anchors: `test/integration/plan-checkbox-guard-hook.test.ts` (search: `payloadPath`), `test/unit/hook-registrar.test.ts` (search: `runLauncherWithPayload`).
+**Prevention:** When a test executes an installed hook that reads stdin with `cat`, write the payload to a temp file and pass an open read-only fd or shell redirection instead of `spawnSync(..., { input })`. Capture hook stderr explicitly if the hook launches nested runtimes. Evidence anchors: `test/integration/gruff-code-quality-smoke.helpers.ts` (search: `File-backed stdin keeps Bash`), `test/unit/hook-registrar.test.ts` (search: `runLauncherWithPayload`).
 
 ---
 

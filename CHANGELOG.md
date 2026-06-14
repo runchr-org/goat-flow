@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.12.1 - 2026-06-14
+
+Patch release for hook-surface honesty and `post-turn-safety` precision after the 1.12.0 Stop-hook changes.
+
+- **Plan checkbox guard removed from shipped hooks** - `plan-checkbox-guard` no longer installs, registers, appears in `hooks list`, or contributes dashboard/audit state. `hooks sync` and setup prune stale guard registrations, stale central/per-agent scripts, `hooks.plan-checkbox-guard`, the `plan-guard` config block, and the old `plan-guard-state` ignore entry while leaving `post-turn-safety` as the only shipped Stop hook. Historical ADR/changelog entries remain as release history; no replacement reminder hook ships in this patch.
+- **Generic credential-assignment scanning now requires literal secrets** - `scan_env_assignment` no longer treats source-code expressions such as `tokens = re.findall(...)`, `token_count = len(items)`, `next_token = page["next_token"]`, `access_token = get_token()`, `tokenizer = build_tokenizer(cfg)`, or `password_field = form["password"]` as hardcoded credentials. It now classifies credential-shaped keys by key segments and suffix exclusions, then blocks only quoted string literals or bare credential-shaped tokens with enough entropy. Provider-specific token detectors, private-key detection, and merge-conflict scanning are unchanged.
+
 ## v1.12.0 - 2026-06-13
 
 Verification-score, universal post-turn safety, Codex Workspace preflight reliability, jq compatibility, and skill-handoff polish release.

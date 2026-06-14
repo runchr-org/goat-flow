@@ -200,6 +200,60 @@ describe("post-turn-safety hook", () => {
     });
   });
 
+  it("blocks literal credential assignment forms", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "settings.env",
+        [
+          'API_TOKEN = "ghp_AbC123456789012345678901234567890"',
+          'export SECRET_KEY="aVeryLongRealSecretValue123"',
+          'password = "hunter2hunter2hunter2"',
+          'api_key: "sk-AbC123456789012345678901234567890"',
+          "CLIENT_SECRET=Zx9AbCdEf123456",
+          "auth_token = 8f3c1a9b7e2d4f60aa11",
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(API_TOKEN\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(SECRET_KEY\)/u);
+      assert.match(result.stderr, /credential assignment \(password\)/u);
+      assert.match(result.stderr, /credential assignment \(api_key\)/u);
+      assert.match(result.stderr, /credential assignment \(CLIENT_SECRET\)/u);
+      assert.match(result.stderr, /credential assignment \(auth_token\)/u);
+    });
+  });
+
+  it("allows token-like source-code expressions", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "query_scrub.py",
+        [
+          'tokens = re.findall(r"[a-z0-9]+", message)',
+          "token_count = len(items)",
+          'next_token = page["next_token"]',
+          "access_token = get_token()",
+          "self.tokens = tokens",
+          "tokenizer = build_tokenizer(cfg)",
+          "secret = compute_secret(seed)",
+          'password_field = form["password"]',
+          "refresh_token = cached_token",
+          "auth_token = settings.API_TOKEN1",
+          "password = config.DEFAULT_PASSWORD1",
+          "client_secret = prefix+Suffix123",
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
+    });
+  });
+
   it("blocks token values with placeholder words embedded as ordinary characters", () => {
     withTempRepo((root) => {
       writeFile(root, "config.txt", `GITHUB_TOKEN=${TEST_GITHUB_TOKEN}\n`);

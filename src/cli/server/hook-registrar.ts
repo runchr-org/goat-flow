@@ -11,7 +11,12 @@ import {
 } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { getAgentProfiles } from "../agents/registry.js";
-import { readHookEnabled, setHookEnabled } from "../config/writer.js";
+import {
+  readHookEnabled,
+  removeHookConfig,
+  removeTopLevelConfigBlock,
+  setHookEnabled,
+} from "../config/writer.js";
 import { getTemplatePath } from "../paths.js";
 import type { AgentId, AgentProfile } from "../types.js";
 import {
@@ -45,6 +50,21 @@ const LEGACY_DENY_DANGEROUS_SCRIPT_NAMES = [
   "guard-repository-writes.sh",
   "guardrails-self-test.sh",
   "deny-dangerous.self-test.sh",
+];
+const REMOVED_HOOK_TOMBSTONES: HookSpec[] = [
+  {
+    id: "plan-checkbox-guard",
+    displayName: "Removed plan checkbox guard",
+    description:
+      "Legacy cleanup tombstone for stale plan checkbox guard installs.",
+    event: "Stop",
+    matcher: "",
+    scriptFiles: ["plan-checkbox-guard.sh"],
+    primaryScript: "plan-checkbox-guard.sh",
+    togglable: false,
+    defaultEnabled: false,
+    requiresConfirmDialog: false,
+  },
 ];
 
 type HookDrift = "desired-on-actual-off" | "desired-off-actual-on";
@@ -263,6 +283,23 @@ function ensureGoatFlowGitignoreEntry(
   );
 }
 
+function removeGoatFlowGitignoreEntry(
+  projectPath: string,
+  entry: string,
+): void {
+  const gitignorePath = join(projectPath, ".goat-flow", ".gitignore");
+  assertWithinProject(projectPath, gitignorePath);
+  if (!existsSync(gitignorePath)) return;
+  const original = readFileSync(gitignorePath, "utf-8");
+  const hasFinalNewline = original.endsWith("\n");
+  const lines = original.split(/\r?\n/u);
+  if (hasFinalNewline) lines.pop();
+  const nextLines = lines.filter((line) => line !== entry);
+  if (nextLines.length === lines.length) return;
+  const next = `${nextLines.join("\n")}${hasFinalNewline ? "\n" : ""}`;
+  writeFileAtomic(gitignorePath, next, projectPath);
+}
+
 /**
  * Keep the shared `.goat-flow/hooks/deny-dangerous/` policy store tracked by Git.
  *
@@ -276,10 +313,6 @@ function ensureGoatFlowGitignoreEntry(
 function ensureHookGitignoreEntries(projectPath: string): void {
   ensureGoatFlowGitignoreEntry(projectPath, "!hooks/");
   ensureGoatFlowGitignoreEntry(projectPath, "!hooks/**");
-}
-
-function ensurePlanGuardGitignoreEntries(projectPath: string): void {
-  ensureGoatFlowGitignoreEntry(projectPath, "logs/plan-guard-state.json");
 }
 
 function removeLegacyAgentScriptIfPresent(
@@ -351,9 +384,6 @@ function copyHookScripts(
     for (const script of LEGACY_DENY_DANGEROUS_SCRIPT_NAMES) {
       removeScriptIfPresent(projectPath, agent, script);
     }
-  }
-  if (spec.id === "plan-checkbox-guard") {
-    ensurePlanGuardGitignoreEntries(projectPath);
   }
   removeLegacyAgentHookScripts(projectPath, spec);
 }
@@ -452,8 +482,7 @@ function readDesired(projectPath: string, spec: HookSpec): boolean {
 
 /**
  * Remove leftover hook config entries from an agent the registry now marks
- * unsupported for this spec (e.g. plan-checkbox-guard gated off codex and
- * antigravity after the M02b Stop-payload spike). Without this, flipping an
+ * unsupported for this spec. Without this, flipping an
  * agent to unsupported strands dead registrations that agents may still
  * attempt to run. Cleanup intentionally does not trust current manifest event
  * metadata: a manifest can be corrected to remove a bogus event while stale
@@ -489,6 +518,25 @@ function reconcileHook(
       writeAgentHookState(projectPath, agent, spec, enabled);
     }
   }
+}
+
+function pruneRemovedHookTombstone(projectPath: string, spec: HookSpec): void {
+  const profiles = getAgentProfiles();
+  for (const agent of profiles) {
+    if (isSupportedAgent(agent) && hookConfigExists(projectPath, agent)) {
+      writeAgentHookState(projectPath, agent, spec, false);
+    }
+    if (agent.hooksDir) removeHookScripts(projectPath, agent, spec);
+  }
+}
+
+function pruneRemovedHookTombstones(projectPath: string): void {
+  for (const spec of REMOVED_HOOK_TOMBSTONES) {
+    pruneRemovedHookTombstone(projectPath, spec);
+    removeHookConfig(projectPath, spec.id);
+  }
+  removeTopLevelConfigBlock(projectPath, "plan-guard");
+  removeGoatFlowGitignoreEntry(projectPath, "logs/plan-guard-state.json");
 }
 
 /** Snapshot one hook across all known agents for dashboard and CLI consumers. */
@@ -538,6 +586,7 @@ export function applyHookState(
 // persisted desired state, repairing drift (e.g. after a manual settings edit),
 // then returns the refreshed snapshot. Non-togglable hooks are left untouched.
 export function syncHookStates(projectPath: string): HookState[] {
+  pruneRemovedHookTombstones(projectPath);
   for (const spec of listHookSpecs()) {
     if (!spec.togglable) continue;
     reconcileHook(projectPath, spec, readDesired(projectPath, spec));
