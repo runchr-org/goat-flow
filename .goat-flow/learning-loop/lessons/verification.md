@@ -1,6 +1,6 @@
 ---
 category: verification
-last_reviewed: 2026-06-10
+last_reviewed: 2026-06-14
 ---
 
 ## Lesson: Stryker sandboxes need local-state ignores and mutation-safe test selection
@@ -19,13 +19,11 @@ last_reviewed: 2026-06-10
 
 **Status:** active | **Created:** 2026-05-25
 
-**What happened:** During the gruff docs cleanup, the first pass on `src/cli/server/decoders.ts` added comments that explained the intent to a maintainer, but `npx gruff-ts analyse src/cli/server/decoders.ts` still reported `docs.magic-threshold-without-rationale`, `docs.missing-error-behavior-doc`, and `docs.missing-why-for-complex-code`. The comments did not use analyzer-recognised language for limits, reporting behavior, or why complex control flow exists. A second pass, after checking the gruff rule vocabulary, cleared the docs findings.
+**What happened:** During gruff docs cleanup, comments in `src/cli/server/decoders.ts` made sense to a maintainer but still failed `docs.magic-threshold-without-rationale`, `docs.missing-error-behavior-doc`, and `docs.missing-why-for-complex-code`. In the same cleanup, renaming dashboard terminal paste metadata passed focused tests but left stale ambient and VM-test helper shapes caught by `npm run typecheck`.
 
-**Recurrence 2026-05-25:** During the same cleanup, a naming improvement in `src/dashboard/dashboard-terminal.ts` changed queued paste metadata from `delayed` to `shouldDelaySubmit`. Focused gruff and runtime tests passed, but `npm run typecheck` caught stale ambient and VM-test helper shapes in `src/dashboard/globals.d.ts` and `test/unit/dashboard-terminal-launch.test.ts`. Comment cleanup can still touch type surfaces when a rename is the better comment.
+**Root cause:** I treated human-readable comments and a local rename as complete before checking the analyzer vocabulary and parallel type surfaces.
 
-**Root cause:** I treated "this comment makes sense to me" as enough before checking whether the actual analyzer accepted it, and later treated a local rename as complete before checking parallel ambient declarations. The `code-comments.md` playbook gives the quality bar, but gruff's docs rules also have concrete vocabulary expectations that must be verified with the targeted command.
-
-**Prevention:** For gruff-driven comment work, read `.goat-flow/skill-docs/playbooks/code-comments.md`, patch one file or cohesive cluster, then immediately rerun `npx gruff-ts analyse <path>`. If docs findings remain, tighten the comment around the exact rule remediation instead of moving on. When a rename is part of making a comment unnecessary, grep the old identifier and run `npm run typecheck` before declaring the pass done. Evidence anchors: `src/cli/server/decoders.ts` (search: `Parse JSON; reports malformed bodies`), `src/cli/server/decoders.ts` (search: `This stays explicit because`), `src/dashboard/globals.d.ts` (search: `shouldDelaySubmit`), `.goat-flow/learning-loop/patterns/workflow.md` (search: `Gruff docs cleanup is a tight analyzer loop`).
+**Prevention:** For gruff-driven comment work, read `code-comments.md`, patch one file or cohesive cluster, then rerun `npx gruff-ts analyse <path>`. If a rename replaces a comment, grep the old identifier and run `npm run typecheck`. Evidence anchors: `src/cli/server/decoders.ts` (search: `Parse JSON; reports malformed bodies`), `src/cli/server/decoders.ts` (search: `This stays explicit because`), `src/dashboard/globals.d.ts` (search: `shouldDelaySubmit`), `.goat-flow/learning-loop/patterns/workflow.md` (search: `Gruff docs cleanup is a tight analyzer loop`).
 
 ## Lesson: Gruff hook compatibility probes need real configs and wrapper PATH
 
@@ -41,23 +39,21 @@ last_reviewed: 2026-06-10
 
 **Status:** active | **Created:** 2026-05-30
 
-**What happened:** During the M00 `docs.missing-internal-function-doc` cleanup, adding a maintainer comment to `src/dashboard/app.ts` `_uploadTerminalImages` cleared the docs finding but made the helper visible to the warning rules. The full gruff snapshot regressed from warning 122 to `summary error=0 warning=123 advisory=935 total=1058`, with new `complexity.npath` and `design.god-function` findings on `_uploadTerminalImages`.
+**What happened:** Adding a maintainer comment to `src/dashboard/app.ts` `_uploadTerminalImages` cleared a docs finding but exposed new `complexity.npath` and `design.god-function` warnings. The helper extraction then passed TypeScript but failed preflight ESLint on an unnecessary assertion.
 
-**Same-session recurrence:** After extracting upload-result helpers, `bash scripts/preflight-checks.sh` failed ESLint with `@typescript-eslint/no-unnecessary-type-assertion` on `showTerminalUploadResult(this as DashboardTerminalContext, ...)`. TypeScript accepted the cast, but ESLint correctly showed the receiver already satisfied the helper contract.
+**Root cause:** I checked only the targeted docs rule and assumed a comment-only patch could not change broader warning or lint counts.
 
-**Root cause:** I checked the targeted docs rule and assumed a comment-only patch could not affect warning counts. In gruff-ts, a documented helper can also enter other block-level rule paths; treating the docs check as sufficient would have shipped a warning regression.
-
-**Prevention:** After any large gruff docs batch, run a full `npx gruff-ts analyse --format json --fail-on none` snapshot and compare warning count, not only the targeted docs rule. When extracting helpers to resolve the surfaced warning, run the lint/preflight gate too; TS can accept redundant assertions that ESLint rejects. If documentation surfaces a real warning, do not remove the comment to hide it; fix the surfaced shape or record the warning as accepted debt. Evidence anchors: `src/dashboard/app.ts` (search: `encodeTerminalUploadFiles`), `src/dashboard/app.ts` (search: `showTerminalUploadResult`), `.goat-flow/plans/1.9.0/M00-gruff-ts-cleanup.md` (search: `_uploadTerminalImages`).
+**Prevention:** After a large gruff docs batch, run `npx gruff-ts analyse --format json --fail-on none` and compare warning count, then run the lint/preflight gate for any helper extraction. Do not remove a useful comment just to hide a surfaced warning. Evidence anchors: `src/dashboard/app.ts` (search: `encodeTerminalUploadFiles`), `src/dashboard/app.ts` (search: `showTerminalUploadResult`), `.goat-flow/plans/1.9.0/M00-gruff-ts-cleanup.md` (search: `_uploadTerminalImages`).
 
 ## Lesson: docs.missing-internal-function-doc must not be silenced; baseline the residue
 
 **Status:** active | **Created:** 2026-05-29
 
-**What happened:** Gruff-ts reported 337 `docs.missing-internal-function-doc` findings across 73 files in goat-flow's TS surface (M00 baseline). The instinct response is to add a JSDoc comment to every flagged helper. That directly contradicts CLAUDE.md's "Default to writing no comments. Only add one when the WHY is non-obvious" and `code-comments.md`'s "Rewrite First" ladder. Adding boilerplate docstrings to short, name-clear helpers is gold-plating - exactly the anti-pattern the playbook forbids.
+**What happened:** Gruff-ts reported 337 `docs.missing-internal-function-doc` findings across 73 files. Adding boilerplate JSDoc to every short helper would satisfy the rule but violate the repo's "rewrite/rename before comment" doctrine.
 
-**Root cause:** Two correct project rules collide on a single class of finding. `feedback_gruff_never_disable.md` forbids `enabled: false`. The rule has no `optionKeys` (verified via `gruff-ts list-rules --format json`) so there is no per-rule threshold or pattern allowlist to tune. The remaining honest moves are (a) FIX where a WHY genuinely needs surfacing, (b) RENAME where the function name is the missing comment, and (c) BASELINE the long tail with rationale.
+**Root cause:** Two correct rules collide: gruff rules must not be disabled, but comments must only explain non-obvious WHY. This rule had no tuning options, leaving only fix, rename, or baseline.
 
-**Prevention:** Triage `docs.missing-internal-function-doc` with `.goat-flow/skill-docs/playbooks/gruff-code-quality.md`'s Documentation Findings section. Do NOT add a comment to every flagged helper unless the comment satisfies the playbook's contract bar. Capture the policy in this lesson so future agents see it without re-reading the playbook. When `gruff-ts` ships `excludeWhenLinesUnder` / `excludeWhenNameMatches` for this rule, revisit and replace the baseline with tunes. Evidence anchors: `.goat-flow/skill-docs/playbooks/gruff-code-quality.md` (search: `Doc comments are mandatory under that playbook`), `.goat-flow/plans/1.9.0/M00-gruff-ts-cleanup.md` (search: `docs.missing-internal-function-doc`), `scripts/preflight-checks.sh` (search: `Gruff Policy`) for the structural enforcement of "never disable."
+**Prevention:** Triage `docs.missing-internal-function-doc` with the gruff-code-quality playbook. Add comments only when they meet the contract bar; otherwise rename or baseline with rationale. Revisit when gruff-ts gains threshold/name-match tuning. Evidence anchors: `.goat-flow/skill-docs/playbooks/gruff-code-quality.md` (search: `Doc comments are mandatory under that playbook`), `.goat-flow/plans/1.9.0/M00-gruff-ts-cleanup.md` (search: `docs.missing-internal-function-doc`), `scripts/preflight-checks.sh` (search: `Gruff Policy`).
 
 ## Lesson: RegExp constructor assertions need a real escape helper
 
@@ -83,13 +79,11 @@ last_reviewed: 2026-06-10
 
 **Status:** active | **Created:** 2026-05-24
 
-**What happened:** While implementing a playbook-inventory cleanup, I changed `.goat-flow/architecture.md` to point at `.goat-flow/skill-docs/playbooks/README.md` instead of explicitly listing every top-level playbook. The targeted audit then failed with `skill-playbook-inventory-drift`, because `src/cli/audit/check-factual-semantic-drift.ts` (search: `driftSkillPlaybookInventory`) checks whether `.goat-flow/architecture.md` and `.goat-flow/code-map.md` include each live top-level `.goat-flow/skill-docs/playbooks/*.md` filename.
+**What happened:** Replacing explicit playbook filenames in `.goat-flow/architecture.md` with a README pointer failed `skill-playbook-inventory-drift`; replacing instruction Key Resources examples with only an index pointer then failed `Instruction parity`.
 
-**Same-session recurrence:** I then changed the instruction-file Key Resources line to point only at the README index. `bash scripts/preflight-checks.sh` failed the `Instruction parity` gate because `scripts/check-instruction-parity.mjs` (search: `tool-playbook Key Resources`) requires the exact browser-use/page-capture example paths and the phrase `read BEFORE declaring a tool unavailable`.
+**Root cause:** I optimized for low-drift prose before reading the validators that require direct filenames and phrases.
 
-**Root cause:** I optimized for low-drift prose without reading the live validators that own those text contracts. The README pointer was human-useful but did not satisfy the machine-readable cross-doc checks.
-
-**Prevention:** Before replacing an explicit inventory or required phrase with an index pointer, grep the content-quality, factual-claims, parity, and preflight checks for that surface. If a validator checks direct filename or phrase inclusion, keep the explicit words and add the README pointer around them instead of relying on an indirect reference alone.
+**Prevention:** Before replacing explicit inventories or required phrases with index pointers, grep content-quality, factual-drift, parity, and preflight checks. If a validator checks direct filename or phrase inclusion, keep the explicit text and add the index pointer around it. Evidence anchors: `src/cli/audit/check-factual-semantic-drift.ts` (search: `driftSkillPlaybookInventory`), `scripts/check-instruction-parity.mjs` (search: `tool-playbook Key Resources`).
 
 ---
 
@@ -97,24 +91,11 @@ last_reviewed: 2026-06-10
 
 **Status:** active | **Created:** 2026-05-16
 
-**What happened:** Updated six milestone files across `.goat-flow/plans/1.7.0/` and `.goat-flow/plans/1.8.0/`: bumped five milestones (M02, M06, M15, M16, M17) and reframed M11 from "observer event trail" to "evidence envelope + dashboard session trace". For each touched milestone I edited the Status/Depends-on header and (for M11) the Objective + Tasks, but left the rest of the body untouched. A subsequent Codex review caught five contradictions I should have caught before claiming done:
+**What happened:** I updated status/dependency headers across several milestone files and reframed M11, but left body sections, deferred items, field names, and one filename contradicting the new scope. Review caught doc-only milestones still requiring code helpers, stale dependencies, an old `confidence` field, and an abandoned filename.
 
-- **M09** got a new `**Status:** planned, conditional (doc-only)` header, but the Tasks list still required `assertAutoCaptureAllowed` helper, the Exit Criteria still demanded helper-bound enforcement, and the Manual Testing Gate still asked for helper-rejection scenarios - sending implementers in the opposite direction from the header.
-- **M14** still said `Depends on: none` even though it writes/removes files in agent skill mirror directories - clearly M13 (path validation) and M05 (manifest-backed capabilities) territory.
-- **M17** Depends-on said "M17 wraps M14" but Scope kept "out of scope: CLI skill-management commands from M14" and Deferred kept "CLI `goat-flow skill list/add/remove` commands from M14" - treating M14 as parallel/future work in the same file that named M14 as a prerequisite.
-- **M16** retained a `confidence` field in the insight schema, directly violating ADR-018 / AGENTS.md red-flag #4 (numeric confidence is itself a hedge). Values weren't numeric (`derived|inferred|observed`) but the field name invites the violation. Renamed to `evidenceBasis` with `direct|derived|heuristic`.
-- **M11** content was rewritten in full but the filename `M11-local-observer-event-trail.md` retained the abandoned framing - a slow-burn revival hazard for the next reader (the file is now `M11-evidence-envelope-dashboard-session-trace.md`).
+**Root cause:** I treated the header as the scope change. In planning docs, status/dependency/framing changes ripple through Scope Discipline, Tasks, Exit Criteria, Testing Gate, Deferred, filenames, and schema field names.
 
-**Root cause:** Treated the Status/Depends-on header as if it *were* the scope change. When a milestone's scope shifts - status, dependency, framing, doctrine alignment - the change ripples through Scope Discipline, Tasks, Exit Criteria, Testing Gate, Deferred, sometimes the filename, and any field names that survived from the original spec. A header-only edit leaves the body pointing implementers in the opposite direction from the new header. This is the planning-doc surface variant of "Behavior-scope changes need assertion updates before the first focused run" (below): same pattern, different artifact.
-
-**Prevention:** When applying a scope change to a milestone or planning doc:
-1. Re-read the entire file end-to-end *after* the header edit, not just the area you changed.
-2. Grep within the file for the old scope's keywords (helper, deferred-as-future, dependency-name) and confirm each hit still makes sense after the change.
-3. Check the file's name - does it match the new scope, or is it a slow-burn revival hazard?
-4. Check for doctrine violations (`confidence` numeric-hedge field names, `file:line` evidence, etc.) that may have been in the original spec and survived the bump untouched.
-5. In the completion summary, list each touched milestone with *what was changed where* (header / scope / tasks / exit criteria), so a reviewer can do their own sweep without re-reading every file from scratch.
-
-Applies whenever the change is: a status flip (`planned → conditional`, `planned → bumped`), a scope reframe (objective rewrite), or a dependency shift (the milestone now requires or is wrapped by another).
+**Prevention:** After a milestone scope change, re-read the whole file, grep old-scope keywords, check the filename, and scan for doctrine violations such as `confidence` or file-line evidence. In closeout, list what changed in each touched milestone so reviewers can target the same surfaces. Evidence anchor: `.goat-flow/skill-docs/skill-conventions.md` (search: `Task Tracking`).
 
 ---
 
@@ -136,17 +117,11 @@ Applies whenever the change is: a status flip (`planned → conditional`, `plann
 
 **Status:** active | **Created:** 2026-05-04
 
-**What happened:** Changed the dashboard Setup page prompt from harness-card scope to full setup remediation scope, then the first focused `dashboard /api/setup` integration run failed because one regression still expected a `--harness --agent codex` rerun command.
+**What happened:** Several behavior-scope changes updated the main implementation but missed adjacent assertions: setup remediation still expected `--harness --agent codex`, `/goat-plan` prompts still expected inline-only wording, PTY paste launch still had env/argv expectations, and the tool-playbook router row still had an old regex.
 
-**Recurrence 2026-05-07:** Changed dashboard `/goat-plan` launch context from inline-only to Step 0/File-Write mode semantics. Focused skill and dashboard terminal tests passed, but the first full `npm test` failed because a prompt-source assertion still expected the old `treat bare task paths as read-only context` phrase. Evidence anchors: `src/dashboard/dashboard-terminal-paste.ts` (search: `goat-plan global mode`), `src/dashboard/dashboard-terminal-paste.ts` (search: `File-Write modes may create target`).
+**Root cause:** I updated the route contract and one obvious test, but did not grep for every old flag/phrase that encoded the previous behavior.
 
-**Recurrence 2026-05-09:** Changed dashboard terminal launch prompts from runner argv/env delivery to PTY paste delivery. Focused terminal-spawn and dashboard-terminal tests passed, but the first full `npm test` failed because `test/smoke/dashboard-endpoints.test.ts` still expected `GOAT_PROMPT`, `GOAT_PROMPT_FLAG`, and `-i "$GOAT_PROMPT"` in `buildTerminalSpawnSpec` output. Evidence anchors: `src/cli/server/terminal.ts` (search: `initialInput`), `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`).
-
-**Recurrence 2026-05-24:** Changed the instruction-file tool-playbook router row from a partial filename list to a README-index description. The first focused audit-command run failed because a setup-snippet assertion still expected the old router-label regex `Tool playbooks (CLI/MCP availability checks: browser-use, page-capture, skill-quality-testing)`. Evidence anchors: `workflow/setup/02-instruction-file.md` (search: `README index for CLI/MCP availability checks`), `src/cli/audit/check-goat-flow.ts` (search: `Instruction file skill-docs pointer`).
-
-**Root cause:** Updated the route contract and one setup-prompt test, but missed the adjacent assertion that encoded the previous harness-only remediation behavior.
-
-**Prevention:** When changing an endpoint or launch-context scope semantics, grep focused tests for the old flag/phrase contract before the first run. For setup prompt scope changes, search dashboard-server and audit-command coverage for `harness-card`, `--harness`, and `All audit checks pass`. For dashboard terminal launch-context changes, search `src/dashboard/dashboard-terminal-paste.ts` and `test/smoke/dashboard-endpoints.test.ts` for the old launch-context phrase, env var, or runner flag.
+**Prevention:** When changing endpoint, launch-context, setup-prompt, or router semantics, grep focused tests for the old flags and phrases before the first run. Search the implementation and smoke/audit tests for old launch-context wording, env vars, runner flags, and setup commands. Evidence anchors: `src/cli/server/terminal.ts` (search: `initialInput`), `test/smoke/dashboard-endpoints.test.ts` (search: `injects POSIX launch prompts through PTY input`), `src/cli/audit/check-goat-flow.ts` (search: `Instruction file skill-docs pointer`).
 
 ---
 
@@ -237,13 +212,11 @@ Applies whenever the change is: a status flip (`planned → conditional`, `plann
 
 **Status:** active | **Created:** 2026-04-16
 
-**What happened:** `workflow/manifest.json` listed only `"goat"` in `skills.canonical` and classified the other 6 active skills (goat-debug, goat-plan, goat-review, goat-critique, goat-security, goat-qa) as `stale_names`. `src/cli/constants.ts` `SKILL_NAMES` also said `["goat"]`. The install script (`workflow/install-goat-flow.sh` (search: `for skill in`)) correctly installs all 7, and the repo itself has all 7 in `.claude/skills/`. But the audit read `canonical` to determine expected count, so it reported "1/1 installed" on target projects. The dashboard and setup prompt both showed "1/1 skills installed" - which looked correct but was silently wrong. The target consumer project only had the `goat` dispatcher installed; the other 6 functional skills were missing.
+**What happened:** `workflow/manifest.json` and `src/cli/constants.ts` both listed only `"goat"` as canonical even though the installer and repo shipped seven skills. Audit, dashboard, and setup therefore reported "1/1 installed" while six functional skills were missing from a consumer install.
 
-**Root cause:** At some point the manifest was updated to reflect a "mono-skill dispatcher" model where `goat` was the only canonical skill (it dispatches to the others). But the install script, the repo's own skill directories, and user expectations all assumed 7 canonical skills. The contract test `SKILL_NAMES matches manifest.json canonical` existed but passed because both constants.ts AND manifest.json were wrong in the same direction - the test validated consistency between two broken sources, not correctness.
+**Root cause:** A contract test proved two sources agreed, but both sources were wrong in the same direction; neither was checked against ground truth on disk or the installer list.
 
-**Fix:** Updated `manifest.json` `skills.canonical` to list all 7. Updated `constants.ts` `SKILL_NAMES` to list all 7. Contract test now passes with the correct count. Ran install script on the consumer project to deploy the missing 6 skills.
-
-**Prevention:** Contract tests that validate two sources agree with each other are necessary but not sufficient - at least one source must be validated against ground truth (e.g., the actual files on disk or the install script's list). A test like "SKILL_NAMES matches the directories in .claude/skills/" would have caught this immediately.
+**Prevention:** Agreement tests need a ground-truth leg. For skill counts, validate manifest/constants against actual skill directories or installer inputs, not only against each other. Evidence anchors: `workflow/install-goat-flow.sh` (search: `for skill in`), `workflow/manifest.json` (search: `canonical`), `src/cli/constants.ts` (search: `SKILL_NAMES`).
 
 ---
 

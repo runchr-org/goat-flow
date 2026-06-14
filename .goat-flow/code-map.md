@@ -6,13 +6,21 @@ Every path below exists at the repo root of the **goat-flow** Node/TypeScript pr
 
 ```text
 src/cli/                         = Node CLI, audit engine, dashboard server, prompt builders
-├── cli.ts                       = command parser for audit, setup, dashboard, quality, events, stats, hooks
+├── cli.ts                       = CLI bootstrap, argv parsing handoff, command dispatch
+├── cli-parser.ts                = argv parser and command/flag normalization
+├── cli-handlers.ts              = lazy-loaded command handlers for audit, setup, dashboard, quality, stats
+├── cli-types.ts                 = parsed CLI command and option types
+├── cli-agent-options.ts         = agent flag parsing and validation helpers
+├── cli-output.ts                = stdout and file output helpers
+├── cli-error.ts                 = CLIError with exit-code handling
 ├── index.ts                     = programmatic library entry and public re-exports
 ├── constants.ts                 = AUDIT_VERSION, SKILL_NAMES, and shared constants
 ├── paths.ts                     = package-root path resolution for source and packaged installs
 ├── types.ts                     = shared types for agents, facts, config, audit, and filesystem adapters
 ├── classify-state.ts            = project adoption-state classifier
 ├── hooks-command.ts             = CLI entry for `goat-flow hooks enable|disable|sync|list`
+├── install-invocation.ts        = deterministic install/setup invocation parsing
+├── skill-author.ts              = `goat-flow skill new` authoring flow
 │
 ├── agents/                      = manifest-backed agent registry
 │   └── registry.ts              = typed runtime facade for agent metadata
@@ -42,6 +50,7 @@ src/cli/                         = Node CLI, audit engine, dashboard server, pro
 │   ├── agent/                   = hook, instruction, routing, skill, and settings facts
 │   └── shared/                  = CI, learning-loop, decisions, local-instruction facts
 │
+├── learning-loop-index/         = generated INDEX.md parser and generator
 ├── manifest/                    = workflow manifest loader and schema types
 ├── prompt/                      = setup, quality, artifact, commit, and learning-loop prompt composition
 ├── quality/                     = skill/reference quality scoring, report validation, history, diffs
@@ -55,8 +64,7 @@ src/cli/                         = Node CLI, audit engine, dashboard server, pro
 │   ├── hook-registrar.ts        = applies hook enabled/disabled state to installed agent surfaces
 │   └── agent-hook-writer.ts     = writes per-agent hook config entries and launcher commands
 │
-├── stats/                       = learning-loop health report and renderer
-└── telemetry/                   = telemetry/event plumbing
+└── stats/                       = learning-loop health report and renderer
 ```
 
 ## src/dashboard/ -- Dashboard frontend

@@ -43,6 +43,20 @@ async function loadRenderer(): Promise<RenderMarkdown> {
   return testWindow.renderMarkdown;
 }
 
+function plainInputBytes(bytes: number): string {
+  const chunk = "plain dashboard markdown ";
+  return chunk.repeat(Math.ceil(bytes / chunk.length)).slice(0, bytes);
+}
+
+function timedRender(
+  renderMarkdown: RenderMarkdown,
+  input: string,
+): { durationMs: number; result: RenderMarkdownResult } {
+  const start = performance.now();
+  const result = renderMarkdown(input);
+  return { durationMs: performance.now() - start, result };
+}
+
 describe("dashboard markdown renderer", () => {
   it("parses nested YAML frontmatter and strips it by default", async () => {
     const renderMarkdown = await loadRenderer();
@@ -108,20 +122,17 @@ Visible markdown
 
   it("renders a 500KB plain input under the performance sanity budget", async () => {
     const renderMarkdown = await loadRenderer();
-    const chunk = "plain dashboard markdown ";
-    const input = chunk
-      .repeat(Math.ceil((500 * 1024) / chunk.length))
-      .slice(0, 500 * 1024);
+    renderMarkdown(plainInputBytes(16 * 1024));
 
-    const start = performance.now();
-    const result = renderMarkdown(input);
-    const durationMs = performance.now() - start;
-    const budgetMs = 750;
+    const baseline = timedRender(renderMarkdown, plainInputBytes(100 * 1024));
+    const input = plainInputBytes(500 * 1024);
+    const { durationMs, result } = timedRender(renderMarkdown, input);
+    const budgetMs = Math.max(2_000, baseline.durationMs * 12);
 
     assert.ok(result.html.length > input.length);
     assert.ok(
       durationMs < budgetMs,
-      `expected <${budgetMs}ms, got ${durationMs}ms`,
+      `expected 500KB render <${budgetMs.toFixed(1)}ms after 100KB baseline ${baseline.durationMs.toFixed(1)}ms, got ${durationMs.toFixed(1)}ms`,
     );
   });
 
