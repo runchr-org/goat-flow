@@ -228,6 +228,43 @@ describe("post-turn-safety hook", () => {
     });
   });
 
+  it("blocks Dockerfile multi-assignment ENV credentials", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "Dockerfile",
+        [
+          "ENV SAFE=x API_TOKEN=LiteralDockerToken123",
+          "ENV CLIENT_SECRET=LiteralDockerSecret123 SAFE=x",
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(API_TOKEN\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(CLIENT_SECRET\)/u);
+    });
+  });
+
+  it("allows Dockerfile non-secret multi-assignment ENV values", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "Dockerfile",
+        [
+          "ENV SAFE=x TOKEN_COUNT=LiteralTokenCount123 API_TOKEN=$BUILD_TOKEN",
+          "ARG CLIENT_SECRET",
+          "# ENV API_TOKEN=LiteralDockerToken123",
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
+    });
+  });
+
   it("blocks literal credential assignment forms", () => {
     withTempRepo((root) => {
       writeFile(
@@ -259,6 +296,55 @@ describe("post-turn-safety hook", () => {
       assert.match(result.stderr, /credential assignment \(DB_PASSWORDS\)/u);
       assert.match(result.stderr, /credential assignment \(auth_token\)/u);
       assert.match(result.stderr, /credential assignment \(bearer_token\)/u);
+    });
+  });
+
+  it("blocks camelCase credential assignment keys", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "settings.yaml",
+        [
+          'clientSecret: "CamelClientSecret123"',
+          'authToken: "CamelAuthToken123"',
+          'refreshToken: "CamelRefreshToken123"',
+          'secretKey: "CamelSecretKey123"',
+          'privateKey: "CamelPrivateKey123"',
+          "",
+        ].join("\n"),
+      );
+
+      const result = assertHookBlocks(
+        root,
+        /credential assignment \(clientSecret\)/u,
+      );
+      assert.match(result.stderr, /credential assignment \(authToken\)/u);
+      assert.match(result.stderr, /credential assignment \(refreshToken\)/u);
+      assert.match(result.stderr, /credential assignment \(secretKey\)/u);
+      assert.match(result.stderr, /credential assignment \(privateKey\)/u);
+    });
+  });
+
+  it("allows excluded camelCase credential metadata keys", () => {
+    withTempRepo((root) => {
+      writeFile(
+        root,
+        "settings.yaml",
+        [
+          'tokenCount: "LiteralTokenCount123"',
+          'secretName: "LiteralSecretName123"',
+          'passwordField: "LiteralPasswordField123"',
+          'clientSecretId: "CamelSecretId123"',
+          'notASecret: "LiteralNotSecret123"',
+          'nonSecret: "LiteralNonSecret123"',
+          'notAToken: "LiteralNotToken123"',
+          "authToken: getToken()",
+          "clientSecret: config.clientSecret",
+          "",
+        ].join("\n"),
+      );
+
+      assertHookAllows(root);
     });
   });
 

@@ -87,13 +87,22 @@ is_excluded_credential_key() {
     tokens|*tokens|tokenizer|tokeniser|tokenize|*tokenizer*|*tokeniser*|*tokenize*|*_count|*_index|*_id|*_name|*_type|*_header|*_url|*_path|*_list|*_re|*_pattern|*_field)
       return 0
       ;;
+    *not_secret|*not_a_secret|*non_secret|*no_secret|*not_token|*not_a_token|*non_token|*no_token|*not_password|*not_a_password|*non_password|*no_password|*not_api_key|*not_an_api_key|*non_api_key|*no_api_key|*not_private_key|*not_a_private_key|*non_private_key|*no_private_key)
+      return 0
+      ;;
   esac
   return 1
 }
 
+normalize_credential_key() {
+  printf '%s' "$1" |
+    sed -E 's/([[:lower:][:digit:]])([[:upper:]])/\1_\2/g; s/([[:upper:]])([[:upper:]][[:lower:]])/\1_\2/g' |
+    tr '[:upper:]-' '[:lower:]_'
+}
+
 is_credential_key() {
   local key
-  key="$(printf '%s' "$1" | tr '[:upper:]-' '[:lower:]_')"
+  key="$(normalize_credential_key "$1")"
   is_excluded_credential_key "$key" && return 1
   case "$key" in
     token|secret|secrets|password|passwords|api_key|apikey|private_key|access_token|auth_token|refresh_token|bearer_token|client_secret|client_secrets|secret_key|secret_keys)
@@ -104,6 +113,79 @@ is_credential_key() {
       ;;
   esac
   return 1
+}
+
+scan_literal_credential_assignment() {
+  local path="$1"
+  local key="$2"
+  local raw_value="$3"
+  local value
+
+  [ -n "$key" ] || return 0
+  is_credential_key "$key" || return 0
+
+  if ! value="$(literal_assignment_value "$raw_value")"; then
+    return 0
+  fi
+  [ "${#value}" -ge 12 ] || return 0
+  # Assignment values use delimiter-aware placeholder matching so ordinary
+  # substrings such as "test" inside a generated password do not suppress a
+  # credential finding. Known documented token placeholders are handled there.
+  if is_placeholder_token "$value"; then
+    return 0
+  fi
+
+  report_finding "$path" "credential assignment ($key)"
+}
+
+scan_dockerfile_assignment() {
+  local path="$1"
+  local line="$2"
+  local instruction
+  local payload
+  local first_word
+  local key
+  local raw_value
+  local word
+  local -a words=()
+  local docker_instruction_re='^[[:space:]]*([aA][rR][gG]|[eE][nN][vV])[[:space:]]+(.*)$'
+  local docker_key_value_re='^([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]*=[[:space:]]*(.*)$'
+  local docker_key_space_re='^([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]+(.+)$'
+  local docker_key_only_re='^([A-Za-z_][A-Za-z0-9_-]*)$'
+  local docker_env_word_re='^([A-Za-z_][A-Za-z0-9_-]*)=(.*)$'
+
+  [[ "$line" =~ $docker_instruction_re ]] || return 0
+  instruction="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+  payload="$(strip_space "${BASH_REMATCH[2]}")"
+  [ -n "$payload" ] || return 0
+
+  if [[ "$instruction" == "env" ]]; then
+    first_word="${payload%%[[:space:]]*}"
+    if [[ "$first_word" =~ $docker_env_word_re ]]; then
+      read -r -a words <<< "$payload"
+      for word in "${words[@]}"; do
+        if [[ "$word" =~ $docker_env_word_re ]]; then
+          scan_literal_credential_assignment "$path" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+        fi
+      done
+      return 0
+    fi
+  fi
+
+  if [[ "$payload" =~ $docker_key_value_re ]]; then
+    key="${BASH_REMATCH[1]}"
+    raw_value="${BASH_REMATCH[2]}"
+  elif [[ "$payload" =~ $docker_key_space_re ]]; then
+    key="${BASH_REMATCH[1]}"
+    raw_value="${BASH_REMATCH[2]}"
+  elif [[ "$payload" =~ $docker_key_only_re ]]; then
+    key="${BASH_REMATCH[1]}"
+    raw_value=""
+  else
+    return 0
+  fi
+
+  scan_literal_credential_assignment "$path" "$key" "$raw_value"
 }
 
 has_credential_entropy() {
@@ -261,30 +343,15 @@ scan_env_assignment() {
   local line="$2"
   local key
   local raw_value
-  local value
 
   if is_dockerfile_path "$path"; then
-    key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(arg|ARG|env|ENV)[[:space:]]+([A-Za-z_][A-Za-z0-9_-]*)([[:space:]]*[:=][[:space:]]*|[[:space:]]+).*/\2/p' | head -n 1)"
-    raw_value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*(arg|ARG|env|ENV)[[:space:]]+[A-Za-z_][A-Za-z0-9_-]*([[:space:]]*[:=][[:space:]]*|[[:space:]]+)(.*)$/\3/p' | head -n 1)"
-  else
-    key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*((export|EXPORT|arg|ARG|env|ENV)[[:space:]]+)?([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]*[:=].*/\3/p' | head -n 1)"
-    raw_value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*((export|EXPORT|arg|ARG|env|ENV)[[:space:]]+)?[A-Za-z_][A-Za-z0-9_-]*[[:space:]]*[:=][[:space:]]*(.*)$/\3/p' | head -n 1)"
-  fi
-  [ -n "$key" ] || return 0
-  is_credential_key "$key" || return 0
-
-  if ! value="$(literal_assignment_value "$raw_value")"; then
-    return 0
-  fi
-  [ "${#value}" -ge 12 ] || return 0
-  # Assignment values use delimiter-aware placeholder matching so ordinary
-  # substrings such as "test" inside a generated password do not suppress a
-  # credential finding. Known documented token placeholders are handled there.
-  if is_placeholder_token "$value"; then
+    scan_dockerfile_assignment "$path" "$line"
     return 0
   fi
 
-  report_finding "$path" "credential assignment ($key)"
+  key="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*((export|EXPORT|arg|ARG|env|ENV)[[:space:]]+)?([A-Za-z_][A-Za-z0-9_-]*)[[:space:]]*[:=].*/\3/p' | head -n 1)"
+  raw_value="$(printf '%s\n' "$line" | sed -nE 's/^[[:space:]]*((export|EXPORT|arg|ARG|env|ENV)[[:space:]]+)?[A-Za-z_][A-Za-z0-9_-]*[[:space:]]*[:=][[:space:]]*(.*)$/\3/p' | head -n 1)"
+  scan_literal_credential_assignment "$path" "$key" "$raw_value"
 }
 
 # Report a raw token match unless the matched token is itself an obvious
